@@ -1,0 +1,45 @@
+{
+  "name": "gett-launcher",
+  "version": "1.0.2",
+  "description": "Gett Server 런처: NeoForge 자동 설치, 모드 자동 패치, 서버 자동 접속",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "minecraft-launcher-core": "^3.18.2",
+    "msmc": "^5.0.5"
+  },
+  "devDependencies": {
+    "electron": "^45.2.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "org.iptime.gett.launcher",
+    "productName": "Gett Launcher",
+    "files": [
+      "main.js",
+      "preload.js",
+      "core/**",
+      "renderer/**",
+      "assets/**",
+      "launcher.config.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "language": "1042",
+      "artifactName": "GettLauncher-Setup-${version}.${ext}",
+      "shortcutName": "Gett Launcher",
+      "createDesktopShortcut": true
+    }
+  }
+}

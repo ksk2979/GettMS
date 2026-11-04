@@ -1,0 +1,50 @@
+// 설정 읽기. remoteConfigUrl 이 있으면 GitHub 등 원격 JSON 을 우선 적용하고, 실패하면 내장 설정 사용.
+// 원격 값은 형식을 검사해서 통과한 항목만 받아들인다 (경로 조작, 이상한 값 차단).
+const fs = require('fs');
+const path = require('path');
+const { fetchJson } = require('./net');
+
+const LOCAL = path.join(__dirname, '..', 'launcher.config.json');
+
+const RULES = {
+  serverName: v => typeof v === 'string' && v.length > 0 && v.length <= 40,
+  subtitle: v => typeof v === 'string' && v.length <= 80,
+  serverAddress: v => typeof v === 'string' && (v === '' || /^[a-z0-9.-]+(:\d{1,5})?$/i.test(v)),
+  minecraftVersion: v => typeof v === 'string' && /^\d+(\.\d+){1,2}$/.test(v),
+  neoforgeVersion: v => typeof v === 'string' && /^\d+(\.\d+){1,3}(-beta)?$/.test(v),
+  javaMajor: v => Number.isInteger(v) && v >= 17 && v <= 30,
+  memoryMaxMB: v => Number.isInteger(v) && v >= 1024 && v <= 32768,
+  memoryMinMB: v => Number.isInteger(v) && v >= 512 && v <= 16384,
+  mods: v => Array.isArray(v) && v.length <= 300 && v.every(s => typeof s === 'string' && /^[a-z0-9_-]{1,64}$/i.test(s)),
+  clientOnlyMods: v => RULES.mods(v),
+  serverOnlyMods: v => RULES.mods(v),
+  news: v => Array.isArray(v) && v.length <= 20
+};
+
+function sanitize(remote, log) {
+  const out = {};
+  for (const [k, ok] of Object.entries(RULES)) {
+    if (!(k in remote)) continue;
+    if (ok(remote[k])) out[k] = remote[k];
+    else log(`원격 설정 무시: ${k} 값이 올바르지 않음`);
+  }
+  return out;
+}
+
+async function loadConfig(log) {
+  const local = JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
+  if (!local.remoteConfigUrl) return { ...local, source: 'local' };
+  try {
+    const sep = local.remoteConfigUrl.includes('?') ? '&' : '?';
+    const remote = await fetchJson(local.remoteConfigUrl + sep + 't=' + Date.now());
+    const merged = { ...local, ...sanitize(remote, log), source: 'remote' };
+    if (merged.memoryMinMB > merged.memoryMaxMB) merged.memoryMinMB = Math.min(2048, merged.memoryMaxMB);
+    log('원격 설정 적용');
+    return merged;
+  } catch (e) {
+    log(`원격 설정을 읽지 못해 내장 설정 사용 (${e.message})`);
+    return { ...local, source: 'local-fallback' };
+  }
+}
+
+module.exports = { loadConfig };

@@ -1,0 +1,33 @@
+# Node / Electron
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# 빌드 산출물, 서버 배포 압축본 (Releases에 올림)
+*.zip
+*.exe
+*.blockmap
+
+# 마인크래프트 서버/클라이언트 런타임 (저장소에 넣지 않음)
+server/
+libraries/
+mods/*.jar
+world/
+logs/
+crash-reports/
+eula.txt
+usercache.json
+usernamecache.json
+
+# 로컬 환경
+.env
+*.local
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# 비공개 작업 문서/실험 기록 (로컬에만 보관)
+docs/
+launcher-spike/

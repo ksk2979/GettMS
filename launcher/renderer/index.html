@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><title>Gett Launcher</title>
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="bg"></div>
+<header>
+  <div class="brand"><span class="dot"></span><span id="serverName">Gett Server</span></div>
+  <div class="account">
+    <span id="accountName" class="muted">로그인 안 됨</span>
+    <button id="loginBtn" class="ghost">로그인</button>
+    <button id="logoutBtn" class="ghost hidden">로그아웃</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1 id="title">Gett Server</h1>
+    <p id="subtitle" class="muted">생활형 모드 서버</p>
+    <div class="status">
+      <span id="statusDot" class="sdot"></span>
+      <span id="statusText">서버 상태 확인 중...</span>
+    </div>
+  </section>
+
+  <section class="action">
+    <button id="playBtn" class="play" disabled>게임 시작</button>
+    <div class="progress">
+      <div class="bar"><div id="fill"></div></div>
+      <div class="row"><span id="stepLabel" class="muted">준비됨</span><span id="stepCount" class="muted"></span></div>
+    </div>
+    <div class="links">
+      <a id="patchLink" href="#">패치만 하기</a> ·
+      <a id="folderLink" href="#">게임 폴더 열기</a> ·
+      <a id="logLink" href="#">자세히 보기</a>
+    </div>
+  </section>
+
+  <pre id="log" class="hidden"></pre>
+</main>
+
+<footer><span id="meta" class="muted"></span></footer>
+<script src="app.js"></script>
+</body></html>
