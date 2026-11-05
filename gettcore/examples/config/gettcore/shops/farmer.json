@@ -1,0 +1,93 @@
+{
+  "id": "farmer",
+  "name": "농부의 상점",
+  "tabs": [
+    {
+      "id": "crops",
+      "name": "작물",
+      "icon": "minecraft:carrot"
+    }
+  ],
+  "entries": [
+    {
+      "item": "minecraft:carrot",
+      "tab": "crops",
+      "buyPrice": 120,
+      "sellPrice": 30,
+      "canBuy": true,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:potato",
+      "tab": "crops",
+      "buyPrice": 100,
+      "sellPrice": 25,
+      "canBuy": true,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:wheat",
+      "tab": "crops",
+      "buyPrice": 60,
+      "sellPrice": 15,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:beetroot",
+      "tab": "crops",
+      "buyPrice": 60,
+      "sellPrice": 15,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:pumpkin",
+      "tab": "crops",
+      "buyPrice": 80,
+      "sellPrice": 20,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:melon_slice",
+      "tab": "crops",
+      "buyPrice": 20,
+      "sellPrice": 5,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:apple",
+      "tab": "crops",
+      "buyPrice": 70,
+      "sellPrice": 18,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:bread",
+      "tab": "crops",
+      "buyPrice": 90,
+      "sellPrice": 22,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:cookie",
+      "tab": "crops",
+      "buyPrice": 30,
+      "sellPrice": 8,
+      "canBuy": false,
+      "canSell": true
+    },
+    {
+      "item": "minecraft:cake",
+      "tab": "crops",
+      "buyPrice": 300,
+      "sellPrice": 75,
+      "canBuy": false,
+      "canSell": true
+    }
+  ]
+}

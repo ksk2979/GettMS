@@ -19,6 +19,7 @@ import org.gettserver.gettcore.network.GettNetwork;
 @Mod(GettCore.MOD_ID)
 public class GettCore {
     public static final String MOD_ID = "gettcore";
+    public static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MOD_ID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);

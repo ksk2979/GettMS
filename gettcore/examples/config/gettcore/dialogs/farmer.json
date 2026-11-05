@@ -1,0 +1,51 @@
+{
+  "id": "farmer",
+  "name": "농부",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "어서 와! 뭐 필요해?",
+      "choices": [
+        {
+          "label": "물건을 사고 싶어",
+          "action": {
+            "type": "open_shop_buy",
+            "target": "farmer"
+          }
+        },
+        {
+          "label": "물건을 팔고 싶어",
+          "action": {
+            "type": "open_shop_sell",
+            "target": "farmer"
+          }
+        },
+        {
+          "label": "대화하자",
+          "action": {
+            "type": "next",
+            "target": "chat"
+          }
+        }
+      ]
+    },
+    "chat": {
+      "text": "요즘 당근이 잘 팔려.",
+      "choices": [
+        {
+          "label": "돌아가기",
+          "action": {
+            "type": "next",
+            "target": "start"
+          }
+        },
+        {
+          "label": "그만",
+          "action": {
+            "type": "close"
+          }
+        }
+      ]
+    }
+  }
+}

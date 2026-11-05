@@ -17,6 +17,7 @@ public final class EconomyEvents {
         if (event.getEntity() instanceof ServerPlayer sp) {
             Ledger ledger = EconomyData.get(sp.server).ledger();
             PacketDistributor.sendToPlayer(sp, new BalanceSyncPayload(ledger.get(sp.getUUID())));
+            org.gettserver.gettcore.data.DataEvents.syncConfig(sp);
         }
     }
 }

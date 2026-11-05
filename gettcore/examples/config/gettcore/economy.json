@@ -1,0 +1,14 @@
+{
+  "currencyName": "골드",
+  "hudOffsetX": 0,
+  "hudOffsetY": 0,
+  "xpOrbAmount": 7,
+  "returnCastSeconds": 3,
+  "priceDynamics": {
+    "enabled": false,
+    "sellDropPercentPerUnit": 1.0,
+    "recoverPercentPerHour": 10.0,
+    "minRatio": 0.5,
+    "maxRatio": 2.0
+  }
+}

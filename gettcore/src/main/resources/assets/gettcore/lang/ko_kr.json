@@ -12,6 +12,7 @@
   "gettcore.msg.check_issued": "수표 %s 골드를 발행했습니다",
   "gettcore.msg.check_redeemed": "수표 %s 골드를 받았습니다",
   "gettcore.msg.too_fast": "너무 빠릅니다",
+  "gettcore.msg.reload_done": "상점 %d, 대화 %d 재적용, 오류 %d",
   "gettcore.tooltip.check_amount": "금액: %s 골드",
   "item.gettcore.check": "수표"
 }
