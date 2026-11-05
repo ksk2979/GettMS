@@ -13,16 +13,23 @@ import org.gettserver.gettcore.GettCore;
 
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class Perms {
-    public static final PermissionNode<Boolean> ECONOMY_CHECK = node("economy.check", true);
-    public static final PermissionNode<Boolean> ECONOMY_ADMIN = node("economy.admin", false);
-    public static final PermissionNode<Boolean> SHOP_EDIT = node("shop.edit", false);
-    public static final PermissionNode<Boolean> ADMIN = node("admin", false);
+    public static final PermissionNode<Boolean> ECONOMY_CHECK = node("economy.check");
+    public static final PermissionNode<Boolean> ECONOMY_ADMIN = node("economy.admin");
+    public static final PermissionNode<Boolean> SHOP_EDIT = node("shop.edit");
+    public static final PermissionNode<Boolean> ADMIN = node("admin");
 
     private Perms() {}
 
-    private static PermissionNode<Boolean> node(String name, boolean everyone) {
-        return new PermissionNode<>(GettCore.MOD_ID, name, PermissionTypes.BOOLEAN,
-                (player, uuid, ctx) -> everyone || (player != null && player.hasPermissions(2)));
+    private static PermissionNode<Boolean> node(String name) {
+        PermissionNode<Boolean>[] self = newHolder();
+        self[0] = new PermissionNode<>(GettCore.MOD_ID, name, PermissionTypes.BOOLEAN,
+                (player, uuid, ctx) -> fallback(player != null && player.hasPermissions(2), self[0]));
+        return self[0];
+    }
+
+    @SuppressWarnings("unchecked")
+    private static PermissionNode<Boolean>[] newHolder() {
+        return new PermissionNode[1];
     }
 
     /** Default when no permission provider overrides: check node for everyone, the rest need OP. */
