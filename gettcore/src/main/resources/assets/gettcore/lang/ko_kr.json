@@ -43,5 +43,6 @@
   "gettcore.msg.return_cancelled": "귀환이 취소되었습니다",
   "gettcore.msg.return_done": "귀환했습니다",
   "gettcore.msg.return_point_set": "귀환 지점을 설정했습니다",
-  "gettcore.msg.xp_gained": "경험치 %d를 얻었습니다"
+  "gettcore.msg.xp_gained": "경험치 %d를 얻었습니다",
+  "caramelChat v%s": ""
 }

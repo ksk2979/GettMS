@@ -43,5 +43,6 @@
   "gettcore.msg.return_cancelled": "Return cancelled",
   "gettcore.msg.return_done": "Returned",
   "gettcore.msg.return_point_set": "Return point set",
-  "gettcore.msg.xp_gained": "Gained %d XP"
+  "gettcore.msg.xp_gained": "Gained %d XP",
+  "caramelChat v%s": ""
 }
