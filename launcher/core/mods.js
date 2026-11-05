@@ -29,12 +29,19 @@ async function resolve(slugs, mc, log) {
   return want;
 }
 
-async function syncMods(slugs, mc, root, log, progress) {
+function planCustom(customMods, side) {
+  return (customMods || [])
+    .filter(c => c.side === 'both' || c.side === side)
+    .map(c => ({ filename: c.file, url: c.url, sha512: c.sha512 }));
+}
+
+async function syncMods(slugs, mc, root, log, progress, customMods) {
   const dir = path.join(root, 'mods');
   fs.mkdirSync(dir, { recursive: true });
   log(`모드 목록 확인 중 (${slugs.length}개 + 의존성)...`);
   const want = await resolve(slugs, mc, log);
-  const keep = new Set([...want.values()].map(w => w.filename));
+  const custom = planCustom(customMods, 'client');
+  const keep = new Set([...want.values()].map(w => w.filename).concat(custom.map(c => c.filename)));
 
   let downloaded = 0, removed = 0;
   for (const [slug, w] of want) {
@@ -44,11 +51,18 @@ async function syncMods(slugs, mc, root, log, progress) {
     await download(w.url, dest, { algo: 'sha512', hex: w.sha512 }, progress);
     downloaded++;
   }
+  for (const c of custom) {
+    const dest = path.join(dir, c.filename);
+    if (fs.existsSync(dest)) continue;
+    log(`받는 중(직접 URL): ${c.filename}`);
+    await download(c.url, dest, { algo: 'sha512', hex: c.sha512 }, progress);
+    downloaded++;
+  }
   for (const f of fs.readdirSync(dir)) {
     if (f.endsWith('.jar') && !keep.has(f)) { fs.rmSync(path.join(dir, f)); log(`제거: ${f}`); removed++; }
   }
-  log(`모드 동기화 완료: 총 ${want.size}개, 새로 받음 ${downloaded}, 제거 ${removed}`);
-  return [...want.values()].map(w => w.filename);
+  log(`모드 동기화 완료: 총 ${want.size + custom.length}개, 새로 받음 ${downloaded}, 제거 ${removed}`);
+  return [...want.values()].map(w => w.filename).concat(custom.map(c => c.filename));
 }
 
-module.exports = { syncMods };
+module.exports = { syncMods, planCustom };

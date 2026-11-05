@@ -40,7 +40,7 @@ async function prepare(config, root, log, report) {
   if (nLibs || nAssets) log(`게임 파일 받음: 라이브러리 ${nLibs}개, 에셋 ${nAssets}개`);
 
   report('mods', 0, 1);
-  await syncMods([...config.mods, ...(config.clientOnlyMods || [])], config.minecraftVersion, root, log, bytes('mods'));
+  await syncMods([...config.mods, ...(config.clientOnlyMods || [])], config.minecraftVersion, root, log, bytes('mods'), config.customMods);
   report('mods', 1, 1);
 
   seedOptions(root, log);

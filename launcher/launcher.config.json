@@ -35,6 +35,15 @@
     "corpse",
     "modernfix"
   ],
+  "customMods": [
+    {
+      "name": "gettcore",
+      "file": "gettcore-1.0.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.0.0/gettcore-1.0.0.jar",
+      "sha512": "04924f339c46ffebebe837fc4824f2b8b6618dc19221d26623ac1c46d5a0ad882e6362b3d2df450e9671988f190c6456a2687d52eb99a79ca0bc5855004e59aa",
+      "side": "both"
+    }
+  ],
   "clientOnlyMods": [
     "xaeros-minimap",
     "entityculling",

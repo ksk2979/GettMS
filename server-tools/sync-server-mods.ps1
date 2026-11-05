@@ -42,6 +42,11 @@ while ($queue.Count -gt 0) {
   }
 }
 
+$customServer = @($cfg.customMods | Where-Object { $_ -and ($_.side -eq 'both' -or $_.side -eq 'server') })
+foreach ($c in $customServer) {
+  $want[$c.file] = @{ url = $c.url; sha512 = $c.sha512; slug = $c.name; version = 'custom' }
+}
+
 $downloaded = 0; $removed = 0
 foreach ($name in $want.Keys) {
   $dest = Join-Path $ModsDir $name
