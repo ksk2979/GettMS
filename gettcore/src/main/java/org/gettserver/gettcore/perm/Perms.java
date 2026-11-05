@@ -38,7 +38,14 @@ public final class Perms {
     }
 
     public static boolean has(ServerPlayer player, PermissionNode<Boolean> node) {
-        return PermissionAPI.getPermission(player, node);
+        try {
+            return PermissionAPI.getPermission(player, node);
+        } catch (RuntimeException e) {
+            // LuckPerms는 접속 직후(명령어 목록 전송 시점)엔 아직 플레이어 데이터를 준비하지 못해
+            // "Capability has not been initialised" 를 던진다. 그때는 OP 기준으로 판단하고,
+            // LuckPerms 가 준비되면 명령어 목록을 다시 보내므로 이후 조회는 정상이다.
+            return fallback(player.hasPermissions(2), node);
+        }
     }
 
     public static Predicate<CommandSourceStack> require(PermissionNode<Boolean> node) {
