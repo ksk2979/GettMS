@@ -41,7 +41,7 @@
       "name": "gettcore",
       "file": "gettcore-1.0.0.jar",
       "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.0.0/gettcore-1.0.0.jar",
-      "sha512": "a9b72556228c03090cf376a031a4c9530a740b65a0e7d3288b72c727ba8e8c4f56afc0af1b3ca92014f00d2af15960dbc9ae8102c70d8fa92657c70deb197924",
+      "sha512": "649dfc649f85265534cfd82c385cc35557d7d544694f08ef2dbecdb680793b1933f0252ed420a99b122ae3bd2b57b1be36d99e19bedd978953abec6a09ea5ac8",
       "side": "both"
     }
   ],
