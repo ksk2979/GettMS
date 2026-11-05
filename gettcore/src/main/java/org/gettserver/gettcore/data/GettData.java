@@ -22,12 +22,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
+import net.minecraft.core.registries.BuiltInRegistries;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Loads shops, dialogs, NPC mapping and economy config from JSON files under the config directory.
  * Free of Minecraft server classes so it can be unit tested.
  */
 public final class GettData {
+    private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json"};
@@ -95,6 +99,8 @@ public final class GettData {
         EconomyConfig newEco = Files.isRegularFile(ecoFile)
                 ? read(ecoFile, EconomyConfig.CODEC, errors).orElse(EconomyConfig.DEFAULT) : EconomyConfig.DEFAULT;
 
+        validate(newShops, newDialogs, newNpcs);
+
         shops = Map.copyOf(newShops);
         shopFiles = Map.copyOf(newShopFiles);
         dialogs = Map.copyOf(newDialogs);
@@ -116,6 +122,42 @@ public final class GettData {
             }
         }
         return new LoadReport(newShops.size(), newDialogs.size(), List.copyOf(errors));
+    }
+
+    private static void validate(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs) {
+        for (ShopDefinition sh : shops.values()) {
+            Set<String> tabIds = new java.util.HashSet<>();
+            sh.tabs().forEach(t -> tabIds.add(t.id()));
+            for (ShopEntry e : sh.entries()) {
+                try {
+                    if (!BuiltInRegistries.ITEM.containsKey(e.item())) {
+                        LOGGER.warn("gettcore: shop {} has unknown item {}", sh.id(), e.item());
+                    }
+                } catch (Throwable t) {
+                    // registry not bootstrapped (plain unit test): skip the item check
+                }
+                if (!tabIds.contains(e.tab())) {
+                    LOGGER.warn("gettcore: shop {} entry {} uses unknown tab '{}'", sh.id(), e.item(), e.tab());
+                }
+            }
+        }
+        for (DialogDefinition d : dialogs.values()) {
+            if (!d.nodes().containsKey(d.start())) {
+                LOGGER.warn("gettcore: dialog {} start node '{}' is missing", d.id(), d.start());
+            }
+            d.nodes().forEach((nodeId, node) -> node.choices().forEach(c -> {
+                if (c.action().type() == ChoiceAction.Type.NEXT
+                        && !d.nodes().containsKey(c.action().target().orElse(""))) {
+                    LOGGER.warn("gettcore: dialog {} node {} points to missing node '{}'",
+                            d.id(), nodeId, c.action().target().orElse("(none)"));
+                }
+            }));
+        }
+        Stream.concat(npcs.byUuid().entrySet().stream(), npcs.byName().entrySet().stream()).forEach(en -> {
+            if (!dialogs.containsKey(en.getValue())) {
+                LOGGER.warn("gettcore: npc mapping '{}' references missing dialog '{}'", en.getKey(), en.getValue());
+            }
+        });
     }
 
     public Optional<ShopDefinition> shop(String id) {

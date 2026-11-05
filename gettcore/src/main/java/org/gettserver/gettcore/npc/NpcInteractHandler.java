@@ -21,6 +21,10 @@ public final class NpcInteractHandler {
         if (event.getHand() != InteractionHand.MAIN_HAND) {
             return;
         }
+        // Sneak+right-click is left to Easy NPC so owners can still open its config screen.
+        if (event.getEntity().isShiftKeyDown()) {
+            return;
+        }
         Entity target = event.getTarget();
         if (!(target instanceof EasyNPC<?> npc)) {
             return;

@@ -21,14 +21,17 @@ public final class DataCommands {
     @SubscribeEvent
     public static void register(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("gett")
+                .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal("reload")
                         .requires(Perms.require(Perms.ADMIN))
                         .executes(DataCommands::reload)));
         event.getDispatcher().register(Commands.literal("귀환지점")
+                .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal("설정")
                         .requires(Perms.require(Perms.ADMIN))
                         .executes(DataCommands::setReturnPoint)));
         event.getDispatcher().register(Commands.literal("returnpoint")
+                .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal("set")
                         .requires(Perms.require(Perms.ADMIN))
                         .executes(DataCommands::setReturnPoint)));

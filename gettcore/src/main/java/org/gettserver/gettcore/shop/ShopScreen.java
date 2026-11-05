@@ -311,6 +311,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
         if (popup != null) return popup.keyPressed(key, scan, mods);
+        // Like AnvilScreen: a focused price box swallows every key except ESC, so E / hotbar digits do not leak through.
+        if (getFocused() instanceof PriceBox box && box.isFocused() && key != 256) {
+            return box.keyPressed(key, scan, mods) || box.canConsumeInput();
+        }
         return super.keyPressed(key, scan, mods);
     }
 
