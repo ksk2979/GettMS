@@ -34,3 +34,8 @@ launcher-spike/
 
 # SDD 작업 기록 (로컬)
 .superpowers/
+
+# gettcore
+gettcore/runs/
+gettcore/build/
+gettcore/.gradle/
