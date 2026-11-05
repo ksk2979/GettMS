@@ -5,6 +5,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
+import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
@@ -24,6 +25,9 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientShopCache.set(payload.shopId(), payload.definition(), payload.dynamicsEnabled()));
+        registrar.playToClient(ReturnCastPayload.TYPE, ReturnCastPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientReturnCasts.set(payload.entityId(), payload.active(),
+                        ctx.player().level().getGameTime()));
         // DialogClient is only resolved when this client-bound handler runs, so the server never loads it.
         registrar.playToClient(OpenDialogPayload.TYPE, OpenDialogPayload.STREAM_CODEC,
                 (payload, ctx) -> DialogClient.open(payload));
