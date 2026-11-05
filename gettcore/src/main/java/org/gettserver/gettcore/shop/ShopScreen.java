@@ -35,11 +35,15 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private static final int VISIBLE_ROWS = 6;
     private static final int BTN_W = 44;
     private static final int BTN_H = 16;
+    private static final int SB_X = LIST_X + LIST_W + 3;
+    private static final int SB_W = 6;
+    private static final int SB_H = VISIBLE_ROWS * ROW_H - 2;
 
     private record Row(ShopEntry entry, int owned) {}
 
     private int selectedTab;
     private int scroll;
+    private boolean draggingBar;
     private QuantityPopup popup;
     private boolean editing;
     private Button editToggle;
@@ -242,6 +246,52 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                     menu.mode() == ShopMode.BUY ? "gettcore.gui.buy" : "gettcore.gui.sell");
             g.drawCenteredString(font, label, bx + BTN_W / 2, by + 4, enabled ? 0xFFFFFFFF : 0xFFDDDDDD);
         }
+        renderScrollbar(g, rows.size());
+    }
+
+    /** 목록 오른쪽의 드래그 가능한 스크롤바. 행이 화면보다 적으면 트랙만 흐리게 그린다. */
+    private void renderScrollbar(GuiGraphics g, int rowCount) {
+        int x = leftPos + SB_X;
+        int y = topPos + LIST_Y;
+        g.fill(x, y, x + SB_W, y + SB_H, 0xFF8B7A5A);
+        if (rowCount <= VISIBLE_ROWS) {
+            g.fill(x + 1, y + 1, x + SB_W - 1, y + SB_H - 1, 0xFFC9BA94);
+            return;
+        }
+        int thumbH = thumbHeight(rowCount);
+        int thumbY = y + (SB_H - thumbH) * scroll / (rowCount - VISIBLE_ROWS);
+        g.fill(x + 1, y + 1, x + SB_W - 1, y + SB_H - 1, 0xFFC9BA94);
+        g.fill(x + 1, thumbY, x + SB_W - 1, thumbY + thumbH, draggingBar ? 0xFF6B4B1A : 0xFF8B6B3A);
+    }
+
+    private static int thumbHeight(int rowCount) {
+        return Math.max(12, SB_H * VISIBLE_ROWS / rowCount);
+    }
+
+    private void scrollToMouse(double mouseY) {
+        int rowCount = rows().size();
+        if (rowCount <= VISIBLE_ROWS) {
+            scroll = 0;
+            return;
+        }
+        int thumbH = thumbHeight(rowCount);
+        double frac = (mouseY - (topPos + LIST_Y) - thumbH / 2.0) / (SB_H - thumbH);
+        scroll = (int) Math.round(Math.max(0, Math.min(1, frac)) * (rowCount - VISIBLE_ROWS));
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (draggingBar) {
+            scrollToMouse(mouseY);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        draggingBar = false;
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override
@@ -344,6 +394,12 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                     return true;
                 }
             }
+        }
+        if (button == 0 && mouseX >= leftPos + SB_X && mouseX < leftPos + SB_X + SB_W
+                && mouseY >= topPos + LIST_Y && mouseY < topPos + LIST_Y + SB_H) {
+            draggingBar = true;
+            scrollToMouse(mouseY);
+            return true;
         }
         if (button == 0 && !editing) {
             List<Row> rows = rows();
