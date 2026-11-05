@@ -31,3 +31,6 @@ desktop.ini
 # 비공개 작업 문서/실험 기록 (로컬에만 보관)
 docs/
 launcher-spike/
+
+# SDD 작업 기록 (로컬)
+.superpowers/
