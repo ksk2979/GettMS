@@ -1,12 +1,19 @@
 package org.gettserver.gettcore;
 
+import com.mojang.serialization.Codec;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.gettserver.gettcore.economy.CheckItem;
 import org.gettserver.gettcore.network.GettNetwork;
 
 @Mod(GettCore.MOD_ID)
@@ -16,6 +23,16 @@ public class GettCore {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MOD_ID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);
     public static final DeferredRegister.DataComponents DATA_COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
+
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> CHECK_AMOUNT =
+            DATA_COMPONENTS.registerComponentType("check_amount",
+                    b -> b.persistent(Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> CHECK_ISSUER =
+            DATA_COMPONENTS.registerComponentType("check_issuer",
+                    b -> b.persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8));
+
+    public static final DeferredItem<CheckItem> CHECK =
+            ITEMS.registerItem("check", CheckItem::new, new Item.Properties().stacksTo(1));
 
     public GettCore(IEventBus modBus, ModContainer container) {
         ITEMS.register(modBus);

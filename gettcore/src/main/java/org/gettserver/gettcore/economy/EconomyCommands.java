@@ -73,10 +73,6 @@ public final class EconomyCommands {
                 .executes(EconomyCommands::top);
     }
 
-    private static String gold(long amount) {
-        return String.format("%,d", amount);
-    }
-
     private static int self(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         if (!(src.getEntity() instanceof ServerPlayer p)) {
@@ -84,7 +80,7 @@ public final class EconomyCommands {
             return 0;
         }
         long bal = EconomyData.get(src.getServer()).ledger().get(p.getUUID());
-        src.sendSuccess(() -> Component.translatable("gettcore.msg.balance", gold(bal)), false);
+        src.sendSuccess(() -> Component.translatable("gettcore.msg.balance", Gold.format(bal)), false);
         return 1;
     }
 
@@ -106,7 +102,7 @@ public final class EconomyCommands {
                 data.changed(id);
                 String shown = profile.get().getName();
                 long bal = data.ledger().get(id);
-                src.sendSuccess(() -> Component.translatable(okKey, shown, gold(amount), gold(bal)), true);
+                src.sendSuccess(() -> Component.translatable(okKey, shown, Gold.format(amount), Gold.format(bal)), true);
                 return 1;
             }
             case INSUFFICIENT -> src.sendFailure(Component.translatable("gettcore.msg.insufficient"));
@@ -125,7 +121,7 @@ public final class EconomyCommands {
         }
         long bal = EconomyData.get(src.getServer()).ledger().get(profile.get().getId());
         String shown = profile.get().getName();
-        src.sendSuccess(() -> Component.translatable("gettcore.msg.balance_of", shown, gold(bal)), false);
+        src.sendSuccess(() -> Component.translatable("gettcore.msg.balance_of", shown, Gold.format(bal)), false);
         return 1;
     }
 
@@ -139,7 +135,7 @@ public final class EconomyCommands {
         for (Map.Entry<UUID, Long> e : entries) {
             int n = rank++;
             String who = OfflinePlayers.name(server, e.getKey());
-            src.sendSuccess(() -> Component.translatable("gettcore.msg.top_entry", n, who, gold(e.getValue())), false);
+            src.sendSuccess(() -> Component.translatable("gettcore.msg.top_entry", n, who, Gold.format(e.getValue())), false);
         }
         return entries.size();
     }

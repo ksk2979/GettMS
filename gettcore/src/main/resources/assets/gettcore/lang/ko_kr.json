@@ -8,5 +8,10 @@
   "gettcore.msg.taken": "%s 님에게서 %s 골드를 차감했습니다 (잔액: %s)",
   "gettcore.msg.set": "%s 님의 잔액을 %s 골드로 설정했습니다",
   "gettcore.msg.top_header": "=== 잔액 순위 ===",
-  "gettcore.msg.top_entry": "%s위. %s - %s 골드"
+  "gettcore.msg.top_entry": "%s위. %s - %s 골드",
+  "gettcore.msg.check_issued": "수표 %s 골드를 발행했습니다",
+  "gettcore.msg.check_redeemed": "수표 %s 골드를 받았습니다",
+  "gettcore.msg.too_fast": "너무 빠릅니다",
+  "gettcore.tooltip.check_amount": "금액: %s 골드",
+  "item.gettcore.check": "수표"
 }

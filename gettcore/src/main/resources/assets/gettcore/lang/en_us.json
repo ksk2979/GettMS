@@ -8,5 +8,10 @@
   "gettcore.msg.taken": "Took %2$s gold from %1$s (balance: %3$s)",
   "gettcore.msg.set": "Set %s's balance to %s gold",
   "gettcore.msg.top_header": "=== Top balances ===",
-  "gettcore.msg.top_entry": "%s. %s - %s gold"
+  "gettcore.msg.top_entry": "%s. %s - %s gold",
+  "gettcore.msg.check_issued": "Issued a check for %s gold",
+  "gettcore.msg.check_redeemed": "Redeemed a check for %s gold",
+  "gettcore.msg.too_fast": "Too fast",
+  "gettcore.tooltip.check_amount": "Amount: %s gold",
+  "item.gettcore.check": "Check"
 }
