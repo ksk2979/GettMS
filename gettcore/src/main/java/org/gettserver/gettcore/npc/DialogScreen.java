@@ -91,6 +91,8 @@ public class DialogScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // 배경(블러)과 버튼을 먼저 그리고, 그 위에 대화 상자를 그린다. 먼저 그리면 블러에 묻힌다.
+        super.render(g, mouseX, mouseY, partialTick);
         int px1 = 10;
         int py2 = height - 10;
         int py1 = py2 - PORTRAIT_SIZE - 14;
@@ -121,7 +123,6 @@ public class DialogScreen extends Screen {
                 ly += font.lineHeight + 2;
             }
         }
-        super.render(g, mouseX, mouseY, partialTick);
     }
 
     private static void box(GuiGraphics g, int x1, int y1, int x2, int y2) {

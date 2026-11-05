@@ -33,10 +33,11 @@ class CodecTest {
         }
         DialogDefinition d = DialogDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(json)).getOrThrow();
         var c = d.nodes().get(d.start()).choices();
-        assertEquals(3, c.size());
+        assertEquals(4, c.size());
         assertEquals(ChoiceAction.Type.OPEN_SHOP_BUY, c.get(0).action().type());
         assertEquals(ChoiceAction.Type.OPEN_SHOP_SELL, c.get(1).action().type());
         assertEquals(ChoiceAction.Type.NEXT, c.get(2).action().type());
+        assertEquals(ChoiceAction.Type.CLOSE, c.get(3).action().type());
     }
 
     @Test

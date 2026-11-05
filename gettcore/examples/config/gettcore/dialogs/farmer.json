@@ -26,6 +26,12 @@
             "type": "next",
             "target": "chat"
           }
+        },
+        {
+          "label": "나가기",
+          "action": {
+            "type": "close"
+          }
         }
       ]
     },
