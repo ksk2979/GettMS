@@ -19,5 +19,14 @@
   "gettcore.msg.too_fast": "Too fast",
   "gettcore.msg.reload_done": "Reloaded %d shops, %d dialogs, %d errors",
   "gettcore.tooltip.check_amount": "Amount: %s gold",
-  "item.gettcore.check": "Check"
+  "item.gettcore.check": "Check",
+  "gettcore.msg.sold": "Sold %2$d x %1$s (+%3$s gold)",
+  "gettcore.msg.bought": "Bought %2$d x %1$s (-%3$s gold)",
+  "gettcore.msg.inventory_full": "Inventory is full",
+  "gettcore.msg.invalid_trade": "Invalid trade",
+  "gettcore.gui.max": "MAX",
+  "gettcore.gui.confirm": "Confirm",
+  "gettcore.gui.cancel": "Cancel",
+  "gettcore.gui.total": "Total: %s gold",
+  "gettcore.msg.nothing_to_sell": "Nothing to sell"
 }

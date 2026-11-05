@@ -7,6 +7,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.gettserver.gettcore.network.TradePayload;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import org.gettserver.gettcore.data.ShopDefinition;
@@ -33,6 +37,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
 
     private int selectedTab;
     private int scroll;
+    private QuantityPopup popup;
 
     public ShopScreen(ShopMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -44,9 +49,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     protected void init() {
         super.init();
         if (menu.mode() == ShopMode.SELL) {
-            addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.sell_all"), b -> {
-                // Task 9 wires the sell-all request.
-            }).bounds(leftPos + LIST_X, topPos + 176, LIST_W, 18).build());
+            addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.sell_all"),
+                    b -> PacketDistributor.sendToServer(new TradePayload(menu.shopId(),
+                            ResourceLocation.withDefaultNamespace("air"), 1, ShopMode.SELL, true))).bounds(leftPos + LIST_X, topPos + 176, LIST_W, 18).build());
         }
     }
 
@@ -61,11 +66,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         String tabId = def.tabs().isEmpty() ? null : def.tabs().get(Math.min(selectedTab, def.tabs().size() - 1)).id();
         for (ShopEntry e : def.entries()) {
             if (tabId != null && !tabId.equals(e.tab())) continue;
-            var item = BuiltInRegistries.ITEM.get(e.item());
             if (menu.mode() == ShopMode.BUY) {
                 if (e.canBuy()) out.add(new Row(e, 0));
             } else if (e.canSell()) {
-                int owned = InventoryMatch.count(minecraft.player.getInventory(), item);
+                int owned = TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item());
                 if (owned > 0) out.add(new Row(e, owned));
             }
         }
@@ -135,9 +139,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
-        renderTooltip(g, mouseX, mouseY);
+        if (popup == null) renderTooltip(g, mouseX, mouseY);
         ShopDefinition def = definition();
-        if (def != null) {
+        if (def != null && popup == null) {
             for (int i = 0; i < def.tabs().size(); i++) {
                 int x = leftPos + LIST_X + i * TAB_W;
                 int y = topPos + TAB_Y;
@@ -146,10 +150,38 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                 }
             }
         }
+        if (popup != null) popup.render(g, mouseX, mouseY, partialTick);
+    }
+
+    private void openPopup(ShopEntry e) {
+        Item item = BuiltInRegistries.ITEM.get(e.item());
+        var inv = minecraft.player.getInventory().items;
+        boolean buy = menu.mode() == ShopMode.BUY;
+        long price = buy ? e.currentBuyPrice() : e.currentSellPrice();
+        int max = buy
+                ? TradeCalculator.maxBuyable(ClientBalance.get(), price,
+                        TradeCalculator.capacityFor(inv, item, item.getDefaultMaxStackSize()), 64 * 36)
+                : Math.min(TradeCalculator.countSellable(inv, e.item()), 64 * 36);
+        popup = new QuantityPopup(font, width, height, item, price, max,
+                qty -> PacketDistributor.sendToServer(new TradePayload(menu.shopId(), e.item(), qty, menu.mode(), false)),
+                () -> popup = null);
+    }
+
+    @Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (popup != null) return popup.keyPressed(key, scan, mods);
+        return super.keyPressed(key, scan, mods);
+    }
+
+    @Override
+    public boolean charTyped(char c, int mods) {
+        if (popup != null) return popup.charTyped(c, mods);
+        return super.charTyped(c, mods);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (popup != null) return popup.mouseClicked(mouseX, mouseY, button);
         ShopDefinition def = definition();
         if (def != null && button == 0) {
             for (int i = 0; i < def.tabs().size(); i++) {
@@ -162,12 +194,23 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                 }
             }
         }
-        // Row buy/sell buttons are wired in Task 9.
+        if (button == 0) {
+            List<Row> rows = rows();
+            for (int i = 0; i < VISIBLE_ROWS && scroll + i < rows.size(); i++) {
+                int bx = leftPos + LIST_X + LIST_W - BTN_W - 4;
+                int by = topPos + LIST_Y + i * ROW_H + 3;
+                if (mouseX >= bx && mouseX < bx + BTN_W && mouseY >= by && mouseY < by + BTN_H) {
+                    openPopup(rows.get(scroll + i).entry());
+                    return true;
+                }
+            }
+        }
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (popup != null) return true;
         if (mouseX >= leftPos + LIST_X && mouseX < leftPos + LIST_X + LIST_W
                 && mouseY >= topPos + LIST_Y && mouseY < topPos + LIST_Y + VISIBLE_ROWS * ROW_H) {
             scroll = Math.max(0, scroll - (int) Math.signum(scrollY));

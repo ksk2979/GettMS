@@ -19,5 +19,14 @@
   "gettcore.msg.too_fast": "너무 빠릅니다",
   "gettcore.msg.reload_done": "상점 %d, 대화 %d 재적용, 오류 %d",
   "gettcore.tooltip.check_amount": "금액: %s 골드",
-  "item.gettcore.check": "수표"
+  "item.gettcore.check": "수표",
+  "gettcore.msg.sold": "%s %d개를 판매했습니다 (+%s 골드)",
+  "gettcore.msg.bought": "%s %d개를 구매했습니다 (-%s 골드)",
+  "gettcore.msg.inventory_full": "인벤토리가 가득 찼습니다",
+  "gettcore.msg.invalid_trade": "잘못된 거래입니다",
+  "gettcore.gui.max": "MAX",
+  "gettcore.gui.confirm": "확인",
+  "gettcore.gui.cancel": "취소",
+  "gettcore.gui.total": "합계: %s 골드",
+  "gettcore.msg.nothing_to_sell": "판매할 물건이 없습니다"
 }

@@ -9,6 +9,7 @@ import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
 import org.gettserver.gettcore.shop.ClientShopCache;
+import org.gettserver.gettcore.shop.ShopService;
 
 public final class GettNetwork {
     private GettNetwork() {}
@@ -29,5 +30,7 @@ public final class GettNetwork {
         registrar.playToServer(DialogChoicePayload.TYPE, DialogChoicePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> DialogSession.choose((ServerPlayer) ctx.player(), payload.choiceIndex())));
+        registrar.playToServer(TradePayload.TYPE, TradePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ShopService.trade((ServerPlayer) ctx.player(), payload)));
     }
 }
