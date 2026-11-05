@@ -1,13 +1,12 @@
 {
-  "itemGroup.examplemod": "Example Mod Tab",
-  "block.examplemod.example_block": "Example Block",
-  "item.examplemod.example_item": "Example Item",
-
-  "examplemod.configuration.title": "Example Mod Configs",
-  "examplemod.configuration.section.examplemod.common.toml": "Example Mod Configs",
-  "examplemod.configuration.section.examplemod.common.toml.title": "Example Mod Configs",
-  "examplemod.configuration.items": "Item List",
-  "examplemod.configuration.logDirtBlock": "Log Dirt Block",
-  "examplemod.configuration.magicNumberIntroduction": "Magic Number Text",
-  "examplemod.configuration.magicNumber": "Magic Number"
+  "gettcore.msg.balance": "Balance: %s gold",
+  "gettcore.msg.balance_of": "%s's balance: %s gold",
+  "gettcore.msg.no_player": "Player not found: %s",
+  "gettcore.msg.insufficient": "Insufficient balance",
+  "gettcore.msg.invalid_amount": "Invalid amount",
+  "gettcore.msg.given": "Gave %s %s gold (balance: %s)",
+  "gettcore.msg.taken": "Took %2$s gold from %1$s (balance: %3$s)",
+  "gettcore.msg.set": "Set %s's balance to %s gold",
+  "gettcore.msg.top_header": "=== Top balances ===",
+  "gettcore.msg.top_entry": "%s. %s - %s gold"
 }
