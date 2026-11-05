@@ -1,6 +1,5 @@
 package org.gettserver.gettcore.item;
 
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -25,7 +24,6 @@ public class XpOrbItem extends Item {
             sp.giveExperiencePoints(amount);
             stack.shrink(1);
             level.playSound(null, sp.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 1f, 1f);
-            sp.sendSystemMessage(Component.translatable("gettcore.msg.xp_gained", amount));
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }
