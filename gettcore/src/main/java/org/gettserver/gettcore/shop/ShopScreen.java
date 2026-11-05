@@ -197,8 +197,8 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             } else if (menu.mode() == ShopMode.BUY) {
                 if (e.canBuy()) out.add(new Row(e, 0));
             } else if (e.canSell()) {
-                int owned = TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item());
-                if (owned > 0) out.add(new Row(e, owned));
+                // 보유 수량이 0이어도 목록에 남긴다(버튼만 비활성화). 전체 판매 목록을 한눈에 볼 수 있게.
+                out.add(new Row(e, TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item())));
             }
         }
         return out;
@@ -235,11 +235,12 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             if (editing) continue;
             int bx = x + LIST_W - BTN_W - 4;
             int by = y + 3;
-            g.fill(bx, by, bx + BTN_W, by + BTN_H, 0xFF8B6B3A);
-            g.fill(bx + 1, by + 1, bx + BTN_W - 1, by + BTN_H - 1, 0xFFB98F4E);
+            boolean enabled = rowEnabled(row);
+            g.fill(bx, by, bx + BTN_W, by + BTN_H, enabled ? 0xFF8B6B3A : 0xFF6A6A6A);
+            g.fill(bx + 1, by + 1, bx + BTN_W - 1, by + BTN_H - 1, enabled ? 0xFFB98F4E : 0xFF9A9A9A);
             Component label = Component.translatable(
                     menu.mode() == ShopMode.BUY ? "gettcore.gui.buy" : "gettcore.gui.sell");
-            g.drawCenteredString(font, label, bx + BTN_W / 2, by + 4, 0xFFFFFFFF);
+            g.drawCenteredString(font, label, bx + BTN_W / 2, by + 4, enabled ? 0xFFFFFFFF : 0xFFDDDDDD);
         }
     }
 
@@ -294,6 +295,11 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (popup != null) popup.render(g, mouseX, mouseY, partialTick);
     }
 
+    /** 판매 모드에서 보유 수량이 0이면 버튼을 비활성화한다. */
+    private boolean rowEnabled(Row row) {
+        return menu.mode() == ShopMode.BUY || row.owned() > 0;
+    }
+
     private void openPopup(ShopEntry e) {
         Item item = BuiltInRegistries.ITEM.get(e.item());
         var inv = minecraft.player.getInventory().items;
@@ -345,7 +351,8 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                 int bx = leftPos + LIST_X + LIST_W - BTN_W - 4;
                 int by = topPos + LIST_Y + i * ROW_H + 3;
                 if (mouseX >= bx && mouseX < bx + BTN_W && mouseY >= by && mouseY < by + BTN_H) {
-                    openPopup(rows.get(scroll + i).entry());
+                    Row row = rows.get(scroll + i);
+                    if (rowEnabled(row)) openPopup(row.entry());
                     return true;
                 }
             }

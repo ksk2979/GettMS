@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.npc;
 
 import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -23,6 +24,11 @@ public final class NpcInteractHandler {
         }
         // Sneak+right-click is left to Easy NPC so owners can still open its config screen.
         if (event.getEntity().isShiftKeyDown()) {
+            return;
+        }
+        // Easy NPC 지팡이/아이템(easy_npc* 네임스페이스)을 들고 클릭하면 Easy NPC 설정 쪽에 맡긴다.
+        var held = BuiltInRegistries.ITEM.getKey(event.getItemStack().getItem());
+        if (held.getNamespace().startsWith("easy_npc")) {
             return;
         }
         Entity target = event.getTarget();
