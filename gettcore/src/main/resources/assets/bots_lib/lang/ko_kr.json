@@ -1,0 +1,6 @@
+{
+  "creativetab.dewdrop_tab": "Dew Drop",
+  "item.bots_lib.custom_shears": "Dew Drop 아이콘 아이템",
+  "item.bots_lib.custom_shears.lore.0": "바닐라 친화적인 방식으로 크리에이티브 탭에 Dew Drop 아이콘을 표시하기 위해 텍스처를 바꾼 가위입니다.",
+  "item.bots_lib.custom_shears.lore.1": "이 아이템이 이상하게 보인다면 클라이언트에 Bot's Lib를 설치하세요."
+}
