@@ -17,6 +17,7 @@ import org.gettserver.gettcore.data.DialogNode;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.network.OpenDialogPayload;
 import org.gettserver.gettcore.shop.ShopMode;
+import org.gettserver.gettcore.shop.ShopService;
 
 /** Server-side dialog state. Only the server decides transitions; clients just send a choice index. */
 public final class DialogSession {
@@ -71,10 +72,14 @@ public final class DialogSession {
         }
     }
 
-    /** Task 8: replace the log line with ShopService.open(player, shopId, mode). */
     private static void openShop(ServerPlayer player, ChoiceAction action, ShopMode mode) {
-        GettCore.LOGGER.info("TODO Task 8: open shop {} {}", action.target().orElse("?"), mode);
+        String shopId = action.target().orElse(null);
         close(player);
+        if (shopId == null) {
+            GettCore.LOGGER.warn("Dialog shop action without target");
+            return;
+        }
+        ShopService.open(player, shopId, mode);
     }
 
     /** Ends the session and tells the client to close its dialog screen (empty choices = close). */

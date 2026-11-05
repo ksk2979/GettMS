@@ -10,11 +10,14 @@ import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.economy.CheckItem;
 import org.gettserver.gettcore.network.GettNetwork;
+import org.gettserver.gettcore.shop.ShopMenu;
+import org.gettserver.gettcore.shop.ShopService;
 
 @Mod(GettCore.MOD_ID)
 public class GettCore {
@@ -35,11 +38,15 @@ public class GettCore {
     public static final DeferredItem<CheckItem> CHECK =
             ITEMS.registerItem("check", CheckItem::new, new Item.Properties().stacksTo(1));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
+            MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
+
     public GettCore(IEventBus modBus, ModContainer container) {
         ITEMS.register(modBus);
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
         modBus.addListener(GettNetwork::register);
+        ShopService.registerReloadHook();
     }
 
     public static ResourceLocation id(String path) {
