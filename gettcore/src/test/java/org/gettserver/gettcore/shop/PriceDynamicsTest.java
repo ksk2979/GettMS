@@ -27,6 +27,12 @@ class PriceDynamicsTest {
     }
 
     @Test
+    void recoverSmallStepStillProgresses() {
+        long r = PriceDynamics.recover(95, 100, 1 / 60.0, ON);
+        assertTrue(r > 95 && r <= 100);
+    }
+
+    @Test
     void recoverDoesNotOvershoot() {
         assertEquals(100, PriceDynamics.recover(95, 100, 1.0, ON));
         assertEquals(100, PriceDynamics.recover(105, 100, 1.0, ON));

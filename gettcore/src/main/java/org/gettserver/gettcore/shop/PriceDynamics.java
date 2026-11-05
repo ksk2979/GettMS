@@ -20,6 +20,7 @@ public final class PriceDynamics {
     public static long recover(long current, long base, double hours, PriceDynamicsConfig c) {
         if (!c.enabled()) return base;
         long step = Math.round(base * c.recoverPercentPerHour() / 100.0 * hours);
+        if (step < 1) step = 1;
         if (current < base) return Math.min(base, current + step);
         if (current > base) return Math.max(base, current - step);
         return base;

@@ -42,4 +42,20 @@ class GettDataTest {
         assertTrue(r.errors().isEmpty());
         assertEquals("farmer", data.dialogForNpc(UUID.randomUUID(), "농부").orElseThrow());
     }
+
+    @Test
+    void disabledDynamicsNormalizesCurrentPrices(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/s.json"), SHOP.replace("\"canSell\":true",
+                "\"canSell\":true,\"currentSellPrice\":1,\"currentBuyPrice\":50"));
+        Files.writeString(dir.resolve("economy.json"), "{\"priceDynamics\":{\"enabled\":false}}");
+        GettData data = new GettData();
+        data.load(dir);
+        var e = data.shop("s").orElseThrow().entries().get(0);
+        assertEquals(e.sellPrice(), e.currentSellPrice());
+        assertEquals(e.buyPrice(), e.currentBuyPrice());
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals(3, again.shop("s").orElseThrow().entries().get(0).currentSellPrice());
+    }
 }

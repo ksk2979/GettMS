@@ -100,6 +100,21 @@ public final class GettData {
         dialogs = Map.copyOf(newDialogs);
         npcs = newNpcs;
         economy = newEco;
+        if (!newEco.priceDynamics().enabled()) {
+            for (ShopDefinition sd : List.copyOf(newShops.values())) {
+                ShopDefinition norm = normalized(sd);
+                if (!norm.equals(sd)) {
+                    try {
+                        saveShop(norm);
+                    } catch (IOException e) {
+                        errors.add("shop " + sd.id() + ": " + e.getMessage());
+                        Map<String, ShopDefinition> m = new HashMap<>(shops);
+                        m.put(sd.id(), norm);
+                        shops = Map.copyOf(m);
+                    }
+                }
+            }
+        }
         return new LoadReport(newShops.size(), newDialogs.size(), List.copyOf(errors));
     }
 
@@ -127,12 +142,19 @@ public final class GettData {
         return npcs;
     }
 
+    /** With dynamics disabled, current prices always equal base prices. */
+    private static ShopDefinition normalized(ShopDefinition shop) {
+        return new ShopDefinition(shop.id(), shop.name(), shop.tabs(),
+                shop.entries().stream().map(e -> e.withPrices(e.buyPrice(), e.sellPrice())).toList());
+    }
+
     public EconomyConfig economy() {
         return economy;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
     public synchronized void saveShop(ShopDefinition shop) throws IOException {
+        if (!economy.priceDynamics().enabled()) shop = normalized(shop);
         Path dir = configDir;
         if (dir == null) throw new IOException("data not loaded");
         Path file = shopFiles.getOrDefault(shop.id(), dir.resolve("shops").resolve(shop.id() + ".json"));
