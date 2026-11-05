@@ -136,6 +136,8 @@ configurations {
 
 dependencies {
     implementation "maven.modrinth:easy-npc-core:${easynpc_core_version}"
+    // 개발 실행용: Easy NPC 설정 화면 모듈 (배포 시엔 런처가 번들로 받음)
+    localRuntime "maven.modrinth:easy-npc-config-ui:5k9n62gb"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
