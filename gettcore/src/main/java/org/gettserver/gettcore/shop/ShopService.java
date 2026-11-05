@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
@@ -151,6 +152,10 @@ public final class ShopService {
 
     private static void buy(ServerPlayer player, ShopEntry entry, int count) {
         Item item = BuiltInRegistries.ITEM.get(entry.item());
+        if (item == Items.AIR || !BuiltInRegistries.ITEM.containsKey(entry.item())) {
+            msg(player, "gettcore.msg.invalid_trade");
+            return;
+        }
         int maxStack = item.getDefaultMaxStackSize();
         int capacity = TradeCalculator.capacityFor(player.getInventory().items, item, maxStack);
         EconomyData data = EconomyData.get(player.server);
@@ -169,18 +174,20 @@ public final class ShopService {
             msg(player, "gettcore.msg.insufficient");
             return;
         }
-        int left = n;
-        while (left > 0) {
-            ItemStack stack = new ItemStack(item, Math.min(left, maxStack));
-            int size = stack.getCount();
-            player.getInventory().add(stack);
-            left -= size - stack.getCount();
-            if (!stack.isEmpty()) break; // capacity was precomputed; defensive only
+        int placed = TradeCalculator.distribute(player.getInventory().items, item, maxStack, n);
+        if (placed < n) {
+            data.ledger().deposit(player.getUUID(), TradeCalculator.total(price, n - placed));
+            total = TradeCalculator.total(price, placed);
+        }
+        if (placed <= 0) {
+            data.changed(player.getUUID());
+            msg(player, "gettcore.msg.inventory_full");
+            return;
         }
         player.getInventory().setChanged();
         player.containerMenu.broadcastChanges();
         data.changed(player.getUUID());
-        msg(player, "gettcore.msg.bought", itemName(entry.item()), n, Gold.format(total));
+        msg(player, "gettcore.msg.bought", itemName(entry.item()), placed, Gold.format(total));
     }
 
     /** Registered once at startup: /gett reload closes every open shop screen. */

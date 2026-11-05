@@ -65,4 +65,20 @@ class TradeCalculatorTest {
         assertEquals(500, TradeCalculator.total(100, 5));
         assertEquals(Long.MAX_VALUE, TradeCalculator.total(Long.MAX_VALUE / 2, 5));
     }
+
+    @Test
+    void distributeFillsPartialThenEmpty() {
+        java.util.List<ItemStack> inv = new java.util.ArrayList<>(List.of(
+                new ItemStack(Items.CARROT, 60), new ItemStack(Items.DIAMOND, 1), ItemStack.EMPTY, ItemStack.EMPTY));
+        assertEquals(70, TradeCalculator.distribute(inv, Items.CARROT, 64, 70));
+        assertEquals(64, inv.get(0).getCount());
+        assertEquals(64, inv.get(2).getCount());
+        assertEquals(2, inv.get(3).getCount());
+    }
+
+    @Test
+    void distributeStopsWhenFull() {
+        java.util.List<ItemStack> inv = new java.util.ArrayList<>(List.of(new ItemStack(Items.DIAMOND, 1)));
+        assertEquals(0, TradeCalculator.distribute(inv, Items.CARROT, 64, 5));
+    }
 }

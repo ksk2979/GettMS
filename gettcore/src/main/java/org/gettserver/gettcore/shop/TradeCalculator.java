@@ -49,4 +49,25 @@ public final class TradeCalculator {
             return Long.MAX_VALUE;
         }
     }
+
+    /** Places up to n items into the list (partial stacks first, then empty slots); returns how many were placed. */
+    public static int distribute(List<ItemStack> inv, Item item, int maxStack, int n) {
+        int left = n;
+        for (int i = 0; i < inv.size() && left > 0; i++) {
+            ItemStack s = inv.get(i);
+            if (!s.isEmpty() && s.getItem() == item && s.getComponentsPatch().isEmpty() && s.getCount() < maxStack) {
+                int add = Math.min(left, maxStack - s.getCount());
+                s.grow(add);
+                left -= add;
+            }
+        }
+        for (int i = 0; i < inv.size() && left > 0; i++) {
+            if (inv.get(i).isEmpty()) {
+                int add = Math.min(left, maxStack);
+                inv.set(i, new ItemStack(item, add));
+                left -= add;
+            }
+        }
+        return n - left;
+    }
 }
