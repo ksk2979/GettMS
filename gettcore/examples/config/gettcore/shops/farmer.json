@@ -88,6 +88,22 @@
       "sellPrice": 75,
       "canBuy": false,
       "canSell": true
+    },
+    {
+      "item": "gettcore:xp_orb_item",
+      "tab": "crops",
+      "buyPrice": 2000,
+      "sellPrice": 0,
+      "canBuy": true,
+      "canSell": false
+    },
+    {
+      "item": "gettcore:return_stone",
+      "tab": "crops",
+      "buyPrice": 1000,
+      "sellPrice": 0,
+      "canBuy": true,
+      "canSell": false
     }
   ]
 }

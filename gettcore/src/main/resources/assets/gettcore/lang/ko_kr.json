@@ -36,5 +36,12 @@
   "gettcore.msg.shop_edit_denied": "상점 편집 권한이 없습니다",
   "gettcore.msg.shop_saved": "상점이 저장되었습니다",
   "gettcore.msg.shop_edit_invalid": "잘못된 편집 요청입니다",
-  "gettcore.msg.shop_save_failed": "상점 저장에 실패했습니다. 서버 로그를 확인하세요"
+  "gettcore.msg.shop_save_failed": "상점 저장에 실패했습니다. 서버 로그를 확인하세요",
+  "item.gettcore.xp_orb_item": "경험치 구슬",
+  "item.gettcore.return_stone": "귀환석",
+  "gettcore.msg.return_casting": "%d초 후 귀환합니다. 움직이면 취소됩니다",
+  "gettcore.msg.return_cancelled": "귀환이 취소되었습니다",
+  "gettcore.msg.return_done": "귀환했습니다",
+  "gettcore.msg.return_point_set": "귀환 지점을 설정했습니다",
+  "gettcore.msg.xp_gained": "경험치 %d를 얻었습니다"
 }

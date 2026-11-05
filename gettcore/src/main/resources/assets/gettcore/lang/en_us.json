@@ -36,5 +36,12 @@
   "gettcore.msg.shop_edit_denied": "You may not edit shops",
   "gettcore.msg.shop_saved": "Shop saved",
   "gettcore.msg.shop_edit_invalid": "Invalid edit request",
-  "gettcore.msg.shop_save_failed": "Saving the shop failed; check the server log"
+  "gettcore.msg.shop_save_failed": "Saving the shop failed; check the server log",
+  "item.gettcore.xp_orb_item": "XP Orb",
+  "item.gettcore.return_stone": "Return Stone",
+  "gettcore.msg.return_casting": "Returning in %d seconds. Moving cancels",
+  "gettcore.msg.return_cancelled": "Return cancelled",
+  "gettcore.msg.return_done": "Returned",
+  "gettcore.msg.return_point_set": "Return point set",
+  "gettcore.msg.xp_gained": "Gained %d XP"
 }

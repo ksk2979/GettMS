@@ -15,6 +15,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.economy.CheckItem;
+import org.gettserver.gettcore.item.ReturnStoneItem;
+import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.shop.ShopMenu;
 import org.gettserver.gettcore.shop.ShopService;
@@ -37,6 +39,11 @@ public class GettCore {
 
     public static final DeferredItem<CheckItem> CHECK =
             ITEMS.registerItem("check", CheckItem::new, new Item.Properties().stacksTo(1));
+
+    public static final DeferredItem<XpOrbItem> XP_ORB =
+            ITEMS.registerItem("xp_orb_item", XpOrbItem::new, new Item.Properties());
+    public static final DeferredItem<ReturnStoneItem> RETURN_STONE =
+            ITEMS.registerItem("return_stone", ReturnStoneItem::new, new Item.Properties().stacksTo(16));
 
     public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));

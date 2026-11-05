@@ -1,10 +1,13 @@
 package org.gettserver.gettcore.data;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.gettserver.gettcore.item.ReturnPointData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -21,6 +24,21 @@ public final class DataCommands {
                 .then(Commands.literal("reload")
                         .requires(Perms.require(Perms.ADMIN))
                         .executes(DataCommands::reload)));
+        event.getDispatcher().register(Commands.literal("귀환지점")
+                .then(Commands.literal("설정")
+                        .requires(Perms.require(Perms.ADMIN))
+                        .executes(DataCommands::setReturnPoint)));
+        event.getDispatcher().register(Commands.literal("returnpoint")
+                .then(Commands.literal("set")
+                        .requires(Perms.require(Perms.ADMIN))
+                        .executes(DataCommands::setReturnPoint)));
+    }
+
+    private static int setReturnPoint(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        ReturnPointData.get(player.server).set(player.level().dimension(), player.blockPosition(), player.getYRot());
+        ctx.getSource().sendSuccess(() -> Component.translatable("gettcore.msg.return_point_set"), true);
+        return 1;
     }
 
     private static int reload(CommandContext<CommandSourceStack> ctx) {
