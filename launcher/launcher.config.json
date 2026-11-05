@@ -46,6 +46,7 @@
     }
   ],
   "clientOnlyMods": [
+    "caramel-chat",
     "xaeros-minimap",
     "entityculling",
     "sodium"
