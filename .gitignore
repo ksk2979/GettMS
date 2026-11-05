@@ -39,3 +39,7 @@ launcher-spike/
 gettcore/runs/
 gettcore/build/
 gettcore/.gradle/
+
+# 서버 로그 공유용 (예외적으로 커밋 허용)
+!serverLog/
+!serverLog/**

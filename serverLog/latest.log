@@ -1,0 +1,451 @@
+[0611월2026 00:00:57.236] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserver, --fml.neoForgeVersion, 21.1.265, --fml.fmlVersion, 4.0.45, --fml.mcVersion, 1.21.1, --fml.neoFormVersion, 20240808.144430, nogui]
+[0611월2026 00:00:57.246] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: JVM identified as Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 21.0.12.1+1-LTS-4
+[0611월2026 00:00:57.246] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 11.0.5+main.901c6ea8 starting: java version 21.0.12.1 by Oracle Corporation; OS Windows 11 arch amd64 version 10.0
+[0611월2026 00:00:57.581] [main/INFO] [net.neoforged.fml.loading.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserver
+[0611월2026 00:00:57.696] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=union:/C:/MyProject/MinecraftServer-1.21.1/libraries/net/fabricmc/sponge-mixin/0.16.4+mixin.0.8.7/sponge-mixin-0.16.4+mixin.0.8.7.jar%2373!/ Service=ModLauncher Env=SERVER
+[0611월2026 00:00:57.958] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "server-1.21.1-20240808.144430-srg.jar" [locator: production server provider +net.neoforged:neoforge:21.1.265:server]
+[0611월2026 00:00:57.987] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "neoforge-21.1.265-universal.jar" [locator: PathBasedLocator[name=neoforge, paths=[libraries\net\neoforged\neoforge\21.1.265\neoforge-21.1.265-universal.jar]], reader: mod manifest]
+[0611월2026 00:00:58.007] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "another_furniture-neoforge-4.0.3.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.019] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "bookshelf-neoforge-1.21.1-21.1.81.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.027] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "botanypots-neoforge-1.21.1-21.1.44.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.033] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "bots_lib-4.1.1-1.21.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.038] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "corpse-neoforge-1.21.1-1.1.22.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.049] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "create-1.21.1-6.0.10.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.049] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "curios-neoforge-9.5.1+1.21.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.049] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "dew_drop_watering_cans-1.0.2-1.21.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.080] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "easy_npc-neoforge-1.21.1-7.18.0.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.083] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "easy_npc_bundle-neoforge-1.21.1-7.18.0.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.091] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "easy_npc_config_ui-neoforge-1.21.1-7.18.0.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.096] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "expandeddelight-0.1.4.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.102] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "FarmersDelight-1.21.1-1.3.4.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.112] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "ferritecore-7.0.3-neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.119] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "fzzy_config-0.7.7+fix1+1.21+neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.128] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "gettcore-1.0.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.128] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "immersive_paintings-neoforge-1.21.1-0.8.0.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.138] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlinforforge-5.12.0-all.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.143] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "LuckPerms-NeoForge-5.4.140.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.149] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-bridges-3.1.2-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.153] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-doors-1.1.5-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.157] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-furniture-3.4.1-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.157] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-lights-1.1.5-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.157] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-mcwfences-1.2.1-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.173] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-mcwpaths-1.1.1-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.179] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-mcwwindows-2.4.2-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.185] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-paintings-1.1.0-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.191] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-roofs-2.3.2-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.196] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "mcw-trapdoors-1.1.5-mc1.21.1neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.201] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "modernfix-neoforge-5.27.27+mc1.21.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.205] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "moonlight-1.21.1-3.8.1-neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.205] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "open-parties-and-claims-neoforge-1.21.1-0.33.0.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.205] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "playernamestyler-2.0.3-mc1.21.1.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.216] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "prickle-neoforge-1.21.1-21.1.11.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.221] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "supplementaries-1.21.1-4.0.2-neoforge.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.230] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "travelersbackpack-neoforge-1.21.1-10.1.41.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.236] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "voicechat-neoforge-1.21.1-2.6.22.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.236] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "worldedit-mod-7.3.8.jar" [locator: {mods folder locator at C:\MyProject\MinecraftServer-1.21.1\mods}, reader: mod manifest]
+[0611월2026 00:00:58.706] [main/INFO] [net.neoforged.fml.loading.moddiscovery.locators.JarInJarDependencyLocator/]: Found 26 dependencies adding them to mods collection
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found gamelibrary file "mixinextras-neoforge-0.5.5.jar" [parent: neoforge-21.1.265-universal.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "codecui-neoforge-1.21.1-1.4.7.jar" [parent: moonlight-1.21.1-3.8.1-neoforge.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "ponder-neoforge-1.0.82+mc1.21.1.jar" [parent: create-1.21.1-6.0.10.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "net.neoforged.neoforge-coremods-21.1.265.jar" [parent: neoforge-21.1.265-universal.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "thedarkcolour.kfflang-5.12.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.707] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found gamelibrary file "thedarkcolour.kfflib-5.12.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "MixinSquared-0.3.7.jar" [parent: mixinsquared-forge-0.3.7.jar, locator: jarinjar]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "thedarkcolour.kffmod-5.12.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlin-stdlib-2.4.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlin-reflect-2.4.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "flywheel-neoforge-1.21.1-1.0.6.jar" [parent: create-1.21.1-6.0.10.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found mod file "sable-companion-common-1.21.1-1.6.0.jar" [parent: supplementaries-1.21.1-4.0.2-neoforge.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.708] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlinx-coroutines-core-jvm-1.11.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "tomlkt-jvm-0.3.7.jar" [parent: fzzy_config-0.7.7+fix1+1.21+neoforge.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlinx-coroutines-jdk8-1.11.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found gamelibrary file "mixinsquared-forge-0.3.7.jar" [parent: supplementaries-1.21.1-4.0.2-neoforge.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlin-stdlib-jdk7-2.4.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlin-stdlib-jdk8-2.4.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "imageio-webp-3.12.0.jar" [parent: immersive_paintings-neoforge-1.21.1-0.8.0.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlinx-serialization-core-jvm-1.11.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.709] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found gamelibrary file "Registrate-MC1.21-1.3.0+67.jar" [parent: create-1.21.1-6.0.10.jar, locator: jarinjar, reader: mod manifest]
+[0611월2026 00:00:58.710] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "common-image-3.12.0.jar" [parent: immersive_paintings-neoforge-1.21.1-0.8.0.jar, locator: jarinjar]
+[0611월2026 00:00:58.710] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "kotlinx-serialization-json-jvm-1.11.0.jar" [parent: kotlinforforge-5.12.0-all.jar, locator: jarinjar]
+[0611월2026 00:00:58.710] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "common-lang-3.12.0.jar" [parent: immersive_paintings-neoforge-1.21.1-0.8.0.jar, locator: jarinjar]
+[0611월2026 00:00:58.711] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "imageio-core-3.12.0.jar" [parent: immersive_paintings-neoforge-1.21.1-0.8.0.jar, locator: jarinjar]
+[0611월2026 00:00:58.711] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/SCAN]: Found library file "jankson-1.2.3.jar" [parent: fzzy_config-0.7.7+fix1+1.21+neoforge.jar, locator: jarinjar]
+[0611월2026 00:00:58.714] [main/INFO] [net.neoforged.fml.loading.moddiscovery.ModDiscoverer/]: 
+     Mod List:
+		Name Version (Mod Id)
+
+		Another Furniture 4.0.3 (another_furniture)
+		Bookshelf 21.1.81 (bookshelf)
+		BotanyPots 21.1.44 (botanypots)
+		Bots Lib 4.1.1-1.21.1 (bots_lib)
+		CodecUI 1.21.1-1.4.7 (codecui)
+		Corpse 1.21.1-1.1.22 (corpse)
+		Create 6.0.10 (create)
+		Curios API 9.5.1+1.21.1 (curios)
+		Dew Drop Watering Cans 1.0.2-1.21.1 (dew_drop_watering_cans)
+		Easy NPC 7.18.0 (easy_npc)
+		Easy NPC: Bundle 7.18.0 (easy_npc_bundle)
+		Easy NPC: Config UI 7.18.0 (easy_npc_config_ui)
+		Expanded Delight 0.1.4 (expandeddelight)
+		Farmer's Delight 1.3.4 (farmersdelight)
+		Ferrite Core 7.0.3 (ferritecore)
+		Flywheel 1.0.6 (flywheel)
+		Fzzy Config 0.7.7+fix1+1.21+neoforge (fzzy_config)
+		Gett Core 1.0.1 (gettcore)
+		Immersive Paintings 0.8.0 (immersive_paintings)
+		Kotlin For Forge 5.12.0 (kotlinforforge)
+		LuckPerms 5.4.140 (luckperms)
+		Macaw's Bridges 3.1.2 (mcwbridges)
+		Macaw's Doors 1.1.5 (mcwdoors)
+		Macaw's Fences and Walls 1.2.1 (mcwfences)
+		Macaw's Furniture 3.4.1 (mcwfurnitures)
+		Macaw's Lights and Lamps 1.1.5 (mcwlights)
+		Macaw's Paintings 1.1.0 (mcwpaintings)
+		Macaw's Paths and Pavings 1.1.1 (mcwpaths)
+		Macaw's Roofs 2.3.2 (mcwroofs)
+		Macaw's Trapdoors 1.1.5 (mcwtrpdoors)
+		Macaw's Windows 2.4.2 (mcwwindows)
+		Minecraft 1.21.1 (minecraft)
+		ModernFix 5.27.27+mc1.21.1 (modernfix)
+		Moonlight Lib 1.21.1-3.8.1 (moonlight)
+		NeoForge 21.1.265 (neoforge)
+		Open Parties and Claims 0.33.0 (openpartiesandclaims)
+		PlayerName Styler 2.0.3 (playernamestyler)
+		Ponder 1.0.82+mc1.21.1 (ponder)
+		PrickleMC 21.1.11 (prickle)
+		Sable Companion 1.6.0 (sablecompanion)
+		Simple Voice Chat 1.21.1-2.6.22 (voicechat)
+		Supplementaries 1.21.1-4.0.2 (supplementaries)
+		Traveler's Backpack 10.1.41 (travelersbackpack)
+		WorldEdit 7.3.8+6939-7d32b45 (worldedit)
+[0611월2026 00:00:59.067] [main/INFO] [net.neoforged.fml.loading.FMLServiceProvider/CORE]: Loading coremod script-engine for [openpartiesandclaims]
+[0611월2026 00:01:00.706] [main/INFO] [mixin/]: Compatibility level set to JAVA_21
+[0611월2026 00:01:00.803] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserver' with arguments [nogui]
+[0611월2026 00:01:00.896] [main/WARN] [mixin/]: Reference map 'easy_npc.refmap.json' for easy_npc.neoforge.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:00.920] [main/WARN] [mixin/]: Reference map 'openpartiesandclaims.refmap.json' for openpartiesandclaims.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:00.921] [main/WARN] [mixin/]: Reference map 'openpartiesandclaims.refmap.json' for openpartiesandclaims.create.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:00.924] [main/WARN] [mixin/]: Reference map 'curios.refmap.json' for curios.neoforge.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:00.924] [main/WARN] [mixin/]: Reference map 'curios.refmap.json' for curios.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:00.940] [main/WARN] [mixin/]: Reference map 'ponder.refmap.json' for ponder-common.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.111] [main/INFO] [ModernFix/]: Loaded configuration file for ModernFix 5.27.27+mc1.21.1: 89 options available, 0 override(s) found
+[0611월2026 00:01:01.127] [main/INFO] [ModernFix/]: Applying Nashorn fix
+[0611월2026 00:01:01.134] [main/WARN] [mixin/]: Reference map 'botanypots.refmap.json' for botanypots.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.136] [main/WARN] [mixin/]: Reference map 'bookshelf.refmap.json' for bookshelf.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.136] [main/WARN] [mixin/]: Reference map 'worldedit-neoforge.mixins.refmap.json' for worldedit-neoforge.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.161] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.predicates.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.161] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.fastmap.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.161] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.mrl.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.161] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.dedupmultipart.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.161] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.blockstatecache.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.174] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.dedupbakedquad.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.176] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.threaddetec.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.178] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.modelsides.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.181] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.datacomponents.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.181] [main/WARN] [mixin/]: Reference map '${refmap_target}refmap.json' for ferritecore.accessors.mixin.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.181] [main/WARN] [mixin/]: Reference map 'prickle.refmap.json' for prickle.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:01.184] [main/WARN] [mixin/]: Reference map 'immersive_paintings.refmap.json' for immersive_paintings.mixins.json could not be read. If this is a development environment you can ignore this message
+[0611월2026 00:01:02.205] [main/WARN] [mixin/]: Error loading class: org/jetbrains/annotations/ApiStatus$ScheduledForRemoval (java.lang.ClassNotFoundException: org.jetbrains.annotations.ApiStatus$ScheduledForRemoval)
+[0611월2026 00:01:02.564] [main/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.5).
+[0611월2026 00:01:03.836] [main/INFO] [net.minecraft.server.Bootstrap/]: ModernFix reached bootstrap stage (8.325 s after launch)
+[0611월2026 00:01:08.550] [main/INFO] [net.minecraft.server.Bootstrap/]: Vanilla bootstrap took 4719 milliseconds
+[0611월2026 00:01:08.697] [modloading-worker-0/INFO] [Easy NPC: Core/]: Initializing Easy NPC (NeoForge) ...
+[0611월2026 00:01:08.698] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Debug Manager ...
+[0611월2026 00:01:08.701] [modloading-worker-0/INFO] [de.markusbordihn.easynpc.bundle.EasyNPCBundleMod/]: Loading Easy NPC Bundle
+[0611월2026 00:01:08.703] [modloading-worker-0/INFO] [de.markusbordihn.easynpc.bundle.EasyNPCBundleMod/]: This bundle includes Easy NPC Core and Easy NPC Config UI
+[0611월2026 00:01:08.703] [modloading-worker-0/WARN] [Easy NPC: Core/]: [Debug Manager] Detected debug log level for Easy NPC: Core with ALL!
+[0611월2026 00:01:08.704] [modloading-worker-0/WARN] [Easy NPC: Core/]: [Debug Manager] Adjusting log level for Easy NPC: Core from ALL to INFO, for performance reasons!
+[0611월2026 00:01:08.706] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Debug Manager] Add new logger config for Easy NPC: Core with level INFO ...
+[0611월2026 00:01:08.707] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Constants ...
+[0611월2026 00:01:08.713] [modloading-worker-0/INFO] [CodecUI/]: Codec construction mixins inactive (Codec, MapCodec, RecordCodecBuilder) - expected on NeoForge; using reflective schema inference (numeric ranges recovered, optional-field defaults not).
+[0611월2026 00:01:08.714] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Configuration ...
+[0611월2026 00:01:08.720] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Config] Registering common configuration ...
+[0611월2026 00:01:08.723] [modloading-worker-0/INFO] [sierra.thing.playernamestyler.PlayerNameStyler/]: Loading PlayerName Styler...
+[0611월2026 00:01:08.768] [modloading-worker-0/INFO] [Easy NPC: Core/]: Initialized 741 supported and 261 unsupported entity types from defaults.
+[0611월2026 00:01:08.803] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Config] Registering server configuration ...
+[0611월2026 00:01:08.804] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Common Data Files ...
+[0611월2026 00:01:08.805] [modloading-worker-0/INFO] [com.simibubi.create.Create/]: Create 6.0.10 initializing! Commit hash: ac0c444d9828da3453ae8cc65338e8de063286fb
+[0611월2026 00:01:08.811] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Common data folders ...
+[0611월2026 00:01:08.813] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Entity Data Serializers ...
+[0611월2026 00:01:08.823] [modloading-worker-0/INFO] [net.neoforged.neoforge.common.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.265, for MC 1.21.1
+[0611월2026 00:01:08.835] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Compatibility Handler ...
+[0611월2026 00:01:08.840] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Compat Handler ...
+[0611월2026 00:01:08.842] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Compat Manager] Epic Fight mod with id 'epicfight' loaded: false
+[0611월2026 00:01:08.842] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Compat Manager] Cobblemon mod with id 'cobblemon' loaded: false
+[0611월2026 00:01:08.844] [modloading-worker-0/INFO] [Easy NPC: Core/]: [Compat Manager] Easy Model Entities mod with id 'easy_model_entities' loaded: false
+[0611월2026 00:01:08.844] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Command Argument Types ...
+[0611월2026 00:01:08.850] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Entity Types ...
+[0611월2026 00:01:09.215] [modloading-worker-0/INFO] [Moonlight/]: Sending changed configs to client
+[0611월2026 00:01:09.309] [modloading-worker-0/INFO] [Moonlight/]: Sending changed configs to client
+[0611월2026 00:01:09.980] [modloading-worker-0/WARN] [Supplementaries/]: Dye color white produced diffuse color -1 (white), this should never happen
+[0611월2026 00:01:10.130] [modloading-worker-0/INFO] [thedarkcolour.kotlinforforge.neoforge.test.KotlinForForge/]: Kotlin For Forge Enabled!
+[0611월2026 00:01:10.713] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 32 raw entity types.
+[0611월2026 00:01:10.714] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 37 NPC entity types.
+[0611월2026 00:01:10.714] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 4 custom entity types.
+[0611월2026 00:01:10.715] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 2 projectile entity types.
+[0611월2026 00:01:10.716] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Blocks ...
+[0611월2026 00:01:10.719] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Blocks Entity Types ...
+[0611월2026 00:01:10.719] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Items ...
+[0611월2026 00:01:11.011] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 37 NPC spawn eggs.
+[0611월2026 00:01:11.013] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registered 4 custom spawn eggs.
+[0611월2026 00:01:11.013] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Menu Types ...
+[0611월2026 00:01:11.014] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Menu Handler ...
+[0611월2026 00:01:11.015] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Mod Data Components ...
+[0611월2026 00:01:11.016] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Network Handler ...
+[0611월2026 00:01:11.017] [modloading-worker-0/INFO] [Easy NPC: Core/]: Registering client network handler for Server -> Client messages.
+[0611월2026 00:01:11.018] [modloading-worker-0/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Client Network Message Handler ...
+[0611월2026 00:01:11.026] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: Initializing Easy NPC: Config UI (NeoForge) ...
+[0611월2026 00:01:11.026] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Debug Manager ...
+[0611월2026 00:01:11.027] [modloading-worker-0/WARN] [Easy NPC: Config UI/]: [Debug Manager] Detected debug log level for Easy NPC: Config UI with ALL!
+[0611월2026 00:01:11.028] [modloading-worker-0/WARN] [Easy NPC: Config UI/]: [Debug Manager] Adjusting log level for Easy NPC: Config UI from ALL to INFO, for performance reasons!
+[0611월2026 00:01:11.028] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: [Debug Manager] Add new logger config for Easy NPC: Config UI with level INFO ...
+[0611월2026 00:01:11.029] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Constants ...
+[0611월2026 00:01:11.029] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Items ...
+[0611월2026 00:01:11.033] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Menu Types ...
+[0611월2026 00:01:11.047] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Menu Handler ...
+[0611월2026 00:01:11.051] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Network Handler ...
+[0611월2026 00:01:11.054] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: Registering client network handler for Server -> Client messages.
+[0611월2026 00:01:11.055] [modloading-worker-0/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Client Network Message Handler ...
+[0611월2026 00:01:12.319] [modloading-sync-worker/INFO] [Moonlight/]: Initialized block sets in 16ms
+[0611월2026 00:01:12.346] [modloading-sync-worker/INFO] [BotanyPots/]: Loaded 1 botany pots plugins!
+[0611월2026 00:01:12.859] [modloading-sync-worker/INFO] [Moonlight/]: Sending changed configs to client
+[0611월2026 00:01:12.865] [modloading-sync-worker/INFO] [Moonlight/]: Sending changed configs to client
+[0611월2026 00:01:12.872] [modloading-worker-0/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loading Open Parties and Claims!
+[0611월2026 00:01:12.874] [modloading-worker-0/INFO] [voicechat/]: [voicechat] Compatibility version 20
+[0611월2026 00:01:12.881] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwbridges] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/bridges.json
+[0611월2026 00:01:12.889] [modloading-worker-0/INFO] [sierra.thing.playernamestyler.PlayerNameStyler/]: Loaded 0 nicknames from file
+[0611월2026 00:01:12.889] [modloading-worker-0/INFO] [sierra.thing.playernamestyler.PlayerNameStyler/]: PlayerName Styler setup complete
+[0611월2026 00:01:12.949] [modloading-worker-0/INFO] [voicechat/]: [voicechat] Loading plugins
+[0611월2026 00:01:12.951] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwbridges] Found status: AHEAD Current: 3.1.2 Target: null
+[0611월2026 00:01:12.951] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [voicechat] Starting version check at https://update.maxhenkel.de/neoforge/voicechat
+[0611월2026 00:01:12.957] [modloading-worker-0/INFO] [voicechat/]: [voicechat] Loaded 0 plugin(s)
+[0611월2026 00:01:12.958] [modloading-worker-0/INFO] [voicechat/]: [voicechat] Initializing plugins
+[0611월2026 00:01:12.958] [modloading-worker-0/INFO] [voicechat/]: [voicechat] Initialized 0 plugin(s)
+[0611월2026 00:01:13.466] [modloading-worker-0/INFO] [fzzy_config/]: Loaded config immersive_paintings:common_config in 540ms
+[0611월2026 00:01:13.508] [modloading-worker-0/INFO] [fzzy_config/]: Loaded config immersive_paintings:client_config in 29ms
+[0611월2026 00:01:13.534] [modloading-worker-0/INFO] [com.sk89q.worldedit.extension.platform.PlatformManager/]: Got request to register class com.sk89q.worldedit.neoforge.NeoForgePlatform with WorldEdit [com.sk89q.worldedit.extension.platform.PlatformManager@237c3845]
+[0611월2026 00:01:13.537] [modloading-worker-0/INFO] [com.sk89q.worldedit.neoforge.NeoForgeWorldEdit/]: WorldEdit for NeoForge (version 7.3.8+6939-7d32b45) is loaded
+[0611월2026 00:01:13.567] [modloading-sync-worker/INFO] [Supplementaries/]: Finished mod setup in: [7, 0, 1, 0, 0, 0] ms
+[0611월2026 00:01:13.568] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Easy NPC Custom Data Component easy_npc:custom_data ...
+[0611월2026 00:01:13.569] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Easy NPC Preset Data Component easy_npc:preset_data ...
+[0611월2026 00:01:13.569] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Easy NPC Test Item Data Component easy_npc:test_item_data ...
+[0611월2026 00:01:13.576] [modloading-sync-worker/INFO] [com.tiviacz.travelersbackpack.TravelersBackpack/]: Registered the FluidEffect with Unique ID of minecraft:water for Water (Fluid Amount Required: 1000) with the ID 0
+[0611월2026 00:01:13.576] [modloading-sync-worker/INFO] [com.tiviacz.travelersbackpack.TravelersBackpack/]: Registered the FluidEffect with Unique ID of minecraft:lava for Lava (Fluid Amount Required: 1000) with the ID 1
+[0611월2026 00:01:13.578] [modloading-sync-worker/INFO] [com.tiviacz.travelersbackpack.TravelersBackpack/]: Registered the FluidEffect with Unique ID of travelersbackpack:potion for item.minecraft.potion.effect.empty.effect.empty (Fluid Amount Required: 250) with the ID 2
+[0611월2026 00:01:13.578] [modloading-sync-worker/INFO] [com.tiviacz.travelersbackpack.TravelersBackpack/]: Registered the FluidEffect with Unique ID of minecraft:milk for Milk (Fluid Amount Required: 1000) with the ID 3
+[0611월2026 00:01:13.619] [modloading-sync-worker/INFO] [Moonlight/]: Initialized color sets in 37ms
+[0611월2026 00:01:13.726] [modloading-sync-worker/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register NetworkHandler ...
+[0611월2026 00:01:13.727] [modloading-sync-worker/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Network Handler ...
+[0611월2026 00:01:13.728] [modloading-sync-worker/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Network Handler for net.neoforged.neoforge.network.registration.PayloadRegistrar@337838ab with version 33 ...
+[0611월2026 00:01:13.728] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Registering network messages for BOTH side ...
+[0611월2026 00:01:13.729] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Registering client network handler ...
+[0611월2026 00:01:13.734] [modloading-sync-worker/INFO] [Easy NPC: Core/]: Registering server network handler ...
+[0611월2026 00:01:13.816] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] NetworkHandler ...
+[0611월2026 00:01:13.818] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Network Handler ...
+[0611월2026 00:01:13.819] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] Network Handler for net.neoforged.neoforge.network.registration.PayloadRegistrar@1a8c8825 with version 33 ...
+[0611월2026 00:01:13.819] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: Registering network messages for BOTH side ...
+[0611월2026 00:01:13.819] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: Registering client network handler ...
+[0611월2026 00:01:13.822] [modloading-sync-worker/INFO] [Easy NPC: Config UI/]: Registering server network handler ...
+[0611월2026 00:01:13.909] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [voicechat] Found status: OUTDATED Current: 1.21.1-2.6.22 Target: 1.21.1-2.6.27
+[0611월2026 00:01:13.912] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwtrpdoors] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/trapdoors.json
+[0611월2026 00:01:13.932] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwtrpdoors] Found status: UP_TO_DATE Current: 1.1.5 Target: null
+[0611월2026 00:01:13.933] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwfences] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/fences.json
+[0611월2026 00:01:13.953] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwfences] Found status: UP_TO_DATE Current: 1.2.1 Target: null
+[0611월2026 00:01:13.953] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwwindows] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/window.json
+[0611월2026 00:01:13.960] [main/INFO] [com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService/]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[0611월2026 00:01:13.973] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwwindows] Found status: UP_TO_DATE Current: 2.4.2 Target: null
+[0611월2026 00:01:13.973] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [create] Starting version check at https://api.modrinth.com/updates/create/forge_updates.json?neoforge=only
+[0611월2026 00:01:14.070] [main/WARN] [net.neoforged.neoforge.common.CommonHooks/WP]: The following mods have version differences that were not resolved:
+gettcore (version 1.0.0 -> 1.0.1)
+Things may not work well.
+[0611월2026 00:01:14.078] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/MyProject/MinecraftServer-1.21.1/libraries/net/minecraft/server/1.21.1-20240808.144430/server-1.21.1-20240808.144430-srg.jar%23155!/assets/.mcassetsroot' uses unexpected schema
+[0611월2026 00:01:14.079] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/MyProject/MinecraftServer-1.21.1/libraries/net/minecraft/server/1.21.1-20240808.144430/server-1.21.1-20240808.144430-srg.jar%23155!/data/.mcassetsroot' uses unexpected schema
+[0611월2026 00:01:14.199] [main/INFO] [com.simibubi.create.Create/]: Created 170 recipes which will be injected into the game
+[0611월2026 00:01:14.205] [main/INFO] [com.simibubi.create.Create/]: Created 0 tags which will be injected into the game
+[0611월2026 00:01:14.276] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [create] Found status: OUTDATED Current: 6.0.10 Target: 6.0.10+mc1.21.1
+[0611월2026 00:01:14.276] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwpaintings] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/paintings.json
+[0611월2026 00:01:14.300] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwpaintings] Found status: AHEAD Current: 1.1.0 Target: null
+[0611월2026 00:01:14.300] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [botanypots] Starting version check at https://updates.blamejared.com/get?n=botanypots&gv=1.21.1&ml=neoforge
+[0611월2026 00:01:14.366] [main/INFO] [Moonlight/]: Resource cache state for SERVER_DATA: needs regeneration
+[0611월2026 00:01:14.368] [main/INFO] [Moonlight/]: Deleting directory: C:\MyProject\MinecraftServer-1.21.1\dynamic-data-pack-cache\supplementaries-generated_pack
+[0611월2026 00:01:14.372] [main/INFO] [Moonlight/]: Cleared cache pack resources at C:\MyProject\MinecraftServer-1.21.1\dynamic-data-pack-cache\supplementaries-generated_pack in 4.979 ms
+[0611월2026 00:01:14.373] [main/INFO] [Moonlight/]: Starting runtime resource generation for pack type SERVER_DATA with generators [supplementaries:generated_pack]
+[0611월2026 00:01:14.378] [main/INFO] [Moonlight/]: Regenerating Dynamic SERVER_DATA Resources Provider [supplementaries:generated_pack], requested by strategy CACHED_FOLDER
+[0611월2026 00:01:14.417] [pool-17-thread-1/INFO] [Supplementaries/]: Generated 11 sign post recipes
+[0611월2026 00:01:14.452] [main/INFO] [Moonlight/]: Generated runtime SERVER_DATA for pack supplementaries:generated_pack in 73.51 ms
+[0611월2026 00:01:14.458] [main/INFO] [Moonlight/]: Populated search tree for pack at C:\MyProject\MinecraftServer-1.21.1\dynamic-data-pack-cache\supplementaries-generated_pack in 3.469 ms
+[0611월2026 00:01:14.458] [main/INFO] [Moonlight/]: Finished runtime resources generation for 1 packs in a total of 85.88 ms 
+[0611월2026 00:01:15.226] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [botanypots] Found status: BETA Current: 21.1.44 Target: 21.1.44
+[0611월2026 00:01:15.226] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [bookshelf] Starting version check at https://updates.blamejared.com/get?n=bookshelf&gv=1.21.1&ml=neoforge
+[0611월2026 00:01:15.523] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [bookshelf] Found status: BETA Current: 21.1.81 Target: 21.1.81
+[0611월2026 00:01:15.523] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwroofs] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/roofs.json
+[0611월2026 00:01:15.544] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwroofs] Found status: UP_TO_DATE Current: 2.3.2 Target: null
+[0611월2026 00:01:15.544] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwdoors] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/doors.json
+[0611월2026 00:01:15.564] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwdoors] Found status: AHEAD Current: 1.1.5 Target: null
+[0611월2026 00:01:15.564] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwfurnitures] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/furniture.json
+[0611월2026 00:01:15.583] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwfurnitures] Found status: UP_TO_DATE Current: 3.4.1 Target: null
+[0611월2026 00:01:15.584] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [prickle] Starting version check at https://updates.blamejared.com/get?n=prickle&gv=1.21.1&ml=neoforge
+[0611월2026 00:01:15.817] [Worker-Main-3/INFO] [com.sk89q.worldedit.extension.platform.PlatformCommandManager/]: Registering commands with com.sk89q.worldedit.neoforge.NeoForgePlatform
+[0611월2026 00:01:15.858] [Worker-Main-3/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register /easy_npc commands for Easy NPC ...
+[0611월2026 00:01:15.873] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [prickle] Found status: BETA Current: 21.1.11 Target: 21.1.11
+[0611월2026 00:01:15.873] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwpaths] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/paths.json
+[0611월2026 00:01:15.893] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwpaths] Found status: UP_TO_DATE Current: 1.1.1 Target: null
+[0611월2026 00:01:15.893] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [corpse] Starting version check at https://update.maxhenkel.de/neoforge/corpse
+[0611월2026 00:01:15.912] [Worker-Main-3/INFO] [Easy NPC: Config UI/]: 🗣 [Easy NPC: Config UI] [Register] /easy_npc_config_ui commands for Easy NPC: Config UI ...
+[0611월2026 00:01:16.128] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [corpse] Found status: UP_TO_DATE Current: 1.21.1-1.1.22 Target: null
+[0611월2026 00:01:16.129] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwlights] Starting version check at https://raw.githubusercontent.com/sketchmacaw/macawsmods/master/lights.json
+[0611월2026 00:01:16.155] [NeoForge Version Check/INFO] [net.neoforged.fml.VersionChecker/]: [mcwlights] Found status: UP_TO_DATE Current: 1.1.5 Target: null
+[0611월2026 00:01:16.602] [main/INFO] [BotanyPots/]: Updating registry access.
+[0611월2026 00:01:16.725] [main/ERROR] [net.minecraft.world.item.crafting.RecipeManager/]: Parsing error loading recipe farmersrespite:brewing/melon_juice_from_water: com.google.gson.JsonParseException: Unknown registry key in ResourceKey[minecraft:root / neoforge:condition_codecs]: neoforge:never; Input does not contain a key [type]: MapLike[{}]
+[0611월2026 00:01:16.763] [main/ERROR] [net.minecraft.world.item.crafting.RecipeManager/]: Parsing error loading recipe farmersdelight:melon_juice: com.google.gson.JsonParseException: Unknown registry key in ResourceKey[minecraft:root / neoforge:condition_codecs]: neoforge:never; Input does not contain a key [type]: MapLike[{}]
+[0611월2026 00:01:16.805] [main/INFO] [net.minecraft.world.item.crafting.RecipeManager/]: Loaded 7275 recipes
+[0611월2026 00:01:17.073] [main/INFO] [net.minecraft.advancements.AdvancementTree/]: Loaded 3985 advancements
+[0611월2026 00:01:17.081] [main/INFO] [Curios API/]: Loaded 10 curio slots
+[0611월2026 00:01:17.084] [main/INFO] [Curios API/]: Loaded 1 curio entities
+[0611월2026 00:01:17.086] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_village_snowy_house - error: No key table in MapLike[{"type":"farmersdelight:add_loot_table","conditions":[{"condition":"neoforge:loot_table_id","loot_table_id":"minecraft:chests/village/village_snowy_house"}],"lootTable":"expandeddelight:chests/village_snowy_house"}]
+[0611월2026 00:01:17.087] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_village_desert_house - error: No key table in MapLike[{"type":"farmersdelight:add_loot_table","conditions":[{"condition":"neoforge:loot_table_id","loot_table_id":"minecraft:chests/village/village_desert_house"}],"lootTable":"expandeddelight:chests/village_desert_house"}]
+[0611월2026 00:01:17.088] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_village_taiga_house - error: No key table in MapLike[{"type":"farmersdelight:add_loot_table","conditions":[{"condition":"neoforge:loot_table_id","loot_table_id":"minecraft:chests/village/village_taiga_house"}],"lootTable":"expandeddelight:chests/village_taiga_house"}]
+[0611월2026 00:01:17.088] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_sniffer_digging - error: Not a JSON object: null
+[0611월2026 00:01:17.089] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_village_savanna_house - error: No key table in MapLike[{"type":"farmersdelight:add_loot_table","conditions":[{"condition":"neoforge:loot_table_id","loot_table_id":"minecraft:chests/village/village_savanna_house"}],"lootTable":"expandeddelight:chests/village_savanna_house"}]
+[0611월2026 00:01:17.089] [main/WARN] [net.neoforged.neoforge.common.loot.LootModifierManager/]: Could not decode GlobalLootModifier with json id expandeddelight:add_loot_village_plains_house - error: No key table in MapLike[{"type":"farmersdelight:add_loot_table","conditions":[{"condition":"neoforge:loot_table_id","loot_table_id":"minecraft:chests/village/village_plains_house"}],"lootTable":"expandeddelight:chests/village_plains_house"}]
+[0611월2026 00:01:17.132] [main/INFO] [Moonlight/]: Applied 17 data villager trades
+[0611월2026 00:01:17.136] [main/INFO] [Moonlight/]: Failed to load custom color set definition {"id":"quark:rune","colors":{"default":"quark:blank_rune"},"replace":false}. Ignoring
+[0611월2026 00:01:17.137] [main/INFO] [Moonlight/]: Failed to load custom color set definition {"id":"quark:shard","colors":{"default":"quark:clear_shard"},"replace":false}. Ignoring
+[0611월2026 00:01:17.146] [main/INFO] [Supplementaries/]: Loaded 36 flute songs
+[0611월2026 00:01:17.358] [main/INFO] [Supplementaries/]: Registering custom dispenser behaviors
+[0611월2026 00:01:17.388] [main/WARN] [ModernFix/]: Initial datapack load took 3.166 s
+[0611월2026 00:01:17.452] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting minecraft server version 1.21.1
+[0611월2026 00:01:17.452] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Loading properties
+[0611월2026 00:01:17.452] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Default game type: SURVIVAL
+[0611월2026 00:01:17.452] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Generating keypair
+[0611월2026 00:01:17.494] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting Minecraft server on *:25565
+[0611월2026 00:01:17.569] [Server thread/INFO] [net.minecraft.server.network.ServerConnectionListener/]: Using default channel type
+[0611월2026 00:01:17.737] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]:         __    
+[0611월2026 00:01:17.737] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]:   |    |__)   LuckPerms v5.4.140
+[0611월2026 00:01:17.738] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]:   |___ |      Running on NeoForge - NeoForge
+[0611월2026 00:01:17.738] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: 
+[0611월2026 00:01:17.739] [Server thread/INFO] [luckperms/]: Loading configuration...
+[0611월2026 00:01:17.861] [Server thread/INFO] [luckperms/]: Loading storage provider... [H2]
+[0611월2026 00:01:18.108] [Server thread/INFO] [luckperms/]: Loading internal permission managers...
+[0611월2026 00:01:18.136] [Server thread/INFO] [luckperms/]: Performing initial data load...
+[0611월2026 00:01:18.185] [Server thread/INFO] [luckperms/]: Successfully enabled. (took 5255ms)
+[0611월2026 00:01:18.192] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Initializing Open Parties and Claims for the server...
+[0611월2026 00:01:18.205] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loading server info!
+[0611월2026 00:01:18.275] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loading player configs...
+[0611월2026 00:01:18.346] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loaded player configs!
+[0611월2026 00:01:18.346] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loading parties...
+[0611월2026 00:01:18.349] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loaded parties!
+[0611월2026 00:01:18.350] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Fixing party inconsistencies...
+[0611월2026 00:01:18.393] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Registered party system for OPAC: default
+[0611월2026 00:01:18.393] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Registered permission system for OPAC: luck_perms
+[0611월2026 00:01:18.395] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Registered permission system for OPAC: permission_api
+[0611월2026 00:01:18.395] [Server thread/WARN] [xaero.pac.OpenPartiesAndClaims/]: The configured primary party system "argonauts_guilds" isn't registered!
+[0611월2026 00:01:18.395] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Configured OPAC to use the following party system as primary: default
+[0611월2026 00:01:18.396] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loading claims...
+[0611월2026 00:01:18.406] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Loaded claims in 11ms
+[0611월2026 00:01:18.407] [Server thread/WARN] [xaero.pac.OpenPartiesAndClaims/]: The configured permission system "prometheus" isn't registered!
+[0611월2026 00:01:18.407] [Server thread/INFO] [xaero.pac.OpenPartiesAndClaims/]: Configured OPAC to use the following permission system: luck_perms
+[0611월2026 00:01:18.407] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Preparing level "world"
+[0611월2026 00:01:18.767] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Preparing start region for dimension minecraft:overworld
+[0611월2026 00:01:19.016] [Worker-Main-9/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Preparing spawn area: 0%
+[0611월2026 00:01:19.223] [Server thread/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Time elapsed: 455 ms
+[0611월2026 00:01:19.223] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Done (1.602s)! For help, type "help"
+[0611월2026 00:01:19.244] [LanServerPinger #1/WARN] [net.minecraft.client.server.LanServerPinger/]: LanServerPinger: Network is unreachable: sendto
+[0611월2026 00:01:19.296] [Server thread/INFO] [net.neoforged.neoforge.server.permission.PermissionAPI/]: Successfully initialized permission handler luckperms:permission_handler
+[0611월2026 00:01:19.297] [Server thread/INFO] [ianm1647.expandeddelight.ExpandedDelight/]: Expanded Delight is starting...
+[0611월2026 00:01:19.298] [Server thread/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Server is starting Events ...
+[0611월2026 00:01:19.302] [Server thread/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Server data folders ...
+[0611월2026 00:01:19.303] [Server thread/INFO] [Easy NPC: Core/]: [Pose Manager] Cleared all pose data.
+[0611월2026 00:01:19.325] [Server thread/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register 76 pose data entries.
+[0611월2026 00:01:19.349] [Server thread/INFO] [org.gettserver.gettcore.GettCore/]: gettcore: 상점 1, 대화 1
+[0611월2026 00:01:22.810] [Server thread/INFO] [Easy NPC: Core/]: 🗣 [Easy NPC: Core] Register Server started Events ...
+[0611월2026 00:01:22.820] [Server thread/INFO] [Easy NPC: Core/]: [NPC Entity Manager] Initialized with 0 tracked NPC entities
+[0611월2026 00:01:22.831] [Server thread/WARN] [ModernFix/]: Dedicated server took 27.32 seconds to load
+[0611월2026 00:01:22.831] [VoiceChatServerThread/INFO] [voicechat/]: [voicechat] Voice chat server started at port 24454
+[0611월2026 00:01:26.886] [Netty Server IO #1/ERROR] [net.minecraft.network.PacketEncoder/]: Error sending packet clientbound/minecraft:disconnect
+io.netty.handler.codec.EncoderException: Sending unknown packet 'clientbound/minecraft:disconnect'
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.codec.IdDispatchCodec.encode(IdDispatchCodec.java:47) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.codec.IdDispatchCodec.encode(IdDispatchCodec.java:14) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.PacketEncoder.encode(PacketEncoder.java:24) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.PacketEncoder.encode(PacketEncoder.java:12) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at MC-BOOTSTRAP/io.netty.codec@4.1.97.Final/io.netty.handler.codec.MessageToByteEncoder.write(MessageToByteEncoder.java:107) ~[netty-codec-4.1.97.Final.jar%23102!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:881) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeWrite(AbstractChannelHandlerContext.java:863) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:968) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:856) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.ChannelOutboundHandlerAdapter.write(ChannelOutboundHandlerAdapter.java:113) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection$2.write(Connection.java:528) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeWrite0(AbstractChannelHandlerContext.java:881) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeWriteAndFlush(AbstractChannelHandlerContext.java:940) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.write(AbstractChannelHandlerContext.java:966) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:934) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.writeAndFlush(AbstractChannelHandlerContext.java:984) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.DefaultChannelPipeline.writeAndFlush(DefaultChannelPipeline.java:1025) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannel.writeAndFlush(AbstractChannel.java:306) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.doSendPacket$mixinextras$wrapped$77(Connection.java:364) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.mixinextras$bridge$doSendPacket$mixinextras$wrapped$77$78(Connection.java) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.wrapMethod$zli000$modernfix$checkClientPresence(Connection.java:750) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.doSendPacket(Connection.java) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.sendPacket(Connection.java:357) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.send(Connection.java:339) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.send(Connection.java:333) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.Connection.exceptionCaught(Connection.java:168) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:346) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:325) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.fireExceptionCaught(AbstractChannelHandlerContext.java:317) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.DefaultChannelPipeline$HeadContext.exceptionCaught(DefaultChannelPipeline.java:1377) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:346) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.AbstractChannelHandlerContext.invokeExceptionCaught(AbstractChannelHandlerContext.java:325) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.DefaultChannelPipeline.fireExceptionCaught(DefaultChannelPipeline.java:907) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.handleReadException(AbstractNioByteChannel.java:125) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.AbstractNioByteChannel$NioByteUnsafe.read(AbstractNioByteChannel.java:177) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:788) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:724) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:650) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.transport@4.1.97.Final/io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:562) ~[netty-transport-4.1.97.Final.jar%23106!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.common@4.1.97.Final/io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997) ~[netty-common-4.1.97.Final.jar%23103!/:4.1.97.Final]
+	at MC-BOOTSTRAP/io.netty.common@4.1.97.Final/io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74) ~[netty-common-4.1.97.Final.jar%23103!/:4.1.97.Final]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[0611월2026 00:01:39.595] [User Authenticator #1/INFO] [net.minecraft.server.network.ServerLoginPacketListenerImpl/]: UUID of player Archangel_97 is 65c73c5d-a552-45e7-84f1-49c467253244
+[0611월2026 00:01:40.561] [Server thread/INFO] [net.minecraft.server.players.PlayerList/]: Archangel_97[/192.168.0.1:4457] logged in with entity id 54 at (16.160982972010647, 96.0, -6.931578988769014)
+[0611월2026 00:01:40.627] [Server thread/ERROR] [net.minecraft.server.network.ServerConfigurationPacketListenerImpl/]: Couldn't place player in world
+java.lang.IllegalStateException: Capability has not been initialised
+	at me.lucko.luckperms.neoforge.capabilities.UserCapabilityImpl.assertInitialised(UserCapabilityImpl.java:98) ~[?:?]
+	at me.lucko.luckperms.neoforge.capabilities.UserCapabilityImpl.getUser(UserCapabilityImpl.java:141) ~[?:?]
+	at me.lucko.luckperms.neoforge.service.NeoForgePermissionHandler.getPermission(NeoForgePermissionHandler.java:84) ~[?:?]
+	at TRANSFORMER/neoforge@21.1.265/net.neoforged.neoforge.server.permission.PermissionAPI.getPermission(PermissionAPI.java:63) ~[neoforge-21.1.265-universal.jar%23156!/:?]
+	at TRANSFORMER/voicechat@1.21.1-2.6.22/de.maxhenkel.voicechat.permission.NeoForgePermission.hasPermission(NeoForgePermission.java:19) ~[voicechat-neoforge-1.21.1-2.6.22.jar%23193!/:?]
+	at TRANSFORMER/voicechat@1.21.1-2.6.22/de.maxhenkel.voicechat.command.VoicechatCommands.checkPermission(VoicechatCommands.java:293) ~[voicechat-neoforge-1.21.1-2.6.22.jar%23193!/:?]
+	at TRANSFORMER/voicechat@1.21.1-2.6.22/de.maxhenkel.voicechat.command.VoicechatCommands.lambda$register$2(VoicechatCommands.java:45) ~[voicechat-neoforge-1.21.1-2.6.22.jar%23193!/:?]
+	at me.lucko.luckperms.neoforge.util.BrigadierInjector$InjectedPermissionRequirement.test(BrigadierInjector.java:164) ~[?:?]
+	at me.lucko.luckperms.neoforge.util.BrigadierInjector$InjectedPermissionRequirement.test(BrigadierInjector.java:130) ~[?:?]
+	at MC-BOOTSTRAP/brigadier@1.3.10/com.mojang.brigadier.tree.CommandNode.canUse(CommandNode.java:65) ~[brigadier-1.3.10.jar%2399!/:?]
+	at TRANSFORMER/neoforge@21.1.265/net.neoforged.neoforge.server.command.CommandHelper.mergeCommandNode(CommandHelper.java:44) ~[neoforge-21.1.265-universal.jar%23156!/:?]
+	at TRANSFORMER/neoforge@21.1.265/net.neoforged.neoforge.server.command.CommandHelper.toResult(CommandHelper.java:93) ~[neoforge-21.1.265-universal.jar%23156!/:?]
+	at TRANSFORMER/neoforge@21.1.265/net.neoforged.neoforge.server.command.CommandHelper.mergeCommandNode(CommandHelper.java:45) ~[neoforge-21.1.265-universal.jar%23156!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.commands.Commands.sendCommands(Commands.java:377) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.players.PlayerList.sendPlayerPermissionLevel(PlayerList.java:633) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.players.PlayerList.sendPlayerPermissionLevel(PlayerList.java:533) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.players.PlayerList.placeNewPlayer(PlayerList.java:207) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.network.ServerConfigurationPacketListenerImpl.handleConfigurationFinished(ServerConfigurationPacketListenerImpl.java:188) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.protocol.configuration.ServerboundFinishConfigurationPacket.handle(ServerboundFinishConfigurationPacket.java:22) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.protocol.configuration.ServerboundFinishConfigurationPacket.handle(ServerboundFinishConfigurationPacket.java:8) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.network.protocol.PacketUtils.lambda$ensureRunningOnSameThread$0(PacketUtils.java:27) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.TickTask.run(TickTask.java:18) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.util.thread.BlockableEventLoop.doRunTask(BlockableEventLoop.java:148) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.util.thread.ReentrantBlockableEventLoop.doRunTask(ReentrantBlockableEventLoop.java:23) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.doRunTask(MinecraftServer.java:872) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.doRunTask(MinecraftServer.java:170) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.util.thread.BlockableEventLoop.pollTask(BlockableEventLoop.java:122) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.pollTaskInternal(MinecraftServer.java:855) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.pollTask(MinecraftServer.java:849) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.util.thread.BlockableEventLoop.managedBlock(BlockableEventLoop.java:132) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.managedBlock(MinecraftServer.java:821) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.mixinextras$bridge$managedBlock$269(MinecraftServer.java) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.wrapOperation$zkm000$modernfix$managedBlock(MinecraftServer.java:2154) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.waitUntilNextTick(MinecraftServer.java:826) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.runServer(MinecraftServer.java:712) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at TRANSFORMER/minecraft@1.21.1/net.minecraft.server.MinecraftServer.lambda$spin$2(MinecraftServer.java:267) ~[server-1.21.1-20240808.144430-srg.jar%23155!/:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[0611월2026 00:01:40.757] [Server thread/INFO] [net.minecraft.server.network.ServerGamePacketListenerImpl/]: Archangel_97 lost connection: Invalid player data
+[0611월2026 00:01:40.758] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Archangel_97 left the game
+[0611월2026 00:01:40.776] [Server thread/INFO] [voicechat/]: [voicechat] Disconnecting client Archangel_97
