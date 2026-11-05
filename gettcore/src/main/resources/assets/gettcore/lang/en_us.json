@@ -35,5 +35,6 @@
   "gettcore.gui.add_held": "Add held item",
   "gettcore.msg.shop_edit_denied": "You may not edit shops",
   "gettcore.msg.shop_saved": "Shop saved",
-  "gettcore.msg.shop_edit_invalid": "Invalid edit request"
+  "gettcore.msg.shop_edit_invalid": "Invalid edit request",
+  "gettcore.msg.shop_save_failed": "Saving the shop failed; check the server log"
 }

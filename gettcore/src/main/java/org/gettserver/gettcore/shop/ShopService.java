@@ -70,20 +70,22 @@ public final class ShopService {
         return dynamics().enabled();
     }
 
-    private static void persistAndSync(ShopDefinition updated) {
+    /** Returns true only when the save succeeded and the resync ran. */
+    private static boolean persistAndSync(ShopDefinition updated) {
         try {
             GettData.get().saveShop(updated);
         } catch (java.io.IOException e) {
             GettCore.LOGGER.error("gettcore: failed saving shop {}", updated.id(), e);
-            return;
+            return false;
         }
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) return;
+        if (server == null) return true;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             if (isOpen(p, updated.id())) {
                 PacketDistributor.sendToPlayer(p, new ShopSyncPayload(updated.id(), updated, dynamicsOn()));
             }
         }
+        return true;
     }
 
     /** Applies the 1-minute recovery step to every shop; call from the server tick. */
@@ -155,8 +157,7 @@ public final class ShopService {
                 return;
             }
         }
-        persistAndSync(updated);
-        msg(player, "gettcore.msg.shop_saved");
+        msg(player, persistAndSync(updated) ? "gettcore.msg.shop_saved" : "gettcore.msg.shop_save_failed");
     }
 
     public static boolean isOpen(ServerPlayer player, String shopId) {
