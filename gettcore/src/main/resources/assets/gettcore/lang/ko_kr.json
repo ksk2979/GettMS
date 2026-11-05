@@ -28,5 +28,12 @@
   "gettcore.gui.confirm": "확인",
   "gettcore.gui.cancel": "취소",
   "gettcore.gui.total": "합계: %s 골드",
-  "gettcore.msg.nothing_to_sell": "판매할 물건이 없습니다"
+  "gettcore.msg.nothing_to_sell": "판매할 물건이 없습니다",
+  "gettcore.gui.edit": "편집",
+  "gettcore.gui.edit_on": "편집 중",
+  "gettcore.gui.delete": "삭제",
+  "gettcore.gui.add_held": "손에 든 아이템 추가",
+  "gettcore.msg.shop_edit_denied": "상점 편집 권한이 없습니다",
+  "gettcore.msg.shop_saved": "상점이 저장되었습니다",
+  "gettcore.msg.shop_edit_invalid": "잘못된 편집 요청입니다"
 }

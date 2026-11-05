@@ -28,5 +28,12 @@
   "gettcore.gui.confirm": "Confirm",
   "gettcore.gui.cancel": "Cancel",
   "gettcore.gui.total": "Total: %s gold",
-  "gettcore.msg.nothing_to_sell": "Nothing to sell"
+  "gettcore.msg.nothing_to_sell": "Nothing to sell",
+  "gettcore.gui.edit": "Edit",
+  "gettcore.gui.edit_on": "Editing",
+  "gettcore.gui.delete": "Delete",
+  "gettcore.gui.add_held": "Add held item",
+  "gettcore.msg.shop_edit_denied": "You may not edit shops",
+  "gettcore.msg.shop_saved": "Shop saved",
+  "gettcore.msg.shop_edit_invalid": "Invalid edit request"
 }

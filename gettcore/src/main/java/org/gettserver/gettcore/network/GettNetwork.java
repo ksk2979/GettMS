@@ -32,5 +32,7 @@ public final class GettNetwork {
                         () -> DialogSession.choose((ServerPlayer) ctx.player(), payload.choiceIndex())));
         registrar.playToServer(TradePayload.TYPE, TradePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.trade((ServerPlayer) ctx.player(), payload)));
+        registrar.playToServer(ShopEditPayload.TYPE, ShopEditPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ShopService.edit((ServerPlayer) ctx.player(), payload)));
     }
 }

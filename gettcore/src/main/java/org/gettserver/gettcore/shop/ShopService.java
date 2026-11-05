@@ -25,6 +25,7 @@ import org.gettserver.gettcore.economy.EconomyData;
 import org.gettserver.gettcore.economy.Gold;
 import org.gettserver.gettcore.economy.Ledger;
 import org.gettserver.gettcore.economy.RateLimiter;
+import org.gettserver.gettcore.network.ShopEditPayload;
 import org.gettserver.gettcore.network.ShopSyncPayload;
 import org.gettserver.gettcore.network.TradePayload;
 import org.gettserver.gettcore.perm.Perms;
@@ -103,6 +104,59 @@ public final class ShopService {
             }
             if (changed) persistAndSync(updated);
         }
+    }
+
+    public static void edit(ServerPlayer player, ShopEditPayload req) {
+        if (!Perms.has(player, Perms.SHOP_EDIT)) {
+            GettCore.LOGGER.warn("gettcore: {} tried to edit shop {} without permission",
+                    player.getGameProfile().getName(), req.shopId());
+            msg(player, "gettcore.msg.shop_edit_denied");
+            return;
+        }
+        Optional<ShopDefinition> shop = GettData.get().shop(req.shopId());
+        if (shop.isEmpty() || !isOpen(player, req.shopId())) {
+            msg(player, "gettcore.msg.shop_edit_invalid");
+            return;
+        }
+        ShopDefinition def = shop.get();
+        ResourceLocation id = req.item();
+        boolean validItem = BuiltInRegistries.ITEM.containsKey(id) && BuiltInRegistries.ITEM.get(id) != Items.AIR;
+        boolean validPrices = req.buyPrice() >= 0 && req.buyPrice() <= Ledger.MAX_AMOUNT
+                && req.sellPrice() >= 0 && req.sellPrice() <= Ledger.MAX_AMOUNT;
+        boolean validTab = def.tabs().stream().anyMatch(t -> t.id().equals(req.tab()));
+        ShopDefinition updated;
+        switch (req.action()) {
+            case REMOVE -> {
+                if (!validItem) {
+                    msg(player, "gettcore.msg.shop_edit_invalid");
+                    return;
+                }
+                updated = def.withoutEntry(id);
+            }
+            case ADD -> {
+                if (!validItem || !validPrices || !validTab) {
+                    msg(player, "gettcore.msg.shop_edit_invalid");
+                    return;
+                }
+                updated = def.withEntry(new ShopEntry(id, req.tab(), req.buyPrice(), req.sellPrice(),
+                        req.canBuy(), req.canSell(), req.buyPrice(), req.sellPrice()));
+            }
+            case SET_PRICE -> {
+                ShopEntry existing = def.entries().stream().filter(e -> e.item().equals(id)).findFirst().orElse(null);
+                if (existing == null || !validItem || !validPrices) {
+                    msg(player, "gettcore.msg.shop_edit_invalid");
+                    return;
+                }
+                updated = def.withEntry(new ShopEntry(id, existing.tab(), req.buyPrice(), req.sellPrice(),
+                        req.canBuy(), req.canSell(), req.buyPrice(), req.sellPrice()));
+            }
+            default -> {
+                msg(player, "gettcore.msg.shop_edit_invalid");
+                return;
+            }
+        }
+        persistAndSync(updated);
+        msg(player, "gettcore.msg.shop_saved");
     }
 
     public static boolean isOpen(ServerPlayer player, String shopId) {

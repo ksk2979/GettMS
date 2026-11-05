@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.AbstractWidget;
+import org.gettserver.gettcore.network.ShopEditPayload;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -38,6 +41,38 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private int selectedTab;
     private int scroll;
     private QuantityPopup popup;
+    private boolean editing;
+    private Button editToggle;
+    private final List<AbstractWidget> editWidgets = new ArrayList<>();
+    private String editSignature;
+
+    /** EditBox that commits when it loses focus. */
+    private static final class PriceBox extends EditBox {
+        private final Runnable commit;
+
+        PriceBox(net.minecraft.client.gui.Font font, int x, int y, int w, int h, Runnable commit) {
+            super(font, x, y, w, h, Component.empty());
+            this.commit = commit;
+            setMaxLength(12);
+            setFilter(str -> str.chars().allMatch(c -> c >= '0' && c <= '9'));
+        }
+
+        @Override
+        public void setFocused(boolean focused) {
+            boolean was = isFocused();
+            super.setFocused(focused);
+            if (was && !focused) commit.run();
+        }
+
+        @Override
+        public boolean keyPressed(int key, int scan, int mods) {
+            if (isFocused() && (key == 257 || key == 335)) {
+                commit.run();
+                return true;
+            }
+            return super.keyPressed(key, scan, mods);
+        }
+    }
 
     public ShopScreen(ShopMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
@@ -48,11 +83,102 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     protected void init() {
         super.init();
+        editWidgets.clear();
+        editSignature = null;
+        editToggle = null;
+        if (menu.canEdit()) {
+            editToggle = addRenderableWidget(Button.builder(editLabel(), b -> {
+                editing = !editing;
+                b.setMessage(editLabel());
+                editSignature = null;
+                syncEditWidgets();
+            }).bounds(leftPos + imageWidth - 48, topPos + 4, 44, 16).build());
+        }
         if (menu.mode() == ShopMode.SELL) {
             addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.sell_all"),
                     b -> PacketDistributor.sendToServer(new TradePayload(menu.shopId(),
                             ResourceLocation.withDefaultNamespace("air"), 1, ShopMode.SELL, true))).bounds(leftPos + LIST_X, topPos + 176, LIST_W, 18).build());
         }
+    }
+
+    private Component editLabel() {
+        return Component.translatable(editing ? "gettcore.gui.edit_on" : "gettcore.gui.edit");
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+        if (menu.canEdit()) syncEditWidgets();
+    }
+
+    private void clearEditWidgets() {
+        for (AbstractWidget w : editWidgets) removeWidget(w);
+        editWidgets.clear();
+    }
+
+    /** Rebuilds the per-row edit widgets whenever the visible rows (or their prices) change. */
+    private void syncEditWidgets() {
+        ShopDefinition def = definition();
+        if (!editing || def == null) {
+            if (!editWidgets.isEmpty()) clearEditWidgets();
+            editSignature = null;
+            return;
+        }
+        List<Row> rows = rows();
+        scroll = Math.max(0, Math.min(scroll, Math.max(0, rows.size() - VISIBLE_ROWS)));
+        StringBuilder sig = new StringBuilder().append(selectedTab).append('|').append(scroll).append('|').append(width).append('|').append(height);
+        for (int i = 0; i < VISIBLE_ROWS && scroll + i < rows.size(); i++) {
+            ShopEntry e = rows.get(scroll + i).entry();
+            sig.append(';').append(e.item()).append(',').append(e.buyPrice()).append(',').append(e.sellPrice())
+                    .append(',').append(e.canBuy()).append(',').append(e.canSell());
+        }
+        if (sig.toString().equals(editSignature)) return;
+        editSignature = sig.toString();
+        clearEditWidgets();
+        int ex = leftPos + LIST_X + LIST_W + 6;
+        for (int i = 0; i < VISIBLE_ROWS && scroll + i < rows.size(); i++) {
+            ShopEntry e = rows.get(scroll + i).entry();
+            int y = topPos + LIST_Y + i * ROW_H + 3;
+            PriceBox[] boxes = new PriceBox[2];
+            boxes[0] = new PriceBox(font, ex, y, 62, 16, () -> commitPrice(e, boxes[0], boxes[1]));
+            boxes[1] = new PriceBox(font, ex + 66, y, 62, 16, () -> commitPrice(e, boxes[0], boxes[1]));
+            boxes[0].setValue(Long.toString(e.buyPrice()));
+            boxes[1].setValue(Long.toString(e.sellPrice()));
+            Button del = Button.builder(Component.translatable("gettcore.gui.delete"),
+                    b -> PacketDistributor.sendToServer(new ShopEditPayload(menu.shopId(),
+                            ShopEditPayload.Action.REMOVE, e.item(), e.tab(), 0, 0, false, false)))
+                    .bounds(ex + 132, y, 44, 16).build();
+            for (AbstractWidget w : new AbstractWidget[] {boxes[0], boxes[1], del}) {
+                editWidgets.add(addRenderableWidget(w));
+            }
+        }
+        ShopDefinition d = def;
+        if (!d.tabs().isEmpty()) {
+            String tabId = d.tabs().get(Math.min(selectedTab, d.tabs().size() - 1)).id();
+            editWidgets.add(addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.add_held"),
+                    b -> addHeld(tabId)).bounds(ex, topPos + 176, 176, 18).build()));
+        }
+    }
+
+    private void commitPrice(ShopEntry e, EditBox buy, EditBox sell) {
+        long nb;
+        long ns;
+        try {
+            nb = buy.getValue().isEmpty() ? 0 : Long.parseLong(buy.getValue());
+            ns = sell.getValue().isEmpty() ? 0 : Long.parseLong(sell.getValue());
+        } catch (NumberFormatException ex) {
+            return;
+        }
+        if (nb == e.buyPrice() && ns == e.sellPrice()) return;
+        PacketDistributor.sendToServer(new ShopEditPayload(menu.shopId(), ShopEditPayload.Action.SET_PRICE,
+                e.item(), e.tab(), nb, ns, e.canBuy(), e.canSell()));
+    }
+
+    private void addHeld(String tabId) {
+        ItemStack held = minecraft.player.getInventory().getSelected();
+        if (held.isEmpty()) return;
+        PacketDistributor.sendToServer(new ShopEditPayload(menu.shopId(), ShopEditPayload.Action.ADD,
+                BuiltInRegistries.ITEM.getKey(held.getItem()), tabId, 100, 50, true, true));
     }
 
     private ShopDefinition definition() {
@@ -66,7 +192,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         String tabId = def.tabs().isEmpty() ? null : def.tabs().get(Math.min(selectedTab, def.tabs().size() - 1)).id();
         for (ShopEntry e : def.entries()) {
             if (tabId != null && !tabId.equals(e.tab())) continue;
-            if (menu.mode() == ShopMode.BUY) {
+            if (editing) {
+                out.add(new Row(e, 0));
+            } else if (menu.mode() == ShopMode.BUY) {
                 if (e.canBuy()) out.add(new Row(e, 0));
             } else if (e.canSell()) {
                 int owned = TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item());
@@ -104,6 +232,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             int y = topPos + LIST_Y + i * ROW_H;
             g.fill(x, y, x + LIST_W, y + ROW_H - 2, 0xFFE8DAB4);
             g.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(row.entry().item())), x + 4, y + 3);
+            if (editing) continue;
             int bx = x + LIST_W - BTN_W - 4;
             int by = y + 3;
             g.fill(bx, by, bx + BTN_W, by + BTN_H, 0xFF8B6B3A);
@@ -206,7 +335,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                 }
             }
         }
-        if (button == 0) {
+        if (button == 0 && !editing) {
             List<Row> rows = rows();
             for (int i = 0; i < VISIBLE_ROWS && scroll + i < rows.size(); i++) {
                 int bx = leftPos + LIST_X + LIST_W - BTN_W - 4;
