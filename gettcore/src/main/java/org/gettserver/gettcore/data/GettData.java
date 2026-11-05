@@ -107,6 +107,10 @@ public final class GettData {
         return Optional.ofNullable(shops.get(id));
     }
 
+    public java.util.Collection<ShopDefinition> allShops() {
+        return shops.values();
+    }
+
     public Optional<DialogDefinition> dialog(String id) {
         return Optional.ofNullable(dialogs.get(id));
     }

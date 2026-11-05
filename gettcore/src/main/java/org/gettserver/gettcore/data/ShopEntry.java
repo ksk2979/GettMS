@@ -23,6 +23,10 @@ public record ShopEntry(ResourceLocation item, String tab, long buyPrice, long s
     ).apply(i, (item, tab, buy, sell, cb, cs, curBuy, curSell) ->
             new ShopEntry(item, tab, buy, sell, cb, cs, curBuy.orElse(buy), curSell.orElse(sell))));
 
+    public ShopEntry withCurrentPrices(long curBuy, long curSell) {
+        return new ShopEntry(item, tab, buyPrice, sellPrice, canBuy, canSell, curBuy, curSell);
+    }
+
     public ShopEntry withPrices(long buy, long sell) {
         return new ShopEntry(item, tab, buy, sell, canBuy, canSell, buy, sell);
     }

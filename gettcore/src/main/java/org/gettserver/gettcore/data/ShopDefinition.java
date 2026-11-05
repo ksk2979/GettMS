@@ -33,6 +33,11 @@ public record ShopDefinition(String id, String name, List<ShopTab> tabs, List<Sh
         return new ShopDefinition(id, name, tabs, entries.stream().filter(e -> !e.item().equals(item)).toList());
     }
 
+    public ShopDefinition withCurrentPrices(ResourceLocation item, long currentBuy, long currentSell) {
+        return new ShopDefinition(id, name, tabs, entries.stream()
+                .map(e -> e.item().equals(item) ? e.withCurrentPrices(currentBuy, currentSell) : e).toList());
+    }
+
     public ShopDefinition withPrices(ResourceLocation item, long buy, long sell) {
         return new ShopDefinition(id, name, tabs,
                 entries.stream().map(e -> e.item().equals(item) ? e.withPrices(buy, sell) : e).toList());

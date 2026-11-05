@@ -133,6 +133,18 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             long price = menu.mode() == ShopMode.BUY ? row.entry().currentBuyPrice() : row.entry().currentSellPrice();
             String sub = EconomyHud.formatGold(price) + (menu.mode() == ShopMode.SELL ? " x" + row.owned() : "");
             g.drawString(font, sub, LIST_X + 24, y + 13, 0xFF6B5A3A, false);
+            if (ClientShopCache.dynamicsEnabled(menu.shopId())) {
+                ShopEntry en = row.entry();
+                boolean buyMode = menu.mode() == ShopMode.BUY;
+                var d = PriceDynamics.delta(buyMode ? en.currentBuyPrice() : en.currentSellPrice(),
+                        buyMode ? en.buyPrice() : en.sellPrice());
+                if (d.isPresent()) {
+                    int v = d.get();
+                    String mark = (v > 0 ? "\u25B2" : "\u25BC") + String.format("%,d", Math.abs(v));
+                    g.drawString(font, mark, LIST_X + 24 + font.width(sub) + 4, y + 13,
+                            v > 0 ? 0xFF4CAF50 : 0xFFE53935, false);
+                }
+            }
         }
     }
 

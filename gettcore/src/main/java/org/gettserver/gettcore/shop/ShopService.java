@@ -18,6 +18,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.data.PriceDynamicsConfig;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
 import org.gettserver.gettcore.economy.EconomyData;
@@ -47,7 +48,7 @@ public final class ShopService {
         player.closeContainer();
         OPEN_SHOPS.put(player.getUUID(), shopId);
         // Sync before the menu opens so the screen finds its definition on init.
-        PacketDistributor.sendToPlayer(player, new ShopSyncPayload(shopId, shop.get(), false));
+        PacketDistributor.sendToPlayer(player, new ShopSyncPayload(shopId, shop.get(), dynamicsOn()));
         var result = player.openMenu(new SimpleMenuProvider(
                 (id, inv, p) -> new ShopMenu(id, inv, shopId, mode, canEdit),
                 Component.literal(shop.get().name())), buf -> {
@@ -57,6 +58,50 @@ public final class ShopService {
         });
         if (result.isEmpty()) {
             OPEN_SHOPS.remove(player.getUUID());
+        }
+    }
+
+    private static PriceDynamicsConfig dynamics() {
+        return GettData.get().economy().priceDynamics();
+    }
+
+    private static boolean dynamicsOn() {
+        return dynamics().enabled();
+    }
+
+    private static void persistAndSync(ShopDefinition updated) {
+        try {
+            GettData.get().saveShop(updated);
+        } catch (java.io.IOException e) {
+            GettCore.LOGGER.error("gettcore: failed saving shop {}", updated.id(), e);
+            return;
+        }
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) return;
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (isOpen(p, updated.id())) {
+                PacketDistributor.sendToPlayer(p, new ShopSyncPayload(updated.id(), updated, dynamicsOn()));
+            }
+        }
+    }
+
+    /** Applies the 1-minute recovery step to every shop; call from the server tick. */
+    public static void recoverTick() {
+        PriceDynamicsConfig cfg = dynamics();
+        if (!cfg.enabled()) return;
+        for (ShopDefinition def : GettData.get().allShops()) {
+            ShopDefinition updated = def;
+            boolean changed = false;
+            for (ShopEntry e : def.entries()) {
+                if (e.currentBuyPrice() == e.buyPrice() && e.currentSellPrice() == e.sellPrice()) continue;
+                long nb = PriceDynamics.recover(e.currentBuyPrice(), e.buyPrice(), 1 / 60.0, cfg);
+                long ns = PriceDynamics.recover(e.currentSellPrice(), e.sellPrice(), 1 / 60.0, cfg);
+                if (nb != e.currentBuyPrice() || ns != e.currentSellPrice()) {
+                    updated = updated.withCurrentPrices(e.item(), nb, ns);
+                    changed = true;
+                }
+            }
+            if (changed) persistAndSync(updated);
         }
     }
 
@@ -138,6 +183,16 @@ public final class ShopService {
         player.containerMenu.broadcastChanges();
         data.changed(player.getUUID());
         msg(player, "gettcore.msg.sold", itemName(entry.item()), n, Gold.format(total));
+        PriceDynamicsConfig cfg = dynamics();
+        if (cfg.enabled()) {
+            // Re-read the live definition so consecutive entries in sellAll don't overwrite each other.
+            String shopId = OPEN_SHOPS.get(player.getUUID());
+            Optional<ShopDefinition> live = shopId == null ? Optional.empty() : GettData.get().shop(shopId);
+            if (live.isPresent()) {
+                long ns = PriceDynamics.afterSale(entry.currentSellPrice(), entry.sellPrice(), n, cfg);
+                persistAndSync(live.get().withCurrentPrices(entry.item(), entry.currentBuyPrice(), ns));
+            }
+        }
         return total;
     }
 
