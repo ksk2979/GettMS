@@ -7,6 +7,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.gettserver.gettcore.network.GettNetwork;
 
 @Mod(GettCore.MOD_ID)
 public class GettCore {
@@ -20,6 +21,7 @@ public class GettCore {
         ITEMS.register(modBus);
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
+        modBus.addListener(GettNetwork::register);
     }
 
     public static ResourceLocation id(String path) {
