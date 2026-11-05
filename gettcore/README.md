@@ -1,25 +1,29 @@
+# Gett Core
 
-Installation information
-=======
+Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+- 골드 경제: 잔액 조회·지급·차감·설정, 잔액 순위, 수표 발행/사용
+- NPC 상점: 구매·판매·전체판매, 상점 편집 모드
+- NPC 대화 데이터 연동, 경험치 구슬, 귀환석과 귀환 지점
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+## 빌드
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+```
+./gradlew build
+```
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+결과물은 `build/libs/` 아래에 생성됩니다.
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+## 설정 파일
+
+서버 실행 후 `config/gettcore/` 폴더에 상점, 대화, NPC 매핑, 경제 설정 JSON 파일이 위치합니다.
+파일을 수정한 뒤 `/gett reload`로 다시 적용할 수 있습니다.
+
+## 명령어
+
+| 명령어 | 설명 |
+| --- | --- |
+| `/돈` | 잔액 확인, 지급·차감·설정, 순위 (관리자 명령 포함) |
+| `/수표발행` | 금액이 적힌 수표 발행 |
+| `/gett reload` | 설정 파일 다시 읽기 |
+| `/귀환지점 설정` | 현재 위치를 귀환 지점으로 설정 |
