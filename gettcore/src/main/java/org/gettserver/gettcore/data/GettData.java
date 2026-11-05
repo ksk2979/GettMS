@@ -119,6 +119,10 @@ public final class GettData {
         return Optional.ofNullable(name == null ? null : m.byName().get(name));
     }
 
+    public NpcMapping npcMapping() {
+        return npcs;
+    }
+
     public EconomyConfig economy() {
         return economy;
     }

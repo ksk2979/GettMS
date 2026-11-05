@@ -6,6 +6,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
 import org.gettserver.gettcore.npc.DialogClient;
+import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
 
 public final class GettNetwork {
@@ -17,6 +18,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientConfig.set(payload.hudOffsetX(), payload.hudOffsetY(), payload.currencyName()));
+        registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         // DialogClient is only resolved when this client-bound handler runs, so the server never loads it.
         registrar.playToClient(OpenDialogPayload.TYPE, OpenDialogPayload.STREAM_CODEC,
                 (payload, ctx) -> DialogClient.open(payload));

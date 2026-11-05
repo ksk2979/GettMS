@@ -10,6 +10,7 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.ConfigSyncPayload;
+import org.gettserver.gettcore.network.NpcMappingSyncPayload;
 
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class DataEvents {
@@ -26,10 +27,12 @@ public final class DataEvents {
 
     public static void syncConfig(MinecraftServer server) {
         PacketDistributor.sendToAllPlayers(configPayload());
+        PacketDistributor.sendToAllPlayers(NpcMappingSyncPayload.of(GettData.get().npcMapping()));
     }
 
     public static void syncConfig(ServerPlayer player) {
         PacketDistributor.sendToPlayer(player, configPayload());
+        PacketDistributor.sendToPlayer(player, NpcMappingSyncPayload.of(GettData.get().npcMapping()));
     }
 
     @SubscribeEvent

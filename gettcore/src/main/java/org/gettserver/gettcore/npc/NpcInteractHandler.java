@@ -25,7 +25,10 @@ public final class NpcInteractHandler {
         if (!(target instanceof EasyNPC<?> npc)) {
             return;
         }
-        var dialogId = GettData.get().dialogForNpc(target.getUUID(), target.getName().getString());
+        // The client has no GettData on a dedicated server, so it uses the synced mapping cache.
+        var dialogId = event.getLevel().isClientSide()
+                ? ClientNpcMappings.dialogForNpc(target.getUUID(), target.getName().getString())
+                : GettData.get().dialogForNpc(target.getUUID(), target.getName().getString());
         if (dialogId.isEmpty()) {
             return;
         }
