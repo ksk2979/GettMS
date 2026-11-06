@@ -37,7 +37,8 @@
     "easy-npc",
     "ferrite-core",
     "naturalist",
-    "cgs"
+    "cgs",
+    "geckolib"
   ],
   "customMods": [
     {
