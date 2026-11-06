@@ -16,7 +16,6 @@ import net.minecraft.world.inventory.Slot;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.EnchantApplyPayload;
-import org.gettserver.gettcore.shop.ShopMenu;
 
 /**
  * Client-only. Tool slot sits on a slowly turning magic circle; a result from the server spins it fast for a second.
@@ -45,10 +44,10 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
 
     public EnchantScreen(EnchantMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
-        imageWidth = 360;
-        imageHeight = 200;
-        inventoryLabelX = ShopMenu.INV_X;
-        inventoryLabelY = ShopMenu.INV_Y - 11;
+        imageWidth = EnchantMenu.INV_X + 9 * 18 + 8;
+        imageHeight = EnchantMenu.INV_Y + 58 + 18 + 6;
+        inventoryLabelX = EnchantMenu.INV_X;
+        inventoryLabelY = EnchantMenu.INV_Y - 11;
     }
 
     /** Called by the {@code EnchantResultPayload} handler: plays the effect if this screen is open. */
@@ -67,9 +66,9 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
             PacketDistributor.sendToServer(new EnchantApplyPayload());
             cooldown = APPLY_COOLDOWN;
             b.active = false;
-        }).bounds(leftPos + 20, topPos + 170, 60, 18).build());
+        }).bounds(leftPos + 10, topPos + 100, 60, 18).build());
         addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.enchant_cancel"), b -> onClose())
-                .bounds(leftPos + 90, topPos + 170, 60, 18).build());
+                .bounds(leftPos + 76, topPos + 100, 60, 18).build());
         updateApplyButton();
     }
 

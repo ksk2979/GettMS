@@ -15,17 +15,19 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.gettserver.gettcore.GettCore;
-import org.gettserver.gettcore.shop.ShopMenu;
 
 /** 마법부여 메뉴: 도구 1칸 + 부여석 1칸 + 플레이어 인벤토리. 부여 판정은 서버의 {@link EnchantService#apply}. */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class EnchantMenu extends AbstractContainerMenu {
     public static final int TOOL_SLOT = 0;
     public static final int STONE_SLOT = 1;
-    public static final int TOOL_X = 44;
-    public static final int TOOL_Y = 60;
-    public static final int STONE_X = 118;
-    public static final int STONE_Y = 92;
+    public static final int TOOL_X = 36;
+    public static final int TOOL_Y = 40;
+    public static final int STONE_X = 100;
+    public static final int STONE_Y = 40;
+    /** 플레이어 인벤토리 위치(상점보다 작은 화면). */
+    public static final int INV_X = 150;
+    public static final int INV_Y = 62;
 
     private static final int INV_START = 2;
     private static final int HOTBAR_START = INV_START + 27;
@@ -59,11 +61,11 @@ public class EnchantMenu extends AbstractContainerMenu {
         });
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(inv, col + row * 9 + 9, ShopMenu.INV_X + col * 18, ShopMenu.INV_Y + row * 18));
+                addSlot(new Slot(inv, col + row * 9 + 9, INV_X + col * 18, INV_Y + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(inv, col, ShopMenu.INV_X + col * 18, ShopMenu.INV_Y + 58));
+            addSlot(new Slot(inv, col, INV_X + col * 18, INV_Y + 58));
         }
     }
 
