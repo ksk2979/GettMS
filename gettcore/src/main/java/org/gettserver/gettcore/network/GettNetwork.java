@@ -6,6 +6,8 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
 import org.gettserver.gettcore.enchant.ClientEnchantConfig;
+import org.gettserver.gettcore.enchant.EnchantScreen;
+import org.gettserver.gettcore.enchant.EnchantService;
 import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
@@ -34,6 +36,9 @@ public final class GettNetwork {
         // DialogClient is only resolved when this client-bound handler runs, so the server never loads it.
         registrar.playToClient(OpenDialogPayload.TYPE, OpenDialogPayload.STREAM_CODEC,
                 (payload, ctx) -> DialogClient.open(payload));
+        // Same for EnchantScreen (client-only): referenced only inside the client-bound handler.
+        registrar.playToClient(EnchantResultPayload.TYPE, EnchantResultPayload.STREAM_CODEC,
+                (payload, ctx) -> EnchantScreen.onResult(payload.abilityId(), payload.level()));
         registrar.playToServer(DialogChoicePayload.TYPE, DialogChoicePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> DialogSession.choose((ServerPlayer) ctx.player(), payload.choiceIndex())));
@@ -41,5 +46,7 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.trade((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(ShopEditPayload.TYPE, ShopEditPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.edit((ServerPlayer) ctx.player(), payload)));
+        registrar.playToServer(EnchantApplyPayload.TYPE, EnchantApplyPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
     }
 }

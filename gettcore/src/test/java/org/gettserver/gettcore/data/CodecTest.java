@@ -41,6 +41,14 @@ class CodecTest {
     }
 
     @Test
+    void openEnchantActionParses() {
+        ChoiceAction a = ChoiceAction.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("{\"type\":\"open_enchant\"}")).getOrThrow();
+        assertEquals(ChoiceAction.Type.OPEN_ENCHANT, a.type());
+        assertTrue(a.target().isEmpty());
+    }
+
+    @Test
     void shopRejectsNegativePrice() {
         String bad = SHOP.replace("\"buyPrice\":10", "\"buyPrice\":-1");
         DataResult<ShopDefinition> r = ShopDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(bad));

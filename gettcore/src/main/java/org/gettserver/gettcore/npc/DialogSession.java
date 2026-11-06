@@ -15,6 +15,7 @@ import org.gettserver.gettcore.data.DialogChoice;
 import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.DialogNode;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.enchant.EnchantService;
 import org.gettserver.gettcore.network.OpenDialogPayload;
 import org.gettserver.gettcore.shop.ShopMode;
 import org.gettserver.gettcore.shop.ShopService;
@@ -69,7 +70,10 @@ public final class DialogSession {
             case OPEN_SHOP_BUY -> openShop(player, action, ShopMode.BUY);
             case OPEN_SHOP_SELL -> openShop(player, action, ShopMode.SELL);
             case CLOSE -> close(player);
-            case OPEN_ENCHANT -> close(player); // Task 3: open the enchant menu
+            case OPEN_ENCHANT -> {
+                close(player);
+                EnchantService.open(player);
+            }
         }
     }
 

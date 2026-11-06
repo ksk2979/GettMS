@@ -15,6 +15,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.economy.CheckItem;
+import org.gettserver.gettcore.enchant.EnchantMenu;
+import org.gettserver.gettcore.enchant.EnchantService;
 import org.gettserver.gettcore.enchant.EnchantStoneItem;
 import org.gettserver.gettcore.item.ReturnStoneItem;
 import org.gettserver.gettcore.item.XpOrbItem;
@@ -50,6 +52,8 @@ public class GettCore {
 
     public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
+    public static final DeferredHolder<MenuType<?>, MenuType<EnchantMenu>> ENCHANT_MENU =
+            MENUS.register("enchant", () -> IMenuTypeExtension.create(EnchantMenu::new));
 
     public GettCore(IEventBus modBus, ModContainer container) {
         ITEMS.register(modBus);
@@ -57,6 +61,7 @@ public class GettCore {
         DATA_COMPONENTS.register(modBus);
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
+        EnchantService.registerReloadHook();
     }
 
     public static ResourceLocation id(String path) {
