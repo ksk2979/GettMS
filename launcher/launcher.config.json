@@ -35,7 +35,9 @@
     "corpse",
     "modernfix",
     "easy-npc",
-    "ferrite-core"
+    "ferrite-core",
+    "naturalist",
+    "cgs"
   ],
   "customMods": [
     {
