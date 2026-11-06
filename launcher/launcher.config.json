@@ -60,6 +60,7 @@
   "clientOnlyMods": [
     "caramel-chat",
     "xaeros-minimap",
+    "xaeros-world-map",
     "entityculling",
     "sodium"
   ],
