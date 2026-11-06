@@ -6,7 +6,10 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -31,6 +34,7 @@ public class GettCore {
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MOD_ID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);
+    public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MOD_ID);
     public static final DeferredRegister.DataComponents DATA_COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> CHECK_AMOUNT =
@@ -55,8 +59,21 @@ public class GettCore {
     public static final DeferredHolder<MenuType<?>, MenuType<EnchantMenu>> ENCHANT_MENU =
             MENUS.register("enchant", () -> IMenuTypeExtension.create(EnchantMenu::new));
 
+    // 크리에이티브 인벤토리 전용 탭. 수표는 금액(0) 없는 빈 수표가 되므로 넣지 않는다.
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GETT_TAB =
+            CREATIVE_TABS.register("gett", () -> CreativeModeTab.builder()
+                    .title(Component.translatable("itemGroup.gettcore"))
+                    .icon(() -> new ItemStack(RETURN_STONE.get()))
+                    .displayItems((params, output) -> {
+                        output.accept(XP_ORB.get());
+                        output.accept(RETURN_STONE.get());
+                        output.accept(ENCHANT_STONE.get());
+                    })
+                    .build());
+
     public GettCore(IEventBus modBus, ModContainer container) {
         ITEMS.register(modBus);
+        CREATIVE_TABS.register(modBus);
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
         modBus.addListener(GettNetwork::register);

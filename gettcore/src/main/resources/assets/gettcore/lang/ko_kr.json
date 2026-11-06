@@ -19,6 +19,7 @@
   "gettcore.msg.too_fast": "너무 빠릅니다",
   "gettcore.msg.reload_done": "상점 %d, 대화 %d 재적용, 오류 %d",
   "gettcore.tooltip.check_amount": "금액: %s 골드",
+  "itemGroup.gettcore": "Gett",
   "item.gettcore.check": "수표",
   "gettcore.msg.sold": "%s %d개를 판매했습니다 (+%s 골드)",
   "gettcore.msg.bought": "%s %d개를 구매했습니다 (-%s 골드)",
