@@ -21,7 +21,7 @@ const RULES = {
   customMods: v => Array.isArray(v) && v.length <= 50 && v.every(c => c && typeof c === 'object'
     && typeof c.name === 'string' && /^[a-z0-9_-]+$/.test(c.name)
     && typeof c.file === 'string' && /^[A-Za-z0-9._-]+\.jar$/.test(c.file)
-    && typeof c.url === 'string' && c.url.startsWith('https://github.com/')
+    && typeof c.url === 'string' && (c.url.startsWith('https://github.com/') || c.url.startsWith('https://cdn.modrinth.com/'))
     && typeof c.sha512 === 'string' && /^[0-9a-fA-F]{128}$/.test(c.sha512)
     && ['both', 'client', 'server'].includes(c.side)),
   news: v => Array.isArray(v) && v.length <= 20

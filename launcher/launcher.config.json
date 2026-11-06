@@ -51,7 +51,7 @@
     {
       "name": "luckperms",
       "file": "LuckPerms-NeoForge-5.4.149.jar",
-      "url": "https://cdn.modrinth.com/data/Vebnzrzj/versions/PelnLFOJ/LuckPerms-NeoForge-5.4.149.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/server-deps/LuckPerms-NeoForge-5.4.149.jar",
       "sha512": "3ae4e5ab8aa0e819e4b9d4bb48c839a82abf40ad60f038df23c368bf009b8f3a9f8f8a86cb9b538760b9405f702319ceb8c1756de82449d0c6ce9b8cbd08ea46",
       "side": "server"
     }
