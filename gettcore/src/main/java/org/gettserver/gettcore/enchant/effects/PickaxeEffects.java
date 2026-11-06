@@ -14,7 +14,9 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.BuddingAmethystBlock;
 import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.SpawnerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -43,9 +45,12 @@ public final class PickaxeEffects {
         BlockPos pos = event.getPos().immutable();
 
         int vein = EffectContext.activeLevel(player, Ability.VEIN);
-        if (vein > 0 && state.is(Tags.Blocks.ORES)) vein(player, level, pos, state.getBlock(), vein);
+        // 광맥: 도구 등급이 원래 광석을 캘 수 있을 때만(돌 곡괭이로 다이아 광맥을 없애지 않는다)
+        if (vein > 0 && state.is(Tags.Blocks.ORES) && player.hasCorrectToolForDrops(state)) {
+            vein(player, level, pos, state.getBlock(), vein);
+        }
 
-        if (EffectContext.activeLevel(player, Ability.AREA) > 0) area(player, level, pos);
+        if (EffectContext.activeLevel(player, Ability.AREA) > 0) area(player, level, pos, state);
     }
 
     private static void vein(ServerPlayer player, ServerLevel level, BlockPos pos, Block block, int lvl) {
@@ -53,13 +58,18 @@ public final class PickaxeEffects {
         List<BlockPos> found = EffectContext.bfs(p -> level.getBlockState(p).is(block), pos, max, true);
         for (BlockPos p : found) {
             if (!EffectContext.toolUsable(player)) return;
-            if (level.getBlockState(p).is(block)) EffectContext.breakExtra(player, p); // 그사이 바뀌었으면 건너뜀
+            BlockState other = level.getBlockState(p);
+            // 그사이 바뀌었거나 도구가 캘 수 없는 블록이면 건너뜀
+            if (other.is(block) && player.hasCorrectToolForDrops(other)) EffectContext.breakExtra(player, p);
         }
     }
 
-    private static void area(ServerPlayer player, ServerLevel level, BlockPos center) {
-        Direction.Axis axis = faceAxis(player, center);
+    private static void area(ServerPlayer player, ServerLevel level, BlockPos center, BlockState origin) {
         ItemStack tool = player.getMainHandItem();
+        // 원래 블록이 곡괭이로 캐는 단단한 블록일 때만(횃불·문·흙을 부쉈다고 주변 벽이 사라지지 않게)
+        float originHardness = origin.getDestroySpeed(level, center);
+        if (!(originHardness > 0) || !tool.isCorrectToolForDrops(origin)) return;
+        Direction.Axis axis = faceAxis(player, center);
         for (int a = -1; a <= 1; a++) {
             for (int b = -1; b <= 1; b++) {
                 if (a == 0 && b == 0) continue;
@@ -71,7 +81,9 @@ public final class PickaxeEffects {
                 };
                 BlockState other = level.getBlockState(p);
                 if (other.isAir() || other.getBlock() instanceof LiquidBlock) continue;
-                if (other.getDestroySpeed(level, p) < 0 || !tool.isCorrectToolForDrops(other)) continue;
+                if (other.getBlock() instanceof SpawnerBlock || other.getBlock() instanceof BuddingAmethystBlock) continue;
+                float hardness = other.getDestroySpeed(level, p);
+                if (hardness < 0 || hardness > originHardness || !tool.isCorrectToolForDrops(other)) continue;
                 EffectContext.breakExtra(player, p);
             }
         }

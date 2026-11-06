@@ -104,11 +104,13 @@ public final class BowEffects {
 
     @SubscribeEvent
     public static void onUseStop(LivingEntityUseItemEvent.Stop event) {
+        if (event.getEntity().level().isClientSide()) return; // 통합 서버: 클라이언트 스레드에서 서버 맵을 건드리지 않는다
         QUICKDRAW.remove(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
     public static void onUseFinish(LivingEntityUseItemEvent.Finish event) {
+        if (event.getEntity().level().isClientSide()) return;
         QUICKDRAW.remove(event.getEntity().getUUID());
     }
 

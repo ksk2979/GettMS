@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.Set;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.npc.InventoryCarrier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -101,7 +103,7 @@ public final class SwordEffects {
         event.setDroppedExperience((int) Math.round(event.getDroppedExperience() * mult));
     }
 
-    /** 전리품: 드롭마다 확률로 1개 추가. 장비(손·갑옷 슬롯) 아이템과 같은 종류는 제외. */
+    /** 전리품: 드롭마다 확률로 1개 추가. 장비(손·갑옷 슬롯)·몹 인벤토리 아이템과 같은 종류는 제외. */
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onDrops(LivingDropsEvent event) {
         LivingEntity dead = event.getEntity();
@@ -109,6 +111,8 @@ public final class SwordEffects {
         if (level.isClientSide()) return;
         if (dead instanceof Player) return;
         if (dead instanceof TamableAnimal tame && tame.isTame()) return;
+        // 말·당나귀·라마 등 주인 있는 동물(TamableAnimal이 아닌 것 포함)의 안장·상자도 복제하지 않는다
+        if (dead instanceof OwnableEntity owned && owned.getOwnerUUID() != null) return;
         if (!(event.getSource().getEntity() instanceof Player player)) return;
         int lvl = EffectContext.activeLevel(player, Ability.PLUNDER);
         if (lvl <= 0) return;
@@ -117,6 +121,12 @@ public final class SwordEffects {
         Set<Item> equipped = new HashSet<>();
         for (ItemStack stack : dead.getAllSlots()) {
             if (!stack.isEmpty()) equipped.add(stack.getItem());
+        }
+        // 피글린·알레이 등이 들고 있던 인벤토리 아이템도 제외
+        if (dead instanceof InventoryCarrier carrier) {
+            for (ItemStack stack : carrier.getInventory().getItems()) {
+                if (!stack.isEmpty()) equipped.add(stack.getItem());
+            }
         }
         List<ItemEntity> extras = new ArrayList<>();
         for (ItemEntity drop : event.getDrops()) {

@@ -18,6 +18,18 @@ class EffectContextTest {
             p.getX() >= 0 && p.getX() <= 2 && p.getY() >= 0 && p.getY() <= 2 && p.getZ() >= 0 && p.getZ() <= 2;
 
     @Test
+    void extraBreakKeepsOnePointForOriginalBlock() {
+        // 추가 파괴(1) + 원래 블록(1) 뒤에도 1 이상 남아야 한다
+        assertTrue(EffectContext.canAffordExtra(3, 1));
+        assertFalse(EffectContext.canAffordExtra(2, 1));
+        assertFalse(EffectContext.canAffordExtra(1, 1));
+        assertTrue(EffectContext.canAffordExtra(5, 2));
+        assertFalse(EffectContext.canAffordExtra(4, 2));
+        assertFalse(EffectContext.canAffordExtra(2, 0)); // 소모 0이어도 최소 1로 본다
+        assertTrue(EffectContext.canAffordExtra(3, 0));
+    }
+
+    @Test
     void bfsStopsAtMax() {
         BlockPos start = new BlockPos(1, 1, 1);
         List<BlockPos> found = EffectContext.bfs(GRID, start, 8, true);

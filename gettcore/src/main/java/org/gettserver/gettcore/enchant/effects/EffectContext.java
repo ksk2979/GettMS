@@ -8,10 +8,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.Tool;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import org.gettserver.gettcore.enchant.AbilityToggle;
 import org.gettserver.gettcore.enchant.SpecialEnchants;
@@ -49,7 +51,7 @@ public final class EffectContext {
 
     /**
      * 플레이어가 직접 부순 것처럼 {@code pos}를 파괴한다(보호 구역의 BreakEvent 취소가 그대로 적용된다).
-     * 메인핸드 도구가 없거나 남은 내구도가 1 이하이면, 또는 파괴에 실패하면 false.
+     * 메인핸드 도구가 없거나 {@link #toolUsable} 이 false이면, 또는 파괴에 실패하면 false.
      */
     public static boolean breakExtra(ServerPlayer player, BlockPos pos) {
         if (!toolUsable(player)) return false;
@@ -62,11 +64,28 @@ public final class EffectContext {
         }
     }
 
-    /** 메인핸드 도구가 있고 남은 내구도가 2 이상(또는 내구도 없음)이면 true. */
+    /**
+     * 추가 파괴를 하나 더 해도 되면 true. 추가 파괴는 원래 블록의 도구 소모(바닐라 mineBlock)보다 먼저
+     * 일어나므로 원래 블록 몫을 남겨 둔다: 블록당 소모 {@code d}(Tool 컴포넌트, 최소 1)일 때
+     * 남은 내구도 {@code > 2d}일 때만 허용한다. 그러면 이번 추가 파괴(최대 d)와 원래 블록(최대 d) 뒤에도
+     * 내구도가 1 이상 남아 도구가 부서지지 않는다. 내구도 없는 도구는 항상 true.
+     */
     public static boolean toolUsable(ServerPlayer player) {
         ItemStack stack = player.getMainHandItem();
         if (stack.isEmpty()) return false;
-        return !stack.isDamageableItem() || stack.getMaxDamage() - stack.getDamageValue() > 1;
+        if (!stack.isDamageableItem()) return true;
+        return canAffordExtra(stack.getMaxDamage() - stack.getDamageValue(), damagePerBlock(stack));
+    }
+
+    /** 남은 내구도 {@code remaining}에서 추가 파괴 1번(소모 d)과 원래 블록(소모 d)을 치르고도 1 이상 남으면 true. */
+    public static boolean canAffordExtra(int remaining, int damagePerBlock) {
+        int d = Math.max(1, damagePerBlock);
+        return remaining > 2 * d;
+    }
+
+    private static int damagePerBlock(ItemStack stack) {
+        Tool tool = stack.get(DataComponents.TOOL);
+        return tool == null ? 1 : tool.damagePerBlock();
     }
 
     /** BreakEvent 핸들러 첫 줄에서 검사: 추가 파괴로 생긴 이벤트면 다시 퍼뜨리지 않는다. */

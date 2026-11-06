@@ -34,6 +34,12 @@ class EnchantConfigTest {
     }
 
     @Test
+    void defaultRoundTrips() {
+        var encoded = EnchantConfig.CODEC.encodeStart(JsonOps.INSTANCE, EnchantConfig.DEFAULT).getOrThrow();
+        assertEquals(EnchantConfig.DEFAULT, EnchantConfig.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow());
+    }
+
+    @Test
     void invalidFieldFallsBackAlone() {
         EnchantConfig c = parse("{\"harvest\":{\"radius\":[1,2]},\"vein\":{\"maxBlocks\":[8,16,32]}}");
         List<String> errors = new ArrayList<>();

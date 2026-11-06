@@ -9,10 +9,16 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.shop.ShopMenu;
 
 /** 마법부여 메뉴: 도구 1칸 + 부여석 1칸 + 플레이어 인벤토리. 부여 판정은 서버의 {@link EnchantService#apply}. */
+@EventBusSubscriber(modid = GettCore.MOD_ID)
 public class EnchantMenu extends AbstractContainerMenu {
     public static final int TOOL_SLOT = 0;
     public static final int STONE_SLOT = 1;
@@ -85,6 +91,33 @@ public class EnchantMenu extends AbstractContainerMenu {
         // Same as the crafting table: both slots go back to the inventory (dropped if the player is gone).
         if (player instanceof ServerPlayer) {
             clearContainer(player, container);
+        }
+    }
+
+    /** 두 칸의 아이템을 인벤토리로 옮긴다(넘치는 것만 발밑에 떨군다). 서버 전용. */
+    public void returnItems(ServerPlayer player) {
+        for (int i = 0; i < container.getContainerSize(); i++) {
+            ItemStack stack = container.removeItemNoUpdate(i);
+            if (!stack.isEmpty()) player.getInventory().placeItemBackInInventory(stack);
+        }
+    }
+
+    /**
+     * 접속 종료·서버 종료: PlayerList.remove가 플레이어를 저장한 뒤에야 메뉴가 닫히고(그때는 이미 접속이 끊겨
+     * clearContainer가 바닥에 떨군다), 이 이벤트는 저장 전에 온다. 여기서 인벤토리로 옮겨 함께 저장되게 한다.
+     */
+    @SubscribeEvent
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.containerMenu instanceof EnchantMenu menu) {
+            menu.returnItems(player);
+        }
+    }
+
+    /** 사망: 인벤토리로 옮겨 두면 keepInventory·시체 처리 등 인벤토리 규칙을 그대로 따른다. 취소된 사망은 받지 않는다. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player && player.containerMenu instanceof EnchantMenu menu) {
+            menu.returnItems(player);
         }
     }
 

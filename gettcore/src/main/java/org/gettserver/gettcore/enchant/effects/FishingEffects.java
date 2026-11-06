@@ -18,6 +18,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.event.entity.player.ItemFishedEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -44,16 +45,17 @@ public final class FishingEffects {
 
     private FishingEffects() {}
 
-    /** 낚싯대 발동 레벨: 메인핸드, 없으면 보조손(바닐라도 양손 낚싯대를 인정한다). */
-    private static int rodLevel(Player player, Ability ability) {
-        int main = EffectContext.activeLevel(player, ability, player.getMainHandItem());
-        return main > 0 ? main : EffectContext.activeLevel(player, ability, player.getOffhandItem());
+    /**
+     * 지금 쓰는 낚싯대: 바닐라(FishingHook.shouldStopFishing)처럼 메인핸드가 낚싯대면 메인핸드, 아니면 보조손.
+     * 능력은 이 한 스택에서만 읽으므로 양손 낚싯대의 능력이 겹치지 않는다.
+     */
+    private static ItemStack rod(Player player) {
+        ItemStack main = player.getMainHandItem();
+        return main.canPerformAction(ItemAbilities.FISHING_ROD_CAST) ? main : player.getOffhandItem();
     }
 
-    /** 레벨이 붙은 낚싯대 스택(메인핸드 우선). */
-    private static ItemStack rod(Player player, Ability ability) {
-        ItemStack main = player.getMainHandItem();
-        return EffectContext.activeLevel(player, ability, main) > 0 ? main : player.getOffhandItem();
+    private static int rodLevel(Player player, Ability ability) {
+        return EffectContext.activeLevel(player, ability, rod(player));
     }
 
     /** 손맛: 찌마다 입질 대기(timeUntilLured)와 물고기 접근(timeUntilHooked)을 한 번씩 줄인다. */
@@ -112,7 +114,7 @@ public final class FishingEffects {
         if (treasure > 0 && EffectContext.chance(cfg.treasure().get(treasure), level.getRandom())) {
             LootParams params = new LootParams.Builder(level)
                     .withParameter(LootContextParams.ORIGIN, hook.position())
-                    .withParameter(LootContextParams.TOOL, rod(player, Ability.TREASURE))
+                    .withParameter(LootContextParams.TOOL, rod(player))
                     .withParameter(LootContextParams.THIS_ENTITY, hook)
                     .withLuck(player.getLuck())
                     .create(LootContextParamSets.FISHING);
