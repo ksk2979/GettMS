@@ -5,6 +5,8 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
+import org.gettserver.gettcore.enchant.AbilityKey;
+import org.gettserver.gettcore.enchant.AbilityToggle;
 import org.gettserver.gettcore.enchant.ClientEnchantConfig;
 import org.gettserver.gettcore.enchant.EnchantScreen;
 import org.gettserver.gettcore.enchant.EnchantService;
@@ -39,6 +41,9 @@ public final class GettNetwork {
         // Same for EnchantScreen (client-only): referenced only inside the client-bound handler.
         registrar.playToClient(EnchantResultPayload.TYPE, EnchantResultPayload.STREAM_CODEC,
                 (payload, ctx) -> EnchantScreen.onResult(payload.abilityId(), payload.level()));
+        // AbilityKey (client-only) likewise lives only inside the client-bound handler.
+        registrar.playToClient(AbilityStatePayload.TYPE, AbilityStatePayload.STREAM_CODEC,
+                (payload, ctx) -> AbilityKey.setState(payload.enabled()));
         registrar.playToServer(DialogChoicePayload.TYPE, DialogChoicePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> DialogSession.choose((ServerPlayer) ctx.player(), payload.choiceIndex())));
@@ -48,5 +53,7 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.edit((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EnchantApplyPayload.TYPE, EnchantApplyPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
+        registrar.playToServer(AbilityTogglePayload.TYPE, AbilityTogglePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> AbilityToggle.toggle((ServerPlayer) ctx.player())));
     }
 }

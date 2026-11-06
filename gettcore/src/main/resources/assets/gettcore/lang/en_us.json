@@ -89,5 +89,11 @@
   "enchantment.gettcore.bigcatch.desc": "%s%% chance to double the caught fish",
   "enchantment.gettcore.treasure": "Jackpot",
   "enchantment.gettcore.treasure.desc": "%s%% chance to fish up an extra treasure",
+  "gettcore.key.category": "Gett Server",
+  "gettcore.key.ability_toggle": "Toggle special abilities",
+  "gettcore.msg.ability_on": "Special abilities: ON",
+  "gettcore.msg.ability_off": "Special abilities: OFF",
+  "gettcore.hud.ability_off": "Abilities OFF",
+  "gettcore.tooltip.ability_toggle": "Press [%s] to toggle",
   "caramelChat v%s": ""
 }

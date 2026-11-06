@@ -89,5 +89,11 @@
   "enchantment.gettcore.bigcatch.desc": "%s%% 확률로 낚은 물고기가 2배가 됩니다",
   "enchantment.gettcore.treasure": "월척",
   "enchantment.gettcore.treasure.desc": "%s%% 확률로 보물을 하나 더 낚습니다",
+  "gettcore.key.category": "Gett Server",
+  "gettcore.key.ability_toggle": "특수 능력 켜기/끄기",
+  "gettcore.msg.ability_on": "특수 능력: 켜짐",
+  "gettcore.msg.ability_off": "특수 능력: 꺼짐",
+  "gettcore.hud.ability_off": "능력 OFF",
+  "gettcore.tooltip.ability_toggle": "[%s] 키로 끄고 켤 수 있습니다",
   "caramelChat v%s": ""
 }
