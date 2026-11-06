@@ -38,7 +38,8 @@
     "ferrite-core",
     "naturalist",
     "cgs",
-    "geckolib"
+    "geckolib",
+    "worldedit"
   ],
   "customMods": [
     {
@@ -63,7 +64,6 @@
     "sodium"
   ],
   "serverOnlyMods": [
-    "playername-styler",
-    "worldedit"
+    "playername-styler"
   ]
 }
