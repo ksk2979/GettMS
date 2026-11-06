@@ -21,7 +21,8 @@ class GettDataTest {
         Files.writeString(dir.resolve("shops/broken.json"), "{ not json");
         GettData data = new GettData();
         GettData.LoadReport report = data.load(dir);
-        assertEquals(2, report.shops()); // good.json + bundled default shops/farmer.json
+        assertEquals(1, report.shops()); // pre-marker dir: the old farmer sample is not resurrected
+        assertFalse(Files.exists(dir.resolve("shops/farmer.json")));
         assertEquals(1, report.errors().size());
         assertTrue(report.errors().get(0).contains("broken.json"));
 
@@ -55,6 +56,32 @@ class GettDataTest {
         assertTrue(Files.isRegularFile(dir.resolve("enchant.json")));
         assertEquals(SHOP, Files.readString(dir.resolve("shops/good.json")));
         assertTrue(data.dialog("enchanter").isPresent());
+        String marker = Files.readString(dir.resolve(GettData.MARKER));
+        assertTrue(marker.contains("dialogs/enchanter.json") && marker.contains("shops/farmer.json"), marker);
+    }
+
+    @Test
+    void deletedDefaultIsNotRestoredAfterInstall(@TempDir Path dir) throws IOException {
+        Path root = dir.resolve("gettcore");
+        new GettData().load(root);
+        Path farmer = root.resolve("shops/farmer.json");
+        assertTrue(Files.isRegularFile(farmer));
+        Files.delete(farmer);
+        GettData.LoadReport r = new GettData().load(root);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertFalse(Files.exists(farmer));
+        assertTrue(Files.readAllLines(root.resolve(GettData.MARKER)).contains("shops/farmer.json"));
+    }
+
+    @Test
+    void npcMergeFailureDoesNotBlockOtherDefaults(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("npcs.json.tmp")); // writeJson cannot create its tmp file
+        Files.writeString(dir.resolve("npcs.json"), "{\"byName\":{}}");
+        GettData.LoadReport r = new GettData().load(dir);
+        assertTrue(r.errors().stream().anyMatch(e -> e.startsWith("npcs.json")), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("enchant.json")));
+        assertTrue(Files.isRegularFile(dir.resolve("dialogs/enchanter.json")));
+        assertFalse(Files.readAllLines(dir.resolve(GettData.MARKER)).contains("npcs.json"));
     }
 
     @Test

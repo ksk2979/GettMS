@@ -39,6 +39,11 @@ public final class GettData {
     private static final String[] DEFAULT_FILES = {
             "economy.json", "npcs.json", "enchant.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json"};
+    /** Defaults shipped before the install marker existed (copied only into an empty dir). */
+    private static final Set<String> LEGACY_FILES = Set.of(
+            "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
+    /** Lists the bundled defaults already installed into the config dir. */
+    static final String MARKER = ".defaults-installed";
 
     /** Callbacks run by /gett reload after data was re-read (e.g. Task 8: close open ShopMenu screens). */
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
@@ -73,7 +78,7 @@ public final class GettData {
         configDir = dir;
         try {
             Files.createDirectories(dir);
-            copyDefaults(dir);
+            copyDefaults(dir, errors);
         } catch (IOException e) {
             errors.add("config dir " + dir + ": " + e.getMessage());
         }
@@ -263,28 +268,58 @@ public final class GettData {
     }
 
     /**
-     * Copies every bundled default file that is missing (also into a non-empty dir, so updates reach running
-     * servers). An existing npcs.json only gains the bundled byName keys it lacks; operator values are kept.
+     * Installs each bundled default once, tracked in {@link #MARKER} (one relative path per line): a missing file is
+     * copied, an existing npcs.json only gains the bundled byName keys it lacks. Files listed in the marker are never
+     * touched again, so samples an operator deleted stay deleted. A non-empty dir without a marker predates the
+     * marker: its {@link #LEGACY_FILES} were offered by the old first-run copy and are only recorded, except that an
+     * existing npcs.json is still merged. Failures are reported per file and retried on the next load.
      */
-    private static void copyDefaults(Path dir) throws IOException {
-        for (String f : DEFAULT_FILES) {
-            Path target = dir.resolve(f);
-            if (Files.exists(target)) {
-                if (f.equals("npcs.json")) mergeNpcDefaults(target);
-                continue;
+    private static void copyDefaults(Path dir, List<String> errors) throws IOException {
+        Path marker = dir.resolve(MARKER);
+        boolean legacy = !Files.exists(marker) && hasAnyFile(dir);
+        Set<String> installed = new java.util.HashSet<>();
+        if (Files.exists(marker)) {
+            for (String line : Files.readAllLines(marker, StandardCharsets.UTF_8)) {
+                if (!line.isBlank()) installed.add(line.strip());
             }
-            try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/" + f)) {
-                if (in == null) throw new IOException("missing bundled default: " + f);
-                Files.createDirectories(target.getParent());
-                Files.copy(in, target);
+        }
+        for (String f : DEFAULT_FILES) {
+            if (installed.contains(f)) continue;
+            Path target = dir.resolve(f);
+            boolean isNpcs = f.equals("npcs.json");
+            try {
+                if (Files.exists(target)) {
+                    if (isNpcs && !mergeNpcDefaults(target)) continue; // unreadable: retry next load
+                } else if (!(legacy && LEGACY_FILES.contains(f))) {
+                    copyBundled(f, target);
+                }
+                Files.writeString(marker, f + "\n", StandardCharsets.UTF_8,
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+            } catch (IOException e) {
+                errors.add(f + ": installing default failed: " + e.getMessage());
             }
         }
     }
 
-    private static void mergeNpcDefaults(Path file) throws IOException {
+    private static void copyBundled(String f, Path target) throws IOException {
+        try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/" + f)) {
+            if (in == null) throw new IOException("missing bundled default: " + f);
+            Files.createDirectories(target.getParent());
+            Files.copy(in, target);
+        }
+    }
+
+    private static boolean hasAnyFile(Path dir) throws IOException {
+        try (Stream<Path> s = Files.walk(dir)) {
+            return s.anyMatch(Files::isRegularFile);
+        }
+    }
+
+    /** Returns false (nothing written) if the existing file cannot be read. */
+    private static boolean mergeNpcDefaults(Path file) throws IOException {
         // An unreadable npcs.json is left untouched; load() reports its error when it reads the file.
         Optional<NpcMapping> existing = read(file, NpcMapping.CODEC, new ArrayList<>());
-        if (existing.isEmpty()) return;
+        if (existing.isEmpty()) return false;
         NpcMapping defaults;
         try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/npcs.json")) {
             if (in == null) throw new IOException("missing bundled default: npcs.json");
@@ -296,8 +331,9 @@ public final class GettData {
         for (Map.Entry<String, String> e : defaults.byName().entrySet()) {
             changed |= byName.putIfAbsent(e.getKey(), e.getValue()) == null;
         }
-        if (!changed) return;
+        if (!changed) return true;
         NpcMapping merged = new NpcMapping(existing.get().byUuid(), byName);
         writeJson(file, NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, merged).getOrThrow(IOException::new));
+        return true;
     }
 }
