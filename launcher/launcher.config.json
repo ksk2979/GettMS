@@ -43,9 +43,9 @@
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.1.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.1.0/gettcore-1.1.0.jar",
-      "sha512": "591d7e8fb1366374e1d9f77b94978d06888ed338cb71a83fb2a546b545cda596a98f38af9069c7e2b9db89eab73ab79f52f16a79b6aa4f3436ca8b8cece840c5",
+      "file": "gettcore-1.1.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.1.1/gettcore-1.1.1.jar",
+      "sha512": "5be1df09d0b871564e6514bf612613245537ad99855e3be94fc84b096c496a1a861168340e0056efaefa5aafd96efdf3e4298fb15f53c21cca5c8e91510bea66",
       "side": "both"
     },
     {
