@@ -1,0 +1,24 @@
+{
+  "values": [
+    "gettcore:harvest",
+    "gettcore:replant",
+    "gettcore:bounty",
+    "gettcore:vein",
+    "gettcore:area",
+    "gettcore:smelt",
+    "gettcore:timber",
+    "gettcore:resapling",
+    "gettcore:lumber",
+    "gettcore:sweep",
+    "gettcore:leech",
+    "gettcore:wisdom",
+    "gettcore:execute",
+    "gettcore:plunder",
+    "gettcore:volley",
+    "gettcore:quickdraw",
+    "gettcore:homing",
+    "gettcore:lure",
+    "gettcore:bigcatch",
+    "gettcore:treasure"
+  ]
+}
