@@ -8,6 +8,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,18 +25,20 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
 import net.minecraft.core.registries.BuiltInRegistries;
+import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Loads shops, dialogs, NPC mapping and economy config from JSON files under the config directory.
+ * Loads shops, dialogs, NPC mapping, economy and enchant config from JSON files under the config directory.
  * Free of Minecraft server classes so it can be unit tested.
  */
 public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json"};
+            "economy.json", "npcs.json", "enchant.json", "shops/farmer.json", "dialogs/farmer.json",
+            "dialogs/enchanter.json"};
 
     /** Callbacks run by /gett reload after data was re-read (e.g. Task 8: close open ShopMenu screens). */
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
@@ -44,6 +48,7 @@ public final class GettData {
     private volatile Map<String, Path> shopFiles = Map.of();
     private volatile NpcMapping npcs = NpcMapping.EMPTY;
     private volatile EconomyConfig economy = EconomyConfig.DEFAULT;
+    private volatile EnchantConfig enchant = EnchantConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -68,7 +73,7 @@ public final class GettData {
         configDir = dir;
         try {
             Files.createDirectories(dir);
-            if (!hasAnyFile(dir)) copyDefaults(dir);
+            copyDefaults(dir);
         } catch (IOException e) {
             errors.add("config dir " + dir + ": " + e.getMessage());
         }
@@ -98,6 +103,10 @@ public final class GettData {
         Path ecoFile = dir.resolve("economy.json");
         EconomyConfig newEco = Files.isRegularFile(ecoFile)
                 ? read(ecoFile, EconomyConfig.CODEC, errors).orElse(EconomyConfig.DEFAULT) : EconomyConfig.DEFAULT;
+        Path enchantFile = dir.resolve("enchant.json");
+        EnchantConfig newEnchant = (Files.isRegularFile(enchantFile)
+                ? read(enchantFile, EnchantConfig.CODEC, errors).orElse(EnchantConfig.DEFAULT) : EnchantConfig.DEFAULT)
+                .sanitized(errors);
 
         validate(newShops, newDialogs, newNpcs);
 
@@ -106,6 +115,7 @@ public final class GettData {
         dialogs = Map.copyOf(newDialogs);
         npcs = newNpcs;
         economy = newEco;
+        enchant = newEnchant;
         if (!newEco.priceDynamics().enabled()) {
             for (ShopDefinition sd : List.copyOf(newShops.values())) {
                 ShopDefinition norm = normalized(sd);
@@ -194,6 +204,10 @@ public final class GettData {
         return economy;
     }
 
+    public EnchantConfig enchant() {
+        return enchant;
+    }
+
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
     public synchronized void saveShop(ShopDefinition shop) throws IOException {
         if (!economy.priceDynamics().enabled()) shop = normalized(shop);
@@ -202,12 +216,7 @@ public final class GettData {
         Path file = shopFiles.getOrDefault(shop.id(), dir.resolve("shops").resolve(shop.id() + ".json"));
         JsonElement json = ShopDefinition.CODEC.encodeStart(JsonOps.INSTANCE, shop)
                 .getOrThrow(IOException::new);
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json, w);
-        }
-        Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        writeJson(file, json);
         Map<String, ShopDefinition> s = new HashMap<>(shops);
         s.put(shop.id(), shop);
         shops = Map.copyOf(s);
@@ -243,20 +252,52 @@ public final class GettData {
         }
     }
 
-    private static boolean hasAnyFile(Path dir) throws IOException {
-        try (Stream<Path> s = Files.walk(dir)) {
-            return s.anyMatch(Files::isRegularFile);
+    /** Pretty JSON via tmp file + move, so a crash never leaves a half-written file. */
+    private static void writeJson(Path file, JsonElement json) throws IOException {
+        Files.createDirectories(file.getParent());
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json, w);
         }
+        Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     }
 
+    /**
+     * Copies every bundled default file that is missing (also into a non-empty dir, so updates reach running
+     * servers). An existing npcs.json only gains the bundled byName keys it lacks; operator values are kept.
+     */
     private static void copyDefaults(Path dir) throws IOException {
         for (String f : DEFAULT_FILES) {
+            Path target = dir.resolve(f);
+            if (Files.exists(target)) {
+                if (f.equals("npcs.json")) mergeNpcDefaults(target);
+                continue;
+            }
             try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/" + f)) {
                 if (in == null) throw new IOException("missing bundled default: " + f);
-                Path target = dir.resolve(f);
                 Files.createDirectories(target.getParent());
                 Files.copy(in, target);
             }
         }
+    }
+
+    private static void mergeNpcDefaults(Path file) throws IOException {
+        // An unreadable npcs.json is left untouched; load() reports its error when it reads the file.
+        Optional<NpcMapping> existing = read(file, NpcMapping.CODEC, new ArrayList<>());
+        if (existing.isEmpty()) return;
+        NpcMapping defaults;
+        try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/npcs.json")) {
+            if (in == null) throw new IOException("missing bundled default: npcs.json");
+            JsonElement json = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            defaults = NpcMapping.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(IOException::new);
+        }
+        Map<String, String> byName = new LinkedHashMap<>(existing.get().byName());
+        boolean changed = false;
+        for (Map.Entry<String, String> e : defaults.byName().entrySet()) {
+            changed |= byName.putIfAbsent(e.getKey(), e.getValue()) == null;
+        }
+        if (!changed) return;
+        NpcMapping merged = new NpcMapping(existing.get().byUuid(), byName);
+        writeJson(file, NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, merged).getOrThrow(IOException::new));
     }
 }

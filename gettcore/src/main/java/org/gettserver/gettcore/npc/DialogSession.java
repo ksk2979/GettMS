@@ -69,6 +69,7 @@ public final class DialogSession {
             case OPEN_SHOP_BUY -> openShop(player, action, ShopMode.BUY);
             case OPEN_SHOP_SELL -> openShop(player, action, ShopMode.SELL);
             case CLOSE -> close(player);
+            case OPEN_ENCHANT -> close(player); // Task 3: open the enchant menu
         }
     }
 

@@ -1,0 +1,19 @@
+{
+  "levelWeights": { "1": 70, "2": 25, "3": 5 },
+  "harvest":   { "radius": [1, 2, 3] },
+  "bounty":    { "chance": [10, 20, 35] },
+  "vein":      { "maxBlocks": [8, 16, 32] },
+  "timber":    { "maxBlocks": [16, 32, 64] },
+  "lumber":    { "chance": [10, 20, 35] },
+  "sweep":     { "radius": [1.5, 2.0, 2.5], "damagePercent": 50 },
+  "leech":     { "percent": [5, 10, 15] },
+  "wisdom":    { "percent": [25, 50, 100] },
+  "execute":   { "healthPercent": 20, "bonusPercent": [30, 60, 100] },
+  "plunder":   { "chance": [10, 20, 35] },
+  "volley":    { "angleDegrees": 10 },
+  "quickdraw": { "percent": [15, 30, 45] },
+  "homing":    { "range": 8, "coneDegrees": 30, "steer": 0.1, "targetPlayers": false },
+  "lure":      { "percent": [15, 30, 45] },
+  "bigcatch":  { "chance": [10, 20, 35] },
+  "treasure":  { "chance": [15, 30, 45] }
+}

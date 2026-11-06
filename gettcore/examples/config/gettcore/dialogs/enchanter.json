@@ -1,0 +1,24 @@
+{
+  "id": "enchanter",
+  "name": "마법부여사",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "어서오게 뭐가 필요하지?",
+      "choices": [
+        {
+          "label": "마법부여 하기",
+          "action": {
+            "type": "open_enchant"
+          }
+        },
+        {
+          "label": "나가기",
+          "action": {
+            "type": "close"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -21,7 +21,7 @@ class GettDataTest {
         Files.writeString(dir.resolve("shops/broken.json"), "{ not json");
         GettData data = new GettData();
         GettData.LoadReport report = data.load(dir);
-        assertEquals(1, report.shops());
+        assertEquals(2, report.shops()); // good.json + bundled default shops/farmer.json
         assertEquals(1, report.errors().size());
         assertTrue(report.errors().get(0).contains("broken.json"));
 
@@ -38,9 +38,37 @@ class GettDataTest {
         GettData data = new GettData();
         GettData.LoadReport r = data.load(dir.resolve("gettcore"));
         assertEquals(1, r.shops());
-        assertEquals(1, r.dialogs());
+        assertEquals(2, r.dialogs());
         assertTrue(r.errors().isEmpty());
         assertEquals("farmer", data.dialogForNpc(UUID.randomUUID(), "농부").orElseThrow());
+        assertEquals("enchanter", data.dialogForNpc(UUID.randomUUID(), "마법부여사").orElseThrow());
+    }
+
+    @Test
+    void missingDefaultFilesAreAddedToExistingDir(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/good.json"), SHOP);
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("dialogs/enchanter.json")));
+        assertTrue(Files.isRegularFile(dir.resolve("enchant.json")));
+        assertEquals(SHOP, Files.readString(dir.resolve("shops/good.json")));
+        assertTrue(data.dialog("enchanter").isPresent());
+    }
+
+    @Test
+    void npcMergeKeepsOperatorValues(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"농부\":\"custom\"}}");
+        GettData data = new GettData();
+        data.load(dir);
+        assertEquals("custom", data.npcMapping().byName().get("농부"));
+        assertEquals("enchanter", data.npcMapping().byName().get("마법부여사"));
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals("custom", again.npcMapping().byName().get("농부"));
+        assertEquals("enchanter", again.npcMapping().byName().get("마법부여사"));
     }
 
     @Test

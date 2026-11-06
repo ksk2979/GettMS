@@ -5,6 +5,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
+import org.gettserver.gettcore.enchant.ClientEnchantConfig;
 import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
@@ -21,6 +22,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientConfig.set(payload.hudOffsetX(), payload.hudOffsetY(), payload.currencyName()));
+        registrar.playToClient(EnchantConfigSyncPayload.TYPE, EnchantConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientEnchantConfig.set(payload.config()));
         registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,
