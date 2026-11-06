@@ -53,11 +53,12 @@ public final class EffectContext {
      */
     public static boolean breakExtra(ServerPlayer player, BlockPos pos) {
         if (!toolUsable(player)) return false;
+        boolean prev = REENTRANT;
         REENTRANT = true;
         try {
             return player.gameMode.destroyBlock(pos);
         } finally {
-            REENTRANT = false;
+            REENTRANT = prev; // 중첩 호출에서도 바깥 호출의 상태를 지킨다
         }
     }
 
