@@ -4,9 +4,13 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.gettserver.gettcore.enchant.AbilityKey;
 import org.gettserver.gettcore.enchant.EnchantScreen;
+import org.gettserver.gettcore.quest.client.QuestHud;
+import org.gettserver.gettcore.quest.client.QuestKeys;
 import org.gettserver.gettcore.shop.ShopScreen;
 
 @Mod(value = GettCore.MOD_ID, dist = Dist.CLIENT)
@@ -17,6 +21,13 @@ public class GettCoreClient {
                     event.register(GettCore.SHOP_MENU.get(), ShopScreen::new);
                     event.register(GettCore.ENCHANT_MENU.get(), EnchantScreen::new);
                 });
-        modBus.addListener(RegisterKeyMappingsEvent.class, event -> event.register(AbilityKey.TOGGLE));
+        modBus.addListener(RegisterKeyMappingsEvent.class, event -> {
+            event.register(AbilityKey.TOGGLE);
+            event.register(QuestKeys.QUEST_LOG);
+            event.register(QuestKeys.QUEST_HUD);
+        });
+        // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
+        modBus.addListener(RegisterGuiLayersEvent.class,
+                event -> event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render));
     }
 }
