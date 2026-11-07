@@ -146,3 +146,14 @@ tr.drop-after td { box-shadow: inset 0 -2px 0 var(--accent); }
 .taglist button { text-align: left; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 
 .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 200; background: var(--text); color: var(--bg); padding: .5rem 1rem; border-radius: 8px; max-width: 90vw; }
+
+/* npc / dialog tab */
+.npcgrid { display: grid; grid-template-columns: 230px minmax(0, 1fr) 260px; gap: 1rem; align-items: start; }
+@media (max-width: 1000px) { .npcgrid { grid-template-columns: 1fr; } }
+.list button.bad { border-color: var(--bad); background: var(--bad-bg); }
+textarea { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: .3rem .5rem; font: inherit; color: inherit; min-width: 0; resize: vertical; }
+textarea.grow { flex: 1; width: 100%; }
+.choice > select { max-width: 14rem; }
+.id { font-size: 11px; color: var(--muted); word-break: break-all; }
+.shopprev { display: flex; flex-direction: column; gap: .2rem; align-items: stretch; text-align: left; width: 100%; margin-bottom: .5rem; }
+.shopprev .row { display: flex; gap: .4rem; align-items: center; font-size: 12px; flex-wrap: wrap; }

@@ -7,7 +7,7 @@
  *   4. 아이템 선택기  pickItem({allowTags}) -> Promise<id | null>   (다른 탭에서도 재사용)
  *   5. 탭 등록        registerTab({id, title, render(container) -> paint?, validate(bundle) -> string[]})
  *   6. 상점 탭
- *   7. 준비 중 탭     NPC·대화(Task 11), 퀘스트(Task 14)가 같은 방식으로 registerTab 한다
+ *   7. NPC·대화 탭, 준비 중 탭 (퀘스트(Task 14)가 같은 방식으로 registerTab 한다)
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -116,7 +116,7 @@
     catalog: { items: [], entities: [], itemTags: [], entityTags: [] },
     catalogOk: false,
     tab: 'shops',
-    ui: { shopId: null, tabFilter: '' },
+    ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null },
     result: null,       // 마지막 저장 결과 {kind, title, errors[], warnings[]}
     draftOffer: null,   // 복원 제안 {base, bundle}
     saving: false,
@@ -570,7 +570,299 @@
   };
   registerTab(shopsTab);
 
-  /* ===================== 7. 준비 중 탭 ===================== */
+  /* ===================== 7. NPC·대화 탭 ===================== */
+
+  const DIALOG_ID = /^[a-z0-9_]+$/;
+  const ACTIONS = [
+    ['next', '다음 노드'], ['open_shop_buy', '상점 구매'], ['open_shop_sell', '상점 판매'],
+    ['open_enchant', '마법부여'], ['quest', '퀘스트'], ['close', '닫기'],
+  ];
+  const isShopAction = (t) => t === 'open_shop_buy' || t === 'open_shop_sell';
+
+  // 서버 EditorValidator와 같은 규칙. 화면 표시와 오류 개수가 같은 함수를 쓴다.
+  const dlgRules = {
+    dialogId(key, d) {
+      if (d.id !== key) return `키(${key})와 내부 id(${d.id})가 다릅니다`;
+      return DIALOG_ID.test(key) ? '' : 'id는 영문 소문자·숫자·_ 만 쓸 수 있습니다';
+    },
+    start(d) { return d.nodes && d.nodes[d.start] ? '' : `시작 노드 '${d.start}'가 없습니다`; },
+    nodeId(id) { return id.trim() ? '' : '노드 id가 비어 있습니다'; },
+    choice(bundle, d, c) {
+      const a = c.action || {};
+      const t = a.target;
+      if (a.type === 'next') return t && d.nodes[t] ? '' : `없는 노드를 가리킵니다: ${t || '(비어 있음)'}`;
+      if (isShopAction(a.type)) return t && bundle.shops[t] ? '' : `없는 상점입니다: ${t || '(비어 있음)'}`;
+      if (a.type === 'quest') { const line = t || 'main'; return bundle.quests[line] ? '' : `없는 퀘스트 라인입니다: ${line}`; }
+      return '';
+    },
+    npc(bundle, dialogId) { return bundle.dialogs[dialogId] ? '' : `없는 대화입니다: ${dialogId}`; },
+  };
+
+  function validateNpcs(bundle) {
+    const out = [];
+    for (const [key, d] of Object.entries(bundle.dialogs)) {
+      const p = `대화 ${d.name || key}`;
+      const m0 = dlgRules.dialogId(key, d); if (m0) out.push(`${p}: ${m0}`);
+      const m1 = dlgRules.start(d); if (m1) out.push(`${p}: ${m1}`);
+      for (const [nid, node] of Object.entries(d.nodes || {})) {
+        const m2 = dlgRules.nodeId(nid); if (m2) out.push(`${p}: ${m2}`);
+        (node.choices || []).forEach((c, n) => {
+          const m = dlgRules.choice(bundle, d, c);
+          if (m) out.push(`${p} › 노드 ${nid} › 선택지 ${n + 1}: ${m}`);
+        });
+      }
+    }
+    for (const [name, did] of Object.entries(bundle.npcs.byName || {})) {
+      if (!name.trim()) out.push('NPC 이름이 비어 있습니다');
+      const m = dlgRules.npc(bundle, did); if (m) out.push(`NPC ${name}: ${m}`);
+    }
+    for (const [uuid, did] of Object.entries(bundle.npcs.byUuid || {})) {
+      const m = dlgRules.npc(bundle, did); if (m) out.push(`NPC(UUID ${uuid}): ${m}`);
+    }
+    return out;
+  }
+
+  /** 이 대화 안에서 nodeId를 가리키는 next 선택지 수. */
+  function nodeRefCount(d, nodeId) {
+    let n = 0;
+    for (const node of Object.values(d.nodes)) for (const c of (node.choices || [])) {
+      if (c.action && c.action.type === 'next' && c.action.target === nodeId) n++;
+    }
+    return n;
+  }
+
+  /** 노드 id를 바꾸고, 이 대화의 시작 노드와 모든 next 대상도 같이 바꾼다 (노드 순서 유지). */
+  function renameNode(d, oldId, newId) {
+    const nodes = {};
+    for (const [k, v] of Object.entries(d.nodes)) nodes[k === oldId ? newId : k] = v;
+    d.nodes = nodes;
+    if (d.start === oldId) d.start = newId;
+    for (const node of Object.values(nodes)) for (const c of (node.choices || [])) {
+      if (c.action && c.action.type === 'next' && c.action.target === oldId) c.action.target = newId;
+    }
+  }
+
+  function dialogShopIds(d) {
+    const ids = [];
+    for (const node of Object.values((d && d.nodes) || {})) for (const c of (node.choices || [])) {
+      const a = c.action || {};
+      if (isShopAction(a.type) && a.target && !ids.includes(a.target)) ids.push(a.target);
+    }
+    return ids;
+  }
+
+  /** 현재 값이 목록에 없으면 "(없음) 값" 항목을 맨 앞에 넣고 선택한다. */
+  function selectValue(sel, value) {
+    if (!value) sel.prepend(h('option', { value: '' }, '— 선택 —'));
+    else if (![...sel.options].some((o) => o.value === value)) sel.prepend(h('option', { value }, `(없음) ${value}`));
+    sel.value = value || '';
+  }
+
+  const npcsTab = {
+    id: 'npcs',
+    title: 'NPC·대화',
+    validate: validateNpcs,
+    render(container) {
+      const checks = makeChecks();
+      const rerender = () => { renderTabContent(); };
+      const b = S.bundle;
+      const byName = b.npcs.byName || {};   // 없을 때 만들어 넣지 않는다: 화면만 봐도 바뀐 것으로 보이면 안 됨
+      const byUuid = b.npcs.byUuid || {};
+      const dialogs = b.dialogs;
+      const ui = S.ui;
+      const npcNames = Object.keys(byName);
+      if (!(ui.npcName in byName)) ui.npcName = npcNames[0] || null;
+      if (!dialogs[ui.dialogId]) ui.dialogId = (ui.npcName && dialogs[byName[ui.npcName]] && byName[ui.npcName]) || Object.keys(dialogs)[0] || null;
+      const dlg = dialogs[ui.dialogId];
+
+      /* ---- 왼쪽: NPC 목록, 대화 목록, byUuid ---- */
+      const npcList = h('div', { class: 'list' }, npcNames.map((n) => h('button', {
+        'aria-current': String(n === ui.npcName),
+        class: dlgRules.npc(b, byName[n]) ? 'bad' : '',
+        onclick: () => { ui.npcName = n; if (dialogs[byName[n]]) ui.dialogId = byName[n]; rerender(); },
+      }, n, h('span', { class: 'muted' }, ' → ' + byName[n]))));
+      const addNpc = h('button', { class: 'primary', onclick: async () => {
+        const name = await askText('NPC 추가', 'NPC 이름 (Easy NPC의 이름과 같아야 함)', (v) => {
+          if (!v) return '이름을 입력하세요';
+          if (byName[v] !== undefined) return '이미 있는 이름입니다';
+          return '';
+        });
+        if (!name) return;
+        if (!b.npcs.byName) b.npcs.byName = byName;
+        byName[name] = ui.dialogId || Object.keys(dialogs)[0] || '';
+        ui.npcName = name;
+        changed(); rerender();
+      } }, '+ NPC 추가');
+
+      const dialogList = h('div', { class: 'list' }, Object.keys(dialogs).map((id) => h('button', {
+        'aria-current': String(id === ui.dialogId),
+        onclick: () => { ui.dialogId = id; rerender(); },
+      }, dialogs[id].name || id)));
+      const addDialog = h('button', { onclick: async () => {
+        const id = await askText('대화 추가', '대화 id (영문 소문자·숫자·_)', (v) => {
+          if (!v) return 'id를 입력하세요';
+          if (!DIALOG_ID.test(v)) return '영문 소문자, 숫자, _ 만 쓸 수 있습니다';
+          if (dialogs[v]) return '이미 있는 id입니다';
+          return '';
+        });
+        if (!id) return;
+        dialogs[id] = { id, name: id, start: 'start', nodes: { start: { text: '', choices: [{ label: '나가기', action: { type: 'close' } }] } } };
+        if (ui.npcName) byName[ui.npcName] = id;
+        ui.dialogId = id;
+        changed(); rerender();
+      } }, '+ 대화 추가');
+
+      const uuidKeys = Object.keys(byUuid);
+      const uuidCard = uuidKeys.length ? h('div', { class: 'card' }, h('h2', null, 'UUID로 연결된 NPC'),
+        h('p', { class: 'muted' }, '게임 안에서 연결된 것이라 여기서는 삭제만 할 수 있습니다.'),
+        uuidKeys.map((u) => {
+          const m = dlgRules.npc(b, byUuid[u]);
+          return h('div', { class: 'field' }, h('span', { class: 'id' }, u), h('span', { class: m ? 'tag bad' : 'muted' }, '→ ' + byUuid[u] + (m ? ' (없음)' : '')),
+            h('span', { class: 'spacer' }),
+            h('button', { class: 'danger small', 'aria-label': 'UUID 연결 삭제', onclick: () => { delete byUuid[u]; changed(); rerender(); } }, '삭제'));
+        })) : null;
+
+      const left = h('div', { class: 'stack' },
+        h('div', { class: 'card' }, h('h2', null, 'NPC (이름 → 대화)'), npcList,
+          npcNames.length ? null : h('p', { class: 'muted' }, 'NPC가 없습니다.'), h('div', { class: 'field', style: 'margin-top:.5rem' }, addNpc)),
+        h('div', { class: 'card' }, h('h2', null, '대화 목록'), dialogList,
+          Object.keys(dialogs).length ? null : h('p', { class: 'muted' }, '대화가 없습니다.'), h('div', { class: 'field', style: 'margin-top:.5rem' }, addDialog)),
+        uuidCard);
+
+      /* ---- 가운데: 선택한 NPC + 대화 편집 ---- */
+      const mid = [];
+      if (ui.npcName) {
+        const name = ui.npcName;
+        const sel = checks.add(h('select', { 'aria-label': '이 NPC가 쓰는 대화', onchange: (e) => {
+          byName[name] = e.target.value;
+          if (dialogs[e.target.value]) ui.dialogId = e.target.value;
+          changed(); rerender();
+        } }, Object.keys(dialogs).map((id) => h('option', { value: id }, (dialogs[id].name || id) + ' (' + id + ')'))), () => dlgRules.npc(b, byName[name]));
+        selectValue(sel, byName[name]);
+        const delNpc = h('button', { class: 'danger', onclick: () => {
+          const used = JSON.stringify(b.quests || {}).includes(JSON.stringify(name));
+          if (!confirm(`NPC '${name}' 연결을 삭제할까요?` + (used ? '\n퀘스트에서 이 NPC 이름을 쓰고 있으면 고치지 않을 때 저장이 거부됩니다.' : ''))) return;
+          delete byName[name];
+          changed(); rerender();
+        } }, 'NPC 삭제');
+        mid.push(h('div', { class: 'card' }, h('div', { class: 'field' }, h('label', null, 'NPC'), h('strong', null, name),
+          h('label', null, '대화'), sel, h('span', { class: 'spacer' }), delNpc)));
+      }
+
+      if (dlg) {
+        const nodeIds = Object.keys(dlg.nodes);
+        const nameIn = h('input', { type: 'text', value: dlg.name || '', 'aria-label': '대화 이름', oninput: (e) => { dlg.name = e.target.value; changed(); }, onchange: () => rerender() });
+        const startSel = checks.add(h('select', { 'aria-label': '시작 노드', onchange: (e) => { dlg.start = e.target.value; changed(); rerender(); } },
+          nodeIds.map((id) => h('option', { value: id }, id))), () => dlgRules.start(dlg));
+        selectValue(startSel, dlg.start);
+        const refNpcs = Object.values(byName).filter((v) => v === dlg.id).length + Object.values(byUuid).filter((v) => v === dlg.id).length;
+        const delDlg = h('button', { class: 'danger', onclick: () => {
+          if (!confirm(`대화 '${dlg.name || dlg.id}'을(를) 삭제할까요?` + (refNpcs ? `\n이 대화를 쓰는 NPC가 ${refNpcs}개 있습니다. 삭제해도 NPC 연결은 그대로 남아, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
+          delete dialogs[dlg.id];
+          ui.dialogId = null;
+          changed(); rerender();
+        } }, '대화 삭제');
+        mid.push(h('div', { class: 'card' }, h('div', { class: 'field' },
+          h('label', null, '이름'), nameIn, h('span', { class: 'muted' }, 'id: ' + dlg.id),
+          h('label', null, '시작 노드'), startSel, h('span', { class: 'spacer' }), delDlg),
+          dlg.portrait ? h('p', { class: 'muted' }, '초상화: ' + dlg.portrait + ' (그대로 보존됨)') : null));
+
+        for (const nid of nodeIds) mid.push(nodeCard(dlg, nid));
+
+        mid.push(h('div', { class: 'card' }, h('button', { onclick: async () => {
+          const id = await askText('노드 추가', '노드 id', (v) => (!v ? 'id를 입력하세요' : dlg.nodes[v] ? '이미 있는 노드 id입니다' : ''));
+          if (!id) return;
+          dlg.nodes[id] = { text: '', choices: [] };
+          changed(); rerender();
+        } }, '+ 노드 추가')));
+      } else {
+        mid.push(h('div', { class: 'card muted' }, '왼쪽에서 대화를 고르거나 추가하세요.'));
+      }
+
+      function nodeCard(d, nid) {
+        const node = d.nodes[nid];
+        const choicesOf = () => (node.choices = node.choices || []);   // 화면만 볼 때는 데이터를 건드리지 않는다 (바뀐 것으로 오인 방지)
+        const idIn = h('input', { type: 'text', value: nid, 'aria-label': '노드 id', style: 'width:9rem', onchange: (e) => {
+          const v = e.target.value.trim();
+          if (v === nid) return;
+          if (!v) { toast('노드 id가 비어 있습니다'); e.target.value = nid; return; }
+          if (d.nodes[v]) { toast('이미 있는 노드 id입니다'); e.target.value = nid; return; }
+          renameNode(d, nid, v);
+          changed(); rerender();
+        } });
+        const refs = nodeRefCount(d, nid);
+        const delNode = h('button', { class: 'danger small', onclick: () => {
+          if (Object.keys(d.nodes).length <= 1 && !confirm('마지막 노드입니다. 삭제하면 시작 노드가 없어 저장이 거부됩니다. 삭제할까요?')) return;
+          if (refs && !confirm(`이 노드로 오는 선택지가 ${refs}개 있어, 고치지 않으면 저장이 거부됩니다. 삭제할까요?`)) return;
+          delete d.nodes[nid];
+          changed(); rerender();
+        } }, '노드 삭제');
+        const text = h('textarea', { rows: 3, class: 'grow', 'aria-label': '대사', value: node.text || '', oninput: (e) => { node.text = e.target.value; changed(); } });
+        const moveChoice = (i, to) => { const cs = choicesOf(); if (to < 0 || to >= cs.length) return; const [c] = cs.splice(i, 1); cs.splice(to, 0, c); changed(); rerender(); };
+
+        const rows = (node.choices || []).map((c, i) => {
+          c.action = c.action || { type: 'close' };
+          const a = c.action;
+          const label = h('input', { type: 'text', value: c.label || '', 'aria-label': '선택지 라벨', class: 'grow', oninput: (e) => { c.label = e.target.value; changed(); } });
+          const typeSel = h('select', { 'aria-label': '동작', onchange: (e) => {
+            a.type = e.target.value;
+            if (a.type === 'next') a.target = Object.keys(d.nodes).find((k) => k !== nid) || Object.keys(d.nodes)[0];
+            else if (isShopAction(a.type)) a.target = Object.keys(b.shops)[0];
+            else if (a.type === 'quest') a.target = b.quests.main ? 'main' : Object.keys(b.quests)[0];
+            else delete a.target;
+            if (a.target === undefined) delete a.target;
+            changed(); rerender();
+          } }, ACTIONS.map(([v, l]) => h('option', { value: v }, l)));
+          typeSel.value = a.type;
+          if (typeSel.value !== a.type) { typeSel.prepend(h('option', { value: a.type }, a.type)); typeSel.value = a.type; }
+          let targetEl = null;
+          if (a.type === 'next' || isShopAction(a.type) || a.type === 'quest') {
+            let keys; let cur = a.target;
+            if (a.type === 'next') keys = Object.keys(d.nodes);
+            else if (isShopAction(a.type)) keys = Object.keys(b.shops);
+            else { keys = Object.keys(b.quests); cur = cur || 'main'; }
+            targetEl = checks.add(h('select', { 'aria-label': '대상', onchange: (e) => { a.target = e.target.value; changed(); } },
+              keys.map((k) => h('option', { value: k }, isShopAction(a.type) ? (b.shops[k].name || k) + ' (' + k + ')' : k))),
+              () => dlgRules.choice(b, d, c));
+            selectValue(targetEl, cur);
+          }
+          return h('div', { class: 'field choice' }, label, typeSel, targetEl,
+            h('button', { class: 'small', title: '위로', 'aria-label': '위로', onclick: () => moveChoice(i, i - 1) }, '▲'),
+            h('button', { class: 'small', title: '아래로', 'aria-label': '아래로', onclick: () => moveChoice(i, i + 1) }, '▼'),
+            h('button', { class: 'danger small', 'aria-label': '선택지 삭제', onclick: () => { choicesOf().splice(i, 1); changed(); rerender(); } }, '삭제'));
+        });
+        const addChoice = h('button', { class: 'small', onclick: () => {
+          choicesOf().push({ label: '', action: { type: 'close' } });
+          changed(); rerender();
+        } }, '+ 선택지 추가');
+        return h('div', { class: 'card node' },
+          h('div', { class: 'field' }, h('label', null, '노드 id'), idIn,
+            d.start === nid ? h('span', { class: 'tag gray' }, '시작') : null, h('span', { class: 'spacer' }), delNode),
+          h('div', { class: 'field' }, text),
+          rows, h('div', { class: 'field' }, addChoice));
+      }
+
+      /* ---- 오른쪽: 이 NPC가 파는 것 ---- */
+      const shopIds = dlg ? dialogShopIds(dlg) : [];
+      const right = h('div', { class: 'card' }, h('h2', null, '이 대화가 여는 상점'),
+        shopIds.length === 0 ? h('p', { class: 'muted' }, '연결된 상점이 없습니다.') : shopIds.map((sid) => {
+          const shop = b.shops[sid];
+          if (!shop) return h('p', { class: 'tag bad' }, `없는 상점: ${sid}`);
+          const shown = shop.entries.slice(0, 12);
+          return h('button', { class: 'shopprev', title: '클릭하면 상점 탭으로 이동', onclick: () => { ui.shopId = sid; ui.tabFilter = ''; selectTab('shops'); } },
+            h('strong', null, `${shop.name || sid} (${shop.entries.length})`),
+            shown.map((e) => h('span', { class: 'row' }, iconEl(e.item, 20), h('span', null, itemName(e.item)),
+              h('span', { class: 'muted' }, `${e.canBuy ? '구매 ' + e.buyPrice : ''}${e.canBuy && e.canSell ? ' / ' : ''}${e.canSell ? '판매 ' + e.sellPrice : ''}`))),
+            shop.entries.length > shown.length ? h('span', { class: 'muted' }, `… 외 ${shop.entries.length - shown.length}개`) : null);
+        }));
+
+      container.append(h('div', { class: 'npcgrid' }, left, h('div', { class: 'stack' }, mid), right));
+      return checks.paint;
+    },
+  };
+  registerTab(npcsTab);
+
+  /* ===================== 7b. 준비 중 탭 ===================== */
 
   function placeholderTab(id, title, note) {
     return {
@@ -579,7 +871,6 @@
       render(container) { container.append(h('div', { class: 'card' }, h('h2', null, title), h('p', { class: 'muted' }, note))); return null; },
     };
   }
-  registerTab(placeholderTab('npcs', 'NPC·대화', '준비 중입니다.'));
   registerTab(placeholderTab('quests', '퀘스트', '준비 중입니다.'));
 
   /* ===================== 8. 화면 뼈대 ===================== */
@@ -643,10 +934,16 @@
         h('button', { class: 'small', onclick: () => { lsDel(DRAFT_KEY); S.draftOffer = null; renderDraftOffer(); } }, '버리기'))));
   }
 
+  function selectTab(id) {
+    S.tab = id;
+    if (elTabs) elTabs.querySelectorAll('button').forEach((bt, i) => bt.setAttribute('aria-selected', String(TABS[i].id === S.tab)));
+    renderTabContent();
+  }
+
   function renderShell() {
     elTabs = h('div', { class: 'tabs', role: 'tablist' }, TABS.map((t) => h('button', {
       role: 'tab', 'aria-selected': String(t.id === S.tab),
-      onclick: () => { S.tab = t.id; elTabs.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', String(TABS[i].id === S.tab))); renderTabContent(); },
+      onclick: () => selectTab(t.id),
     }, t.title)));
     elDirty = h('span', { class: 'badge dirty hidden' }, '저장 안 된 변경 있음');
     elErrors = h('span', { class: 'badge bad hidden', role: 'status' }, '');
@@ -739,7 +1036,7 @@
   }
 
   // 다른 탭 모듈이 쓰는 공용 API
-  window.GettEditor = { S, h, iconEl, itemName, itemStatus, pickItem, askText, modal, toast, changed, registerTab, makeChecks, renderTabContent };
+  window.GettEditor = { S, h, iconEl, itemName, itemStatus, pickItem, askText, modal, toast, changed, registerTab, selectTab, makeChecks, renderTabContent };
 
   boot();
 })();
