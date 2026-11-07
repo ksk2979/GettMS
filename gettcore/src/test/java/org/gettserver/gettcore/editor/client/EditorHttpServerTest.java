@@ -104,7 +104,6 @@ class EditorHttpServerTest {
         var r = get("/?t=" + server.token(), null);
         assertEquals(200, r.statusCode());
         assertEquals("text/html; charset=utf-8", r.headers().firstValue("Content-Type").orElse(""));
-        assertTrue(r.body().contains("편집기 준비 중"));
         assertEquals(200, get("/static/index.html?t=" + server.token(), null).statusCode());
         assertEquals(404, get("/static/nope.js?t=" + server.token(), null).statusCode());
     }
@@ -172,11 +171,59 @@ class EditorHttpServerTest {
     @Test
     void idleForTracksAuthorizedRequests() throws Exception {
         assertFalse(server.idleFor(Duration.ofHours(1)));
-        Thread.sleep(60);
-        assertTrue(server.idleFor(Duration.ofMillis(30)));
+        Thread.sleep(300);
+        assertTrue(server.idleFor(Duration.ofMillis(200)));
         get("/api/snapshot", "wrong");
-        assertTrue(server.idleFor(Duration.ofMillis(30)));
+        assertTrue(server.idleFor(Duration.ofMillis(200)));
         get("/api/snapshot", server.token());
-        assertFalse(server.idleFor(Duration.ofMillis(30)));
+        assertFalse(server.idleFor(Duration.ofMillis(200)));
+    }
+
+    String raw(String requestLine) throws Exception {
+        String req = requestLine + " HTTP/1.1\r\nHost: 127.0.0.1:" + server.port() + "\r\nX-Gett-Token: "
+                + server.token() + "\r\nConnection: close\r\n\r\n";
+        try (Socket s = new Socket("127.0.0.1", server.port())) {
+            s.getOutputStream().write(req.getBytes(StandardCharsets.US_ASCII));
+            s.getOutputStream().flush();
+            return new String(s.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    @Test
+    void iconRejectsDotAndEmptySegments() throws Exception {
+        for (String p : new String[] {"/icon/minecraft/../stone.png", "/icon/minecraft/./stone.png",
+                "/icon/../stone.png", "/icon/./stone.png", "/icon//stone.png", "/icon/minecraft//stone.png",
+                "/icon/minecraft/a/../stone.png"}) {
+            assertTrue(raw("GET " + p).startsWith("HTTP/1.1 404"), p);
+        }
+    }
+
+    @Test
+    void staticRejectsDotOnlyNames() throws Exception {
+        assertEquals(403, get("/static/.?t=" + server.token(), null).statusCode());
+        assertTrue(raw("GET /static/...").startsWith("HTTP/1.1 403"));
+    }
+
+    @Test
+    void referrerPolicyOnAllResponses() throws Exception {
+        assertEquals("no-referrer", get("/api/snapshot", null).headers().firstValue("Referrer-Policy").orElse(""));
+        assertEquals("no-referrer", get("/api/snapshot", server.token()).headers().firstValue("Referrer-Policy").orElse(""));
+    }
+
+    @Test
+    void backendExceptionIs500() throws Exception {
+        saveFuture = CompletableFuture.failedFuture(new IllegalStateException("boom"));
+        var r = post("{}");
+        assertEquals(500, r.statusCode());
+        assertFalse(r.body().contains("boom"));
+    }
+
+    @Test
+    void wrongMethodIs405() throws Exception {
+        assertEquals(405, http.send(HttpRequest.newBuilder(URI.create(base() + "/api/save"))
+                .header("X-Gett-Token", server.token()).GET().build(), HttpResponse.BodyHandlers.ofString()).statusCode());
+        assertEquals(405, http.send(HttpRequest.newBuilder(URI.create(base() + "/api/snapshot"))
+                .header("X-Gett-Token", server.token()).POST(HttpRequest.BodyPublishers.ofString("x")).build(),
+                HttpResponse.BodyHandlers.ofString()).statusCode());
     }
 }

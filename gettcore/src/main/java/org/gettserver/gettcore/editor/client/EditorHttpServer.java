@@ -19,8 +19,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/** Loopback-only HTTP server for the web editor. Pure JDK; data comes from an {@link EditorBackend}. */
+/**
+ * Loopback-only HTTP server for the web editor. Pure JDK; data comes from an {@link EditorBackend}.
+ *
+ * <p>{@link #stop()} is mandatory: the JDK's HttpServer dispatcher thread is not a daemon thread, so a
+ * server that is never stopped can keep the JVM alive. Only the request worker threads are daemons.
+ */
 public final class EditorHttpServer {
     static final int MAX_SAVE_BYTES = 16 * 1024 * 1024;
     static final Duration DEFAULT_SAVE_TIMEOUT = Duration.ofSeconds(10);
@@ -29,6 +36,7 @@ public final class EditorHttpServer {
     private static final Pattern FILE = Pattern.compile("[A-Za-z0-9._-]+");
     private static final Pattern ICON_NS = Pattern.compile("[a-z0-9_.-]+");
     private static final Pattern ICON_PATH = Pattern.compile("[a-z0-9_./-]+");
+    private static final Logger LOG = LoggerFactory.getLogger("gettcore");
     private static final String JSON = "application/json; charset=utf-8";
 
     private final EditorBackend backend;
@@ -108,6 +116,7 @@ public final class EditorHttpServer {
     private void handle(HttpExchange ex) throws IOException {
         try {
             ex.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
+            ex.getResponseHeaders().set("Referrer-Policy", "no-referrer");
             String given = ex.getRequestHeaders().getFirst("X-Gett-Token");
             if (given == null) given = queryToken(ex.getRequestURI().getRawQuery());
             if (!authorized(ex.getRequestHeaders().getFirst("Host"), port(), token, given)) {
@@ -117,7 +126,8 @@ public final class EditorHttpServer {
             lastAuthorizedNanos = System.nanoTime();
             route(ex, ex.getRequestMethod(), ex.getRequestURI().getPath());
         } catch (RuntimeException e) {
-            send(ex, 500, "text/plain; charset=utf-8", "error".getBytes(StandardCharsets.UTF_8));
+            LOG.error("Editor HTTP request failed: {}", ex.getRequestURI().getPath(), e);
+            sendError500(ex);
         } finally {
             ex.close();
         }
@@ -146,7 +156,8 @@ public final class EditorHttpServer {
     }
 
     private void sendResource(HttpExchange ex, String file) throws IOException {
-        if (file.contains("..") || file.contains("\\") || !FILE.matcher(file).matches()) {
+        if (file.contains("..") || file.contains("\\") || !FILE.matcher(file).matches()
+                || file.matches("[.]+")) {
             send(ex, 403, "text/plain; charset=utf-8", "forbidden".getBytes(StandardCharsets.UTF_8));
             return;
         }
@@ -174,7 +185,7 @@ public final class EditorHttpServer {
         if (slash <= 0 || !rest.endsWith(".png")) { send(ex, 404, "text/plain; charset=utf-8", new byte[0]); return; }
         String ns = rest.substring(0, slash);
         String p = rest.substring(slash + 1, rest.length() - 4);
-        if (!ICON_NS.matcher(ns).matches() || !ICON_PATH.matcher(p).matches() || p.contains("..")) {
+        if (!ICON_NS.matcher(ns).matches() || !ICON_PATH.matcher(p).matches() || badSegment(ns) || badSegments(p)) {
             send(ex, 404, "text/plain; charset=utf-8", new byte[0]);
             return;
         }
@@ -209,10 +220,28 @@ public final class EditorHttpServer {
         } catch (TimeoutException e) {
             sendApi(ex, 504, "{\"error\":\"timeout\"}");
         } catch (ExecutionException e) {
-            sendApi(ex, 500, "{\"error\":\"save failed\"}");
+            LOG.error("Editor save failed", e.getCause() != null ? e.getCause() : e);
+            sendError500(ex);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             sendApi(ex, 500, "{\"error\":\"interrupted\"}");
+        }
+    }
+
+    private static boolean badSegment(String seg) {
+        return seg.isEmpty() || seg.equals(".") || seg.equals("..");
+    }
+
+    private static boolean badSegments(String path) {
+        for (String seg : path.split("/", -1)) if (badSegment(seg)) return true;
+        return false;
+    }
+
+    private void sendError500(HttpExchange ex) {
+        try {
+            sendApi(ex, 500, "{\"error\":\"internal error\"}");
+        } catch (IOException | RuntimeException e) {
+            LOG.debug("Could not send 500 (response probably already started)", e);
         }
     }
 
