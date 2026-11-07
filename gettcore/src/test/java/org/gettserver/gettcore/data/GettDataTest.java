@@ -98,6 +98,43 @@ class GettDataTest {
         assertEquals("enchanter", again.npcMapping().byName().get("마법부여사"));
     }
 
+    private static final String TWO_ITEMS = """
+            {"id":"s","name":"S","tabs":[{"id":"t","name":"T","icon":"minecraft:carrot"}],
+             "entries":[
+              {"item":"minecraft:carrot","tab":"t","buyPrice":10,"sellPrice":3,"canBuy":true,"canSell":true,"currentBuyPrice":50},
+              {"item":"othermod:thing","tab":"t","buyPrice":20,"sellPrice":5,"canBuy":true,"canSell":true,"currentBuyPrice":70}]}""";
+
+    @Test
+    void missingItemsArePrunedInMemoryButKeptInFile(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/s.json"), TWO_ITEMS);
+        GettData data = new GettData();
+        data.setRegistryChecks(new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true));
+        GettData.LoadReport r = data.load(dir);
+        assertEquals(1, data.shop("s").orElseThrow().entries().size());
+        assertEquals(2, data.rawShop("s").orElseThrow().entries().size());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("othermod:thing")), r.warnings().toString());
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.readString(dir.resolve("shops/s.json")).contains("othermod:thing"));
+    }
+
+    @Test
+    void normalizationDoesNotDropMissingItems(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/s.json"), TWO_ITEMS);
+        Files.writeString(dir.resolve("economy.json"), "{\"priceDynamics\":{\"enabled\":false}}");
+        GettData data = new GettData();
+        data.setRegistryChecks(new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true));
+        data.load(dir);
+        GettData again = new GettData();
+        again.setRegistryChecks(RegistryChecks.ALL_EXIST);
+        again.load(dir);
+        var entries = again.shop("s").orElseThrow().entries();
+        assertEquals(2, entries.size());
+        assertEquals(10, entries.get(0).currentBuyPrice());
+        assertEquals(20, entries.get(1).currentBuyPrice());
+    }
+
     @Test
     void disabledDynamicsNormalizesCurrentPrices(@TempDir Path dir) throws IOException {
         Files.createDirectories(dir.resolve("shops"));

@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
-import net.minecraft.core.registries.BuiltInRegistries;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +48,9 @@ public final class GettData {
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
 
     private volatile Map<String, ShopDefinition> shops = Map.of();
+    /** Shops exactly as in the files (including items missing from the registry). */
+    private volatile Map<String, ShopDefinition> rawShops = Map.of();
+    private volatile RegistryChecks registryChecks = RegistryChecks.live();
     private volatile Map<String, DialogDefinition> dialogs = Map.of();
     private volatile Map<String, Path> shopFiles = Map.of();
     private volatile NpcMapping npcs = NpcMapping.EMPTY;
@@ -71,10 +73,15 @@ public final class GettData {
         for (Runnable r : RELOAD_HOOKS) r.run();
     }
 
-    public record LoadReport(int shops, int dialogs, List<String> errors) {}
+    public record LoadReport(int shops, int dialogs, int quests, List<String> errors, List<String> warnings) {}
+
+    public void setRegistryChecks(RegistryChecks checks) {
+        this.registryChecks = checks;
+    }
 
     public LoadReport load(Path dir) {
         List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
         configDir = dir;
         try {
             Files.createDirectories(dir);
@@ -115,28 +122,31 @@ public final class GettData {
 
         validate(newShops, newDialogs, newNpcs);
 
-        shops = Map.copyOf(newShops);
         shopFiles = Map.copyOf(newShopFiles);
         dialogs = Map.copyOf(newDialogs);
         npcs = newNpcs;
         economy = newEco;
         enchant = newEnchant;
+        // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
-            for (ShopDefinition sd : List.copyOf(newShops.values())) {
+            for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
+                ShopDefinition sd = en.getValue();
                 ShopDefinition norm = normalized(sd);
-                if (!norm.equals(sd)) {
-                    try {
-                        saveShop(norm);
-                    } catch (IOException e) {
-                        errors.add("shop " + sd.id() + ": " + e.getMessage());
-                        Map<String, ShopDefinition> m = new HashMap<>(shops);
-                        m.put(sd.id(), norm);
-                        shops = Map.copyOf(m);
-                    }
+                if (norm.equals(sd)) continue;
+                newShops.put(en.getKey(), norm);
+                try {
+                    writeShopFile(norm);
+                } catch (IOException e) {
+                    errors.add("shop " + sd.id() + ": " + e.getMessage());
                 }
             }
         }
-        return new LoadReport(newShops.size(), newDialogs.size(), List.copyOf(errors));
+        Map<String, ShopDefinition> pruned = new HashMap<>();
+        for (ShopDefinition sd : newShops.values()) pruned.put(sd.id(), prune(sd, warnings));
+        rawShops = Map.copyOf(newShops);
+        shops = Map.copyOf(pruned);
+        warnings.forEach(w -> LOGGER.warn("gettcore: {}", w));
+        return new LoadReport(newShops.size(), newDialogs.size(), 0, List.copyOf(errors), List.copyOf(warnings));
     }
 
     private static void validate(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs) {
@@ -144,13 +154,6 @@ public final class GettData {
             Set<String> tabIds = new java.util.HashSet<>();
             sh.tabs().forEach(t -> tabIds.add(t.id()));
             for (ShopEntry e : sh.entries()) {
-                try {
-                    if (!BuiltInRegistries.ITEM.containsKey(e.item())) {
-                        LOGGER.warn("gettcore: shop {} has unknown item {}", sh.id(), e.item());
-                    }
-                } catch (Throwable t) {
-                    // registry not bootstrapped (plain unit test): skip the item check
-                }
                 if (!tabIds.contains(e.tab())) {
                     LOGGER.warn("gettcore: shop {} entry {} uses unknown tab '{}'", sh.id(), e.item(), e.tab());
                 }
@@ -173,6 +176,25 @@ public final class GettData {
                 LOGGER.warn("gettcore: npc mapping '{}' references missing dialog '{}'", en.getKey(), en.getValue());
             }
         });
+    }
+
+    private ShopDefinition prune(ShopDefinition sd, List<String> warnings) {
+        RegistryChecks checks = registryChecks;
+        List<ShopEntry> kept = new ArrayList<>();
+        for (ShopEntry e : sd.entries()) {
+            if (checks.itemExists().test(e.item())) {
+                kept.add(e);
+            } else {
+                warnings.add("shop " + sd.id() + ": missing item " + e.item() + " (skipped)");
+            }
+        }
+        if (kept.size() == sd.entries().size()) return sd;
+        return new ShopDefinition(sd.id(), sd.name(), sd.tabs(), List.copyOf(kept));
+    }
+
+    /** The shop exactly as stored in its file (entries for items missing from the registry included). */
+    public Optional<ShopDefinition> rawShop(String id) {
+        return Optional.ofNullable(rawShops.get(id));
     }
 
     public Optional<ShopDefinition> shop(String id) {
@@ -216,15 +238,23 @@ public final class GettData {
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
     public synchronized void saveShop(ShopDefinition shop) throws IOException {
         if (!economy.priceDynamics().enabled()) shop = normalized(shop);
+        writeShopFile(shop);
+        Map<String, ShopDefinition> s = new HashMap<>(shops);
+        s.put(shop.id(), shop);
+        shops = Map.copyOf(s);
+        Map<String, ShopDefinition> raw = new HashMap<>(rawShops);
+        raw.put(shop.id(), shop);
+        rawShops = Map.copyOf(raw);
+    }
+
+    /** Writes the shop JSON to its original file (or shops/<id>.json) and remembers the file. */
+    private synchronized void writeShopFile(ShopDefinition shop) throws IOException {
         Path dir = configDir;
         if (dir == null) throw new IOException("data not loaded");
         Path file = shopFiles.getOrDefault(shop.id(), dir.resolve("shops").resolve(shop.id() + ".json"));
         JsonElement json = ShopDefinition.CODEC.encodeStart(JsonOps.INSTANCE, shop)
                 .getOrThrow(IOException::new);
         writeJson(file, json);
-        Map<String, ShopDefinition> s = new HashMap<>(shops);
-        s.put(shop.id(), shop);
-        shops = Map.copyOf(s);
         Map<String, Path> f = new HashMap<>(shopFiles);
         f.put(shop.id(), file);
         shopFiles = Map.copyOf(f);
