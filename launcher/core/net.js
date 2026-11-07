@@ -38,7 +38,7 @@ async function download(url, dest, expected, onProgress) {
   } catch (e) {
     // 중간에 끊기면 열린 스트림을 닫고 .part 를 지운다
     out.on('error', () => {});
-    await new Promise(res => { out.once('close', res); out.destroy(); });
+    if (!out.closed) await new Promise(res => { out.once('close', res); out.destroy(); });
     fs.rmSync(tmp, { force: true });
     throw e;
   }

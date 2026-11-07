@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { download } = require('./net');
+const { validDefaultFile } = require('./config');
 
 // 실패해도 던지지 않는다. 반환값 = 새로 쓴 파일 수.
 async function seedDefaultFiles(list, root, log) {
@@ -9,6 +10,7 @@ async function seedDefaultFiles(list, root, log) {
   const base = path.resolve(root);
   for (const item of list || []) {
     let tmp = null;
+    if (!validDefaultFile(item)) { log(`기본 설정 항목 무시: ${item && item.path} (형식 오류)`); continue; }
     try {
       const dest = path.resolve(base, item.path);
       if (!dest.startsWith(base + path.sep)) throw new Error('경로가 게임 폴더 밖');

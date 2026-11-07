@@ -14,8 +14,14 @@ test('config: valid shape accepted', () => {
   assert.ok(ok('config/xaero/minimap/client.cfg'));
   assert.ok(RULES.defaultFiles([]));
 });
+test('config: url bypass rejected', () => {
+  for (const u of ['https://raw.githubusercontent.com/ksk2979/GettMS/../evil/a', 'https://raw.githubusercontent.com/ksk2979/GettMS/%2e%2e/x',
+    'https://raw.githubusercontent.com/ksk2979/GettMS/%2E%2E/x', 'https://raw.githubusercontent.com.evil.com/ksk2979/GettMS/a',
+    'https://raw.githubusercontent.com@evil.com/ksk2979/GettMS/a', 'https://raw.githubusercontent.com/ksk2979/GettMSx/a'])
+    assert.ok(!RULES.defaultFiles([{ path: 'options.txt', url: u }]), u);
+});
 test('config: bad paths/urls rejected', () => {
-  for (const p of ['../x', 'a/../x', '/abs', 'C:/x', 'C:x', 'a\\b', '', 'a//b']) assert.ok(!ok(p), p);
+  for (const p of ['../x', 'a/../x', '/abs', 'C:/x', 'C:x', 'a\\b', '', 'a//b', 'mods/x.jar', 'options.txt:ads', 'config/a:b', 'config/..x/../y']) assert.ok(!ok(p), p);
   assert.ok(!RULES.defaultFiles([{ path: 'a', url: 'https://evil.com/a' }]));
   assert.ok(!RULES.defaultFiles([{ path: 'a', url: 'http://raw.githubusercontent.com/ksk2979/GettMS/a' }]));
   assert.ok(!RULES.defaultFiles('x'));
@@ -50,5 +56,17 @@ test('seedDefaultFiles: failure does not throw, no .part left', async () => {
   assert.ok(!fs.existsSync(path.join(root, 'config/x.cfg.part')));
   assert.ok(!fs.existsSync(path.join(root, 'config/x.cfg')));
   assert.strictEqual(logs.length, 2);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('seedDefaultFiles: invalid item skipped, valid still written', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gett-'));
+  const list = [{ path: 'mods/x.jar', url: U + 'x' }, { path: 'options.txt', url: 'https://evil.com/o' }, { path: 'options.txt', url: U + 'options.txt' }];
+  const logs = [];
+  const n = await withFetch(body('d'), () => seedDefaultFiles(list, root, m => logs.push(m)));
+  assert.strictEqual(n, 1);
+  assert.ok(!fs.existsSync(path.join(root, 'mods')));
+  assert.strictEqual(fs.readFileSync(path.join(root, 'options.txt'), 'utf8'), 'd');
+  assert.strictEqual(logs.filter(l => l.includes('무시')).length, 2);
   fs.rmSync(root, { recursive: true, force: true });
 });

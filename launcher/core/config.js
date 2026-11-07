@@ -6,6 +6,20 @@ const { fetchJson } = require('./net');
 
 const LOCAL = path.join(__dirname, '..', 'launcher.config.json');
 
+// 기본 설정 파일 항목 검사: 경로는 options.txt 또는 config/ 아래만, URL 은 이 저장소의 raw 주소만.
+function validDefaultFile(f) {
+  if (!f || typeof f !== 'object' || typeof f.path !== 'string' || typeof f.url !== 'string') return false;
+  const p = f.path;
+  if (p.length === 0 || p.length > 200) return false;
+  if (p !== 'options.txt' && !p.startsWith('config/')) return false;
+  if (!p.split('/').every(seg => /^[A-Za-z0-9._-]+$/.test(seg) && seg !== '..' && seg !== '.')) return false;
+  if (/\.\.|%2e/i.test(f.url)) return false;
+  try {
+    const u = new URL(f.url);
+    return u.origin === 'https://raw.githubusercontent.com' && u.pathname.startsWith('/ksk2979/GettMS/');
+  } catch { return false; }
+}
+
 const RULES = {
   serverName: v => typeof v === 'string' && v.length > 0 && v.length <= 40,
   subtitle: v => typeof v === 'string' && v.length <= 80,
@@ -24,11 +38,7 @@ const RULES = {
     && typeof c.url === 'string' && (c.url.startsWith('https://github.com/') || c.url.startsWith('https://cdn.modrinth.com/'))
     && typeof c.sha512 === 'string' && /^[0-9a-fA-F]{128}$/.test(c.sha512)
     && ['both', 'client', 'server'].includes(c.side)),
-  defaultFiles: v => Array.isArray(v) && v.length <= 100 && v.every(f => f && typeof f === 'object'
-    && typeof f.path === 'string' && f.path.length > 0 && f.path.length <= 200
-    && !f.path.includes('\\') && !f.path.startsWith('/') && !/^[A-Za-z]:/.test(f.path)
-    && !f.path.split('/').some(seg => seg === '..' || seg === '')
-    && typeof f.url === 'string' && f.url.startsWith('https://raw.githubusercontent.com/ksk2979/GettMS/')),
+  defaultFiles: v => Array.isArray(v) && v.length <= 100 && v.every(validDefaultFile),
   news: v => Array.isArray(v) && v.length <= 20
 };
 
@@ -58,4 +68,4 @@ async function loadConfig(log) {
   }
 }
 
-module.exports = { loadConfig, RULES };
+module.exports = { loadConfig, RULES, validDefaultFile };
