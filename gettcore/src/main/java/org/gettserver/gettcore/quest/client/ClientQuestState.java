@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.function.Consumer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -15,8 +16,8 @@ import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.QuestSyncPayload;
 
 /**
- * Client copy of the latest main-line quest sync, plus the tracker HUD on/off switch (K). The switch is kept in
- * {@code config/gettcore-client.properties} so it survives restarts. Client only.
+ * Client copy of the latest main-line quest sync, plus the tracker HUD on/off switch (K) and its position (Ctrl+-).
+ * Both are kept in {@code config/gettcore-client.properties} so they survive restarts. Client only.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class ClientQuestState {
@@ -25,6 +26,7 @@ public final class ClientQuestState {
 
     private static volatile QuestSyncPayload sync = QuestSyncPayload.empty();
     private static Boolean hudVisible;
+    private static HudPosition hudPosition;
 
     private ClientQuestState() {}
 
@@ -37,15 +39,27 @@ public final class ClientQuestState {
     }
 
     public static boolean hudVisible() {
-        if (hudVisible == null) hudVisible = load();
+        if (hudVisible == null) loadAll();
         return hudVisible;
     }
 
     /** Flips the HUD switch, saves it and returns the new value. */
     public static boolean toggleHud() {
         hudVisible = !hudVisible();
-        save(hudVisible);
+        save(props -> props.setProperty(HUD_KEY, Boolean.toString(hudVisible)));
         return hudVisible;
+    }
+
+    /** Saved tracker HUD position (Ctrl+-). */
+    public static HudPosition hudPosition() {
+        if (hudPosition == null) loadAll();
+        return hudPosition;
+    }
+
+    /** Uses and saves this position, keeping the other keys of the file. */
+    public static void saveHudPosition(HudPosition pos) {
+        hudPosition = pos;
+        save(pos::write);
     }
 
     @SubscribeEvent
@@ -58,20 +72,23 @@ public final class ClientQuestState {
         return FMLPaths.CONFIGDIR.get().resolve(FILE);
     }
 
-    private static boolean load() {
-        Path path = file();
-        if (!Files.exists(path)) return true;
+    private static void loadAll() {
         Properties props = new Properties();
-        try (InputStream in = Files.newInputStream(path)) {
-            props.load(in);
-        } catch (IOException e) {
-            GettCore.LOGGER.warn("Could not read {}: {}", path, e.toString());
-            return true;
+        Path path = file();
+        if (Files.exists(path)) {
+            try (InputStream in = Files.newInputStream(path)) {
+                props.load(in);
+            } catch (IOException e) {
+                GettCore.LOGGER.warn("Could not read {}: {}", path, e.toString());
+                props = new Properties();
+            }
         }
-        return !"false".equalsIgnoreCase(props.getProperty(HUD_KEY, "true").trim());
+        if (hudVisible == null) hudVisible = !"false".equalsIgnoreCase(props.getProperty(HUD_KEY, "true").trim());
+        if (hudPosition == null) hudPosition = HudPosition.read(props);
     }
 
-    private static void save(boolean visible) {
+    /** Re-reads the file, applies {@code change} and writes it back so other keys survive. */
+    private static void save(Consumer<Properties> change) {
         Path path = file();
         Properties props = new Properties();
         try {
@@ -80,7 +97,7 @@ public final class ClientQuestState {
                     props.load(in);
                 }
             }
-            props.setProperty(HUD_KEY, Boolean.toString(visible));
+            change.accept(props);
             try (OutputStream out = Files.newOutputStream(path)) {
                 props.store(out, "Gett Core client settings");
             }

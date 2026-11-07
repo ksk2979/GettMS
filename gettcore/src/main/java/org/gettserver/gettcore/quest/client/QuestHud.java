@@ -3,6 +3,7 @@ package org.gettserver.gettcore.quest.client;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -21,7 +22,7 @@ import org.gettserver.gettcore.network.QuestSyncPayload;
 import org.gettserver.gettcore.network.QuestSyncPayload.ObjState;
 
 /**
- * Tracker HUD at the top right: "[장] 제목" and the objectives (or where to go next). Registered as a GUI layer;
+ * Tracker HUD (top right by default, movable with Ctrl+-): "[장] 제목" and the objectives (or where to go next). Registered as a GUI layer;
  * hidden with F1, while a screen other than chat is open, and when switched off with K. Also resolves objective
  * target names for the quest screens. Client only.
  */
@@ -29,7 +30,6 @@ public final class QuestHud {
     public static final ResourceLocation LAYER_ID = GettCore.id("quest_tracker");
     private static final int MAX_WIDTH = 180;
     private static final int PAD = 4;
-    private static final int MARGIN = 4;
     private static final int LINE_GAP = 1;
     private static final int BG = 0x80000000;
 
@@ -43,21 +43,46 @@ public final class QuestHud {
         List<Component> lines = QuestText.hudLines(ClientQuestState.get(), QuestHud::label);
         if (lines.isEmpty()) return;
 
-        Font font = mc.font;
+        Layout box = layout(mc.font, lines);
+        HudPosition pos = ClientQuestState.hudPosition();
+        int x = pos.left(g.guiWidth(), box.width());
+        int y = pos.top(g.guiHeight(), box.height());
+        // 기본 위치(오른쪽 위)일 때만 효과 아이콘 아래로 비켜 그린다. 사용자가 옮긴 뒤엔 그 자리 그대로.
+        if (pos.isDefault()) y = Math.max(0, Math.min(y + effectsOffset(mc), g.guiHeight() - box.height()));
+        draw(g, box, x, y);
+    }
+
+    /** Wrapped HUD lines and the box size around them. */
+    public record Layout(List<FormattedCharSequence> lines, int width, int height) {}
+
+    public static Layout layout(Font font, List<Component> lines) {
         List<FormattedCharSequence> wrapped = new ArrayList<>();
         for (Component line : lines) wrapped.addAll(font.split(line, MAX_WIDTH - 2 * PAD));
         int textW = 0;
         for (FormattedCharSequence s : wrapped) textW = Math.max(textW, font.width(s));
         int w = textW + 2 * PAD;
         int h = wrapped.size() * (font.lineHeight + LINE_GAP) - LINE_GAP + 2 * PAD;
-        int x = g.guiWidth() - w - MARGIN;
-        int y = MARGIN + effectsOffset(mc);
-        g.fill(x, y, x + w, y + h, BG);
-        int ly = y + PAD;
-        for (FormattedCharSequence s : wrapped) {
-            g.drawString(font, s, x + PAD, ly, 0xFFFFFFFF, true);
+        return new Layout(wrapped, w, h);
+    }
+
+    /** Draws the HUD box with its top-left corner at (left, top). Shared by the layer and the move screen. */
+    public static void draw(GuiGraphics g, Layout box, int left, int top) {
+        Font font = Minecraft.getInstance().font;
+        g.fill(left, top, left + box.width(), top + box.height(), BG);
+        int ly = top + PAD;
+        for (FormattedCharSequence s : box.lines()) {
+            g.drawString(font, s, left + PAD, ly, 0xFFFFFFFF, true);
             ly += font.lineHeight + LINE_GAP;
         }
+    }
+
+    /** The lines the HUD would show now, or a sample quest when there is no main line (for the move screen). */
+    public static List<Component> linesOrSample() {
+        List<Component> lines = QuestText.hudLines(ClientQuestState.get(), QuestHud::label);
+        if (!lines.isEmpty()) return lines;
+        return List.of(
+                Component.translatable("gettcore.quest.hud.sample_title").withStyle(ChatFormatting.YELLOW),
+                Component.translatable("gettcore.quest.hud.sample_objective").withStyle(ChatFormatting.WHITE));
     }
 
     /** Space taken by the vanilla effect icons at the top right: one row for beneficial, two with harmful ones. */

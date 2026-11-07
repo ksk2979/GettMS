@@ -25,6 +25,7 @@ public class GettCoreClient {
             event.register(AbilityKey.TOGGLE);
             event.register(QuestKeys.QUEST_LOG);
             event.register(QuestKeys.QUEST_HUD);
+            event.register(QuestKeys.HUD_MOVE);
         });
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
         modBus.addListener(RegisterGuiLayersEvent.class,
