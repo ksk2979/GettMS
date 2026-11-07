@@ -1,0 +1,43 @@
+{
+  "id": "chief",
+  "name": "이장",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "어서 오게, 이 마을의 이장일세. 무엇이 궁금한가?",
+      "choices": [
+        {
+          "label": "서버 소개",
+          "action": {
+            "type": "next",
+            "target": "intro"
+          }
+        },
+        {
+          "label": "나가기",
+          "action": {
+            "type": "close"
+          }
+        }
+      ]
+    },
+    "intro": {
+      "text": "이곳은 함께 모험하고 장사하는 마을일세. 농부에게 작물을 팔아 골드를 벌고, 마법부여사에게 장비를 강화할 수 있다네. 퀘스트를 따라가면 길을 잃지 않을 걸세.",
+      "choices": [
+        {
+          "label": "알겠습니다",
+          "action": {
+            "type": "next",
+            "target": "start"
+          }
+        },
+        {
+          "label": "나가기",
+          "action": {
+            "type": "close"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -39,8 +39,11 @@ class GettDataTest {
         GettData data = new GettData();
         GettData.LoadReport r = data.load(dir.resolve("gettcore"));
         assertEquals(1, r.shops());
-        assertEquals(2, r.dialogs());
-        assertTrue(r.errors().isEmpty());
+        assertEquals(3, r.dialogs());
+        assertEquals(1, r.quests());
+        assertEquals(16, data.questLine("main").orElseThrow().quests().size());
+        assertEquals("chief", data.dialogForNpc(UUID.randomUUID(), "이장").orElseThrow());
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertEquals("farmer", data.dialogForNpc(UUID.randomUUID(), "농부").orElseThrow());
         assertEquals("enchanter", data.dialogForNpc(UUID.randomUUID(), "마법부여사").orElseThrow());
     }

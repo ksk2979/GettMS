@@ -25,6 +25,8 @@ import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
 import org.gettserver.gettcore.enchant.EnchantConfig;
+import org.gettserver.gettcore.quest.QuestLine;
+import org.gettserver.gettcore.quest.QuestPrune;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +39,7 @@ public final class GettData {
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
             "economy.json", "npcs.json", "enchant.json", "shops/farmer.json", "dialogs/farmer.json",
-            "dialogs/enchanter.json"};
+            "dialogs/enchanter.json", "dialogs/chief.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
@@ -51,6 +53,9 @@ public final class GettData {
     /** Shops exactly as in the files (including items missing from the registry). */
     private volatile Map<String, ShopDefinition> rawShops = Map.of();
     private volatile RegistryChecks registryChecks = RegistryChecks.live();
+    private volatile Map<String, QuestLine> questLines = Map.of();
+    /** Quest lines exactly as in the files (including missing items/entities). */
+    private volatile Map<String, QuestLine> rawQuestLines = Map.of();
     private volatile Map<String, DialogDefinition> dialogs = Map.of();
     private volatile Map<String, Path> shopFiles = Map.of();
     private volatile NpcMapping npcs = NpcMapping.EMPTY;
@@ -109,6 +114,14 @@ public final class GettData {
                 }
             });
         }
+        Map<String, QuestLine> newQuests = new java.util.TreeMap<>();
+        for (Path p : jsonFiles(dir.resolve("quests"), errors)) {
+            read(p, QuestLine.CODEC, errors).ifPresent(q -> {
+                if (newQuests.putIfAbsent(q.id(), q) != null) {
+                    errors.add(p.getFileName() + ": duplicate quest line id " + q.id());
+                }
+            });
+        }
         Path npcFile = dir.resolve("npcs.json");
         NpcMapping newNpcs = Files.isRegularFile(npcFile)
                 ? read(npcFile, NpcMapping.CODEC, errors).orElse(NpcMapping.EMPTY) : NpcMapping.EMPTY;
@@ -143,10 +156,16 @@ public final class GettData {
         }
         Map<String, ShopDefinition> pruned = new HashMap<>();
         for (ShopDefinition sd : newShops.values()) pruned.put(sd.id(), prune(sd, warnings));
+        Map<String, QuestLine> prunedQuests = new java.util.TreeMap<>();
+        for (QuestLine ql : newQuests.values()) {
+            prunedQuests.put(ql.id(), QuestPrune.prune(ql, registryChecks, warnings));
+        }
+        rawQuestLines = Map.copyOf(newQuests);
+        questLines = Map.copyOf(prunedQuests);
         rawShops = Map.copyOf(newShops);
         shops = Map.copyOf(pruned);
         warnings.forEach(w -> LOGGER.warn("gettcore: {}", w));
-        return new LoadReport(newShops.size(), newDialogs.size(), 0, List.copyOf(errors), List.copyOf(warnings));
+        return new LoadReport(newShops.size(), newDialogs.size(), newQuests.size(), List.copyOf(errors), List.copyOf(warnings));
     }
 
     private static void validate(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs) {
@@ -203,6 +222,20 @@ public final class GettData {
 
     public java.util.Collection<ShopDefinition> allShops() {
         return shops.values();
+    }
+
+    /** Quest line with entries for missing items/entities removed. */
+    public Optional<QuestLine> questLine(String id) {
+        return Optional.ofNullable(questLines.get(id));
+    }
+
+    /** The quest line exactly as stored in its file. */
+    public Optional<QuestLine> rawQuestLine(String id) {
+        return Optional.ofNullable(rawQuestLines.get(id));
+    }
+
+    public java.util.Collection<QuestLine> allQuestLines() {
+        return questLines.values();
     }
 
     public Optional<DialogDefinition> dialog(String id) {

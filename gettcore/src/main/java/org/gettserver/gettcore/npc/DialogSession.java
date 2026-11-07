@@ -74,6 +74,7 @@ public final class DialogSession {
                 close(player);
                 EnchantService.open(player);
             }
+            case QUEST -> close(player); // wired to the quest service in a later task
         }
     }
 

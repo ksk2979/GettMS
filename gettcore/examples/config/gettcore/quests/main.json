@@ -1,0 +1,218 @@
+{
+  "id": "main",
+  "name": "메인 퀘스트",
+  "endText": "다음 메인 퀘스트를 준비 중입니다",
+  "quests": [
+    {
+      "id": "meet_chief",
+      "chapter": "1장. 시작",
+      "title": "이장과의 만남",
+      "description": "어서 오게, 여행자! 이 마을에 온 걸 환영하네. 먼저 나와 이야기를 나눠 보세. 나를 향해 마우스 오른쪽 버튼을 누르면 대화가 열린다네.",
+      "start": { "type": "npc", "npc": "이장" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "talk", "npc": "이장", "label": "이장과 대화하기" }
+      ],
+      "rewards": { "gold": 100 },
+      "completeText": "잘 왔네! 이제 여행에 필요한 것부터 하나씩 준비해 보세."
+    },
+    {
+      "id": "gather_logs",
+      "chapter": "1장. 시작",
+      "title": "나무 모으기",
+      "description": "모든 일은 나무에서 시작되지. 나무 줄기를 마우스 왼쪽 버튼으로 꾹 눌러 캐 보게. 어떤 나무든 괜찮네.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "collect", "item": "#minecraft:logs", "count": 16, "label": "원목 모으기" }
+      ],
+      "rewards": { "gold": 200 },
+      "completeText": "훌륭하네! 이 정도면 쓸 만하겠어."
+    },
+    {
+      "id": "workbench_tools",
+      "chapter": "1장. 시작",
+      "title": "작업대와 도구",
+      "description": "E 키로 가방을 열고 원목을 판자로 바꾼 뒤, 판자 4개를 2칸 x 2칸에 놓으면 작업대가 되네. 작업대를 놓고 우클릭하면 나무 곡괭이도 만들 수 있다네.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "collect", "item": "minecraft:crafting_table", "count": 1, "label": "작업대 만들기" },
+        { "type": "collect", "item": "minecraft:wooden_pickaxe", "count": 1, "label": "나무 곡괭이 만들기" }
+      ],
+      "rewards": { "gold": 200 },
+      "completeText": "솜씨가 좋구먼! 이제 곡괭이로 돌을 캘 수 있겠어."
+    },
+    {
+      "id": "stone_age",
+      "chapter": "1장. 시작",
+      "title": "돌의 시대",
+      "description": "나무 곡괭이로 돌을 캐서 돌 곡괭이를 만들어 보게. 작업대에서 조약돌 3개와 막대기 2개를 놓으면 된다네.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/upgrade_tools", "label": "발전과제 「석기 시대」 달성" }
+      ],
+      "rewards": { "gold": 300 },
+      "completeText": "돌 도구까지 만들다니, 이제 어엿한 광부일세!"
+    },
+    {
+      "id": "first_night",
+      "chapter": "1장. 시작",
+      "title": "첫 밤 준비",
+      "description": "밤이 되면 몬스터가 나온다네. 양털 3개와 판자 3개로 침대를 만들어 밤에 자 보게. 석탄과 막대기로 만든 횃불 16개도 챙기고, 다 되면 내게 돌아오게.",
+      "start": { "type": "auto" },
+      "complete": { "type": "npc", "npc": "이장" },
+      "objectives": [
+        { "type": "collect", "item": "#minecraft:beds", "count": 1, "label": "침대 만들기" },
+        { "type": "collect", "item": "minecraft:torch", "count": 16, "label": "횃불 모으기" }
+      ],
+      "rewards": { "gold": 500, "items": [ { "item": "gettcore:enchant_stone", "count": 1 } ] },
+      "completeText": "준비를 잘 했구먼! 첫 장을 무사히 마쳤으니 이 마법부여석을 받게."
+    },
+    {
+      "id": "furnace_smelting",
+      "chapter": "2장. 철과 불",
+      "title": "화로와 제련",
+      "description": "조약돌 8개로 화로를 만들고, 철광석과 석탄을 넣어 보게. 잠시 기다리면 철 주괴가 나온다네. 철광석은 동굴 속 갈색 점이 박힌 돌이야.",
+      "start": { "type": "npc", "npc": "이장" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/smelt_iron", "label": "철 주괴 제련하기" }
+      ],
+      "rewards": { "gold": 300 },
+      "completeText": "철이 나왔구먼! 이제 튼튼한 장비를 만들 수 있겠어."
+    },
+    {
+      "id": "iron_gear",
+      "chapter": "2장. 철과 불",
+      "title": "철 장비",
+      "description": "철 주괴로 철 곡괭이를 만들고, 철 갑옷도 한 조각 이상 만들어 입어 보게. 작업대에 주괴와 막대기를 놓는 모양은 돌 곡괭이와 같다네.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/iron_tools", "label": "철 곡괭이 만들기" },
+        { "type": "advancement", "id": "minecraft:story/obtain_armor", "label": "철 갑옷 장비하기" }
+      ],
+      "rewards": { "gold": 500 },
+      "completeText": "든든해 보이는구먼! 이제 웬만한 몬스터는 두렵지 않겠어."
+    },
+    {
+      "id": "full_belly",
+      "chapter": "2장. 철과 불",
+      "title": "배부른 하루",
+      "description": "밀을 심어 다 자라면 수확하게. 밀 3개를 작업대 한 줄에 놓으면 빵이 된다네. 빵 16개를 챙겨 두면 든든할 걸세.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "collect", "item": "minecraft:bread", "count": 16, "label": "빵 모으기" }
+      ],
+      "rewards": { "gold": 300 },
+      "completeText": "이제 굶을 걱정은 없겠구먼!"
+    },
+    {
+      "id": "shiny_thing",
+      "chapter": "2장. 철과 불",
+      "title": "반짝이는 것",
+      "description": "깊은 땅속 아래쪽으로 파고 내려가면 하늘색으로 반짝이는 다이아몬드 광석이 있다네. 철 곡괭이로 캐야 하니 조심하게. 용암을 주의하고, 다 되면 내게 돌아오게.",
+      "start": { "type": "auto" },
+      "complete": { "type": "npc", "npc": "이장" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/mine_diamond", "label": "다이아몬드 캐기" }
+      ],
+      "rewards": { "gold": 1000, "items": [ { "item": "gettcore:enchant_stone", "count": 2 } ] },
+      "completeText": "자네 정말 대단하구먼! 2장을 마쳤으니 마법부여석을 넉넉히 주겠네."
+    },
+    {
+      "id": "nether_portal",
+      "chapter": "3장. 네더",
+      "title": "네더 차원문",
+      "description": "흑요석 10개를 ㄷ자 틀(가로 4칸, 세로 5칸)로 쌓고 부싯돌과 철로 불을 붙이면 보라색 문이 열린다네. 문 안으로 들어가면 네더일세. 준비를 단단히 하고 가게.",
+      "start": { "type": "npc", "npc": "이장" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/enter_the_nether", "label": "네더에 들어가기" }
+      ],
+      "rewards": { "gold": 500 },
+      "completeText": "지옥 같은 곳에 들어갔다가 돌아오다니! 용기가 대단하구먼."
+    },
+    {
+      "id": "find_fortress",
+      "chapter": "3장. 네더",
+      "title": "요새를 찾아서",
+      "description": "네더에는 검은 벽돌로 지은 거대한 요새가 있다네. 네더랙 위를 조심해서 걸으며 찾아보게. 용암과 가스트를 조심하게.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:nether/find_fortress", "label": "네더 요새 발견하기" }
+      ],
+      "rewards": { "gold": 500 },
+      "completeText": "요새를 찾아냈구먼! 이제 그 안의 보물을 노려 보게."
+    },
+    {
+      "id": "blaze_hunt",
+      "chapter": "3장. 네더",
+      "title": "블레이즈 사냥",
+      "description": "요새 안 불꽃 모양 스포너 근처에 블레이즈가 있다네. 블레이즈를 처치하면 막대가 나오니 6개를 모으게. 화염 저항 물약이 있으면 도움이 될 걸세.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "collect", "item": "minecraft:blaze_rod", "count": 6, "label": "블레이즈 막대 모으기" }
+      ],
+      "rewards": { "gold": 800 },
+      "completeText": "블레이즈 막대 6개라니! 엔더로 가는 열쇠가 모였구먼."
+    },
+    {
+      "id": "eyes_of_ender",
+      "chapter": "3장. 네더",
+      "title": "엔더의 눈",
+      "description": "밤에 나오는 키 큰 엔더맨을 처치하면 엔더 진주가 나온다네. 진주 가루와 블레이즈 가루를 섞어 엔더의 눈 12개를 만들어 오게. 다 되면 내게 돌아오게.",
+      "start": { "type": "auto" },
+      "complete": { "type": "npc", "npc": "이장" },
+      "objectives": [
+        { "type": "collect", "item": "minecraft:ender_eye", "count": 12, "label": "엔더의 눈 모으기" }
+      ],
+      "rewards": { "gold": 1500, "items": [ { "item": "gettcore:enchant_stone", "count": 2 } ] },
+      "completeText": "엔더의 눈이 12개나! 3장을 마쳤으니 마법부여석을 받게."
+    },
+    {
+      "id": "follow_the_eye",
+      "chapter": "4장. 엔드",
+      "title": "눈을 따라서",
+      "description": "엔더의 눈을 던지면 하늘로 떠올라 요새가 있는 방향으로 날아간다네. 눈이 떨어진 곳을 따라가며 땅속 요새를 찾아보게.",
+      "start": { "type": "npc", "npc": "이장" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/follow_ender_eye", "label": "엔더의 눈을 따라가기" }
+      ],
+      "rewards": { "gold": 1000 },
+      "completeText": "요새를 찾아냈구먼! 엔드로 가는 문이 멀지 않았네."
+    },
+    {
+      "id": "to_the_end",
+      "chapter": "4장. 엔드",
+      "title": "끝으로",
+      "description": "요새 안 엔드 차원문 틀에 엔더의 눈을 모두 끼우면 문이 열린다네. 문 위로 뛰어들면 엔드 섬에 도착하지. 준비를 단단히 하게.",
+      "start": { "type": "auto" },
+      "complete": { "type": "auto" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:story/enter_the_end", "label": "엔드에 들어가기" }
+      ],
+      "rewards": { "gold": 1000 },
+      "completeText": "드디어 세상의 끝에 닿았구먼!"
+    },
+    {
+      "id": "ender_dragon",
+      "chapter": "4장. 엔드",
+      "title": "엔더 드래곤",
+      "description": "엔드의 높은 기둥 위 수정을 먼저 부수고, 드래곤이 가까이 오면 검이나 활로 공격하게. 쓰러뜨린 뒤 내게 돌아오면 큰 보상을 주겠네.",
+      "start": { "type": "auto" },
+      "complete": { "type": "npc", "npc": "이장" },
+      "objectives": [
+        { "type": "advancement", "id": "minecraft:end/kill_dragon", "label": "엔더 드래곤 처치하기" }
+      ],
+      "rewards": { "gold": 5000, "items": [ { "item": "gettcore:enchant_stone", "count": 5 } ] },
+      "completeText": "자네가 해냈구먼! 이 마을의 영웅일세. 약속한 보상을 받게."
+    }
+  ]
+}
