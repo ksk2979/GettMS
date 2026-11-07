@@ -9,6 +9,8 @@ import org.gettserver.gettcore.enchant.AbilityKey;
 import org.gettserver.gettcore.enchant.AbilityToggle;
 import org.gettserver.gettcore.enchant.ClientEnchantConfig;
 import org.gettserver.gettcore.enchant.EnchantScreen;
+import org.gettserver.gettcore.editor.EditorServerService;
+import org.gettserver.gettcore.editor.client.EditorClient;
 import org.gettserver.gettcore.enchant.EnchantService;
 import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
@@ -44,6 +46,12 @@ public final class GettNetwork {
         // AbilityKey (client-only) likewise lives only inside the client-bound handler.
         registrar.playToClient(AbilityStatePayload.TYPE, AbilityStatePayload.STREAM_CODEC,
                 (payload, ctx) -> AbilityKey.setState(payload.enabled()));
+        // EditorClient (client-only) is referenced only inside the client-bound handler.
+        registrar.playToClient(EditorDataPayload.TYPE, EditorDataPayload.STREAM_CODEC,
+                (payload, ctx) -> EditorClient.onData(payload));
+        registrar.playToServer(EditorSaveChunkPayload.TYPE, EditorSaveChunkPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> EditorServerService.onChunk((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(DialogChoicePayload.TYPE, DialogChoicePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> DialogSession.choose((ServerPlayer) ctx.player(), payload.choiceIndex())));

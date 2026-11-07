@@ -24,7 +24,13 @@ public final class DataCommands {
                 .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal("reload")
                         .requires(Perms.require(Perms.ADMIN))
-                        .executes(DataCommands::reload)));
+                        .executes(DataCommands::reload))
+                .then(Commands.literal("편집")
+                        .requires(Perms.require(Perms.ADMIN))
+                        .executes(DataCommands::openEditor))
+                .then(Commands.literal("editor")
+                        .requires(Perms.require(Perms.ADMIN))
+                        .executes(DataCommands::openEditor)));
         event.getDispatcher().register(Commands.literal("귀환지점")
                 .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal("설정")
@@ -41,6 +47,16 @@ public final class DataCommands {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         ReturnPointData.get(player.server).set(player.level().dimension(), player.blockPosition(), player.getYRot());
         ctx.getSource().sendSuccess(() -> Component.translatable("gettcore.msg.return_point_set"), true);
+        return 1;
+    }
+
+    private static int openEditor(CommandContext<CommandSourceStack> ctx) {
+        if (!(ctx.getSource().getEntity() instanceof ServerPlayer player)) {
+            ctx.getSource().sendFailure(Component.translatable("gettcore.msg.editor_players_only"));
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> Component.translatable("gettcore.msg.editor_opening"), false);
+        org.gettserver.gettcore.editor.EditorServerService.open(player);
         return 1;
     }
 

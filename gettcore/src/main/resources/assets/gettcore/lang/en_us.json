@@ -96,5 +96,7 @@
   "gettcore.msg.ability_off": "Special abilities: OFF",
   "gettcore.hud.ability_off": "Abilities OFF",
   "gettcore.tooltip.ability_toggle": "Press [%s] to toggle",
+  "gettcore.msg.editor_opening": "Opening the editor...",
+  "gettcore.msg.editor_players_only": "Only players can open the editor.",
   "caramelChat v%s": ""
 }
