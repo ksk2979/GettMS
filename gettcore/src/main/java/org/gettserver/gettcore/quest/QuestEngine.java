@@ -42,12 +42,13 @@ public final class QuestEngine {
 
     /**
      * Applies automatic transitions until an NPC is needed or objectives are missing: auto-start accepts, auto-complete
-     * completes once all objectives are done. Bounded by line length + 1 iterations.
+     * completes once all objectives are done. Each quest takes up to two transitions (accept + complete), so the loop
+     * guard is 2 * line length + 1; it is a safety bound, never a cutoff for a valid chain.
      */
     public static List<QuestEvent> advance(QuestLine line, QuestProgress progress, PlayerFacts facts) {
         normalize(line, progress);
         List<QuestEvent> events = new ArrayList<>();
-        int limit = line.quests().size() + 1;
+        int limit = 2 * line.quests().size() + 1;
         for (int i = 0; i < limit; i++) {
             Optional<Quest> cur = current(line, progress);
             if (cur.isEmpty()) break;

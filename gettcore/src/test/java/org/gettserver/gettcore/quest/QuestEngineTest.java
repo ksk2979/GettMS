@@ -296,6 +296,38 @@ class QuestEngineTest {
     }
 
     @Test
+    void longAllAutoChainFinishesInOneAdvance() {
+        List<Quest> quests = new ArrayList<>();
+        List<String> expected = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            quests.add(quest("a" + i, QuestTrigger.AUTO, QuestTrigger.AUTO,
+                    obj(Objective.Type.COLLECT, "minecraft:dirt", 1)));
+            expected.add("ACCEPTED:a" + i);
+            expected.add("COMPLETED:a" + i);
+        }
+        QuestLine line = new QuestLine("main", "메인", QuestLine.DEFAULT_END_TEXT, List.copyOf(quests));
+        QuestProgress p = new QuestProgress();
+        Facts f = new Facts();
+        f.defaultItems = 64;
+        assertEquals(expected, describe(QuestEngine.advance(line, p, f)));
+        assertEquals(QuestStatus.Phase.LINE_DONE, QuestEngine.status(line, p, f).phase());
+        assertEquals(10, p.completed().size());
+        assertTrue(QuestEngine.advance(line, p, f).isEmpty());
+    }
+
+    @Test
+    void interactWithStartNpcWhileAcceptedButNotReadyDoesNothing() {
+        QuestLine line = line(Q1, Q2);
+        QuestProgress p = new QuestProgress();
+        Facts f = new Facts();
+        QuestEngine.interact(line, p, f, CHIEF); // accept q1 (talk not yet recorded)
+        assertTrue(QuestEngine.interact(line, p, f, CHIEF).isEmpty());
+        assertEquals(Optional.of("q1"), p.accepted());
+        assertTrue(p.completed().isEmpty());
+        assertTrue(p.talked().isEmpty());
+    }
+
+    @Test
     void addingQuestAfterLineDoneContinues() {
         QuestProgress p = new QuestProgress();
         p.completed().addAll(List.of("q1", "q2"));
