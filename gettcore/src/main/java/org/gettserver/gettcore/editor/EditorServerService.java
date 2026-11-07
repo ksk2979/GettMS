@@ -19,6 +19,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.DataEvents;
@@ -36,13 +37,21 @@ public final class EditorServerService {
 
     private EditorServerService() {}
 
-    public static void open(ServerPlayer player) {
+    /** Returns true when the snapshot was sent. */
+    public static boolean open(ServerPlayer player) {
         if (!Perms.has(player, Perms.ADMIN)) {
             GettCore.LOGGER.warn("editor open denied for {}", player.getGameProfile().getName());
-            return;
+            return false;
         }
-        String json = EditorJson.encode(GettData.get().rawBundle(), refs(player.server));
-        send(player, EditorDataPayload.Kind.SNAPSHOT, json);
+        try {
+            String json = EditorJson.encode(GettData.get().rawBundle(), refs(player.server));
+            send(player, EditorDataPayload.Kind.SNAPSHOT, json);
+            return true;
+        } catch (RuntimeException e) {
+            GettCore.LOGGER.error("editor open failed", e);
+            player.sendSystemMessage(Component.translatable("gettcore.msg.editor_open_failed"));
+            return false;
+        }
     }
 
     public static void onChunk(ServerPlayer player, EditorSaveChunkPayload p) {
@@ -57,6 +66,8 @@ public final class EditorServerService {
         } catch (IllegalArgumentException e) {
             GettCore.LOGGER.warn("editor save chunk from {} rejected: {}", player.getGameProfile().getName(),
                     e.getMessage());
+            ASSEMBLERS.remove(player.getUUID());
+            sendResult(player, false, List.of("upload rejected: " + e.getMessage()), List.of(), false);
             return;
         }
         if (text == null) return;
@@ -85,17 +96,43 @@ public final class EditorServerService {
         GettCore.LOGGER.info("editor save by {}: saved={} errors={} warnings={}", player.getGameProfile().getName(),
                 saved, errors.size(), warnings.size());
 
+        sendResult(player, saved, errors, warnings, saved);
+    }
+
+    private static void sendResult(ServerPlayer player, boolean saved, List<String> errors, List<String> warnings,
+                                   boolean withSnapshot) {
         JsonObject res = new JsonObject();
         res.addProperty("saved", saved);
         res.add("errors", strings(errors));
-        res.add("warnings", strings(warnings));
-        if (saved) {
-            res.add("snapshot", JsonParser.parseString(
-                    EditorJson.encode(GettData.get().rawBundle(), refs(server))));
-        } else {
-            res.add("snapshot", JsonNull.INSTANCE);
+        res.add("snapshot", JsonNull.INSTANCE);
+        List<String> warn = warnings;
+        String text;
+        try {
+            if (withSnapshot) {
+                res.add("snapshot", JsonParser.parseString(
+                        EditorJson.encode(GettData.get().rawBundle(), refs(player.server))));
+            }
+            res.add("warnings", strings(warn));
+            text = res.toString();
+            send(player, EditorDataPayload.Kind.RESULT, text);
+            return;
+        } catch (RuntimeException e) {
+            GettCore.LOGGER.error("editor result/snapshot could not be sent", e);
+            warn = new ArrayList<>(warnings);
+            warn.add("snapshot could not be sent: " + e.getMessage());
         }
-        send(player, EditorDataPayload.Kind.RESULT, res.toString());
+        res.add("snapshot", JsonNull.INSTANCE);
+        res.add("warnings", strings(warn));
+        try {
+            send(player, EditorDataPayload.Kind.RESULT, res.toString());
+        } catch (RuntimeException e) {
+            GettCore.LOGGER.error("editor result could not be sent", e);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        ASSEMBLERS.clear();
     }
 
     @SubscribeEvent

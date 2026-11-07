@@ -7,6 +7,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import org.gettserver.gettcore.editor.EditorServerService;
 import org.gettserver.gettcore.item.ReturnPointData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -55,8 +56,8 @@ public final class DataCommands {
             ctx.getSource().sendFailure(Component.translatable("gettcore.msg.editor_players_only"));
             return 0;
         }
+        if (!EditorServerService.open(player)) return 0;
         ctx.getSource().sendSuccess(() -> Component.translatable("gettcore.msg.editor_opening"), false);
-        org.gettserver.gettcore.editor.EditorServerService.open(player);
         return 1;
     }
 
