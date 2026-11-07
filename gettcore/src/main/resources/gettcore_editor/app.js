@@ -590,7 +590,8 @@
     choice(bundle, d, c) {
       const a = c.action || {};
       const t = a.target;
-      if (a.type === 'next') return t && d.nodes[t] ? '' : `없는 노드를 가리킵니다: ${t || '(비어 있음)'}`;
+      if (!ACTIONS.some((x) => x[0] === a.type)) return `알 수 없는 동작입니다: ${a.type}`;
+      if (a.type === 'next') return t && (d.nodes || {})[t] ? '' : `없는 노드를 가리킵니다: ${t || '(비어 있음)'}`;
       if (isShopAction(a.type)) return t && bundle.shops[t] ? '' : `없는 상점입니다: ${t || '(비어 있음)'}`;
       if (a.type === 'quest') { const line = t || 'main'; return bundle.quests[line] ? '' : `없는 퀘스트 라인입니다: ${line}`; }
       return '';
@@ -625,7 +626,7 @@
   /** 이 대화 안에서 nodeId를 가리키는 next 선택지 수. */
   function nodeRefCount(d, nodeId) {
     let n = 0;
-    for (const node of Object.values(d.nodes)) for (const c of (node.choices || [])) {
+    for (const node of Object.values(d.nodes || {})) for (const c of (node.choices || [])) {
       if (c.action && c.action.type === 'next' && c.action.target === nodeId) n++;
     }
     return n;
@@ -634,7 +635,7 @@
   /** 노드 id를 바꾸고, 이 대화의 시작 노드와 모든 next 대상도 같이 바꾼다 (노드 순서 유지). */
   function renameNode(d, oldId, newId) {
     const nodes = {};
-    for (const [k, v] of Object.entries(d.nodes)) nodes[k === oldId ? newId : k] = v;
+    for (const [k, v] of Object.entries(d.nodes || {})) nodes[k === oldId ? newId : k] = v;
     d.nodes = nodes;
     if (d.start === oldId) d.start = newId;
     for (const node of Object.values(nodes)) for (const c of (node.choices || [])) {
@@ -706,8 +707,10 @@
           return '';
         });
         if (!id) return;
+        const repoint = ui.npcName && confirm(`NPC '${ui.npcName}'이(가) 새 대화 '${id}'을(를) 쓰도록 바꿀까요?
+(취소하면 NPC 연결은 그대로 두고 대화만 추가합니다)`);
         dialogs[id] = { id, name: id, start: 'start', nodes: { start: { text: '', choices: [{ label: '나가기', action: { type: 'close' } }] } } };
-        if (ui.npcName) byName[ui.npcName] = id;
+        if (repoint) byName[ui.npcName] = id;
         ui.dialogId = id;
         changed(); rerender();
       } }, '+ 대화 추가');
@@ -750,29 +753,31 @@
       }
 
       if (dlg) {
-        const nodeIds = Object.keys(dlg.nodes);
+        const dkey = ui.dialogId;   // 항상 맵 키를 쓴다 (손으로 고친 파일에서 키와 내부 id가 다를 수 있음)
+        const nodeIds = Object.keys(dlg.nodes || {});
         const nameIn = h('input', { type: 'text', value: dlg.name || '', 'aria-label': '대화 이름', oninput: (e) => { dlg.name = e.target.value; changed(); }, onchange: () => rerender() });
         const startSel = checks.add(h('select', { 'aria-label': '시작 노드', onchange: (e) => { dlg.start = e.target.value; changed(); rerender(); } },
           nodeIds.map((id) => h('option', { value: id }, id))), () => dlgRules.start(dlg));
         selectValue(startSel, dlg.start);
-        const refNpcs = Object.values(byName).filter((v) => v === dlg.id).length + Object.values(byUuid).filter((v) => v === dlg.id).length;
+        const refNpcs = Object.values(byName).filter((v) => v === dkey).length + Object.values(byUuid).filter((v) => v === dkey).length;
         const delDlg = h('button', { class: 'danger', onclick: () => {
-          if (!confirm(`대화 '${dlg.name || dlg.id}'을(를) 삭제할까요?` + (refNpcs ? `\n이 대화를 쓰는 NPC가 ${refNpcs}개 있습니다. 삭제해도 NPC 연결은 그대로 남아, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
-          delete dialogs[dlg.id];
+          if (!confirm(`대화 '${dlg.name || dkey}'을(를) 삭제할까요?` + (refNpcs ? `\n이 대화를 쓰는 NPC가 ${refNpcs}개 있습니다. 삭제해도 NPC 연결은 그대로 남아, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
+          delete dialogs[dkey];
           ui.dialogId = null;
           changed(); rerender();
         } }, '대화 삭제');
         mid.push(h('div', { class: 'card' }, h('div', { class: 'field' },
-          h('label', null, '이름'), nameIn, h('span', { class: 'muted' }, 'id: ' + dlg.id),
+          h('label', null, '이름'), nameIn, h('span', { class: 'muted' }, 'id: ' + dkey),
+          dlg.id !== dkey ? h('button', { class: 'small', title: `내부 id(${dlg.id})를 키(${dkey})에 맞춥니다`, onclick: () => { dlg.id = dkey; changed(); rerender(); } }, 'id를 키에 맞추기') : null,
           h('label', null, '시작 노드'), startSel, h('span', { class: 'spacer' }), delDlg),
           dlg.portrait ? h('p', { class: 'muted' }, '초상화: ' + dlg.portrait + ' (그대로 보존됨)') : null));
 
         for (const nid of nodeIds) mid.push(nodeCard(dlg, nid));
 
         mid.push(h('div', { class: 'card' }, h('button', { onclick: async () => {
-          const id = await askText('노드 추가', '노드 id', (v) => (!v ? 'id를 입력하세요' : dlg.nodes[v] ? '이미 있는 노드 id입니다' : ''));
+          const id = await askText('노드 추가', '노드 id', (v) => (!v ? 'id를 입력하세요' : (dlg.nodes || {})[v] ? '이미 있는 노드 id입니다' : ''));
           if (!id) return;
-          dlg.nodes[id] = { text: '', choices: [] };
+          (dlg.nodes = dlg.nodes || {})[id] = { text: '', choices: [] };
           changed(); rerender();
         } }, '+ 노드 추가')));
       } else {
@@ -780,19 +785,19 @@
       }
 
       function nodeCard(d, nid) {
-        const node = d.nodes[nid];
+        const node = (d.nodes || {})[nid];
         const choicesOf = () => (node.choices = node.choices || []);   // 화면만 볼 때는 데이터를 건드리지 않는다 (바뀐 것으로 오인 방지)
         const idIn = h('input', { type: 'text', value: nid, 'aria-label': '노드 id', style: 'width:9rem', onchange: (e) => {
           const v = e.target.value.trim();
           if (v === nid) return;
           if (!v) { toast('노드 id가 비어 있습니다'); e.target.value = nid; return; }
-          if (d.nodes[v]) { toast('이미 있는 노드 id입니다'); e.target.value = nid; return; }
+          if ((d.nodes || {})[v]) { toast('이미 있는 노드 id입니다'); e.target.value = nid; return; }
           renameNode(d, nid, v);
           changed(); rerender();
         } });
         const refs = nodeRefCount(d, nid);
         const delNode = h('button', { class: 'danger small', onclick: () => {
-          if (Object.keys(d.nodes).length <= 1 && !confirm('마지막 노드입니다. 삭제하면 시작 노드가 없어 저장이 거부됩니다. 삭제할까요?')) return;
+          if (Object.keys(d.nodes || {}).length <= 1 && !confirm('마지막 노드입니다. 삭제하면 시작 노드가 없어 저장이 거부됩니다. 삭제할까요?')) return;
           if (refs && !confirm(`이 노드로 오는 선택지가 ${refs}개 있어, 고치지 않으면 저장이 거부됩니다. 삭제할까요?`)) return;
           delete d.nodes[nid];
           changed(); rerender();
@@ -801,12 +806,13 @@
         const moveChoice = (i, to) => { const cs = choicesOf(); if (to < 0 || to >= cs.length) return; const [c] = cs.splice(i, 1); cs.splice(to, 0, c); changed(); rerender(); };
 
         const rows = (node.choices || []).map((c, i) => {
-          c.action = c.action || { type: 'close' };
-          const a = c.action;
+          const a = c.action || { type: 'close' };   // 화면용 값. c.action은 사용자가 바꿀 때만 만든다
+          const act = () => (c.action = c.action || a);
           const label = h('input', { type: 'text', value: c.label || '', 'aria-label': '선택지 라벨', class: 'grow', oninput: (e) => { c.label = e.target.value; changed(); } });
           const typeSel = h('select', { 'aria-label': '동작', onchange: (e) => {
+            const a = act();
             a.type = e.target.value;
-            if (a.type === 'next') a.target = Object.keys(d.nodes).find((k) => k !== nid) || Object.keys(d.nodes)[0];
+            if (a.type === 'next') a.target = Object.keys(d.nodes || {}).find((k) => k !== nid) || Object.keys(d.nodes || {})[0];
             else if (isShopAction(a.type)) a.target = Object.keys(b.shops)[0];
             else if (a.type === 'quest') a.target = b.quests.main ? 'main' : Object.keys(b.quests)[0];
             else delete a.target;
@@ -818,10 +824,10 @@
           let targetEl = null;
           if (a.type === 'next' || isShopAction(a.type) || a.type === 'quest') {
             let keys; let cur = a.target;
-            if (a.type === 'next') keys = Object.keys(d.nodes);
+            if (a.type === 'next') keys = Object.keys(d.nodes || {});
             else if (isShopAction(a.type)) keys = Object.keys(b.shops);
             else { keys = Object.keys(b.quests); cur = cur || 'main'; }
-            targetEl = checks.add(h('select', { 'aria-label': '대상', onchange: (e) => { a.target = e.target.value; changed(); } },
+            targetEl = checks.add(h('select', { 'aria-label': '대상', onchange: (e) => { act().target = e.target.value; changed(); } },
               keys.map((k) => h('option', { value: k }, isShopAction(a.type) ? (b.shops[k].name || k) + ' (' + k + ')' : k))),
               () => dlgRules.choice(b, d, c));
             selectValue(targetEl, cur);
