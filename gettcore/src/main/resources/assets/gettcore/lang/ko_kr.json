@@ -99,5 +99,8 @@
   "gettcore.msg.editor_opening": "편집기를 여는 중입니다...",
   "gettcore.msg.editor_players_only": "편집기는 플레이어만 열 수 있습니다.",
   "gettcore.msg.editor_open_failed": "편집기 데이터를 보내지 못했습니다. 서버 로그를 확인하세요.",
+  "gettcore.msg.editor_link": "편집기를 열었습니다. 브라우저가 안 열렸다면 클릭: %s",
+  "gettcore.msg.editor_server_failed": "편집기 로컬 서버를 시작하지 못했습니다. 게임 로그를 확인하세요.",
+  "gettcore.msg.editor_idle_closed": "편집기를 30분 동안 쓰지 않아 닫았습니다. 다시 열려면 /gett 편집",
   "caramelChat v%s": ""
 }
