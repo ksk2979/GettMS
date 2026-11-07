@@ -605,7 +605,7 @@ public final class GettData {
             try {
                 // A freshly installed/merged npcs.json already has 이장; only an earlier install needs the patch.
                 if (!installed.contains("npcs.json") || addChiefMapping(dir)) {
-                    Files.writeString(marker, NPC_CHIEF_UPGRADE + "\n",StandardCharsets.UTF_8,
+                    Files.writeString(marker, NPC_CHIEF_UPGRADE + "\n", StandardCharsets.UTF_8,
                             java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
                 }
             } catch (IOException e) {
