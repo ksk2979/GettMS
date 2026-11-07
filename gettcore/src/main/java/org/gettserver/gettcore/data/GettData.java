@@ -24,6 +24,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
+import org.gettserver.gettcore.editor.EditorBundle;
+import org.gettserver.gettcore.editor.EditorMerge;
+import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
@@ -58,6 +61,8 @@ public final class GettData {
     private volatile Map<String, QuestLine> rawQuestLines = Map.of();
     private volatile Map<String, DialogDefinition> dialogs = Map.of();
     private volatile Map<String, Path> shopFiles = Map.of();
+    private volatile Map<String, Path> dialogFiles = Map.of();
+    private volatile Map<String, Path> questFiles = Map.of();
     private volatile NpcMapping npcs = NpcMapping.EMPTY;
     private volatile EconomyConfig economy = EconomyConfig.DEFAULT;
     private volatile EnchantConfig enchant = EnchantConfig.DEFAULT;
@@ -107,10 +112,14 @@ public final class GettData {
             });
         }
         Map<String, DialogDefinition> newDialogs = new HashMap<>();
+        Map<String, Path> newDialogFiles = new HashMap<>();
+        Map<String, Path> newQuestFiles = new HashMap<>();
         for (Path p : jsonFiles(dir.resolve("dialogs"), errors)) {
             read(p, DialogDefinition.CODEC, errors).ifPresent(d -> {
                 if (newDialogs.putIfAbsent(d.id(), d) != null) {
                     errors.add(p.getFileName() + ": duplicate dialog id " + d.id());
+                } else {
+                    newDialogFiles.put(d.id(), p);
                 }
             });
         }
@@ -119,6 +128,8 @@ public final class GettData {
             read(p, QuestLine.CODEC, errors).ifPresent(q -> {
                 if (newQuests.putIfAbsent(q.id(), q) != null) {
                     errors.add(p.getFileName() + ": duplicate quest line id " + q.id());
+                } else {
+                    newQuestFiles.put(q.id(), p);
                 }
             });
         }
@@ -136,6 +147,8 @@ public final class GettData {
         validate(newShops, newDialogs, newNpcs);
 
         shopFiles = Map.copyOf(newShopFiles);
+        dialogFiles = Map.copyOf(newDialogFiles);
+        questFiles = Map.copyOf(newQuestFiles);
         dialogs = Map.copyOf(newDialogs);
         npcs = newNpcs;
         economy = newEco;
@@ -252,6 +265,145 @@ public final class GettData {
 
     public NpcMapping npcMapping() {
         return npcs;
+    }
+
+    /** Everything the editor edits, exactly as in the files (no registry pruning). */
+    public EditorBundle rawBundle() {
+        return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
+                new java.util.TreeMap<>(rawQuestLines));
+    }
+
+    public record SaveResult(boolean saved, List<String> errors, List<String> warnings, LoadReport reload) {}
+
+    private static final int BACKUP_KEEP = 20;
+    private static final java.time.format.DateTimeFormatter BACKUP_STAMP =
+            java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
+    /**
+     * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file and
+     * npcs.json (all to .tmp first, then moved), deletes files of ids no longer present and reloads.
+     * Nothing is touched when validation fails.
+     */
+    public synchronized SaveResult saveBundle(EditorBundle bundle, RegistryChecks checks) {
+        Path dir = configDir;
+        if (dir == null) return new SaveResult(false, List.of("data not loaded"), List.of(), null);
+        EditorValidator.Result v = EditorValidator.validate(bundle, checks);
+        if (!v.errors().isEmpty()) return new SaveResult(false, v.errors(), v.warnings(), null);
+        EditorBundle b = v.cleaned();
+
+        // Target file per id: the tracked file if known, else <dir>/<kind>/<id>.json.
+        Map<Path, JsonElement> writes = new LinkedHashMap<>();
+        Set<Path> keep = new java.util.HashSet<>();
+        try {
+            for (ShopDefinition sd : b.shops().values()) {
+                ShopDefinition merged = EditorMerge.keepCurrentPrices(sd, rawShops.get(sd.id()));
+                Path f = shopFiles.getOrDefault(sd.id(), dir.resolve("shops").resolve(sd.id() + ".json"));
+                writes.put(f, ShopDefinition.CODEC.encodeStart(JsonOps.INSTANCE, merged).getOrThrow(IOException::new));
+                keep.add(f);
+            }
+            for (DialogDefinition d : b.dialogs().values()) {
+                Path f = dialogFiles.getOrDefault(d.id(), dir.resolve("dialogs").resolve(d.id() + ".json"));
+                writes.put(f, DialogDefinition.CODEC.encodeStart(JsonOps.INSTANCE, d).getOrThrow(IOException::new));
+                keep.add(f);
+            }
+            for (QuestLine q : b.quests().values()) {
+                Path f = questFiles.getOrDefault(q.id(), dir.resolve("quests").resolve(q.id() + ".json"));
+                writes.put(f, QuestLine.CODEC.encodeStart(JsonOps.INSTANCE, q).getOrThrow(IOException::new));
+                keep.add(f);
+            }
+            writes.put(dir.resolve("npcs.json"),
+                    NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, b.npcs()).getOrThrow(IOException::new));
+        } catch (IOException e) {
+            return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
+        }
+
+        Path backup;
+        try {
+            backup = backup(dir);
+        } catch (IOException e) {
+            return new SaveResult(false, List.of("backup failed, nothing was written: " + e.getMessage()),
+                    v.warnings(), null);
+        }
+
+        // Phase 1: everything to .tmp (a failure here leaves the real files untouched).
+        List<Path> tmps = new ArrayList<>();
+        try {
+            for (Map.Entry<Path, JsonElement> en : writes.entrySet()) {
+                tmps.add(writeTmp(en.getKey(), en.getValue()));
+            }
+        } catch (IOException e) {
+            for (Path t : tmps) deleteQuietly(t);
+            return new SaveResult(false, List.of("write failed, nothing was changed: " + e.getMessage()),
+                    v.warnings(), null);
+        }
+        // Phase 2: move into place, then delete files of removed ids.
+        List<Path> targets = new ArrayList<>(writes.keySet());
+        try {
+            for (int n = 0; n < targets.size(); n++) {
+                Files.move(tmps.get(n), targets.get(n), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            for (Map<String, Path> files : List.of(shopFiles, dialogFiles, questFiles)) {
+                for (Path f : files.values()) if (!keep.contains(f)) Files.deleteIfExists(f);
+            }
+        } catch (IOException e) {
+            for (Path t : tmps) deleteQuietly(t);
+            return new SaveResult(false, List.of("save failed midway (" + e.getMessage()
+                    + "); restore from backup " + backup), v.warnings(), null);
+        }
+        LoadReport reload = load(dir);
+        return new SaveResult(true, List.of(), v.warnings(), reload);
+    }
+
+    private static Path writeTmp(Path file, JsonElement json) throws IOException {
+        Files.createDirectories(file.getParent());
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
+            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json, w);
+        }
+        return tmp;
+    }
+
+    private static void deleteQuietly(Path p) {
+        try {
+            Files.deleteIfExists(p);
+        } catch (IOException ignored) {
+            // best effort
+        }
+    }
+
+    /** Copies shops/, dialogs/, quests/ and npcs.json to .backup/yyyyMMdd-HHmmss[-n]/ and prunes old backups. */
+    private static Path backup(Path dir) throws IOException {
+        Path root = dir.resolve(".backup");
+        Files.createDirectories(root);
+        String stamp = java.time.LocalDateTime.now().format(BACKUP_STAMP);
+        Path target = root.resolve(stamp);
+        for (int n = 2; Files.exists(target); n++) target = root.resolve(stamp + "-" + n);
+        Files.createDirectories(target);
+        for (String sub : List.of("shops", "dialogs", "quests")) {
+            Path src = dir.resolve(sub);
+            if (!Files.isDirectory(src)) continue;
+            try (Stream<Path> s = Files.walk(src)) {
+                for (Path p : s.toList()) {
+                    Path dst = target.resolve(sub).resolve(src.relativize(p).toString());
+                    if (Files.isDirectory(p)) Files.createDirectories(dst);
+                    else Files.copy(p, dst);
+                }
+            }
+        }
+        Path npc = dir.resolve("npcs.json");
+        if (Files.isRegularFile(npc)) Files.copy(npc, target.resolve("npcs.json"));
+        List<Path> all;
+        try (Stream<Path> s = Files.list(root)) {
+            all = s.filter(Files::isDirectory).sorted().toList();
+        }
+        for (int n = 0; n < all.size() - BACKUP_KEEP; n++) deleteTree(all.get(n));
+        return target;
+    }
+
+    private static void deleteTree(Path p) throws IOException {
+        try (Stream<Path> s = Files.walk(p)) {
+            for (Path x : s.sorted(java.util.Comparator.reverseOrder()).toList()) Files.deleteIfExists(x);
+        }
     }
 
     /** With dynamics disabled, current prices always equal base prices. */
