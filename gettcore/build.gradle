@@ -221,3 +221,13 @@ idea {
         downloadJavadoc = true
     }
 }
+
+// Manual UI check of the web editor against a fake backend: ./gradlew editorDevServer
+tasks.register('editorDevServer', JavaExec) {
+    group = 'verification'
+    description = 'Runs the web editor against a fake backend (example data, no game needed)'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.gettserver.gettcore.editor.client.EditorDevServer'
+    workingDir = projectDir
+    dependsOn 'testClasses'
+}

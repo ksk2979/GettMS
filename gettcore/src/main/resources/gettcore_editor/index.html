@@ -1,5 +1,27 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><title>Gett 편집기</title></head>
-<body><p>편집기 준비 중</p></body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Gett 편집기</title>
+</head>
+<body>
+<div id="app"><p style="padding:1rem;font-family:sans-serif">편집기를 불러오는 중…</p></div>
+<script>
+// Static assets need the access token as well; add the tags here so the token is appended at runtime.
+(function () {
+  var t = new URLSearchParams(location.search).get('t') || '';
+  var q = '?t=' + encodeURIComponent(t);
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = '/static/style.css' + q;
+  document.head.appendChild(l);
+  var s = document.createElement('script');
+  s.src = '/static/app.js' + q;
+  document.body.appendChild(s);
+})();
+</script>
+<noscript>이 편집기는 JavaScript가 필요합니다.</noscript>
+</body>
 </html>
