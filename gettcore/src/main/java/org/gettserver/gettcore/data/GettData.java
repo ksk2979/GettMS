@@ -292,22 +292,29 @@ public final class GettData {
         EditorBundle b = v.cleaned();
 
         // Target file per id: the tracked file if known, else <dir>/<kind>/<id>.json.
+        Set<String> used = new java.util.HashSet<>();
+        for (Map<String, Path> files : List.of(shopFiles, dialogFiles, questFiles)) {
+            for (Path f : files.values()) used.add(pathKey(f));
+        }
+        Map<String, Path> shopTargets = planTargets(shopFiles, b.shops().keySet(), dir.resolve("shops"), used);
+        Map<String, Path> dialogTargets = planTargets(dialogFiles, b.dialogs().keySet(), dir.resolve("dialogs"), used);
+        Map<String, Path> questTargets = planTargets(questFiles, b.quests().keySet(), dir.resolve("quests"), used);
         Map<Path, JsonElement> writes = new LinkedHashMap<>();
         Set<Path> keep = new java.util.HashSet<>();
         try {
             for (ShopDefinition sd : b.shops().values()) {
                 ShopDefinition merged = EditorMerge.keepCurrentPrices(sd, rawShops.get(sd.id()));
-                Path f = shopFiles.getOrDefault(sd.id(), dir.resolve("shops").resolve(sd.id() + ".json"));
+                Path f = shopTargets.get(sd.id());
                 writes.put(f, ShopDefinition.CODEC.encodeStart(JsonOps.INSTANCE, merged).getOrThrow(IOException::new));
                 keep.add(f);
             }
             for (DialogDefinition d : b.dialogs().values()) {
-                Path f = dialogFiles.getOrDefault(d.id(), dir.resolve("dialogs").resolve(d.id() + ".json"));
+                Path f = dialogTargets.get(d.id());
                 writes.put(f, DialogDefinition.CODEC.encodeStart(JsonOps.INSTANCE, d).getOrThrow(IOException::new));
                 keep.add(f);
             }
             for (QuestLine q : b.quests().values()) {
-                Path f = questFiles.getOrDefault(q.id(), dir.resolve("quests").resolve(q.id() + ".json"));
+                Path f = questTargets.get(q.id());
                 writes.put(f, QuestLine.CODEC.encodeStart(JsonOps.INSTANCE, q).getOrThrow(IOException::new));
                 keep.add(f);
             }
@@ -317,12 +324,13 @@ public final class GettData {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
 
+        List<String> warnings = new ArrayList<>(v.warnings());
         Path backup;
         try {
-            backup = backup(dir);
+            backup = backup(dir, warnings);
         } catch (IOException e) {
             return new SaveResult(false, List.of("backup failed, nothing was written: " + e.getMessage()),
-                    v.warnings(), null);
+                    warnings, null);
         }
 
         // Phase 1: everything to .tmp (a failure here leaves the real files untouched).
@@ -334,7 +342,7 @@ public final class GettData {
         } catch (IOException e) {
             for (Path t : tmps) deleteQuietly(t);
             return new SaveResult(false, List.of("write failed, nothing was changed: " + e.getMessage()),
-                    v.warnings(), null);
+                    warnings, null);
         }
         // Phase 2: move into place, then delete files of removed ids.
         List<Path> targets = new ArrayList<>(writes.keySet());
@@ -348,12 +356,41 @@ public final class GettData {
         } catch (IOException e) {
             for (Path t : tmps) deleteQuietly(t);
             return new SaveResult(false, List.of("save failed midway (" + e.getMessage()
-                    + "); restore from backup " + backup), v.warnings(), null);
+                    + "); restore from backup " + backup), warnings, load(dir));
         }
         LoadReport reload = load(dir);
-        return new SaveResult(true, List.of(), v.warnings(), reload);
+        return new SaveResult(true, List.of(), warnings, reload);
     }
 
+    private static String pathKey(Path p) {
+        return p.toAbsolutePath().normalize().toString().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Kept ids reuse their tracked file; new ids get {@code <id>.json}, or {@code <id>-2.json}, ... when that name
+     * is (case-insensitively) taken by another id's file, a planned write or any file already on disk.
+     */
+    private static Map<String, Path> planTargets(Map<String, Path> tracked, java.util.Collection<String> ids,
+                                                 Path kindDir, Set<String> used) {
+        Map<String, Path> out = new HashMap<>();
+        List<String> fresh = new ArrayList<>();
+        for (String id : ids) {
+            Path t = tracked.get(id);
+            if (t != null) out.put(id, t);
+            else fresh.add(id);
+        }
+        for (String id : fresh) {
+            Path c = kindDir.resolve(id + ".json");
+            for (int n = 2; used.contains(pathKey(c)) || Files.exists(c); n++) {
+                c = kindDir.resolve(id + "-" + n + ".json");
+            }
+            used.add(pathKey(c));
+            out.put(id, c);
+        }
+        return out;
+    }
+
+    /** Writes the JSON to a sibling .tmp file and returns it. */
     private static Path writeTmp(Path file, JsonElement json) throws IOException {
         Files.createDirectories(file.getParent());
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
@@ -372,12 +409,12 @@ public final class GettData {
     }
 
     /** Copies shops/, dialogs/, quests/ and npcs.json to .backup/yyyyMMdd-HHmmss[-n]/ and prunes old backups. */
-    private static Path backup(Path dir) throws IOException {
+    private static Path backup(Path dir, List<String> pruneWarnings) throws IOException {
         Path root = dir.resolve(".backup");
         Files.createDirectories(root);
         String stamp = java.time.LocalDateTime.now().format(BACKUP_STAMP);
         Path target = root.resolve(stamp);
-        for (int n = 2; Files.exists(target); n++) target = root.resolve(stamp + "-" + n);
+        for (int n = 2; Files.exists(target); n++) target = root.resolve(stamp + String.format("-%02d", n));
         Files.createDirectories(target);
         for (String sub : List.of("shops", "dialogs", "quests")) {
             Path src = dir.resolve(sub);
@@ -396,7 +433,13 @@ public final class GettData {
         try (Stream<Path> s = Files.list(root)) {
             all = s.filter(Files::isDirectory).sorted().toList();
         }
-        for (int n = 0; n < all.size() - BACKUP_KEEP; n++) deleteTree(all.get(n));
+        for (int n = 0; n < all.size() - BACKUP_KEEP; n++) {
+            try {
+                deleteTree(all.get(n));
+            } catch (IOException e) {
+                pruneWarnings.add("old backup " + all.get(n).getFileName() + " could not be deleted: " + e.getMessage());
+            }
+        }
         return target;
     }
 
@@ -474,12 +517,7 @@ public final class GettData {
 
     /** Pretty JSON via tmp file + move, so a crash never leaves a half-written file. */
     private static void writeJson(Path file, JsonElement json) throws IOException {
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
-            new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create().toJson(json, w);
-        }
-        Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        Files.move(writeTmp(file, json), file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**

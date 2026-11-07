@@ -110,13 +110,40 @@ class GettDataSaveBundleTest {
     @Test
     void backupKeepsLast20(@TempDir Path dir) throws IOException {
         GettData data = loaded(dir);
+        assertTrue(data.saveBundle(data.rawBundle(), RegistryChecks.ALL_EXIST).saved());
+        Path first;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            first = s.findFirst().orElseThrow();
+        }
+
         for (int n = 0; n < 21; n++) {
             GettData.SaveResult r = data.saveBundle(data.rawBundle(), RegistryChecks.ALL_EXIST);
             assertTrue(r.saved(), r.errors().toString());
         }
+        List<Path> kept;
         try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
-            assertEquals(20, s.count());
+            kept = s.sorted().toList();
         }
+        assertEquals(20, kept.size());
+        assertFalse(Files.exists(first), "oldest backup must be dropped");
+        assertTrue(kept.get(19).getFileName().toString().compareTo(kept.get(0).getFileName().toString()) > 0);
+    }
+
+    @Test
+    void newIdNeverOverwritesFileTrackedForAnotherId(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        // farmer.json holds id "farmer"; rename the file's content so tracked name differs from id
+        Files.move(dir.resolve("shops/farmer.json"), dir.resolve("shops/Foo.json"));
+        data.load(dir);
+        Map<String, ShopDefinition> shops = new LinkedHashMap<>(data.rawBundle().shops());
+        shops.put("foo", withId(shops.get("farmer"), "foo"));
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests()),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(2, r.reload().shops(), r.reload().errors().toString());
+        assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
+        assertTrue(data.shop("farmer").isPresent() && data.shop("foo").isPresent());
     }
 
     @Test
