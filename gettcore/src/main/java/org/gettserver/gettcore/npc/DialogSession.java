@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.npc;
 
 import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,8 @@ import org.gettserver.gettcore.data.DialogNode;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.enchant.EnchantService;
 import org.gettserver.gettcore.network.OpenDialogPayload;
+import org.gettserver.gettcore.quest.QuestDialogs;
+import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.shop.ShopMode;
 import org.gettserver.gettcore.shop.ShopService;
 
@@ -24,7 +27,11 @@ import org.gettserver.gettcore.shop.ShopService;
 public final class DialogSession {
     private DialogSession() {}
 
-    public record Session(String dialogId, String nodeId, int npcEntityId) {}
+    /**
+     * {@code questInjected}: the node was sent with the main quest choice at index 0, so client indices are shifted by
+     * one (see {@link QuestDialogs#resolve}).
+     */
+    public record Session(String dialogId, String nodeId, int npcEntityId, String npcName, boolean questInjected) {}
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -35,7 +42,10 @@ public final class DialogSession {
             GettCore.LOGGER.warn("Dialog {} has no start node {}", def.id(), def.start());
             return;
         }
-        send(player, new Session(def.id(), def.start(), entity.getId()), def, start);
+        String npcName = entity.getName().getString();
+        // Talk objectives count as soon as the dialog opens; refresh before deciding which quest choice to show.
+        QuestService.onDialogOpen(player, npcName);
+        send(player, def.id(), def.start(), entity.getId(), npcName, def, start);
     }
 
     public static void choose(ServerPlayer player, int index) {
@@ -53,10 +63,15 @@ public final class DialogSession {
             close(player);
             return;
         }
-        if (index < 0 || index >= node.choices().size()) {
+        QuestDialogs.Choice choice = QuestDialogs.resolve(session.questInjected(), index, node.choices().size());
+        if (choice.quest()) {
+            openQuest(player, session, QuestService.MAIN_LINE);
             return;
         }
-        ChoiceAction action = node.choices().get(index).action();
+        if (!choice.valid()) {
+            return;
+        }
+        ChoiceAction action = node.choices().get(choice.nodeIndex()).action();
         switch (action.type()) {
             case NEXT -> {
                 String targetId = action.target().orElse(null);
@@ -64,7 +79,8 @@ public final class DialogSession {
                 if (next == null) {
                     close(player);
                 } else {
-                    send(player, new Session(session.dialogId(), targetId, session.npcEntityId()), def.get(), next);
+                    send(player, session.dialogId(), targetId, session.npcEntityId(), session.npcName(), def.get(),
+                            next);
                 }
             }
             case OPEN_SHOP_BUY -> openShop(player, action, ShopMode.BUY);
@@ -74,8 +90,14 @@ public final class DialogSession {
                 close(player);
                 EnchantService.open(player);
             }
-            case QUEST -> close(player); // wired to the quest service in a later task
+            case QUEST -> openQuest(player, session, action.target().orElse(QuestService.MAIN_LINE));
         }
+    }
+
+    /** Closes the dialog and shows the quest screen of {@code lineId} for this NPC. */
+    private static void openQuest(ServerPlayer player, Session session, String lineId) {
+        close(player);
+        QuestService.openDetail(player, session.npcEntityId(), session.npcName(), lineId);
     }
 
     private static void openShop(ServerPlayer player, ChoiceAction action, ShopMode mode) {
@@ -102,9 +124,16 @@ public final class DialogSession {
         SESSIONS.remove(player.getUUID());
     }
 
-    private static void send(ServerPlayer player, Session session, DialogDefinition def, DialogNode node) {
+    private static void send(ServerPlayer player, String dialogId, String nodeId, int npcEntityId, String npcName,
+                             DialogDefinition def, DialogNode node) {
+        // The main quest choice goes on top of the start node only.
+        Optional<String> questLabel = nodeId.equals(def.start())
+                ? QuestService.injectedChoice(player, npcName) : Optional.empty();
+        Session session = new Session(dialogId, nodeId, npcEntityId, npcName, questLabel.isPresent());
         SESSIONS.put(player.getUUID(), session);
-        List<String> labels = node.choices().stream().map(DialogChoice::label).toList();
+        List<String> labels = new ArrayList<>(node.choices().size() + 1);
+        questLabel.ifPresent(labels::add);
+        node.choices().stream().map(DialogChoice::label).forEach(labels::add);
         if (labels.isEmpty()) {
             // Client treats empty choices as "close"; a node with no choices would be a dead end.
             close(player);

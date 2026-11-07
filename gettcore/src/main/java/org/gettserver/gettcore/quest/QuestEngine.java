@@ -126,6 +126,41 @@ public final class QuestEngine {
         return false;
     }
 
+    /**
+     * Admin rescue: completes the current quest whether or not it was accepted or its objectives are done, then
+     * {@link #advance}. Empty when the line is done.
+     */
+    public static List<QuestEvent> forceComplete(QuestLine line, QuestProgress progress, PlayerFacts facts) {
+        normalize(line, progress);
+        Optional<Quest> cur = current(line, progress);
+        if (cur.isEmpty()) return List.of();
+        List<QuestEvent> events = new ArrayList<>();
+        complete(cur.get(), progress, events);
+        events.addAll(advance(line, progress, facts));
+        return events;
+    }
+
+    /**
+     * Admin: makes {@code questId} the current quest by marking exactly the quests before it as completed (no rewards,
+     * no events) and clearing the accepted state. Returns false when the id is not in the line.
+     */
+    public static boolean jumpTo(QuestLine line, QuestProgress progress, String questId) {
+        int index = -1;
+        for (int i = 0; i < line.quests().size(); i++) {
+            if (line.quests().get(i).id().equals(questId)) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) return false;
+        progress.completed().clear();
+        for (int i = 0; i < index; i++) progress.completed().add(line.quests().get(i).id());
+        progress.setAccepted(null);
+        progress.kills().clear();
+        progress.talked().clear();
+        return true;
+    }
+
     // ---- internals ----
 
     /** Drops accepted/kills/talked when they do not belong to the current quest any more. */

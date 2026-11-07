@@ -28,6 +28,7 @@ import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.network.EditorDataPayload;
 import org.gettserver.gettcore.network.EditorSaveChunkPayload;
 import org.gettserver.gettcore.perm.Perms;
+import org.gettserver.gettcore.quest.QuestService;
 
 /** Server side of the web editor: sends snapshots, assembles and applies saves. Server thread only. */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
@@ -85,6 +86,7 @@ public final class EditorServerService {
             if (saved) {
                 GettData.runReloadHooks();
                 DataEvents.syncConfig(server);
+                QuestService.refreshAll(server);
             }
         } catch (IllegalArgumentException e) {
             GettCore.LOGGER.warn("editor save from {} invalid: {}", player.getGameProfile().getName(), e.getMessage());

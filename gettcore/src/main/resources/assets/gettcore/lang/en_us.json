@@ -102,5 +102,17 @@
   "gettcore.msg.editor_link": "Editor opened. If the browser did not open, click: %s",
   "gettcore.msg.editor_server_failed": "Could not start the local editor server. Check the game log.",
   "gettcore.msg.editor_idle_closed": "The editor was closed after 30 minutes of inactivity. Reopen it with /gett 편집",
+  "gettcore.quest.welcome": "A main quest is waiting! Follow the tracker at the top right and talk to the villagers.",
+  "gettcore.quest.completed": "[Main] Quest complete: %s",
+  "gettcore.quest.reward_dropped": "Your inventory is full; some rewards were dropped at your feet.",
+  "gettcore.quest.expired": "The quest window expired. Talk to the NPC again.",
+  "gettcore.quest.too_far": "You are too far from the NPC. Move closer and try again.",
+  "gettcore.quest.not_ready": "You can't do that right now. The quest state may have changed.",
+  "gettcore.quest.no_line": "Quest line '%s' not found.",
+  "gettcore.quest.cmd.reset": "Reset all quest progress of %s.",
+  "gettcore.quest.cmd.complete": "Completed the current quest '%2$s' of %1$s.",
+  "gettcore.quest.cmd.nothing": "%s has no main quest left.",
+  "gettcore.quest.cmd.goto": "Moved %s to main quest '%s'.",
+  "gettcore.quest.cmd.unknown": "No quest '%s' in the main line.",
   "caramelChat v%s": ""
 }

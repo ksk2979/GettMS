@@ -14,6 +14,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.perm.Perms;
+import org.gettserver.gettcore.quest.QuestService;
 
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class DataCommands {
@@ -69,6 +70,7 @@ public final class DataCommands {
         GettCore.LOGGER.info("gettcore: 상점 {}, 대화 {} 재적용, 오류 {}", r.shops(), r.dialogs(), r.errors().size());
         GettData.runReloadHooks();
         DataEvents.syncConfig(server);
+        QuestService.refreshAll(server);
         src.sendSuccess(() -> Component.translatable("gettcore.msg.reload_done",
                 r.shops(), r.dialogs(), r.errors().size()), true);
         return 1;

@@ -16,6 +16,7 @@ import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
+import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.shop.ClientShopCache;
 import org.gettserver.gettcore.shop.ShopService;
 
@@ -49,6 +50,12 @@ public final class GettNetwork {
         // EditorClient (client-only) is referenced only inside the client-bound handler.
         registrar.playToClient(EditorDataPayload.TYPE, EditorDataPayload.STREAM_CODEC,
                 (payload, ctx) -> EditorClient.onData(payload));
+        // Quest UI payloads: the client screens/HUD come in a later task (Task 13); until then the client ignores them.
+        registrar.playToClient(QuestSyncPayload.TYPE, QuestSyncPayload.STREAM_CODEC, (payload, ctx) -> {});
+        registrar.playToClient(QuestDetailPayload.TYPE, QuestDetailPayload.STREAM_CODEC, (payload, ctx) -> {});
+        registrar.playToClient(QuestNotifyPayload.TYPE, QuestNotifyPayload.STREAM_CODEC, (payload, ctx) -> {});
+        registrar.playToServer(QuestActionPayload.TYPE, QuestActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> QuestService.onAction((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EditorSaveChunkPayload.TYPE, EditorSaveChunkPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> EditorServerService.onChunk((ServerPlayer) ctx.player(), payload)));
