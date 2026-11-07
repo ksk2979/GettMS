@@ -67,12 +67,13 @@ public final class DataCommands {
         MinecraftServer server = src.getServer();
         GettData.LoadReport r = GettData.get().load(DataEvents.configDir());
         r.errors().forEach(e -> GettCore.LOGGER.error("gettcore reload: {}", e));
-        GettCore.LOGGER.info("gettcore: 상점 {}, 대화 {} 재적용, 오류 {}", r.shops(), r.dialogs(), r.errors().size());
+        GettCore.LOGGER.info("gettcore: 상점 {}, 대화 {} 재적용, 오류 {}, 경고 {}", r.shops(), r.dialogs(),
+                r.errors().size(), r.warnings().size());
         GettData.runReloadHooks();
         DataEvents.syncConfig(server);
         QuestService.refreshAll(server);
         src.sendSuccess(() -> Component.translatable("gettcore.msg.reload_done",
-                r.shops(), r.dialogs(), r.errors().size()), true);
+                r.shops(), r.dialogs(), r.errors().size(), r.warnings().size()), true);
         return 1;
     }
 }

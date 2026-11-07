@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.ChatFormatting;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -39,8 +40,8 @@ public final class EditorClient {
     static final Duration IDLE_LIMIT = Duration.ofMinutes(30);
     static final int IDLE_CHECK_TICKS = 20 * 60;
     static final Duration ICON_WAIT = Duration.ofSeconds(5);
-    /** Longer than the HTTP save timeout; only frees the slot if a RESULT never comes. */
-    static final Duration SAVE_EXPIRY = Duration.ofSeconds(30);
+    /** Just past the HTTP save timeout, so a retry after a 504 is not refused as "still waiting". */
+    static final Duration SAVE_EXPIRY = EditorHttpServer.DEFAULT_SAVE_TIMEOUT.plusSeconds(1);
 
     private static final Object LOCK = new Object();
     private static final AtomicInteger SAVE_SESSIONS = new AtomicInteger();
@@ -81,8 +82,13 @@ public final class EditorClient {
         else onResult(done.get());
     }
 
+    /** Advancement titles arrive as translation keys; show them in the client's language. */
+    private static String translate(String key) {
+        return I18n.exists(key) ? I18n.get(key) : key;
+    }
+
     private static void onSnapshot(String json) {
-        snapshot = json;
+        snapshot = EditorResultJson.localizeSnapshot(json, EditorClient::translate);
         Minecraft mc = Minecraft.getInstance();
         EditorHttpServer s;
         try {
@@ -109,7 +115,8 @@ public final class EditorClient {
         mc.gui.getChat().addMessage(Component.translatable("gettcore.msg.editor_link", link));
     }
 
-    private static void onResult(String json) {
+    private static void onResult(String raw) {
+        String json = EditorResultJson.localizeResult(raw, EditorClient::translate);
         EditorResultJson.snapshotOf(json).ifPresent(s -> snapshot = s);
         if (!PENDING.complete(json)) GettCore.LOGGER.info("editor save result arrived with no save waiting");
     }
@@ -120,14 +127,19 @@ public final class EditorClient {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> stopServer("JVM shutdown"), "gett-editor-shutdown"));
     }
 
-    /** Stops the HTTP server (if running) and fails a waiting save. Safe from any thread, idempotent. */
+    /**
+     * Stops the HTTP server (if running) and answers a waiting save with a failure result (not an exception, so the
+     * HTTP handler neither logs an error nor answers 500). Safe from any thread, idempotent.
+     */
     static void stopServer(String reason) {
         EditorHttpServer s;
         synchronized (LOCK) {
             s = server;
             server = null;
         }
-        PENDING.failAll(new IllegalStateException("editor closed: " + reason));
+        if (PENDING.complete(EditorResultJson.failure(I18n.get("gettcore.msg.editor_closed")))) {
+            GettCore.LOGGER.info("editor save still waiting was answered as failed ({})", reason);
+        }
         if (s != null) {
             GettCore.LOGGER.info("editor HTTP server stopping ({})", reason);
             s.stop();

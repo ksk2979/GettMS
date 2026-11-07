@@ -83,6 +83,12 @@ public final class EditorServerService {
             saved = r.saved();
             errors = r.errors();
             warnings = r.warnings();
+            if (r.reload() != null && !r.reload().errors().isEmpty()) {
+                // Saved files that fail to load again are not silently dropped from the editor's view.
+                List<String> w = new ArrayList<>(warnings);
+                r.reload().errors().forEach(e -> w.add("reload: " + e));
+                warnings = w;
+            }
             if (saved) {
                 GettData.runReloadHooks();
                 DataEvents.syncConfig(server);

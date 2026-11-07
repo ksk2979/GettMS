@@ -53,14 +53,19 @@ public final class EditorJson {
         }
         if (!parsed.isJsonObject()) throw new IllegalArgumentException("bundle: expected a JSON object");
         JsonObject root = parsed.getAsJsonObject();
-        NpcMapping npcs = NpcMapping.EMPTY;
-        if (root.has("npcs")) {
-            npcs = NpcMapping.CODEC.parse(JsonOps.INSTANCE, root.get("npcs")).getOrThrow(
-                    m -> new IllegalArgumentException("npcs: " + m));
-        }
+        requireSection(root, "npcs");
+        NpcMapping npcs = NpcMapping.CODEC.parse(JsonOps.INSTANCE, root.get("npcs")).getOrThrow(
+                m -> new IllegalArgumentException("npcs: " + m));
         return new EditorBundle(decodeMap(root, "shops", ShopDefinition.CODEC),
                 decodeMap(root, "dialogs", DialogDefinition.CODEC), npcs,
                 decodeMap(root, "quests", QuestLine.CODEC));
+    }
+
+    /** A save replaces everything, so a missing section must be an error rather than "empty". */
+    private static void requireSection(JsonObject root, String section) {
+        if (!root.has(section) || root.get(section).isJsonNull()) {
+            throw new IllegalArgumentException(section + ": missing section");
+        }
     }
 
     private static JsonArray strings(List<String> l) {
@@ -77,7 +82,7 @@ public final class EditorJson {
 
     private static <T> Map<String, T> decodeMap(JsonObject root, String section, Codec<T> codec) {
         Map<String, T> out = new LinkedHashMap<>();
-        if (!root.has(section)) return out;
+        requireSection(root, section);
         if (!root.get(section).isJsonObject()) throw new IllegalArgumentException(section + ": expected an object");
         for (Map.Entry<String, JsonElement> e : root.getAsJsonObject(section).entrySet()) {
             String path = section + "." + e.getKey();

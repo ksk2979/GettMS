@@ -37,4 +37,18 @@ class EditorJsonTest {
         assertTrue(e.getMessage().startsWith("shops.farmer"), e.getMessage());
         assertThrows(IllegalArgumentException.class, () -> EditorJson.decode("not json"));
     }
+
+    @Test
+    void missingSectionIsAnError() {
+        // Full-replace save: a missing section must not be read as "delete everything in it".
+        for (String section : List.of("shops", "dialogs", "npcs", "quests")) {
+            String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{}}"
+                    .replace("\"" + section + "\":{}", "\"x\":{}");
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
+                    section);
+            assertTrue(e.getMessage().startsWith(section), e.getMessage());
+        }
+        assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of()),
+                EditorJson.decode("{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{}}"));
+    }
 }

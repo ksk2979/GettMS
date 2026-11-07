@@ -28,13 +28,20 @@ class PendingSaveTest {
     }
 
     @Test
-    void failAllCompletesExceptionallyAndFreesSlot() {
+    void closingAnswersWithFailureResultAndFreesSlot() throws Exception {
+        // Editor stop: the waiting save gets a normal failure JSON (no exception -> no ERROR log / HTTP 500).
         PendingSave p = new PendingSave();
         CompletableFuture<String> f = p.begin(LONG).orElseThrow();
-        p.failAll(new IllegalStateException("closed"));
-        ExecutionException e = assertThrows(ExecutionException.class, f::get);
-        assertInstanceOf(IllegalStateException.class, e.getCause());
+        assertTrue(p.complete(EditorResultJson.failure("편집기가 닫혔습니다")));
+        assertFalse(f.isCompletedExceptionally());
+        assertTrue(f.get().contains("편집기가 닫혔습니다"));
         assertTrue(p.begin(LONG).isPresent());
+    }
+
+    @Test
+    void saveExpiresJustAfterHttpTimeout() {
+        assertTrue(EditorClient.SAVE_EXPIRY.compareTo(EditorHttpServer.DEFAULT_SAVE_TIMEOUT) > 0);
+        assertTrue(EditorClient.SAVE_EXPIRY.compareTo(EditorHttpServer.DEFAULT_SAVE_TIMEOUT.plusSeconds(2)) <= 0);
     }
 
     @Test

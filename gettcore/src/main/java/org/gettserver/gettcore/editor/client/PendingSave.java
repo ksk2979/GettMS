@@ -22,7 +22,10 @@ public final class PendingSave {
         return Optional.of(f);
     }
 
-    /** Completes the waiting save, if any. Returns true if one was waiting. */
+    /**
+     * Completes the waiting save, if any, with a RESULT (or a failure result when the editor closes). Returns true if
+     * one was waiting.
+     */
     public synchronized boolean complete(String resultJson) {
         CompletableFuture<String> f = pending;
         pending = null;
@@ -33,12 +36,5 @@ public final class PendingSave {
     public synchronized void finish(CompletableFuture<String> f, String resultJson) {
         if (pending == f) pending = null;
         f.complete(resultJson);
-    }
-
-    /** Fails whatever save is waiting (editor closed). */
-    public synchronized void failAll(Throwable cause) {
-        CompletableFuture<String> f = pending;
-        pending = null;
-        if (f != null) f.completeExceptionally(cause);
     }
 }
