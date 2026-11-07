@@ -1,0 +1,138 @@
+package org.gettserver.gettcore.editor;
+
+import static org.gettserver.gettcore.editor.Fixtures.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.gettserver.gettcore.data.*;
+import org.gettserver.gettcore.quest.*;
+import org.junit.jupiter.api.Test;
+
+class EditorValidatorTest {
+    private static final Map<String, DialogDefinition> NO_D = Map.of();
+    private static final Map<String, QuestLine> NO_Q = Map.of();
+
+    private static boolean any(List<String> l, String s) {
+        return l.stream().anyMatch(x -> x.contains(s));
+    }
+
+    @Test
+    void serverOnlyModItemIsKept() {
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("servermod"), rl -> true);
+        EditorBundle b = bundle(Map.of("s", shop("s", entry("servermod:gem", 5, 1))), NO_D, NpcMapping.EMPTY, NO_Q);
+        EditorValidator.Result r = EditorValidator.validate(b, checks);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().isEmpty());
+        assertEquals(b, r.cleaned());
+    }
+
+    @Test
+    void missingItemIsRemovedWithWarning() {
+        RegistryChecks checks = new RegistryChecks(rl -> !rl.getNamespace().equals("gone"), rl -> true);
+        EditorBundle b = bundle(Map.of("s", shop("s", entry("minecraft:a", 1, 1), entry("minecraft:b", 1, 1),
+                entry("minecraft:c", 1, 1), entry("gone:x", 1, 1))), NO_D, NpcMapping.EMPTY, NO_Q);
+        EditorValidator.Result r = EditorValidator.validate(b, checks);
+        assertTrue(r.errors().isEmpty());
+        assertTrue(any(r.warnings(), "shops.s.entries[3]"), r.warnings().toString());
+        assertEquals(3, r.cleaned().shops().get("s").entries().size());
+    }
+
+    @Test
+    void danglingNextNodeIsError() {
+        var d = dialog("d", "a", Map.of("a", new DialogNode("x", List.of(choice(ChoiceAction.Type.NEXT, "zzz")))));
+        var r = EditorValidator.validate(bundle(Map.of(), Map.of("d", d), NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "dialogs.d.nodes.a"), r.errors().toString());
+        var d2 = dialog("d", "nope", Map.of("a", new DialogNode("x", List.of())));
+        var r2 = EditorValidator.validate(bundle(Map.of(), Map.of("d", d2), NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r2.errors(), "dialogs.d"), r2.errors().toString());
+    }
+
+    @Test
+    void unknownShopTargetIsError() {
+        var d = dialog("d", "a", Map.of("a", new DialogNode("x", List.of(
+                choice(ChoiceAction.Type.OPEN_SHOP_BUY, "ghost"),
+                choice(ChoiceAction.Type.QUEST, "nolines")))));
+        var r = EditorValidator.validate(bundle(Map.of(), Map.of("d", d), NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "ghost"));
+        assertTrue(any(r.errors(), "nolines"));
+        // quest action without target defaults to line "main", which is absent as well
+        var d2 = dialog("d", "a", Map.of("a", new DialogNode("x", List.of(choice(ChoiceAction.Type.QUEST, null)))));
+        var r2 = EditorValidator.validate(bundle(Map.of(), Map.of("d", d2), NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r2.errors(), "main"), r2.errors().toString());
+    }
+
+    @Test
+    void npcWithUnknownDialogIsError() {
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, new NpcMapping(Map.of(), Map.of("A", "nodlg")), NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "npcs.byName.A"), r.errors().toString());
+    }
+
+    @Test
+    void keyIdMismatchIsError() {
+        var r = EditorValidator.validate(bundle(Map.of("a", shop("b")), NO_D, NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "shops.a"));
+        var r2 = EditorValidator.validate(bundle(Map.of("Bad-Id", shop("Bad-Id")), NO_D, NpcMapping.EMPTY, NO_Q),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r2.errors(), "shops.Bad-Id"));
+    }
+
+    @Test
+    void negativePriceIsError() {
+        var r = EditorValidator.validate(bundle(Map.of("s", shop("s", entry("minecraft:a", -1, 1))), NO_D,
+                NpcMapping.EMPTY, NO_Q), RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "shops.s.entries[0]"));
+    }
+
+    @Test
+    void questNpcMustBeMapped() {
+        var line = new QuestLine("main", "m", "e", List.of(quest("meet", npc("이장"), List.of(), Rewards.EMPTY)));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, Map.of("main", line)),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "quests.main.meet"), r.errors().toString());
+        var r2 = EditorValidator.validate(bundle(Map.of(), Map.of("c", dialog("c", "a",
+                        Map.of("a", new DialogNode("x", List.of())))),
+                new NpcMapping(Map.of(), Map.of("이장", "c")), Map.of("main", line)), RegistryChecks.ALL_EXIST);
+        assertTrue(r2.errors().isEmpty(), r2.errors().toString());
+    }
+
+    @Test
+    void questRuleErrors() {
+        var q1 = quest("dup", QuestTrigger.AUTO, List.of(), Rewards.EMPTY);
+        var q2 = quest("dup", new QuestTrigger(QuestTrigger.Type.NPC, Optional.empty()), List.of(), Rewards.EMPTY);
+        var q3 = quest("bad", QuestTrigger.AUTO, List.of(),
+                new Rewards(-1, List.of(new ItemReward(rl("minecraft:a"), 0)), -2));
+        var q4 = quest("cnt", QuestTrigger.AUTO,
+                List.of(new Objective(Objective.Type.COLLECT, "minecraft:a", 0, false, Optional.empty())), Rewards.EMPTY);
+        var line = new QuestLine("main", "m", "e", List.of(q1, q2, q3, q4));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, Map.of("main", line)),
+                RegistryChecks.ALL_EXIST);
+        assertEquals(1, r.errors().stream().filter(e -> e.contains("duplicate")).count(), r.errors().toString());
+        assertTrue(any(r.errors(), "quests.main.dup.start"), r.errors().toString());
+        assertTrue(any(r.errors(), "quests.main.bad.rewards.gold"));
+        assertTrue(any(r.errors(), "quests.main.bad.rewards.xp"));
+        assertTrue(any(r.errors(), "quests.main.bad.rewards.items[0]"));
+        assertTrue(any(r.errors(), "quests.main.cnt.objectives[0]"));
+    }
+
+    @Test
+    void questMissingItemsPrunedAndTagsKept() {
+        RegistryChecks checks = new RegistryChecks(rl -> !rl.getNamespace().equals("gone"), rl -> true);
+        var q = quest("q", QuestTrigger.AUTO, List.of(
+                new Objective(Objective.Type.COLLECT, "#gone:logs", 1, false, Optional.empty()),
+                new Objective(Objective.Type.COLLECT, "gone:x", 1, false, Optional.empty())),
+                Rewards.EMPTY);
+        var line = new QuestLine("main", "m", "e", List.of(q));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, Map.of("main", line)), checks);
+        assertTrue(r.errors().isEmpty());
+        assertTrue(any(r.warnings(), "quests.main.q"), r.warnings().toString());
+        assertEquals(1, r.cleaned().quests().get("main").quests().get(0).objectives().size());
+    }
+}
