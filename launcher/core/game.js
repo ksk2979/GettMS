@@ -1,10 +1,12 @@
 // 패치(Java → NeoForge → 라이브러리/에셋 → 모드 → 옵션)와 실행.
+const fs = require('fs');
 const path = require('path');
 const { Client } = require('minecraft-launcher-core');
 const { ensureJava } = require('./java');
 const { ensureNeoForge } = require('./neoforge');
 const { syncMods } = require('./mods');
 const { vanillaJson, ensureLibraries, ensureAssets, readJson } = require('./vanilla');
+const { seedDefaultFiles } = require('./defaults');
 const { seedOptions } = require('./options');
 const { ensureServerEntry } = require('./servers');
 
@@ -43,7 +45,11 @@ async function prepare(config, root, log, report) {
   await syncMods([...config.mods, ...(config.clientOnlyMods || [])], config.minecraftVersion, root, log, bytes('mods'), config.customMods);
   report('mods', 1, 1);
 
-  seedOptions(root, log);
+  const defaults = config.defaultFiles || [];
+  await seedDefaultFiles(defaults, root, log);
+  // 기본 옵션 파일이 배포 목록에 있고 실제로 존재하면 내장 옵션 시드는 건너뜀 (없으면 대체 수단으로 유지)
+  const optionsDeployed = defaults.some(f => f.path === 'options.txt') && fs.existsSync(path.join(root, 'options.txt'));
+  if (!optionsDeployed) seedOptions(root, log);
   if (config.serverAddress) ensureServerEntry(root, config.serverName, config.serverAddress, log);
   return { javaExe, versionId };
 }

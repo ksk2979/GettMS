@@ -27,13 +27,21 @@ async function download(url, dest, expected, onProgress) {
   const hash = expected ? crypto.createHash(expected.algo) : null;
   const out = fs.createWriteStream(tmp);
   let done = 0;
-  for await (const chunk of r.body) {
-    out.write(chunk);
-    if (hash) hash.update(chunk);
-    done += chunk.length;
-    if (onProgress && total) onProgress(done, total);
+  try {
+    for await (const chunk of r.body) {
+      out.write(chunk);
+      if (hash) hash.update(chunk);
+      done += chunk.length;
+      if (onProgress && total) onProgress(done, total);
+    }
+    await new Promise((res, rej) => out.end(err => (err ? rej(err) : res())));
+  } catch (e) {
+    // 중간에 끊기면 열린 스트림을 닫고 .part 를 지운다
+    out.on('error', () => {});
+    await new Promise(res => { out.once('close', res); out.destroy(); });
+    fs.rmSync(tmp, { force: true });
+    throw e;
   }
-  await new Promise((res, rej) => out.end(err => (err ? rej(err) : res())));
   if (hash) {
     const got = hash.digest('hex');
     if (got !== expected.hex.toLowerCase()) {

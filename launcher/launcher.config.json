@@ -57,6 +57,16 @@
       "side": "server"
     }
   ],
+  "defaultFiles": [
+    { "path": "options.txt", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/options.txt" },
+    { "path": "config/xaero/minimap/client.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/minimap/client.cfg" },
+    { "path": "config/xaero/minimap/common.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/minimap/common.cfg" },
+    { "path": "config/xaero/minimap/profiles/default.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/minimap/profiles/default.cfg" },
+    { "path": "config/xaero/world-map/client.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/world-map/client.cfg" },
+    { "path": "config/xaero/world-map/common.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/world-map/common.cfg" },
+    { "path": "config/xaero/world-map/profiles/default.cfg", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaero/world-map/profiles/default.cfg" },
+    { "path": "config/xaerohud.txt", "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/config/xaerohud.txt" }
+  ],
   "clientOnlyMods": [
     "caramel-chat",
     "xaeros-minimap",

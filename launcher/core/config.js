@@ -24,6 +24,11 @@ const RULES = {
     && typeof c.url === 'string' && (c.url.startsWith('https://github.com/') || c.url.startsWith('https://cdn.modrinth.com/'))
     && typeof c.sha512 === 'string' && /^[0-9a-fA-F]{128}$/.test(c.sha512)
     && ['both', 'client', 'server'].includes(c.side)),
+  defaultFiles: v => Array.isArray(v) && v.length <= 100 && v.every(f => f && typeof f === 'object'
+    && typeof f.path === 'string' && f.path.length > 0 && f.path.length <= 200
+    && !f.path.includes('\\') && !f.path.startsWith('/') && !/^[A-Za-z]:/.test(f.path)
+    && !f.path.split('/').some(seg => seg === '..' || seg === '')
+    && typeof f.url === 'string' && f.url.startsWith('https://raw.githubusercontent.com/ksk2979/GettMS/')),
   news: v => Array.isArray(v) && v.length <= 20
 };
 
@@ -53,4 +58,4 @@ async function loadConfig(log) {
   }
 }
 
-module.exports = { loadConfig };
+module.exports = { loadConfig, RULES };
