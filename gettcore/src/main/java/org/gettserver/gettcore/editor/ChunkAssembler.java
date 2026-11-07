@@ -20,6 +20,9 @@ public final class ChunkAssembler {
         if (index < 0 || index >= total) {
             throw new IllegalArgumentException("bad index: " + index);
         }
+        if (data == null || data.length > Chunks.MAX_CHUNK_BYTES) {
+            throw new IllegalArgumentException("bad chunk data");
+        }
         if (!active || sessionId != this.sessionId) {
             this.sessionId = sessionId;
             this.active = true;

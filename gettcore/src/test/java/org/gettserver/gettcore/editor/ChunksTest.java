@@ -34,15 +34,26 @@ class ChunksTest {
 
     @Test
     void newSessionDiscardsOld() {
-        List<byte[]> a = Chunks.split("A".repeat(10));
-        List<byte[]> b = Chunks.split("hello");
+        Random r = new Random(3);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 60_000; i++) sb.append((char) ('!' + r.nextInt(90)));
+        String text = sb.toString();
+        List<byte[]> c = Chunks.split(text);
+        assertEquals(2, c.size());
         ChunkAssembler asm = new ChunkAssembler();
-        assertEquals(1, a.size());
-        // start a 2-part session 1, never finished
-        assertTrue(asm.accept(1, 0, 2, a.get(0)).isEmpty());
-        assertEquals("hello", asm.accept(2, 0, 1, b.get(0)).orElseThrow());
-        // old session's second part alone cannot complete anything now
-        assertTrue(asm.accept(1, 1, 2, a.get(0)).isEmpty());
+        assertTrue(asm.accept(1, 0, 2, c.get(0)).isEmpty());
+        assertTrue(asm.accept(2, 0, 2, new byte[] {1}).isEmpty());
+        // old session 1 part 0 must be gone: this alone must not complete anything
+        assertTrue(asm.accept(1, 1, 2, c.get(1)).isEmpty());
+        assertEquals(text, asm.accept(1, 0, 2, c.get(0)).orElseThrow());
+    }
+
+    @Test
+    void rejectsNullAndOversizedData() {
+        ChunkAssembler asm = new ChunkAssembler();
+        assertThrows(IllegalArgumentException.class, () -> asm.accept(1, 0, 1, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> asm.accept(1, 0, 1, new byte[Chunks.MAX_CHUNK_BYTES + 1]));
     }
 
     @Test
