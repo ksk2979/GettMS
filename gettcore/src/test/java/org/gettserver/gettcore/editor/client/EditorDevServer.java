@@ -44,7 +44,16 @@ public final class EditorDevServer {
         current = withExtraEntries(data.rawBundle());
         refs = new EditorRefs(
                 List.of(new EditorRefs.AdvRef("minecraft:story/mine_diamond", "다이아몬드!"),
-                        new EditorRefs.AdvRef("minecraft:story/mine_stone", "석기 시대")),
+                        new EditorRefs.AdvRef("minecraft:story/mine_stone", "석기 시대"),
+                        new EditorRefs.AdvRef("minecraft:story/upgrade_tools", "더 좋은 도구로"),
+                        new EditorRefs.AdvRef("minecraft:story/smelt_iron", "금속 얻기"),
+                        new EditorRefs.AdvRef("minecraft:story/iron_tools", "철로 만든 곡괭이"),
+                        new EditorRefs.AdvRef("minecraft:story/obtain_armor", "장비 장착하기"),
+                        new EditorRefs.AdvRef("minecraft:story/enter_the_nether", "더 깊은 곳으로"),
+                        new EditorRefs.AdvRef("minecraft:nether/find_fortress", "끔찍한 요새"),
+                        new EditorRefs.AdvRef("minecraft:story/follow_ender_eye", "눈 속의 눈"),
+                        new EditorRefs.AdvRef("minecraft:story/enter_the_end", "끝?"),
+                        new EditorRefs.AdvRef("minecraft:end/kill_dragon", "엔드 해방")),
                 List.of("oldmod:ruby"), List.of());
 
         String catalog = catalog();
@@ -119,7 +128,10 @@ public final class EditorDevServer {
         List<CatalogJson.Entry> list = new ArrayList<>();
         for (String[] i : items) list.add(new CatalogJson.Entry("minecraft:" + i[0], i[1], "Minecraft"));
         list.add(new CatalogJson.Entry("gettcore:enchant_stone", "마법부여석", "Gett Core"));
-        List<CatalogJson.Entry> entities = List.of(new CatalogJson.Entry("minecraft:zombie", "좀비", "Minecraft"));
+        List<CatalogJson.Entry> entities = List.of(new CatalogJson.Entry("minecraft:zombie", "좀비", "Minecraft"),
+                new CatalogJson.Entry("minecraft:skeleton", "스켈레톤", "Minecraft"),
+                new CatalogJson.Entry("minecraft:creeper", "크리퍼", "Minecraft"),
+                new CatalogJson.Entry("minecraft:ender_dragon", "엔더 드래곤", "Minecraft"));
         return CatalogJson.build(list, entities,
                 List.of("minecraft:logs", "minecraft:planks", "minecraft:coals", "c:ingots/iron"),
                 List.of("minecraft:skeletons"));

@@ -157,3 +157,22 @@ textarea.grow { flex: 1; width: 100%; }
 .id { font-size: 11px; color: var(--muted); word-break: break-all; }
 .shopprev { display: flex; flex-direction: column; gap: .2rem; align-items: stretch; text-align: left; width: 100%; margin-bottom: .5rem; }
 .shopprev .row { display: flex; gap: .4rem; align-items: center; font-size: 12px; flex-wrap: wrap; }
+
+/* quest tab */
+.questgrid { display: grid; grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 1rem; align-items: start; }
+@media (max-width: 1100px) { .questgrid { grid-template-columns: 1fr; } }
+.qlist { display: flex; flex-direction: column; gap: .2rem; }
+.chapter { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: .5rem; padding-bottom: 2px; border-bottom: 1px solid var(--border); }
+.qitem { display: flex; align-items: center; gap: .3rem; padding: .25rem .4rem; border: 1px solid var(--border); border-radius: 6px; background: var(--panel2); cursor: pointer; }
+.qitem[aria-current=true] { border-color: var(--accent); background: var(--panel); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+.qitem.bad { border-color: var(--bad); background: var(--bad-bg); }
+.qitem.dragging { opacity: .4; }
+.qitem.drop-before { box-shadow: 0 -2px 0 var(--accent); }
+.qitem.drop-after { box-shadow: 0 2px 0 var(--accent); }
+.qitem .handle { cursor: grab; }
+.qitem .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.objrow { border-top: 1px solid var(--border); padding-top: .5rem; margin-top: .5rem; }
+.chk { display: inline-flex; align-items: center; gap: .2rem; }
+.hud { background: #111; color: #fff; font-family: ui-monospace, Consolas, "Malgun Gothic", monospace; font-size: 13px; padding: .6rem .8rem; border-radius: 6px; display: flex; flex-direction: column; gap: .15rem; }
+.hud-title { color: #ffd54a; }
+.qscreen p { white-space: pre-wrap; margin: .4rem 0; }
