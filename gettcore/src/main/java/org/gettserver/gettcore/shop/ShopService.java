@@ -78,14 +78,27 @@ public final class ShopService {
             GettCore.LOGGER.error("gettcore: failed saving shop {}", updated.id(), e);
             return false;
         }
+        syncOpen(updated);
+        return true;
+    }
+
+    /** Price-only update: patched into the raw shop so entries for missing items stay on disk. */
+    private static void persistPricesAndSync(String shopId, Map<ResourceLocation, GettData.CurrentPrices> prices) {
+        try {
+            GettData.get().updateCurrentPrices(shopId, prices).ifPresent(ShopService::syncOpen);
+        } catch (java.io.IOException e) {
+            GettCore.LOGGER.error("gettcore: failed saving prices of shop {}", shopId, e);
+        }
+    }
+
+    private static void syncOpen(ShopDefinition updated) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) return true;
+        if (server == null) return;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             if (isOpen(p, updated.id())) {
                 PacketDistributor.sendToPlayer(p, new ShopSyncPayload(updated.id(), updated, dynamicsOn()));
             }
         }
-        return true;
     }
 
     /** Applies the 1-minute recovery step to every shop; call from the server tick. */
@@ -93,18 +106,16 @@ public final class ShopService {
         PriceDynamicsConfig cfg = dynamics();
         if (!cfg.enabled()) return;
         for (ShopDefinition def : GettData.get().allShops()) {
-            ShopDefinition updated = def;
-            boolean changed = false;
+            Map<ResourceLocation, GettData.CurrentPrices> prices = new java.util.LinkedHashMap<>();
             for (ShopEntry e : def.entries()) {
                 if (e.currentBuyPrice() == e.buyPrice() && e.currentSellPrice() == e.sellPrice()) continue;
                 long nb = PriceDynamics.recover(e.currentBuyPrice(), e.buyPrice(), 1 / 60.0, cfg);
                 long ns = PriceDynamics.recover(e.currentSellPrice(), e.sellPrice(), 1 / 60.0, cfg);
                 if (nb != e.currentBuyPrice() || ns != e.currentSellPrice()) {
-                    updated = updated.withCurrentPrices(e.item(), nb, ns);
-                    changed = true;
+                    prices.put(e.item(), new GettData.CurrentPrices(nb, ns));
                 }
             }
-            if (changed) persistAndSync(updated);
+            if (!prices.isEmpty()) persistPricesAndSync(def.id(), prices);
         }
     }
 
@@ -245,7 +256,8 @@ public final class ShopService {
             Optional<ShopDefinition> live = shopId == null ? Optional.empty() : GettData.get().shop(shopId);
             if (live.isPresent()) {
                 long ns = PriceDynamics.afterSale(entry.currentSellPrice(), entry.sellPrice(), n, cfg);
-                persistAndSync(live.get().withCurrentPrices(entry.item(), entry.currentBuyPrice(), ns));
+                persistPricesAndSync(live.get().id(),
+                        Map.of(entry.item(), new GettData.CurrentPrices(entry.currentBuyPrice(), ns)));
             }
         }
         return total;

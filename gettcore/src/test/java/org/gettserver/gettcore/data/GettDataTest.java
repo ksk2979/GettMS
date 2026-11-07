@@ -101,6 +101,56 @@ class GettDataTest {
         assertEquals("enchanter", again.npcMapping().byName().get("마법부여사"));
     }
 
+    /** Simulates a 1.1 install: npcs.json already in the marker, no 이장 mapping, 농부 deliberately deleted. */
+    private static Path oldInstall(Path dir) throws IOException {
+        Path root = dir.resolve("gettcore");
+        new GettData().load(root);
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"마법부여사\":\"enchanter\"}}");
+        Path marker = root.resolve(GettData.MARKER);
+        Files.write(marker, Files.readAllLines(marker).stream()
+                .filter(l -> !l.equals(GettData.NPC_CHIEF_UPGRADE)).toList());
+        assertTrue(Files.readAllLines(marker).contains("npcs.json"));
+        return root;
+    }
+
+    @Test
+    void chiefMappingIsAddedOnceToEarlierInstall(@TempDir Path dir) throws IOException {
+        Path root = oldInstall(dir);
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(root);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertEquals("chief", data.npcMapping().byName().get("이장"));
+        assertFalse(data.npcMapping().byName().containsKey("농부")); // deleted default not resurrected
+        assertEquals("enchanter", data.npcMapping().byName().get("마법부여사"));
+        assertTrue(Files.readAllLines(root.resolve(GettData.MARKER)).contains(GettData.NPC_CHIEF_UPGRADE));
+
+        // One-shot: an operator who removes 이장 afterwards keeps it removed.
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"마법부여사\":\"enchanter\"}}");
+        GettData again = new GettData();
+        again.load(root);
+        assertFalse(again.npcMapping().byName().containsKey("이장"));
+    }
+
+    @Test
+    void chiefMappingKeepsOperatorValue(@TempDir Path dir) throws IOException {
+        Path root = oldInstall(dir);
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"이장\":\"custom\"}}");
+        GettData data = new GettData();
+        data.load(root);
+        assertEquals("custom", data.npcMapping().byName().get("이장"));
+    }
+
+    @Test
+    void unmappedQuestNpcIsWarned(@TempDir Path dir) throws IOException {
+        Path root = dir.resolve("gettcore");
+        GettData.LoadReport fresh = new GettData().load(root);
+        assertTrue(fresh.warnings().stream().noneMatch(w -> w.contains("not mapped")), fresh.warnings().toString());
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{}}");
+        GettData.LoadReport r = new GettData().load(root);
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("'이장'") && w.contains("not mapped")),
+                r.warnings().toString());
+    }
+
     private static final String TWO_ITEMS = """
             {"id":"s","name":"S","tabs":[{"id":"t","name":"T","icon":"minecraft:carrot"}],
              "entries":[
@@ -119,6 +169,31 @@ class GettDataTest {
         assertTrue(r.warnings().stream().anyMatch(w -> w.contains("othermod:thing")), r.warnings().toString());
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertTrue(Files.readString(dir.resolve("shops/s.json")).contains("othermod:thing"));
+    }
+
+    @Test
+    void priceOnlyUpdateKeepsRawEntries(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/s.json"), TWO_ITEMS);
+        Files.writeString(dir.resolve("economy.json"), "{\"priceDynamics\":{\"enabled\":true}}");
+        GettData data = new GettData();
+        data.setRegistryChecks(new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true));
+        data.load(dir);
+        var carrot = net.minecraft.resources.ResourceLocation.parse("minecraft:carrot");
+        var updated = data.updateCurrentPrices("s",
+                java.util.Map.of(carrot, new GettData.CurrentPrices(40, 2))).orElseThrow();
+        assertEquals(1, updated.entries().size());
+        assertEquals(40, data.shop("s").orElseThrow().entries().get(0).currentBuyPrice());
+        assertEquals(2, data.rawShop("s").orElseThrow().entries().size());
+        assertEquals(40, data.rawShop("s").orElseThrow().entries().get(0).currentBuyPrice());
+        GettData again = new GettData();
+        again.setRegistryChecks(RegistryChecks.ALL_EXIST);
+        again.load(dir);
+        var entries = again.shop("s").orElseThrow().entries();
+        assertEquals(2, entries.size());
+        assertEquals(40, entries.get(0).currentBuyPrice());
+        assertEquals(2, entries.get(0).currentSellPrice());
+        assertEquals(70, entries.get(1).currentBuyPrice());
     }
 
     @Test

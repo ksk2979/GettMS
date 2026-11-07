@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
+import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.editor.EditorMerge;
 import org.gettserver.gettcore.editor.EditorValidator;
@@ -48,6 +49,8 @@ public final class GettData {
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
     /** Lists the bundled defaults already installed into the config dir. */
     static final String MARKER = ".defaults-installed";
+    /** One-shot upgrade (1.2.0): adds only the 이장 -> chief name mapping to an npcs.json installed earlier. */
+    static final String NPC_CHIEF_UPGRADE = "npcs.json@chief";
 
     /** Callbacks run by /gett reload after data was re-read (e.g. Task 8: close open ShopMenu screens). */
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
@@ -145,6 +148,7 @@ public final class GettData {
                 .sanitized(errors);
 
         validate(newShops, newDialogs, newNpcs);
+        warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
 
         shopFiles = Map.copyOf(newShopFiles);
         dialogFiles = Map.copyOf(newDialogFiles);
@@ -208,6 +212,26 @@ public final class GettData {
                 LOGGER.warn("gettcore: npc mapping '{}' references missing dialog '{}'", en.getKey(), en.getValue());
             }
         });
+    }
+
+    /** Quest start/complete/talk NPC names that no NPC is mapped to by name can never be triggered. */
+    private static void warnUnmappedQuestNpcs(Map<String, QuestLine> quests, NpcMapping npcs, List<String> warnings) {
+        for (QuestLine ql : quests.values()) {
+            for (org.gettserver.gettcore.quest.Quest q : ql.quests()) {
+                Set<String> names = new java.util.LinkedHashSet<>();
+                q.start().npc().ifPresent(names::add);
+                q.complete().npc().ifPresent(names::add);
+                for (org.gettserver.gettcore.quest.Objective o : q.objectives()) {
+                    if (o.type() == org.gettserver.gettcore.quest.Objective.Type.TALK) names.add(o.target());
+                }
+                for (String n : names) {
+                    if (!n.isBlank() && !npcs.byName().containsKey(n)) {
+                        warnings.add("quest " + ql.id() + "/" + q.id() + ": npc '" + n
+                                + "' is not mapped in npcs.json byName");
+                    }
+                }
+            }
+        }
     }
 
     private ShopDefinition prune(ShopDefinition sd, List<String> warnings) {
@@ -475,6 +499,31 @@ public final class GettData {
         rawShops = Map.copyOf(raw);
     }
 
+    public record CurrentPrices(long buy, long sell) {}
+
+    /**
+     * Price-only update (dynamics): patches the current prices into the raw shop (entries for missing items kept),
+     * writes that raw shop and updates both the raw and pruned copies. Returns the updated pruned shop.
+     */
+    public synchronized Optional<ShopDefinition> updateCurrentPrices(
+            String shopId, Map<ResourceLocation, CurrentPrices> prices) throws IOException {
+        ShopDefinition raw = rawShops.get(shopId);
+        ShopDefinition pruned = shops.get(shopId);
+        if (raw == null || pruned == null) return Optional.empty();
+        for (Map.Entry<ResourceLocation, CurrentPrices> en : prices.entrySet()) {
+            raw = raw.withCurrentPrices(en.getKey(), en.getValue().buy(), en.getValue().sell());
+            pruned = pruned.withCurrentPrices(en.getKey(), en.getValue().buy(), en.getValue().sell());
+        }
+        writeShopFile(raw);
+        Map<String, ShopDefinition> s = new HashMap<>(shops);
+        s.put(shopId, pruned);
+        shops = Map.copyOf(s);
+        Map<String, ShopDefinition> r = new HashMap<>(rawShops);
+        r.put(shopId, raw);
+        rawShops = Map.copyOf(r);
+        return Optional.of(pruned);
+    }
+
     /** Writes the shop JSON to its original file (or shops/<id>.json) and remembers the file. */
     private synchronized void writeShopFile(ShopDefinition shop) throws IOException {
         Path dir = configDir;
@@ -552,6 +601,34 @@ public final class GettData {
                 errors.add(f + ": installing default failed: " + e.getMessage());
             }
         }
+        if (!installed.contains(NPC_CHIEF_UPGRADE)) {
+            try {
+                // A freshly installed/merged npcs.json already has 이장; only an earlier install needs the patch.
+                if (!installed.contains("npcs.json") || addChiefMapping(dir)) {
+                    Files.writeString(marker, NPC_CHIEF_UPGRADE + "\n",StandardCharsets.UTF_8,
+                            java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+                }
+            } catch (IOException e) {
+                errors.add("npcs.json: adding 이장 mapping failed: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Adds only {@code "이장": "chief"} to an existing npcs.json when the key is absent and dialogs/chief.json exists;
+     * other (possibly deliberately deleted) defaults are left alone. Returns false if npcs.json is unreadable.
+     */
+    private static boolean addChiefMapping(Path dir) throws IOException {
+        Path file = dir.resolve("npcs.json");
+        if (!Files.isRegularFile(file) || !Files.isRegularFile(dir.resolve("dialogs/chief.json"))) return true;
+        Optional<NpcMapping> existing = read(file, NpcMapping.CODEC, new ArrayList<>());
+        if (existing.isEmpty()) return false;
+        if (existing.get().byName().containsKey("이장")) return true;
+        Map<String, String> byName = new LinkedHashMap<>(existing.get().byName());
+        byName.put("이장", "chief");
+        NpcMapping patched = new NpcMapping(existing.get().byUuid(), byName);
+        writeJson(file, NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, patched).getOrThrow(IOException::new));
+        return true;
     }
 
     private static void copyBundled(String f, Path target) throws IOException {
