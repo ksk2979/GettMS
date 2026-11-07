@@ -3,6 +3,7 @@ package org.gettserver.gettcore.quest;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -38,7 +39,8 @@ public final class QuestEvents {
         QuestService.tick(event.getServer());
     }
 
-    @SubscribeEvent
+    /** LOWEST so other mods' cancellations are already applied; canceled deaths are not received. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDeath(LivingDeathEvent event) {
         if (event.getEntity().level().isClientSide()) return;
         if (event.getSource().getEntity() instanceof ServerPlayer killer && killer != event.getEntity()) {

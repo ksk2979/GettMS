@@ -6,8 +6,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.gettserver.gettcore.GettCore;
 
 /**
- * Server to client: a quest was accepted or completed (client shows a toast / centered title + sound, queued 0.5 s
- * apart when several arrive at once). {@code gold} is the gold reward for COMPLETED, 0 for ACCEPTED.
+ * Server to client: a quest was accepted or completed (client shows a toast / centered title + sound, queued 1.5 s
+ * apart when several arrive at once). {@code gold} is the gold actually paid for COMPLETED, 0 for ACCEPTED.
  */
 public record QuestNotifyPayload(Kind kind, String title, long gold) implements CustomPacketPayload {
     public enum Kind { ACCEPTED, COMPLETED }

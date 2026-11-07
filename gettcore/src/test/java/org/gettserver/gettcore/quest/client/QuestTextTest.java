@@ -148,6 +148,7 @@ class QuestTextTest {
 
     @Test
     void notifyQueueSpacesItems() {
+        assertEquals(30, QuestToasts.SPACING_TICKS); // 1.5 s
         NotifyQueue<String> q = new NotifyQueue<>(QuestToasts.SPACING_TICKS, 3);
         assertNull(q.poll(0));
         q.offer("a");
@@ -156,9 +157,10 @@ class QuestTextTest {
         q.offer("d"); // over capacity: dropped
         assertEquals("a", q.poll(100));
         assertNull(q.poll(105));
-        assertNull(q.poll(109));
-        assertEquals("b", q.poll(110));
-        assertEquals("c", q.poll(125));
+        assertNull(q.poll(129));
+        assertEquals("b", q.poll(130));
+        assertNull(q.poll(159));
+        assertEquals("c", q.poll(160));
         assertNull(q.poll(200));
         q.offer("e");
         assertEquals("e", q.poll(200));

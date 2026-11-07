@@ -56,6 +56,10 @@ public final class QuestService {
 
     /** Applies automatic transitions, handles their events and sends a sync if anything the HUD shows changed. */
     public static void refresh(ServerPlayer player) {
+        if (!player.isAlive()) { // no rewards or advancing while dead (items would drop into the death pile)
+            sync(player);
+            return;
+        }
         Optional<QuestLine> line = mainLine();
         if (line.isPresent()) {
             QuestData data = QuestData.get(player.server);
@@ -220,8 +224,10 @@ public final class QuestService {
             sendView(player, payload.questId());
             return;
         }
+        if (!player.isAlive()) return;
         UUID uuid = player.getUUID();
         Pending pend = PENDING.get(uuid);
+        if (pend == null && alreadyCompleted(player, payload.questId())) return; // e.g. a double click on report
         if (pend == null || System.currentTimeMillis() > pend.expiresAt() || !pend.questId().equals(payload.questId())) {
             PENDING.remove(uuid);
             player.sendSystemMessage(Component.translatable("gettcore.quest.expired").withStyle(ChatFormatting.RED));
@@ -259,6 +265,17 @@ public final class QuestService {
         if (MAIN_LINE.equals(pend.lineId())) sync(player);
     }
 
+    private static boolean alreadyCompleted(ServerPlayer player, String questId) {
+        QuestData data = QuestData.get(player.server);
+        for (QuestLine l : GettData.get().allQuestLines()) {
+            if (l.quests().stream().anyMatch(q -> q.id().equals(questId))
+                    && data.progress(player.getUUID(), l.id()).completed().contains(questId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---- events, rewards ----
 
     /**
@@ -273,9 +290,9 @@ public final class QuestService {
                         new QuestNotifyPayload(QuestNotifyPayload.Kind.ACCEPTED, q.title(), 0));
                 case COMPLETED -> {
                     if (consume && q.complete().type() == QuestTrigger.Type.NPC) consumeItems(player, q);
-                    giveRewards(player, q);
+                    long paid = giveRewards(player, q);
                     PacketDistributor.sendToPlayer(player,
-                            new QuestNotifyPayload(QuestNotifyPayload.Kind.COMPLETED, q.title(), q.rewards().gold()));
+                            new QuestNotifyPayload(QuestNotifyPayload.Kind.COMPLETED, q.title(), paid));
                     player.sendSystemMessage(Component.translatable("gettcore.quest.completed", q.title())
                             .withStyle(ChatFormatting.GOLD));
                     GettCore.LOGGER.info("gettcore: {} completed quest {}", player.getGameProfile().getName(), q.id());
@@ -294,15 +311,20 @@ public final class QuestService {
         }
     }
 
-    private static void giveRewards(ServerPlayer player, Quest q) {
+    /** Returns the gold actually deposited (0 when the deposit failed; the player is told in chat). */
+    private static long giveRewards(ServerPlayer player, Quest q) {
         Rewards r = q.rewards();
+        long paid = 0;
         if (r.gold() > 0) {
             EconomyData econ = EconomyData.get(player.server);
             if (econ.ledger().deposit(player.getUUID(), r.gold()) == Ledger.Result.OK) {
                 econ.changed(player.getUUID());
+                paid = r.gold();
             } else {
                 GettCore.LOGGER.warn("gettcore: quest {} gold {} could not be paid to {}", q.id(),
                         Gold.format(r.gold()), player.getGameProfile().getName());
+                player.sendSystemMessage(Component.translatable("gettcore.quest.gold_failed", Gold.format(r.gold()))
+                        .withStyle(ChatFormatting.RED));
             }
         }
         boolean dropped = false;
@@ -327,6 +349,7 @@ public final class QuestService {
                     .withStyle(ChatFormatting.YELLOW));
         }
         if (r.xp() > 0) player.giveExperienceLevels(r.xp());
+        return paid;
     }
 
     // ---- sync ----

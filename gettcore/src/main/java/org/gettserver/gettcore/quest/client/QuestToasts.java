@@ -15,12 +15,12 @@ import org.gettserver.gettcore.network.QuestNotifyPayload;
 
 /**
  * Quest accepted/completed notifications: a centered title + subtitle and a sound, queued so that several arriving at
- * once (one action can complete a chain of quests) are shown 0.5 s apart. Client only.
+ * once (one action can complete a chain of quests) are shown 1.5 s apart. Client only.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class QuestToasts {
-    /** 0.5 s at 20 ticks per second. */
-    public static final int SPACING_TICKS = 10;
+    /** 1.5 s at 20 ticks per second. */
+    public static final int SPACING_TICKS = 30;
 
     private static final NotifyQueue<QuestNotifyPayload> QUEUE = new NotifyQueue<>(SPACING_TICKS, 32);
     private static long ticks;
