@@ -17,6 +17,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseFireBlock;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityMobGriefingEvent;
@@ -24,6 +25,7 @@ import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
+import net.neoforged.neoforge.event.level.ExplosionKnockbackEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.pet.boss.GettBoss;
@@ -107,10 +109,23 @@ public final class ProtectEvents {
         if (!(event.getEntity() instanceof Player player) || player.level().isClientSide()) return;
         if (!event.getSource().is(DamageTypeTags.IS_EXPLOSION)) return;
         ProtectConfig cfg = GettData.get().protect();
-        if (cfg.regions().isEmpty()) return;
-        if (ProtectRules.blocksExplosionDamage(
-                cfg.regionAt(player.level().dimension(), player.blockPosition()).map(Region::flags))) {
-            event.setCanceled(true);
+        Optional<Region> region = cfg.regionAt(player.level().dimension(), player.blockPosition());
+        boolean blocked = ProtectRules.blocksExplosionDamage(region.map(Region::flags));
+        GettCore.LOGGER.info("gettcore protect: explosion dmg {} to {} at {} region={} blocked={}",
+                event.getSource().typeHolder().unwrapKey().map(k -> k.location().toString()).orElse("?"),
+                player.getName().getString(), player.blockPosition(), region.map(Region::id).orElse("-"), blocked);
+        if (blocked) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onExplosionKnockback(ExplosionKnockbackEvent event) {
+        if (!(event.getAffectedEntity() instanceof Player player) || event.getLevel().isClientSide()) return;
+        ProtectConfig cfg = GettData.get().protect();
+        Optional<Region> region = cfg.regionAt(event.getLevel().dimension(), player.blockPosition());
+        if (ProtectRules.blocksExplosionDamage(region.map(Region::flags))) {
+            event.setKnockbackVelocity(Vec3.ZERO);
+            GettCore.LOGGER.info("gettcore protect: explosion knockback zeroed for {} at {} region={}",
+                    player.getName().getString(), player.blockPosition(), region.map(Region::id).orElse("-"));
         }
     }
 }
