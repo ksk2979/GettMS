@@ -181,9 +181,19 @@
   /** 네 등급 모두 같은 % (예전 단일 obtainPercent). */
   const allTiers = (v) => Object.fromEntries(TIER_KEYS.map((k) => [k, v]));
 
-  /** 전역 획득 확률 표: 표가 없으면 예전 단일 obtainPercent(네 등급 모두), 그것도 없으면 기본값. 빠진 등급은 기본값. */
+  /*
+   * 1.3.0 의 obtainPercent 기본값. 1.3.0 pets.json 은 capture 와 모든 보스 종에 이 값을 그대로 담았고 1.3.0 편집기도
+   * 종마다 다시 썼으므로, 이 값은 "직접 고른 값"이 아니라 기본값으로 본다 (자바 PetConfig / PetSpecies 와 같은 규칙).
+   */
+  const LEGACY_DEFAULT_OBTAIN_PERCENT = 20;
+
+  /**
+   * 전역 획득 확률 표: 표가 없으면 예전 단일 obtainPercent(네 등급 모두, 단 1.3.0 기본값 20 은 무시), 그것도 없으면
+   * 기본값. 빠진 등급은 기본값.
+   */
   function normalizeObtain(def, table, legacy) {
-    const src = table || (typeof legacy === 'number' ? allTiers(legacy) : {});
+    const useLegacy = typeof legacy === 'number' && legacy !== LEGACY_DEFAULT_OBTAIN_PERCENT;
+    const src = table || (useLegacy ? allTiers(legacy) : {});
     const out = {};
     for (const k of TIER_KEYS) out[k] = src[k] === undefined || src[k] === null ? def[k] : src[k];
     return out;
@@ -200,9 +210,13 @@
     return out;
   }
 
-  /** 종별 획득 확률 덮어쓰기: 있는 등급만. 표가 없고 예전 obtainPercent > 0 이면 네 등급 모두 그 값. */
-  function partialObtain(table, legacy) {
-    const src = table || (typeof legacy === 'number' && legacy > 0 ? allTiers(legacy) : {});
+  /**
+   * 종별 획득 확률 덮어쓰기: 있는 등급만. 표가 없고 예전 obtainPercent > 0 이면 네 등급 모두 그 값.
+   * 단 보스 종의 20 은 1.3.0 의 암묵적 보스 기본값이라 덮어쓰기 없음 (보스 표를 쓴다).
+   */
+  function partialObtain(table, legacy, boss) {
+    const useLegacy = typeof legacy === 'number' && legacy > 0 && !(boss && legacy === LEGACY_DEFAULT_OBTAIN_PERCENT);
+    const src = table || (useLegacy ? allTiers(legacy) : {});
     const out = {};
     for (const k of TIER_KEYS) if (src[k] !== undefined && src[k] !== null) out[k] = src[k];
     return out;
@@ -216,7 +230,7 @@
     for (const [k, s] of Object.entries(p.species || {})) {
       const o = Object.assign({}, SPECIES_DEFAULTS, s, {
         ballChance: partialChances(s.ballChance),
-        obtainChance: partialObtain(s.obtainChance, s.obtainPercent),
+        obtainChance: partialObtain(s.obtainChance, s.obtainPercent, s.boss === true),
       });
       delete o.obtainPercent;   // 예전 키: 읽기만 하고 저장하지 않는다
       species[k] = o;
@@ -1696,7 +1710,8 @@
 
       /*
        * 종별 확률 덮어쓰기 (펼침 행). 빈칸 = 전역 표 사용 (보스 종이면 보스 표), placeholder 에 그 값을 보인다.
-       * 포획: 기본·최대 둘 다 비면 그 등급을 ballChance 에서 뺀다. 하나만 있으면 둘 다 그 값으로 저장한다.
+       * 포획: 기본·최대 둘 다 비면 그 등급을 ballChance 에서 뺀다. 하나만 있으면 둘 다 그 값으로 저장하고,
+       * 빈 칸의 placeholder 는 (전역값이 아니라) 실제로 저장되는 그 값을 보인다.
        * 획득: 비면 그 등급을 obtainChance 에서 뺀다.
        */
       const speciesChanceRow = (s, name) => {
@@ -1717,8 +1732,8 @@
           };
           baseEl.addEventListener('input', syncBall);
           maxEl.addEventListener('input', syncBall);
-          checks.add(ph(baseEl, () => ball().base), () => (s.ballChance[k] ? petRules.percent(s.ballChance[k].base) : ''));
-          checks.add(ph(maxEl, () => ball().max), () => (s.ballChance[k] ? petRules.chanceMax(s.ballChance[k]) : ''));
+          checks.add(ph(baseEl, () => (s.ballChance[k] || ball()).base), () => (s.ballChance[k] ? petRules.percent(s.ballChance[k].base) : ''));
+          checks.add(ph(maxEl, () => (s.ballChance[k] || ball()).max), () => (s.ballChance[k] ? petRules.chanceMax(s.ballChance[k]) : ''));
           const obEl = cell(`획득(${tname})`, s.obtainChance[k], { oninput: (e) => {
             if (e.target.value === '') delete s.obtainChance[k]; else s.obtainChance[k] = Number(e.target.value);
             changed();

@@ -108,10 +108,20 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
             }, m -> m);
         }
 
-        /** The obtain table from the JSON, else the legacy single percent on all tiers, else the default. */
+        /**
+         * The 1.3.0 default of the legacy {@code capture.obtainPercent}. The shipped 1.3.0 pets.json carried it
+         * verbatim, so treating it as an explicit choice would flatten both tier tables to 20%; it is ignored.
+         */
+        private static final double LEGACY_DEFAULT_OBTAIN_PERCENT = 20.0;
+
+        /**
+         * The obtain table from the JSON, else the legacy single percent on all tiers (unless it is the 1.3.0
+         * default, which is ignored), else the default.
+         */
         private static Map<CaptureTier, Double> obtainTable(Optional<Map<CaptureTier, Double>> table,
                                                             Optional<Double> legacy, Map<CaptureTier, Double> def) {
-            return table.orElseGet(() -> legacy.map(Capture::allTiers).orElse(def));
+            return table.orElseGet(() -> legacy.filter(p -> p != LEGACY_DEFAULT_OBTAIN_PERCENT)
+                    .map(Capture::allTiers).orElse(def));
         }
 
         static final Codec<Capture> CODEC = RecordCodecBuilder.create(i -> i.group(

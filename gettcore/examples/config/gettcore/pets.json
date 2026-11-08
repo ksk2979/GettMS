@@ -201,8 +201,7 @@
       "sizeScale": 2.5,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainChance": { "netherite": 50 }
+      "killGold": 0
     }
   }
 }

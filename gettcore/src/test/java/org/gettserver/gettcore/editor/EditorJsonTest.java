@@ -94,15 +94,27 @@ class EditorJsonTest {
         // A page cached from before the per-tier tables (or a restored draft) still sends obtainPercent.
         String old = FULL.replace("\"pets\":{}", "\"pets\":{\"capture\":{\"obtainPercent\":33},\"species\":{"
                 + "\"naturalist:lion\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":45},"
-                + "\"naturalist:bear\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":0}}}");
+                + "\"naturalist:bear\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":0},"
+                + "\"naturalist:tiger\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":20},"
+                + "\"gettcore:boss_lion\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"boss\":true,"
+                + "\"obtainPercent\":20}}}");
         EditorBundle b = EditorJson.decode(old);
         var cap = b.pets().capture();
         for (var t : org.gettserver.gettcore.pet.CaptureTier.values()) {
             assertEquals(33.0, cap.obtainChance().get(t));
             assertEquals(33.0, cap.bossObtainChance().get(t));
             assertEquals(45.0, b.pets().species().get("naturalist:lion").obtainChance().get(t));
+            assertEquals(20.0, b.pets().species().get("naturalist:tiger").obtainChance().get(t));
         }
         assertTrue(b.pets().species().get("naturalist:bear").obtainChance().isEmpty());
+        // The 1.3.0 editor wrote obtainPercent: 20 on every boss: that is no override.
+        assertTrue(b.pets().species().get("gettcore:boss_lion").obtainChance().isEmpty());
+        // ...and the old global default 20 leaves the new tier tables at their defaults.
+        var oldDefault = EditorJson.decode(FULL.replace("\"pets\":{}", "\"pets\":{\"capture\":{\"obtainPercent\":20}}"))
+                .pets().capture();
+        assertEquals(org.gettserver.gettcore.pet.PetConfig.DEFAULT.capture().obtainChance(), oldDefault.obtainChance());
+        assertEquals(org.gettserver.gettcore.pet.PetConfig.DEFAULT.capture().bossObtainChance(),
+                oldDefault.bossObtainChance());
         EditorValidator.Result r = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertEquals(b, r.cleaned());

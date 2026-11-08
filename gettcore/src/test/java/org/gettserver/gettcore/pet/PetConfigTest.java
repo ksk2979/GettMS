@@ -45,8 +45,10 @@ class PetConfigTest {
         assertEquals(PetSpecies.Kind.FLYING_MOUNT, vulture.kind());
         assertTrue(vulture.boss());
         assertEquals(2.5, vulture.sizeScale());
-        assertEquals(Map.of(CaptureTier.NETHERITE, 50.0), vulture.obtainChance());
-        assertTrue(cfg.species().get("gettcore:boss_lion").obtainChance().isEmpty());
+        // Bundled defaults are neutral: no species overrides the global tables.
+        for (PetSpecies s : cfg.species().values()) {
+            assertTrue(s.ballChance().isEmpty() && s.obtainChance().isEmpty(), s.id());
+        }
         assertEquals(3.0, cfg.species().get("naturalist:ostrich").jumpHeight());
         assertEquals(2.0, cfg.species().get("naturalist:giraffe").jumpHeight());
         assertEquals(1.0, cfg.species().get("naturalist:elephant").jumpHeight());
@@ -135,6 +137,21 @@ class PetConfigTest {
         assertEquals(50.0, mixed.obtainChance().get(CaptureTier.GOLD));
         assertEquals(20.0, mixed.obtainChance().get(CaptureTier.IRON), "missing tier takes the default");
         assertEquals(PetConfig.Capture.allTiers(33), mixed.bossObtainChance());
+        // 30 is an explicit choice: every tier of both tables.
+        var thirty = parse("{\"capture\":{\"obtainPercent\":30}}").capture();
+        assertEquals(PetConfig.Capture.allTiers(30), thirty.obtainChance());
+        assertEquals(PetConfig.Capture.allTiers(30), thirty.bossObtainChance());
+    }
+
+    @Test
+    void legacyGlobalObtainPercentAtOldDefaultIsIgnored() {
+        // The shipped 1.3.0 pets.json carried obtainPercent: 20; it must not flatten the new tier tables.
+        var c = parse("{\"capture\":{\"obtainPercent\":20}}").capture();
+        assertEquals(PetConfig.DEFAULT.capture().obtainChance(), c.obtainChance());
+        assertEquals(PetConfig.DEFAULT.capture().bossObtainChance(), c.bossObtainChance());
+        assertEquals(20.0, c.obtainChance().get(CaptureTier.IRON));
+        assertEquals(40.0, c.obtainChance().get(CaptureTier.NETHERITE));
+        assertEquals(15.0, c.bossObtainChance().get(CaptureTier.IRON));
     }
 
     @Test
@@ -153,6 +170,17 @@ class PetConfigTest {
         assertEquals(PetConfig.Capture.allTiers(45), cfg.species().get("a:w").obtainChance());
         assertTrue(cfg.species().get("a:z").obtainChance().isEmpty(), "0 meant 'use global'");
         assertEquals(Map.of(CaptureTier.IRON, 10.0), cfg.species().get("a:x").obtainChance(), "new key wins");
+    }
+
+    @Test
+    void legacySpeciesObtainPercentTwentyOnBossMeansNoOverride() {
+        PetConfig cfg = parse("{\"species\":{"
+                + "\"a:b20\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"boss\":true,\"obtainPercent\":20},"
+                + "\"a:b35\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"boss\":true,\"obtainPercent\":35},"
+                + "\"a:n20\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"obtainPercent\":20}}}");
+        assertTrue(cfg.species().get("a:b20").obtainChance().isEmpty(), "1.3.0 implicit boss default");
+        assertEquals(PetConfig.Capture.allTiers(35), cfg.species().get("a:b35").obtainChance());
+        assertEquals(PetConfig.Capture.allTiers(20), cfg.species().get("a:n20").obtainChance());
     }
 
     @Test

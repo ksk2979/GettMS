@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +44,33 @@ class PetLangTest {
             assertNotNull(in, file);
             JsonObject o = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
             return new TreeSet<>(o.keySet());
+        }
+    }
+
+    /** Keys that appear more than once in the top-level object (JsonParser silently keeps the last one). */
+    private static Set<String> duplicateKeys(String file) throws Exception {
+        try (InputStream in = PetLangTest.class.getResourceAsStream("/assets/gettcore/lang/" + file)) {
+            assertNotNull(in, file);
+            Set<String> seen = new TreeSet<>();
+            Set<String> dupes = new TreeSet<>();
+            try (JsonReader r = new JsonReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                r.beginObject();
+                while (r.peek() == JsonToken.NAME) {
+                    String name = r.nextName();
+                    if (!seen.add(name)) dupes.add(name);
+                    r.skipValue();
+                }
+                r.endObject();
+            }
+            return dupes;
+        }
+    }
+
+    @Test
+    void langFilesHaveNoDuplicateKeys() throws Exception {
+        for (String file : List.of("ko_kr.json", "en_us.json")) {
+            Set<String> dupes = duplicateKeys(file);
+            assertTrue(dupes.isEmpty(), file + " duplicate keys: " + dupes);
         }
     }
 

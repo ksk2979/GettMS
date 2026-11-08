@@ -13,7 +13,8 @@ import net.minecraft.resources.ResourceLocation;
  * {@code jumpHeight}: blocks a ground mount jumps when its rider presses jump (0..10). {@code ballChance} /
  * {@code obtainChance}: per-tier overrides of the global capture / obtain tables (a missing tier, or an empty map,
  * uses the global table: the boss one for boss species). The legacy {@code obtainPercent} (&gt; 0) is read as an
- * obtainChance override on all four tiers when {@code obtainChance} is absent; it is never written back.
+ * obtainChance override on all four tiers when {@code obtainChance} is absent (except 20 on a boss species, the
+ * 1.3.0 implicit default, which means no override); it is never written back.
  */
 public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, double attack, double speed,
                          double attackSpeed, double flySpeed, double climbSpeed, boolean boss, double sizeScale,
@@ -54,6 +55,12 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     public static final double DEFAULT_JUMP_HEIGHT = 1.0;
     static final double MAX_JUMP_HEIGHT = 10.0;
 
+    /**
+     * The implicit 1.3.0 boss obtain percent. The 1.3.0 pets.json and editor wrote it on every boss species, so a
+     * boss species carrying exactly this legacy value gets no override (the boss tier table applies instead).
+     */
+    private static final double LEGACY_DEFAULT_OBTAIN_PERCENT = 20.0;
+
     /** Optional getter that leaves an empty override map out of the JSON. */
     private static <V> Optional<Map<CaptureTier, V>> nonEmpty(Map<CaptureTier, V> m) {
         return m.isEmpty() ? Optional.empty() : Optional.of(m);
@@ -83,6 +90,7 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, jump, ball, obtain,
                 legacy) -> new PetSpecies("", kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold,
             jump, ball.orElse(Map.of()), obtain.orElseGet(() -> legacy.filter(p -> p > 0)
+                    .filter(p -> !(boss && p == LEGACY_DEFAULT_OBTAIN_PERCENT))
                     .map(PetConfig.Capture::allTiers).orElse(Map.of())))));
 
     PetSpecies withId(String newId) {
