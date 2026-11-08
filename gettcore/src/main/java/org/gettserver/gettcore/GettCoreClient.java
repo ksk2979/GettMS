@@ -13,6 +13,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.gettserver.gettcore.enchant.AbilityKey;
 import org.gettserver.gettcore.enchant.EnchantScreen;
 import org.gettserver.gettcore.pet.PetRegistry;
+import org.gettserver.gettcore.pet.client.CaptureAimClient;
 import org.gettserver.gettcore.pet.client.MobHealthBar;
 import org.gettserver.gettcore.pet.client.PetFlightInput;
 import org.gettserver.gettcore.pet.client.PetRenderers;
@@ -44,7 +45,13 @@ public class GettCoreClient {
         // 몹 머리 위 체력바·퍼센트(때린 몹만).
         NeoForge.EVENT_BUS.addListener(MobHealthBar::onRenderLiving);
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
-        modBus.addListener(RegisterGuiLayersEvent.class,
-                event -> event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render));
+        // 포획틀: 우클릭 유지 = 조준(줌 + 십자선 아래 포획률), 좌클릭 = 던지기(서버 판정).
+        NeoForge.EVENT_BUS.addListener(CaptureAimClient::onClientTickPre);
+        NeoForge.EVENT_BUS.addListener(CaptureAimClient::onInteractionKey);
+        NeoForge.EVENT_BUS.addListener(CaptureAimClient::onComputeFov);
+        modBus.addListener(RegisterGuiLayersEvent.class, event -> {
+            event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render);
+            event.registerAbove(VanillaGuiLayers.CROSSHAIR, CaptureAimClient.LAYER_ID, CaptureAimClient::render);
+        });
     }
 }

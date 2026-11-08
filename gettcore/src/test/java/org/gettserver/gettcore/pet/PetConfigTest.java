@@ -175,4 +175,28 @@ class PetConfigTest {
         assertEquals(cfg, cfg.sanitized(warnings));
         assertTrue(warnings.isEmpty(), warnings.toString());
     }
+
+    @Test
+    void throwCooldownDefaultsTo20AndParses() {
+        assertEquals(20, PetConfig.DEFAULT.capture().throwCooldownTicks());
+        assertEquals(20, parse("{\"capture\":{}}").capture().throwCooldownTicks());
+        assertEquals(40, parse("{\"capture\":{\"throwCooldownTicks\":40}}").capture().throwCooldownTicks());
+    }
+
+    @Test
+    void sanitizeThrowCooldownOutOfRangeUsesDefault() {
+        for (int bad : new int[] {-5, 201, 500}) {
+            List<String> warnings = new ArrayList<>();
+            PetConfig fixed = parse("{\"capture\":{\"throwCooldownTicks\":" + bad + "}}").sanitized(warnings);
+            assertEquals(20, fixed.capture().throwCooldownTicks(), "value " + bad);
+            assertEquals(1, warnings.size(), warnings.toString());
+            assertTrue(warnings.get(0).contains("capture.throwCooldownTicks"), warnings.toString());
+        }
+        for (int ok : new int[] {0, 200}) {
+            List<String> warnings = new ArrayList<>();
+            PetConfig fixed = parse("{\"capture\":{\"throwCooldownTicks\":" + ok + "}}").sanitized(warnings);
+            assertEquals(ok, fixed.capture().throwCooldownTicks());
+            assertTrue(warnings.isEmpty(), warnings.toString());
+        }
+    }
 }

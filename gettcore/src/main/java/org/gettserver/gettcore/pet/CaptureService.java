@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.pet;
 
 import com.crispytwig.naturalist.world.entity.variant.DataDrivenVariantAnimal;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
@@ -11,10 +12,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
@@ -29,7 +32,45 @@ public final class CaptureService {
     /** One obtain confirm per server tick (50 ms) per player. */
     private static final RateLimiter OBTAIN_LIMITER = new RateLimiter(50);
 
+    /** At most one throw packet per server tick per player (also with throwCooldownTicks 0). */
+    private static final RateLimiter THROW_LIMITER = new RateLimiter(50);
+
     private CaptureService() {}
+
+    /** The four capture ball items; a throw puts all of them on cooldown so switching tiers does not bypass it. */
+    public static List<Item> ballItems() {
+        return List.of(PetRegistry.CAPTURE_BALL_IRON.get(), PetRegistry.CAPTURE_BALL_GOLD.get(),
+                PetRegistry.CAPTURE_BALL_DIAMOND.get(), PetRegistry.CAPTURE_BALL_NETHERITE.get());
+    }
+
+    /** A throw needs a capture ball in the main hand that is not on cooldown. */
+    public static boolean canThrow(ItemStack mainHand, boolean onCooldown) {
+        return mainHand.getItem() instanceof CaptureBallItem && !onCooldown;
+    }
+
+    /**
+     * C2S left click with a capture ball: throws one ball from the main hand (aiming is not required), consumes it
+     * unless creative, and starts {@code capture.throwCooldownTicks} on every ball item.
+     */
+    public static void throwBall(ServerPlayer player) {
+        ItemStack stack = player.getMainHandItem();
+        if (!canThrow(stack, player.getCooldowns().isOnCooldown(stack.getItem()))) return;
+        if (!THROW_LIMITER.tryAcquire(player.getUUID(), System.currentTimeMillis())) return;
+        ServerLevel level = player.serverLevel();
+        Item item = stack.getItem();
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SNOWBALL_THROW,
+                SoundSource.NEUTRAL, 0.5F, 0.4F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
+        ThrownCaptureBall ball = new ThrownCaptureBall(level, player);
+        ball.setItem(stack);
+        ball.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 1.5F, 1.0F);
+        level.addFreshEntity(ball);
+        player.awardStat(Stats.ITEM_USED.get(item));
+        stack.consume(1, player);
+        int cooldown = GettData.get().pets().capture().throwCooldownTicks();
+        if (cooldown > 0) {
+            for (Item b : ballItems()) player.getCooldowns().addCooldown(b, cooldown);
+        }
+    }
 
     public static void onHit(ServerLevel level, ServerPlayer thrower, LivingEntity target, CaptureTier tier) {
         PetConfig config = GettData.get().pets();

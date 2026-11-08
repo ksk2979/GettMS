@@ -48,4 +48,19 @@ class CaptureServiceTest {
         assertEquals("gettcore.msg.obtain.duplicate", CaptureService.obtainMessageKey(true, true));
         assertEquals("gettcore.msg.obtain.escaped", CaptureService.obtainMessageKey(false, false));
     }
+
+    @Test
+    void canThrowOnlyBallOffCooldown() {
+        ItemStack ball = new ItemStack(PetRegistry.CAPTURE_BALL_IRON.get());
+        assertTrue(CaptureService.canThrow(ball, false));
+        assertFalse(CaptureService.canThrow(ball, true), "on cooldown");
+        assertTrue(CaptureService.canThrow(new ItemStack(PetRegistry.CAPTURE_BALL_NETHERITE.get()), false));
+        assertFalse(CaptureService.canThrow(new ItemStack(Items.STONE), false), "not a ball");
+        assertFalse(CaptureService.canThrow(ItemStack.EMPTY, false), "empty hand");
+    }
+
+    @Test
+    void ballItemsListsAllFourTiers() {
+        assertEquals(4, CaptureService.ballItems().size());
+    }
 }

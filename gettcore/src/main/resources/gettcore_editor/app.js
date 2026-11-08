@@ -138,7 +138,7 @@
   const PET_DEFAULTS = {
     healthbar: { showDistance: 32, fadeDelayTicks: 200, fadeTicks: 20, captureColor: '#55FF55' },
     capture: {
-      minPercent: 1, maxPercent: 20, obtainPercent: 20,
+      minPercent: 1, maxPercent: 20, obtainPercent: 20, throwCooldownTicks: 20,
       // 포획틀 확률: 체력이 maxPercent일 때 base, minPercent일 때 max (그 사이는 직선).
       ballChance: { iron: { base: 5, max: 25 }, gold: { base: 8, max: 35 }, diamond: { base: 12, max: 50 },
         netherite: { base: 20, max: 70 } },
@@ -1524,6 +1524,7 @@
       if (!isNum(r.max) || r.max < 0 || r.max > 100) return '0~100 사이여야 합니다';
       return !isNum(r.base) || r.max >= r.base ? '' : `기본(${r.base}) 이상이어야 합니다`;
     },
+    cooldownTicks(v) { return isInt(v) && v >= 0 && v <= 200 ? '' : '0~200 사이의 정수여야 합니다'; },
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     positive(v) { return isNum(v) && v > 0 ? '' : '0보다 커야 합니다'; },
     petEntity(v) { return ITEM_ID.test(v || '') ? '' : '올바른 엔티티 id가 아닙니다 (예: gettcore:pet_lion)'; },
@@ -1543,6 +1544,7 @@
     add(petRules.percent(c.minPercent), '포획 최소 체력%');
     add(petRules.maxPercent(c), '포획 최대 체력%');
     add(petRules.percent(c.obtainPercent), '획득 확률');
+    add(petRules.cooldownTicks(c.throwCooldownTicks), '던지기 쿨타임');
     for (const [k, label] of TIERS) {
       add(petRules.percent(c.ballChance[k].base), `포획틀 확률(${label}) 기본`);
       add(petRules.chanceMax(c.ballChance[k]), `포획틀 확률(${label}) 최대`);
@@ -1599,6 +1601,7 @@
         h('div', { class: 'field' }, labeled('체력', numIn(c, 'minPercent', '포획 최소 체력%', petRules.percent, { min: 0, max: 100 }), '% ~'),
           numIn(c, 'maxPercent', '포획 최대 체력%', (v, o) => petRules.maxPercent(o), { min: 0, max: 100 }), h('span', { class: 'muted' }, '% 일 때 포획 가능')),
         h('div', { class: 'field' }, labeled('획득 확률', numIn(c, 'obtainPercent', '획득 확률', petRules.percent, { min: 0, max: 100 }), '% (종별 획득확률이 0이면 이 값)')),
+        h('div', { class: 'field' }, labeled('던지기 쿨타임(틱)', numIn(c, 'throwCooldownTicks', '던지기 쿨타임(틱)', petRules.cooldownTicks, { step: 1, min: 0, max: 200 }), '틱 (20틱 = 1초, 모든 포획틀 공통)')),
         tierRow('포획틀 확률', c.ballChance, '포획틀 확률'),
         tierRow('보스 포획틀 확률', c.bossBallChance, '보스 포획틀 확률'),
         h('p', { class: 'muted' }, '포획틀 확률은 체력이 최대%일 때 기본, 최소%일 때 최대이고 그 사이는 체력이 낮을수록 올라갑니다.'));

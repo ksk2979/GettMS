@@ -107,5 +107,7 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
         registrar.playToServer(AbilityTogglePayload.TYPE, AbilityTogglePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> AbilityToggle.toggle((ServerPlayer) ctx.player())));
+        registrar.playToServer(ThrowCaptureBallPayload.TYPE, ThrowCaptureBallPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> CaptureService.throwBall((ServerPlayer) ctx.player())));
     }
 }

@@ -20,7 +20,8 @@
       "diamond": { "base": 8, "max": 25 },
       "netherite": { "base": 12, "max": 40 }
     },
-    "obtainPercent": 20
+    "obtainPercent": 20,
+    "throwCooldownTicks": 20
   },
   "species": {
     "naturalist:lion": {

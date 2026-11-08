@@ -107,7 +107,7 @@ class CaptureRulesTest {
 
     @Test
     void equalMinMaxPercentUsesMax() {
-        var cap = new PetConfig.Capture(10, 10, CAP.ballChance(), CAP.bossBallChance(), 20);
+        var cap = new PetConfig.Capture(10, 10, CAP.ballChance(), CAP.bossBallChance(), 20, 20);
         assertEquals(25.0, CaptureRules.chance(species(false, 0), CaptureTier.IRON, cap, 0.10), 1e-9);
     }
 

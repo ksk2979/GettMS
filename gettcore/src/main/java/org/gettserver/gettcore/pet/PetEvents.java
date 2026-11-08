@@ -22,6 +22,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -197,6 +198,18 @@ public final class PetEvents {
         if (last != null && now - last < FEEDBACK_INTERVAL_MS) return;
         LAST_FEEDBACK.put(sp.getUUID(), now);
         sp.displayClientMessage(Component.translatable("gettcore.msg.pet.wild_untamable"), true);
+    }
+
+    /** Holding a capture ball, left click throws (client → {@link CaptureService#throwBall}) instead of hitting. */
+    @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        if (event.getEntity().getMainHandItem().getItem() instanceof CaptureBallItem) event.setCanceled(true);
+    }
+
+    /** ... and instead of breaking blocks; both sides so no break animation starts. */
+    @SubscribeEvent
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        if (event.getEntity().getMainHandItem().getItem() instanceof CaptureBallItem) event.setCanceled(true);
     }
 
     @SubscribeEvent

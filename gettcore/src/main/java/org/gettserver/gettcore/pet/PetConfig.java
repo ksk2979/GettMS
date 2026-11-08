@@ -62,13 +62,15 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
 
     /**
      * {@code minPercent}/{@code maxPercent}: health range (percent of max health) in which capture is allowed.
-     * Chances and {@code obtainPercent} are percents (0-100).
+     * Chances and {@code obtainPercent} are percents (0-100). {@code throwCooldownTicks}: item cooldown applied to
+     * every capture ball after a throw (0..200).
      */
     public record Capture(double minPercent, double maxPercent, Map<CaptureTier, ChanceRange> ballChance,
-                          Map<CaptureTier, ChanceRange> bossBallChance, double obtainPercent) {
+                          Map<CaptureTier, ChanceRange> bossBallChance, double obtainPercent,
+                          int throwCooldownTicks) {
         static final Map<CaptureTier, ChanceRange> DEFAULT_BALL = tiers(5, 25, 8, 35, 12, 50, 20, 70);
         static final Map<CaptureTier, ChanceRange> DEFAULT_BOSS_BALL = tiers(3, 12, 5, 18, 8, 25, 12, 40);
-        static final Capture DEFAULT = new Capture(1, 20, DEFAULT_BALL, DEFAULT_BOSS_BALL, 20);
+        static final Capture DEFAULT = new Capture(1, 20, DEFAULT_BALL, DEFAULT_BOSS_BALL, 20, 20);
 
         /** Base/max pairs in tier order: iron, gold, diamond, netherite. */
         private static Map<CaptureTier, ChanceRange> tiers(double... baseMax) {
@@ -93,7 +95,9 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
                 tierMap(DEFAULT_BALL).optionalFieldOf("ballChance", DEFAULT_BALL).forGetter(Capture::ballChance),
                 tierMap(DEFAULT_BOSS_BALL).optionalFieldOf("bossBallChance", DEFAULT_BOSS_BALL)
                         .forGetter(Capture::bossBallChance),
-                Codec.DOUBLE.optionalFieldOf("obtainPercent", DEFAULT.obtainPercent).forGetter(Capture::obtainPercent)
+                Codec.DOUBLE.optionalFieldOf("obtainPercent", DEFAULT.obtainPercent).forGetter(Capture::obtainPercent),
+                Codec.INT.optionalFieldOf("throwCooldownTicks", DEFAULT.throwCooldownTicks)
+                        .forGetter(Capture::throwCooldownTicks)
         ).apply(i, Capture::new));
     }
 
@@ -127,7 +131,8 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
      * Copy with out-of-range numbers replaced/clamped; one line in {@code warnings} per changed field. Health bar:
      * showDistance 1..128, fadeDelayTicks 0..1200, fadeTicks 1..200 (clamped). Species: sizeScale, healthMult and
      * attackMult must be &gt; 0 and attack, speed, attackSpeed, flySpeed, climbSpeed &gt;= 0 (else the JSON
-     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped).
+     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped). Capture: throwCooldownTicks outside 0..200
+     * takes the default.
      */
     public PetConfig sanitized(List<String> warnings) {
         Capture c = capture;
@@ -142,6 +147,12 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         Map<CaptureTier, ChanceRange> ball = chances("capture.ballChance", c.ballChance, d.ballChance, warnings);
         Map<CaptureTier, ChanceRange> boss = chances("capture.bossBallChance", c.bossBallChance, d.bossBallChance, warnings);
         double obtain = percent("capture.obtainPercent", c.obtainPercent, d.obtainPercent, warnings);
+        int cooldown = c.throwCooldownTicks;
+        if (cooldown < 0 || cooldown > 200) {
+            warnings.add("pets.json: capture.throwCooldownTicks " + cooldown + " must be within [0, 200], using default "
+                    + d.throwCooldownTicks);
+            cooldown = d.throwCooldownTicks;
+        }
 
         Map<String, PetSpecies> fixed = new HashMap<>();
         species.forEach((key, s) -> fixed.put(key, sanitizedSpecies(key, s, warnings)));
@@ -149,7 +160,8 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         HealthBar bar = new HealthBar(clamp("healthbar.showDistance", h.showDistance, 1, 128, warnings),
                 clamp("healthbar.fadeDelayTicks", h.fadeDelayTicks, 0, 1200, warnings),
                 clamp("healthbar.fadeTicks", h.fadeTicks, 1, 200, warnings), h.captureColor);
-        return new PetConfig(bar.equals(h) ? h : bar, new Capture(min, max, ball, boss, obtain), Map.copyOf(fixed));
+        return new PetConfig(bar.equals(h) ? h : bar, new Capture(min, max, ball, boss, obtain, cooldown),
+                Map.copyOf(fixed));
     }
 
     private static PetSpecies sanitizedSpecies(String key, PetSpecies s, List<String> warnings) {

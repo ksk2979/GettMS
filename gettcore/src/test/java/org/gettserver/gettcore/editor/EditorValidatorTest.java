@@ -182,7 +182,7 @@ class EditorValidatorTest {
     void petsAreSanitizedWithWarnings() {
         var d = org.gettserver.gettcore.pet.PetConfig.DEFAULT;
         var bad = new org.gettserver.gettcore.pet.PetConfig(d.healthbar(), new org.gettserver.gettcore.pet.PetConfig.Capture(
-                -5, 20, d.capture().ballChance(), d.capture().bossBallChance(), 150), Map.of());
+                -5, 20, d.capture().ballChance(), d.capture().bossBallChance(), 150, 20), Map.of());
         var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), bad),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.errors().isEmpty(), r.errors().toString());
