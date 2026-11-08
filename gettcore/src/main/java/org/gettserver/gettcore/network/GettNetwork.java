@@ -81,7 +81,7 @@ public final class GettNetwork {
                         () -> MobHealthBar.onHit(payload.entityId(), ctx.player().level().getGameTime())));
         registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
-                        () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index())));
+                        () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index(), payload.action())));
         registrar.playToServer(ObtainConfirmPayload.TYPE, ObtainConfirmPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> CaptureService.confirmObtain((ServerPlayer) ctx.player(), payload.hand())));

@@ -24,6 +24,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.economy.RateLimiter;
+import org.gettserver.gettcore.network.PetDexActionPayload;
 import org.gettserver.gettcore.network.PetDexSyncPayload;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.pet.entity.PetBehavior;
@@ -32,6 +33,8 @@ import org.jetbrains.annotations.Nullable;
 /** Summoning, recalling and auto-returning pets; each player's active pet entity is tracked in memory. */
 public final class PetService {
     public enum SummonResult { SUMMONED, RECALLED, BLOCKED_ACTIVE, INVALID_INDEX }
+
+    public enum ReleaseResult { RELEASED, INVALID_INDEX }
 
     /** What a config reload does to one summoned pet (see {@link #reloadAction}). */
     public enum ReloadAction { KEEP, REAPPLY, RECALL }
@@ -59,8 +62,46 @@ public final class PetService {
         return SummonResult.SUMMONED;
     }
 
-    public static void handleAction(ServerPlayer player, int index) {
+    /** What a release of dex entry {@code index} does. */
+    public static ReleaseResult decideRelease(List<PetKey> owned, int index) {
+        return index < 0 || index >= owned.size() ? ReleaseResult.INVALID_INDEX : ReleaseResult.RELEASED;
+    }
+
+    public static void handleAction(ServerPlayer player, int index, PetDexActionPayload.Action action) {
         if (!ACTION_LIMITER.tryAcquire(player.getUUID(), System.currentTimeMillis())) return;
+        switch (action) {
+            case SUMMON -> summonOrRecall(player, index);
+            case RELEASE -> release(player, index);
+        }
+    }
+
+    /**
+     * Releases dex entry {@code index} for good: recalls it first if it is summoned, then removes it from the dex.
+     * Stale or forged indices are ignored. Returns whether a pet was released.
+     */
+    public static boolean release(ServerPlayer player, int index) {
+        PetData data = PetData.get(player.server);
+        List<PetKey> owned = data.owned(player.getUUID());
+        if (decideRelease(owned, index) != ReleaseResult.RELEASED) return false;
+        PetKey key = owned.get(index);
+        removeKey(player, key);
+        player.sendSystemMessage(Component.translatable("gettcore.msg.pet.released",
+                CapturedMobItem.displayName(key)).withStyle(ChatFormatting.YELLOW));
+        return true;
+    }
+
+    /** Recalls {@code key} silently if it is the active pet, removes it from the player's dex and syncs. */
+    static boolean removeKey(ServerPlayer player, PetKey key) {
+        PetData data = PetData.get(player.server);
+        if (data.active(player.getUUID()).filter(key::equals).isPresent()) {
+            recall(player, true);
+        }
+        boolean removed = data.remove(player.getUUID(), key);
+        sync(player);
+        return removed;
+    }
+
+    private static void summonOrRecall(ServerPlayer player, int index) {
         PetData data = PetData.get(player.server);
         List<PetKey> owned = data.owned(player.getUUID());
         switch (decide(owned, data.active(player.getUUID()), index)) {

@@ -18,20 +18,20 @@ import org.gettserver.gettcore.pet.PetKey;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.jetbrains.annotations.Nullable;
 
-/** The pet dex: a paged grid of owned pets; click to summon / recall. Client only. */
+/** The pet dex: a paged grid of owned pets; left click to summon / recall, right click to release. Client only. */
 public class PetDexScreen extends Screen {
     private static final int COLS = 5;
     private static final int ROWS = 4;
-    private static final int PER_PAGE = COLS * ROWS;
     private static final int CELL = 48;
     private static final int GAP = 4;
     private static final int PAD = 8;
-    private static final int HEADER = 22;
+    /** Title (top + 8) and the controls hint (top + 20) sit inside the panel, above the grid. */
+    private static final int HEADER = 34;
     private static final int FOOTER = 26;
+    /** Smallest distance kept between the panel and the top / bottom screen edge. */
+    private static final int MARGIN = 4;
     private static final int GRID_W = COLS * CELL + (COLS - 1) * GAP;
-    private static final int GRID_H = ROWS * CELL + (ROWS - 1) * GAP;
     private static final int PANEL_W = GRID_W + PAD * 2;
-    private static final int PANEL_H = HEADER + GRID_H + FOOTER + PAD;
     private static final int BG = 0xE0101018;
     private static final int BORDER = 0xFF8080A0;
     private static final int CELL_BG = 0x80000000;
@@ -54,21 +54,56 @@ public class PetDexScreen extends Screen {
         return false;
     }
 
+    /**
+     * Rows per page: {@value #ROWS}, or fewer when the screen is too short to show them all (minimum 1). The fit
+     * reserves the footer, so the panel only overflows (downwards) when not even one row fits.
+     */
+    private int rowsPerPage() {
+        return PetDexPaging.rowsThatFit(height - 2 * MARGIN - HEADER - FOOTER - PAD, CELL, GAP, ROWS);
+    }
+
+    private int perPage() {
+        return COLS * rowsPerPage();
+    }
+
+    private boolean paged() {
+        return ClientPetDex.owned().size() > perPage();
+    }
+
+    /** Rows shown on the current page (1 when empty: the "no pets" message takes one row). */
+    private int rows() {
+        int count = PetDexPaging.countOnPage(ClientPetDex.owned().size(), page, perPage());
+        return PetDexPaging.rowsFor(count, COLS, rowsPerPage());
+    }
+
+    private int gridH() {
+        int rows = rows();
+        return rows * CELL + (rows - 1) * GAP;
+    }
+
+    private int panelH() {
+        return HEADER + gridH() + (paged() ? FOOTER : 0) + PAD;
+    }
+
     private int left() {
         return (width - PANEL_W) / 2;
     }
 
+    /** Vertically centred, never closer than {@value #MARGIN} px to the top edge (never above y = 0). */
     private int top() {
-        return (height - PANEL_H) / 2;
+        return Math.max(MARGIN, (height - panelH()) / 2);
+    }
+
+    private int footerY() {
+        return top() + HEADER + gridH() + 2;
     }
 
     @Override
     protected void init() {
-        int y = top() + PANEL_H - FOOTER + 2;
         prev = addRenderableWidget(Button.builder(Component.literal("‹"), b -> page--)
-                .bounds(width / 2 - 60, y, 20, 20).build());
+                .bounds(width / 2 - 60, footerY(), 20, 20).build());
         next = addRenderableWidget(Button.builder(Component.literal("›"), b -> page++)
-                .bounds(width / 2 + 40, y, 20, 20).build());
+                .bounds(width / 2 + 40, footerY(), 20, 20).build());
         rebuildPreviews();
     }
 
@@ -96,18 +131,22 @@ public class PetDexScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         List<PetKey> owned = ClientPetDex.owned();
         if (!owned.equals(previewKeys)) rebuildPreviews();
-        int pages = PetDexPaging.pageCount(owned.size(), PER_PAGE);
+        int perPage = perPage();
+        int pages = PetDexPaging.pageCount(owned.size(), perPage);
         page = Math.max(0, Math.min(page, pages - 1));
-        boolean paged = owned.size() > PER_PAGE;
+        boolean paged = paged();
         prev.visible = paged;
         next.visible = paged;
         prev.active = page > 0;
         next.active = page < pages - 1;
+        // The panel height follows the rows on the current page, so the buttons move with it.
+        prev.setY(footerY());
+        next.setY(footerY());
         super.render(g, mouseX, mouseY, partialTick);
 
         int hovered = -1;
-        for (int c = 0; c < PER_PAGE; c++) {
-            int idx = page * PER_PAGE + c;
+        for (int c = 0; c < perPage; c++) {
+            int idx = page * perPage + c;
             if (idx >= owned.size()) break;
             drawCell(g, c, idx, owned, mouseX, mouseY);
             if (cellHit(c, mouseX, mouseY)) hovered = idx;
@@ -118,21 +157,23 @@ public class PetDexScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.renderBackground(g, mouseX, mouseY, partialTick);
-        int x1 = left(), y1 = top(), x2 = x1 + PANEL_W, y2 = y1 + PANEL_H;
+        int x1 = left(), y1 = top(), x2 = x1 + PANEL_W, y2 = y1 + panelH();
         g.fill(x1, y1, x2, y2, BG);
         outline(g, x1, y1, x2, y2, BORDER);
-        g.drawCenteredString(font, title, width / 2, y1 + 7, 0xFFFFFF55);
+        g.drawCenteredString(font, title, width / 2, y1 + 8, 0xFFFFFF55);
+        g.drawCenteredString(font, Component.translatable("gettcore.gui.pet_dex.hint"), width / 2, y1 + 20,
+                0xFFAAAAAA);
         List<PetKey> owned = ClientPetDex.owned();
         if (owned.isEmpty()) {
             g.drawCenteredString(font, Component.translatable("gettcore.gui.pet_dex.empty"),
-                    width / 2, y1 + HEADER + GRID_H / 2 - 4, 0xFFAAAAAA);
-        } else if (owned.size() > PER_PAGE) {
+                    width / 2, y1 + HEADER + gridH() / 2 - 4, 0xFFAAAAAA);
+        } else if (paged()) {
             g.drawCenteredString(font, Component.translatable("gettcore.gui.pet_dex.page", page + 1,
-                    PetDexPaging.pageCount(owned.size(), PER_PAGE)), width / 2, y2 - FOOTER + 8, 0xFFFFFFFF);
+                    PetDexPaging.pageCount(owned.size(), perPage())), width / 2, footerY() + 6, 0xFFFFFFFF);
         }
     }
 
-    private static void outline(GuiGraphics g, int x1, int y1, int x2, int y2, int color) {
+    static void outline(GuiGraphics g, int x1, int y1, int x2, int y2, int color) {
         g.fill(x1, y1, x2, y1 + 1, color);
         g.fill(x1, y2 - 1, x2, y2, color);
         g.fill(x1, y1, x1 + 1, y2, color);
@@ -217,13 +258,18 @@ public class PetDexScreen extends Screen {
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
-        if (button != 0) return false; // left click only
-        int size = ClientPetDex.owned().size();
-        for (int c = 0; c < PER_PAGE; c++) {
-            int idx = page * PER_PAGE + c;
-            if (idx >= size) break;
+        if (button != 0 && button != 1) return false; // left: summon / recall, right: release
+        List<PetKey> owned = ClientPetDex.owned();
+        int perPage = perPage();
+        for (int c = 0; c < perPage; c++) {
+            int idx = page * perPage + c;
+            if (idx >= owned.size()) break;
             if (cellHit(c, mx, my)) {
-                PacketDistributor.sendToServer(new PetDexActionPayload(idx));
+                if (button == 0) {
+                    PacketDistributor.sendToServer(new PetDexActionPayload(idx, PetDexActionPayload.Action.SUMMON));
+                } else if (minecraft != null) {
+                    minecraft.setScreen(new ConfirmReleaseScreen(this, idx, owned.get(idx)));
+                }
                 return true;
             }
         }

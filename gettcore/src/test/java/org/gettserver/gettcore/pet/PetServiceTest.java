@@ -30,6 +30,19 @@ class PetServiceTest {
     }
 
     @Test
+    void releaseValidIndex() {
+        assertEquals(PetService.ReleaseResult.RELEASED, PetService.decideRelease(OWNED, 0));
+        assertEquals(PetService.ReleaseResult.RELEASED, PetService.decideRelease(OWNED, 1));
+    }
+
+    @Test
+    void releaseOutOfRangeIsInvalid() {
+        assertEquals(PetService.ReleaseResult.INVALID_INDEX, PetService.decideRelease(OWNED, -1));
+        assertEquals(PetService.ReleaseResult.INVALID_INDEX, PetService.decideRelease(OWNED, 2));
+        assertEquals(PetService.ReleaseResult.INVALID_INDEX, PetService.decideRelease(List.of(), 0));
+    }
+
+    @Test
     void noActiveSummons() {
         assertEquals(SummonResult.SUMMONED, PetService.decide(OWNED, Optional.empty(), 0));
     }

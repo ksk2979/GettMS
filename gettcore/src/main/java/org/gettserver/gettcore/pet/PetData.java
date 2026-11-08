@@ -50,6 +50,19 @@ public class PetData extends SavedData {
         return true;
     }
 
+    /** Removes a kind (clearing active if it was the active one); false if the player did not own it. */
+    public boolean remove(UUID player, PetKey key) {
+        Entry e = players.get(player);
+        if (e == null || !e.owned.remove(key)) {
+            return false;
+        }
+        if (key.equals(e.active)) {
+            e.active = null;
+        }
+        setDirty();
+        return true;
+    }
+
     public Optional<PetKey> active(UUID player) {
         Entry e = players.get(player);
         return e == null ? Optional.empty() : Optional.ofNullable(e.active);

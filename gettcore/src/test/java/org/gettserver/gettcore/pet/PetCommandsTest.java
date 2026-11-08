@@ -53,4 +53,16 @@ class PetCommandsTest {
         assertEquals("15.5", PetCommands.fmt(15.526));
         assertEquals("0", PetCommands.fmt(0));
     }
+
+    @Test
+    void byNumberIsOneBased() {
+        PetKey a = new PetKey("naturalist:lion", "");
+        PetKey b = new PetKey("naturalist:bear", "naturalist:brown_bear");
+        List<PetKey> owned = List.of(a, b);
+        assertEquals(Optional.of(a), PetCommands.byNumber(owned, 1));
+        assertEquals(Optional.of(b), PetCommands.byNumber(owned, 2));
+        assertEquals(Optional.empty(), PetCommands.byNumber(owned, 0));
+        assertEquals(Optional.empty(), PetCommands.byNumber(owned, 3));
+        assertEquals(Optional.empty(), PetCommands.byNumber(List.of(), 1));
+    }
 }

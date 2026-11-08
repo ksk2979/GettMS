@@ -63,4 +63,38 @@ class PetDataTest {
         loaded.setActive(p, null);
         assertEquals(Optional.empty(), loaded.active(p));
     }
+
+    @Test
+    void removeDeletesAndClearsActive() {
+        PetData data = new PetData();
+        UUID p = UUID.randomUUID();
+        data.add(p, A);
+        data.add(p, B);
+        data.setActive(p, A);
+        assertTrue(data.remove(p, A));
+        assertEquals(List.of(B), data.owned(p));
+        assertEquals(Optional.empty(), data.active(p));
+        assertTrue(data.isDirty());
+    }
+
+    @Test
+    void removeKeepsOtherActive() {
+        PetData data = new PetData();
+        UUID p = UUID.randomUUID();
+        data.add(p, A);
+        data.add(p, B);
+        data.setActive(p, B);
+        assertTrue(data.remove(p, A));
+        assertEquals(Optional.of(B), data.active(p));
+    }
+
+    @Test
+    void removeUnknownReturnsFalse() {
+        PetData data = new PetData();
+        UUID p = UUID.randomUUID();
+        assertFalse(data.remove(p, A));
+        data.add(p, B);
+        assertFalse(data.remove(p, A));
+        assertEquals(List.of(B), data.owned(p));
+    }
 }
