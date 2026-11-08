@@ -191,5 +191,18 @@
   "subtitles.gettcore.whistle": "휘파람 소리",
   "subtitles.gettcore.capture_success": "포획 성공",
   "subtitles.gettcore.capture_fail": "포획 실패",
+  "key.gettcore.pet_dex": "펫도감",
+  "gettcore.gui.pet_dex.title": "펫도감",
+  "gettcore.gui.pet_dex.active": "소환 중",
+  "gettcore.gui.pet_dex.attack": "공격력 %s",
+  "gettcore.gui.pet_dex.speed": "이동속도 %s",
+  "gettcore.gui.pet_dex.attack_speed": "공격속도 %s",
+  "gettcore.gui.pet_dex.boss": "보스",
+  "gettcore.gui.pet_dex.unknown": "설정에 없는 펫",
+  "gettcore.gui.pet_dex.page": "%s / %s",
+  "gettcore.gui.pet_dex.empty": "아직 얻은 펫이 없습니다",
+  "gettcore.kind.fighter": "전투",
+  "gettcore.kind.mount": "탈것",
+  "gettcore.kind.flying_mount": "비행",
   "caramelChat v%s": ""
 }

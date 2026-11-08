@@ -123,6 +123,7 @@ key_key.hotbar.9:key.keyboard.9
 key_gettcore.key.ability_toggle:key.keyboard.right.bracket
 key_key.gettcore.quest_log:key.keyboard.j
 key_key.gettcore.quest_hud:key.keyboard.k
+key_key.gettcore.pet_dex:key.keyboard.n
 key_key.ntgl.reload:key.keyboard.r
 key_key.ntgl.unload:key.keyboard.semicolon
 key_key.ntgl.attachments:key.keyboard.x

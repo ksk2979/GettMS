@@ -32,6 +32,7 @@ public class GettCoreClient {
             event.register(QuestKeys.QUEST_LOG);
             event.register(QuestKeys.QUEST_HUD);
             event.register(QuestKeys.HUD_MOVE);
+            event.register(org.gettserver.gettcore.pet.client.PetKeys.PET_DEX);
         });
         modBus.addListener(EntityRenderersEvent.RegisterRenderers.class, event -> {
             event.registerEntityRenderer(PetRegistry.THROWN_CAPTURE_BALL.get(), ThrownItemRenderer::new);

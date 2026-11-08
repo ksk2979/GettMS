@@ -191,5 +191,18 @@
   "subtitles.gettcore.whistle": "Whistle",
   "subtitles.gettcore.capture_success": "Capture succeeds",
   "subtitles.gettcore.capture_fail": "Capture fails",
+  "key.gettcore.pet_dex": "Pet Dex",
+  "gettcore.gui.pet_dex.title": "Pet Dex",
+  "gettcore.gui.pet_dex.active": "Summoned",
+  "gettcore.gui.pet_dex.attack": "Attack %s",
+  "gettcore.gui.pet_dex.speed": "Speed %s",
+  "gettcore.gui.pet_dex.attack_speed": "Attack speed %s",
+  "gettcore.gui.pet_dex.boss": "Boss",
+  "gettcore.gui.pet_dex.unknown": "Not in config",
+  "gettcore.gui.pet_dex.page": "%s / %s",
+  "gettcore.gui.pet_dex.empty": "No pets yet",
+  "gettcore.kind.fighter": "Fighter",
+  "gettcore.kind.mount": "Mount",
+  "gettcore.kind.flying_mount": "Flying mount",
   "caramelChat v%s": ""
 }
