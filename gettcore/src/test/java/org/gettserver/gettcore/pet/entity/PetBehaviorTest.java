@@ -11,6 +11,10 @@ import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.npc.WanderingTrader;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import org.gettserver.gettcore.pet.PetRegistry;
+import org.gettserver.gettcore.pet.PetSpecies.Kind;
 import org.gettserver.gettcore.pet.entity.PetBehavior.RecallReason;
 import org.junit.jupiter.api.Test;
 
@@ -86,5 +90,15 @@ class PetBehaviorTest {
         assertEquals(4.0, PetBehavior.FOLLOW_START);
         assertEquals(12.0, PetBehavior.FOLLOW_TELEPORT);
         assertTrue(PetBehavior.FOLLOW_STOP < PetBehavior.FOLLOW_START);
+    }
+
+    @Test
+    void mountAllowedWithAnyItemExceptCaptureBall() {
+        assertTrue(PetBehavior.canMountWith(new ItemStack(Items.DIAMOND_SWORD), true, Kind.MOUNT, false));
+        assertTrue(PetBehavior.canMountWith(ItemStack.EMPTY, true, Kind.FLYING_MOUNT, false));
+        assertFalse(PetBehavior.canMountWith(new ItemStack(PetRegistry.CAPTURE_BALL_IRON.get()), true, Kind.MOUNT, false));
+        assertFalse(PetBehavior.canMountWith(new ItemStack(Items.DIAMOND_SWORD), false, Kind.MOUNT, false));
+        assertFalse(PetBehavior.canMountWith(new ItemStack(Items.DIAMOND_SWORD), true, Kind.FIGHTER, false));
+        assertFalse(PetBehavior.canMountWith(new ItemStack(Items.DIAMOND_SWORD), true, Kind.MOUNT, true));
     }
 }

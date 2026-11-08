@@ -30,9 +30,11 @@ import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 import net.minecraft.world.phys.Vec3;
+import org.gettserver.gettcore.pet.CaptureBallItem;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.GettBoss;
 import org.jetbrains.annotations.Nullable;
@@ -178,13 +180,19 @@ public final class PetBehavior {
         goals.addGoal(3, new LookAtPlayerGoal(pet, Player.class, 8.0F));
     }
 
-    /** Owner's empty main hand on a mount → ride it. Everything else (feeding, taming, saddling) is ignored. */
+    /**
+     * Whether a right-click mounts the pet: the owner on a MOUNT/FLYING_MOUNT that is not yet ridden, holding anything
+     * except a capture ball (right-click on a ball is "aim").
+     */
+    static boolean canMountWith(ItemStack held, boolean isOwner, PetSpecies.Kind kind, boolean alreadyRiding) {
+        return isOwner && kind != PetSpecies.Kind.FIGHTER && !alreadyRiding && !(held.getItem() instanceof CaptureBallItem);
+    }
+
+    /** Owner's main-hand right-click on a mount → ride it, whatever is held (except a capture ball). Else PASS. */
     public static InteractionResult interact(Mob pet, Player player, InteractionHand hand) {
         if (hand != InteractionHand.MAIN_HAND || !(pet instanceof GettPet gettPet)
-                || gettPet.kind() == PetSpecies.Kind.FIGHTER
-                || !player.getUUID().equals(gettPet.ownerId())
-                || !player.getMainHandItem().isEmpty()
-                || player.isPassenger() || pet.isVehicle()) {
+                || !canMountWith(player.getMainHandItem(), player.getUUID().equals(gettPet.ownerId()), gettPet.kind(),
+                        player.isPassenger() || pet.isVehicle())) {
             return InteractionResult.PASS;
         }
         if (!pet.level().isClientSide) {
