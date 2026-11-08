@@ -18,7 +18,9 @@ import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
 import org.gettserver.gettcore.pet.CaptureService;
+import org.gettserver.gettcore.pet.PetService;
 import org.gettserver.gettcore.pet.PetSpecies;
+import org.gettserver.gettcore.pet.client.ClientPetDex;
 import org.gettserver.gettcore.pet.client.ObtainScreen;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
@@ -70,6 +72,11 @@ public final class GettNetwork {
         // ObtainScreen (client-only, pet.client) is referenced only inside the client-bound handler.
         registrar.playToClient(OpenObtainPayload.TYPE, OpenObtainPayload.STREAM_CODEC,
                 (payload, ctx) -> ObtainScreen.open(payload));
+        registrar.playToClient(PetDexSyncPayload.TYPE, PetDexSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientPetDex.set(payload.owned(), payload.boss(), payload.active()));
+        registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index())));
         registrar.playToServer(ObtainConfirmPayload.TYPE, ObtainConfirmPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> CaptureService.confirmObtain((ServerPlayer) ctx.player(), payload.hand())));

@@ -60,6 +60,20 @@ public class PetData extends SavedData {
         setDirty();
     }
 
+    /** Clears every player's active pet (server start: summoned entities never survive a restart). */
+    public void clearAllActive() {
+        boolean changed = false;
+        for (Entry e : players.values()) {
+            if (e.active != null) {
+                e.active = null;
+                changed = true;
+            }
+        }
+        if (changed) {
+            setDirty();
+        }
+    }
+
     public static PetData load(CompoundTag tag, @Nullable HolderLookup.Provider registries) {
         PetData data = new PetData();
         CompoundTag all = tag.getCompound("players");

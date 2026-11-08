@@ -25,6 +25,7 @@ import org.gettserver.gettcore.item.ReturnStoneItem;
 import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.pet.PetRegistry;
+import org.gettserver.gettcore.pet.PetService;
 import org.gettserver.gettcore.shop.ShopMenu;
 import org.gettserver.gettcore.shop.ShopService;
 
@@ -85,6 +86,7 @@ public class GettCore {
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();
+        PetService.registerReloadHook();
     }
 
     public static ResourceLocation id(String path) {

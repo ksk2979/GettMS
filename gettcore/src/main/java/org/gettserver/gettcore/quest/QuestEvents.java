@@ -12,6 +12,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.pet.entity.GettPet;
 
 /** Game events that drive quest judgment (spec §5.3 "판정 시점"). */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
@@ -45,6 +46,13 @@ public final class QuestEvents {
         if (event.getEntity().level().isClientSide()) return;
         if (event.getSource().getEntity() instanceof ServerPlayer killer && killer != event.getEntity()) {
             QuestService.onKill(killer, event.getEntity());
+        } else if (event.getSource().getEntity() instanceof GettPet pet && pet.ownerId() != null
+                && event.getEntity().level().getServer() != null) {
+            // A pet's kill counts for its owner.
+            ServerPlayer owner = event.getEntity().level().getServer().getPlayerList().getPlayer(pet.ownerId());
+            if (owner != null && owner != event.getEntity()) {
+                QuestService.onKill(owner, event.getEntity());
+            }
         }
     }
 
