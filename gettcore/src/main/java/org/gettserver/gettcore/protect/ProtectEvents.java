@@ -8,6 +8,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.item.ItemStack;
@@ -18,6 +20,7 @@ import net.minecraft.world.level.block.BaseFireBlock;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityMobGriefingEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
@@ -95,6 +98,18 @@ public final class ProtectEvents {
         boolean playerIgnited = lit != null && level.getGameTime() - lit <= IGNITE_TICKS;
         if (ProtectRules.shouldExtinguish(flags, playerIgnited)) {
             level.removeBlock(pos, false);
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player) || player.level().isClientSide()) return;
+        if (!event.getSource().is(DamageTypeTags.IS_EXPLOSION)) return;
+        ProtectConfig cfg = GettData.get().protect();
+        if (cfg.regions().isEmpty()) return;
+        if (ProtectRules.blocksExplosionDamage(
+                cfg.regionAt(player.level().dimension(), player.blockPosition()).map(Region::flags))) {
             event.setCanceled(true);
         }
     }

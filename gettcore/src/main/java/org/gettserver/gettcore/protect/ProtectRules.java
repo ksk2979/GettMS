@@ -42,4 +42,9 @@ public final class ProtectRules {
     public static boolean shouldExtinguish(Optional<Flags> region, boolean playerIgnited) {
         return region.isPresent() && !region.get().fireSpread() && !playerIgnited;
     }
+
+    /** A player standing in a region that blocks explosions takes no explosion damage. */
+    public static boolean blocksExplosionDamage(Optional<Flags> regionAtVictim) {
+        return regionAtVictim.isPresent() && !regionAtVictim.get().explosions();
+    }
 }

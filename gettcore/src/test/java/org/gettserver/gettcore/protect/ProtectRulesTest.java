@@ -60,4 +60,15 @@ class ProtectRulesTest {
         assertFalse(ProtectRules.shouldExtinguish(Optional.of(new Flags(true, false, false)), false));
         assertFalse(ProtectRules.shouldExtinguish(Optional.empty(), false));
     }
+
+    @Test
+    void explosionDamageBlockedInRegionWithExplosionsOff() {
+        assertTrue(ProtectRules.blocksExplosionDamage(Optional.of(new Flags(false, false, false))));
+    }
+
+    @Test
+    void explosionDamageNotBlockedWithoutRegionOrWhenAllowed() {
+        assertFalse(ProtectRules.blocksExplosionDamage(Optional.empty()));
+        assertFalse(ProtectRules.blocksExplosionDamage(Optional.of(new Flags(false, false, true))));
+    }
 }
