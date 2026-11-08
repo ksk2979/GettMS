@@ -18,7 +18,9 @@ import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
 import org.gettserver.gettcore.pet.CaptureService;
+import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.client.ObtainScreen;
+import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.quest.client.ClientQuestState;
 import org.gettserver.gettcore.quest.client.QuestScreen;
@@ -71,6 +73,12 @@ public final class GettNetwork {
         registrar.playToServer(ObtainConfirmPayload.TYPE, ObtainConfirmPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> CaptureService.confirmObtain((ServerPlayer) ctx.player(), payload.hand())));
+        registrar.playToServer(PetFlightInputPayload.TYPE, PetFlightInputPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player().getVehicle() instanceof GettPet pet && pet.kind() == PetSpecies.Kind.FLYING_MOUNT) {
+                        pet.setFlightInput(payload.up(), payload.down());
+                    }
+                }));
         registrar.playToServer(QuestActionPayload.TYPE, QuestActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> QuestService.onAction((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EditorSaveChunkPayload.TYPE, EditorSaveChunkPayload.STREAM_CODEC,

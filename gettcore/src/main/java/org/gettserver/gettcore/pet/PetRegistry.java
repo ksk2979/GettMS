@@ -5,16 +5,41 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.sounds.SoundEvent;
+import com.crispytwig.naturalist.world.entity.animal.bear.Bear;
+import com.crispytwig.naturalist.world.entity.animal.bear.BlackBear;
+import com.crispytwig.naturalist.world.entity.animal.elephant.Elephant;
+import com.crispytwig.naturalist.world.entity.animal.elephant.Mammoth;
+import com.crispytwig.naturalist.world.entity.animal.giraffe.Giraffe;
+import com.crispytwig.naturalist.world.entity.animal.hippo.Hippo;
+import com.crispytwig.naturalist.world.entity.animal.lion.Lion;
+import com.crispytwig.naturalist.world.entity.animal.ostrich.Ostrich;
+import com.crispytwig.naturalist.world.entity.animal.tiger.Tiger;
+import com.crispytwig.naturalist.world.entity.animal.vulture.Vulture;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.pet.entity.PetBear;
+import org.gettserver.gettcore.pet.entity.PetBlackBear;
+import org.gettserver.gettcore.pet.entity.PetElephant;
+import org.gettserver.gettcore.pet.entity.PetGiraffe;
+import org.gettserver.gettcore.pet.entity.PetHippo;
+import org.gettserver.gettcore.pet.entity.PetLion;
+import org.gettserver.gettcore.pet.entity.PetMammoth;
+import org.gettserver.gettcore.pet.entity.PetOstrich;
+import org.gettserver.gettcore.pet.entity.PetTiger;
+import org.gettserver.gettcore.pet.entity.PetVulture;
 
-/** Registers for the pet system: capture balls, the captured-mob item and its components, the projectile, sounds. */
+/**
+ * Registers for the pet system: capture balls, the captured-mob item and its components, the projectile, the pet
+ * entities, sounds.
+ */
 public final class PetRegistry {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(GettCore.MOD_ID);
     public static final DeferredRegister.DataComponents DATA_COMPONENTS =
@@ -45,6 +70,28 @@ public final class PetRegistry {
                     .sized(0.25F, 0.25F).clientTrackingRange(4).updateInterval(10)
                     .build("thrown_capture_ball"));
 
+    // Pet entities: hitboxes copied from the Naturalist originals (naturalist 2.0.7 NaturalistEntityTypes).
+    public static final DeferredHolder<EntityType<?>, EntityType<PetLion>> PET_LION =
+            pet("pet_lion", PetLion::new, 1.5F, 1.8F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetTiger>> PET_TIGER =
+            pet("pet_tiger", PetTiger::new, 1.5F, 1.8F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetBear>> PET_BEAR =
+            pet("pet_bear", PetBear::new, 1.4F, 1.7F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetBlackBear>> PET_BLACK_BEAR =
+            pet("pet_black_bear", PetBlackBear::new, 1.3F, 1.3F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetHippo>> PET_HIPPO =
+            pet("pet_hippo", PetHippo::new, 1.8F, 1.8F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetElephant>> PET_ELEPHANT =
+            pet("pet_elephant", PetElephant::new, 2.5F, 3.5F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetMammoth>> PET_MAMMOTH =
+            pet("pet_mammoth", PetMammoth::new, 2.5F, 4.0F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetGiraffe>> PET_GIRAFFE =
+            pet("pet_giraffe", PetGiraffe::new, 1.9F, 5.4F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetOstrich>> PET_OSTRICH =
+            pet("pet_ostrich", PetOstrich::new, 1.2F, 2.5F);
+    public static final DeferredHolder<EntityType<?>, EntityType<PetVulture>> PET_VULTURE =
+            pet("pet_vulture", PetVulture::new, 0.9F, 0.5F);
+
     public static final DeferredHolder<SoundEvent, SoundEvent> WHISTLE = sound("whistle");
     public static final DeferredHolder<SoundEvent, SoundEvent> CAPTURE_SUCCESS = sound("capture_success");
     public static final DeferredHolder<SoundEvent, SoundEvent> CAPTURE_FAIL = sound("capture_fail");
@@ -56,6 +103,27 @@ public final class PetRegistry {
         DATA_COMPONENTS.register(modBus);
         ENTITIES.register(modBus);
         SOUNDS.register(modBus);
+        modBus.addListener(PetRegistry::onAttributes);
+    }
+
+    /** Each pet uses its Naturalist original's attributes; PetBehavior.applyStats overrides speed/attack on spawn. */
+    private static void onAttributes(EntityAttributeCreationEvent event) {
+        event.put(PET_LION.get(), Lion.createAttributes().build());
+        event.put(PET_TIGER.get(), Tiger.createAttributes().build());
+        event.put(PET_BEAR.get(), Bear.createAttributes().build());
+        event.put(PET_BLACK_BEAR.get(), BlackBear.createAttributes().build());
+        event.put(PET_HIPPO.get(), Hippo.createAttributes().build());
+        event.put(PET_ELEPHANT.get(), Elephant.createAttributes().build());
+        event.put(PET_MAMMOTH.get(), Mammoth.createAttributes().build());
+        event.put(PET_GIRAFFE.get(), Giraffe.createAttributes().build());
+        event.put(PET_OSTRICH.get(), Ostrich.createAttributes().build());
+        event.put(PET_VULTURE.get(), Vulture.createAttributes().build());
+    }
+
+    private static <T extends Mob> DeferredHolder<EntityType<?>, EntityType<T>> pet(
+            String name, EntityType.EntityFactory<T> factory, float width, float height) {
+        return ENTITIES.register(name, () -> EntityType.Builder.of(factory, MobCategory.CREATURE)
+                .sized(width, height).clientTrackingRange(10).build(name));
     }
 
     private static DeferredItem<CaptureBallItem> ball(String name, CaptureTier tier) {
