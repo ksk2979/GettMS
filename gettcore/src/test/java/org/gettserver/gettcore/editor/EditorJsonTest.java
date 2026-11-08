@@ -75,6 +75,8 @@ class EditorJsonTest {
         assertEquals(3, reinforce.get("shieldSpeedPercentPerLevel").getAsDouble(), json);
         assertEquals(2.5, reinforce.get("armorHealthPerLevel").getAsDouble(), json);
         assertEquals(40, reinforce.get("armorHealthMax").getAsDouble(), json);
+        assertEquals("[{\"target\":\"shield\",\"level\":2,\"effect\":\"minecraft:speed\",\"amplifier\":1}]",
+                reinforce.get("milestones").toString(), json);
     }
 
     @Test

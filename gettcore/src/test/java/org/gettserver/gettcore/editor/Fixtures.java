@@ -72,9 +72,11 @@ final class Fixtures {
         return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, protect, reinforce);
     }
 
-    /** A valid, non-default reinforce config (3 levels; every number differs from DEFAULT). */
+    /** A valid, non-default reinforce config (3 levels; every number differs from DEFAULT; one milestone). */
     static ReinforceConfig reinforce() {
-        return new ReinforceConfig(3, List.of(95.0, 62.5, 30.0), List.of(1, 2, 4), 12.5, 8, 3, 2.5, 40);
+        return new ReinforceConfig(3, List.of(95.0, 62.5, 30.0), List.of(1, 2, 4), 12.5, 8, 3, 2.5, 40,
+                List.of(new ReinforceConfig.Milestone(org.gettserver.gettcore.reinforce.ReinforceRules.Target.SHIELD,
+                        2, rl("minecraft:speed"), 1)));
     }
 
     /** An overworld region from min to max (as given, not normalized) with the given flags. */

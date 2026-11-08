@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -73,8 +74,13 @@ public final class ClientCatalog {
             entities.add(new CatalogJson.Entry(id.toString(), type.getDescription().getString(), modName(id)));
         }
         List<String> bossTypes = PetRegistry.BOSS_TYPES.stream().map(h -> h.getId().toString()).toList();
+        List<CatalogJson.Entry> effects = new ArrayList<>();
+        for (MobEffect effect : BuiltInRegistries.MOB_EFFECT) {
+            ResourceLocation id = BuiltInRegistries.MOB_EFFECT.getKey(effect);
+            effects.add(new CatalogJson.Entry(id.toString(), effect.getDisplayName().getString(), modName(id)));
+        }
         return CatalogJson.build(items, entities, tags(BuiltInRegistries.ITEM), tags(BuiltInRegistries.ENTITY_TYPE),
-                bossTypes);
+                bossTypes, effects);
     }
 
     private static List<String> tags(Registry<?> registry) {

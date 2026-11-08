@@ -35,9 +35,9 @@ class ReinforceRulesTest {
     @Test
     void canReinforceBelowMax() {
         assertTrue(ReinforceRules.canReinforce(0, D));
-        assertTrue(ReinforceRules.canReinforce(19, D));
-        assertFalse(ReinforceRules.canReinforce(20, D));
-        assertFalse(ReinforceRules.canReinforce(25, D));
+        assertTrue(ReinforceRules.canReinforce(29, D));
+        assertFalse(ReinforceRules.canReinforce(30, D));
+        assertFalse(ReinforceRules.canReinforce(35, D));
         assertFalse(ReinforceRules.canReinforce(-1, D));
     }
 
@@ -46,9 +46,10 @@ class ReinforceRulesTest {
         assertEquals(100.0, ReinforceRules.successPercent(0, D));
         assertEquals(90.0, ReinforceRules.successPercent(3, D));
         assertEquals(10.0, ReinforceRules.successPercent(19, D));
-        assertEquals(0.0, ReinforceRules.successPercent(20, D));
+        assertEquals(5.0, ReinforceRules.successPercent(29, D));
+        assertEquals(0.0, ReinforceRules.successPercent(30, D));
         assertEquals(1, ReinforceRules.stoneCost(0, D));
-        assertEquals(0, ReinforceRules.stoneCost(20, D));
+        assertEquals(0, ReinforceRules.stoneCost(30, D));
         ReinforceConfig c = new ReinforceConfig(3, List.of(100.0, 50.0, 0.0), List.of(1, 2, 3), 10, 10, 2, 1.5, 60);
         assertEquals(3, ReinforceRules.stoneCost(2, c));
         assertEquals(50.0, ReinforceRules.successPercent(1, c));
@@ -70,7 +71,8 @@ class ReinforceRulesTest {
         assertEquals(1.0, ReinforceRules.gunMultiplier(0, D), EPS);
         assertEquals(3.0, ReinforceRules.gunMultiplier(20, D), EPS);
         assertEquals(0.5, ReinforceRules.meleeFraction(5, D), EPS);
-        assertEquals(0.4, ReinforceRules.shieldSpeedFraction(20, D), EPS);
+        assertEquals(0.34, ReinforceRules.shieldSpeedFraction(20, D), EPS);
+        assertEquals(0.51, ReinforceRules.shieldSpeedFraction(30, D), EPS);
         assertEquals(15.0, ReinforceRules.armorHealth(10, D), EPS);
         assertEquals(0.0, ReinforceRules.armorHealth(0, D), EPS);
     }

@@ -280,13 +280,13 @@ class EditorValidatorTest {
         assertEquals(new org.gettserver.gettcore.reinforce.ReinforceConfig(3, List.of(100.0, 50.0, 50.0),
                 List.of(1, 2, 64), 10, 10, 2, 1.5, 60), r.cleaned().reinforce());
 
-        // maxLevel out of range falls back to the default (20) and the lists follow it.
+        // maxLevel out of range falls back to the default (30) and the lists follow it.
         var big = new org.gettserver.gettcore.reinforce.ReinforceConfig(51, List.of(70.0), List.of(3), 10, 10, 2, 1.5, 0);
         var r2 = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
                 org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, big), RegistryChecks.ALL_EXIST);
         assertTrue(any(r2.warnings(), "reinforce: maxLevel 51"), r2.warnings().toString());
-        assertEquals(20, r2.cleaned().reinforce().maxLevel());
-        assertEquals(20, r2.cleaned().reinforce().successPercent().size());
+        assertEquals(30, r2.cleaned().reinforce().maxLevel());
+        assertEquals(30, r2.cleaned().reinforce().successPercent().size());
         assertEquals(0, r2.cleaned().reinforce().armorHealthMax(), "0 = no cap is kept");
 
         // Valid config: untouched, no warning.
@@ -295,5 +295,28 @@ class EditorValidatorTest {
         var r3 = EditorValidator.validate(ok, RegistryChecks.ALL_EXIST);
         assertTrue(r3.errors().isEmpty() && r3.warnings().isEmpty(), r3.warnings().toString());
         assertEquals(ok, r3.cleaned());
+    }
+
+    @Test
+    void reinforceMilestoneWithUnknownEffectIsWarnedAndDropped() {
+        var keep = new org.gettserver.gettcore.reinforce.ReinforceConfig.Milestone(
+                org.gettserver.gettcore.reinforce.ReinforceRules.Target.ARMOR, 3,
+                net.minecraft.resources.ResourceLocation.parse("minecraft:speed"), 0);
+        var unknown = new org.gettserver.gettcore.reinforce.ReinforceConfig.Milestone(
+                org.gettserver.gettcore.reinforce.ReinforceRules.Target.MELEE, 2,
+                net.minecraft.resources.ResourceLocation.parse("othermod:ghost"), 0);
+        var cfg = new org.gettserver.gettcore.reinforce.ReinforceConfig(3, List.of(100.0, 50.0, 25.0),
+                List.of(1, 1, 1), 10, 10, 2, 1.5, 60, List.of(keep, unknown));
+        var saved = org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists;
+        org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists = id -> id.getNamespace().equals("minecraft");
+        try {
+            var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
+                    org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, cfg), RegistryChecks.ALL_EXIST);
+            assertTrue(r.errors().isEmpty(), r.errors().toString());
+            assertEquals(List.of("reinforce: milestones[1] unknown effect othermod:ghost, removed"), r.warnings());
+            assertEquals(List.of(keep), r.cleaned().reinforce().milestones());
+        } finally {
+            org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists = saved;
+        }
     }
 }

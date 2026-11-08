@@ -115,7 +115,7 @@
     bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
-    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [] },
+    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [] },
     catalogOk: false,
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
@@ -1883,15 +1883,20 @@
 
   /** ReinforceConfig.DEFAULT 와 같은 값 (서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다). */
   const REINFORCE_DEFAULTS = {
-    maxLevel: 20,
-    successPercent: [100, 100, 100, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10],
-    stoneCost: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    maxLevel: 30,
+    successPercent: [100, 100, 100, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10,
+      10, 9, 9, 8, 8, 7, 7, 6, 6, 5],
+    stoneCost: Array(30).fill(1),
     gunDamagePercentPerLevel: 10,
     meleeDamagePercentPerLevel: 10,
-    shieldSpeedPercentPerLevel: 2,
+    shieldSpeedPercentPerLevel: 1.7,
     armorHealthPerLevel: 1.5,
     armorHealthMax: 60,
+    milestones: [],
   };
+  /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
+  const REINFORCE_TARGETS = [['gun', '총'], ['melee', '근접'], ['shield', '방패'], ['armor', '방어구']];
+  const EFFECT_ID = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
   const REINFORCE_MAX_LEVEL = 50;
   const REINFORCE_GLOBALS = [
     ['gunDamagePercentPerLevel', '총 피해', '%/단계'],
@@ -1918,12 +1923,15 @@
 
   const validMaxLevel = (v) => Number.isInteger(v) && v >= 1 && v <= REINFORCE_MAX_LEVEL;
 
-  /** 빠진 필드는 기본값, 표 두 개는 최대 단계 길이로 맞춘다 (최대 단계가 범위 밖이면 기본 20칸). */
+  /** 빠진 필드는 기본값, 표 두 개는 최대 단계 길이로 맞춘다 (최대 단계가 범위 밖이면 기본 30칸). */
   function normalizeReinforce(src) {
     const r = Object.assign({}, REINFORCE_DEFAULTS, src || {});
     const size = validMaxLevel(r.maxLevel) ? r.maxLevel : REINFORCE_DEFAULTS.maxLevel;
     r.successPercent = resizeReinforceList(r.successPercent, REINFORCE_DEFAULTS.successPercent, size);
     r.stoneCost = resizeReinforceList(r.stoneCost, REINFORCE_DEFAULTS.stoneCost, size);
+    // 단계 능력: 서버 코덱은 빠진 칸을 기본값(target·effect 빈 문자열, level·amplifier 0)으로 읽는다.
+    r.milestones = (Array.isArray(r.milestones) ? r.milestones : []).map((m) => Object.assign(
+      { target: '', level: 0, effect: '', amplifier: 0 }, m && typeof m === 'object' ? m : {}));
     return r;
   }
 
@@ -1932,7 +1940,20 @@
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     percent(v) { return isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'; },
     stones(v) { return isInt(v) && v >= 1 && v <= 64 ? '' : '1~64 사이의 정수여야 합니다'; },
+    msTarget(m) { return REINFORCE_TARGETS.some(([t]) => t === m.target) ? '' : '대상을 고르세요'; },
+    msLevel(m, max) {
+      const top = validMaxLevel(max) ? max : REINFORCE_MAX_LEVEL;
+      return isInt(m.level) && m.level >= 1 && m.level <= top ? '' : `1~${top} 사이의 정수여야 합니다`;
+    },
+    msAmplifier(m) { return isInt(m.amplifier) && m.amplifier >= 0 && m.amplifier <= 9 ? '' : '레벨은 1~10 사이의 정수여야 합니다'; },
+    msEffect(m) {
+      if (typeof m.effect !== 'string' || !EFFECT_ID.test(m.effect)) return '효과 id 형식이 아닙니다 (예: minecraft:speed)';
+      const known = S.catalog.mobEffects || [];
+      if (known.length && !known.some((e) => e.id === m.effect)) return `효과 목록에 없는 id 입니다: ${m.effect}`;
+      return '';
+    },
   };
+  const milestoneWhere = (i) => `단계 능력 ${i + 1}번`;
   const reinforceStep = (n) => `+${n} → +${n + 1}`;
 
   function validateReinforce(bundle) {
@@ -1943,6 +1964,12 @@
     for (const [key, label] of REINFORCE_GLOBALS) add(reinforceRules.nonNeg(r[key]), label);
     r.successPercent.forEach((v, n) => add(reinforceRules.percent(v), `${reinforceStep(n)} 성공 확률`));
     r.stoneCost.forEach((v, n) => add(reinforceRules.stones(v), `${reinforceStep(n)} 강화석 개수`));
+    r.milestones.forEach((m, i) => {
+      add(reinforceRules.msTarget(m), `${milestoneWhere(i)} 대상`);
+      add(reinforceRules.msLevel(m, r.maxLevel), `${milestoneWhere(i)} 단계`);
+      add(reinforceRules.msEffect(m), `${milestoneWhere(i)} 효과`);
+      add(reinforceRules.msAmplifier(m), `${milestoneWhere(i)} 레벨`);
+    });
     return out;
   }
 
@@ -1992,8 +2019,66 @@
           h('thead', null, h('tr', null, ['단계', '성공 확률', '강화석 개수'].map((t) => h('th', null, t)))), tbody)));
       drawRows();
 
-      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, globalCard, stepCard)));
-      return () => { checks.paint(); rowChecks.paint(); };
+      // 단계 능력: 행 추가/삭제는 이 카드의 표만 다시 그린다.
+      let msChecks = makeChecks();
+      const msBody = h('tbody');
+      const effects = S.catalog.mobEffects || [];
+      const msTable = h('div', { class: 'scroll-x' }, h('table', null,
+        h('thead', null, h('tr', null, ['대상', '단계', '효과', '레벨', ''].map((t) => h('th', null, t)))), msBody));
+      const msEmpty = h('p', { class: 'muted' }, '단계 능력이 없습니다.');
+      const drawMilestones = () => {
+        msChecks = makeChecks();
+        msBody.replaceChildren(...r.milestones.map((m, i) => {
+          const where = milestoneWhere(i);
+          const tOpts = REINFORCE_TARGETS.map(([t, label]) => h('option', { value: t }, label));
+          if (!REINFORCE_TARGETS.some(([t]) => t === m.target)) tOpts.unshift(h('option', { value: m.target }, '(고르세요)'));
+          const tSel = msChecks.add(h('select', { 'aria-label': `${where} 대상`, onchange: (e) => { m.target = e.target.value; changed(); } }, tOpts),
+            () => reinforceRules.msTarget(m));
+          tSel.value = m.target;
+          const lvIn = msChecks.add(h('input', { type: 'number', step: 1, min: 1, max: REINFORCE_MAX_LEVEL, 'aria-label': `${where} 단계`,
+            style: 'width:5rem', value: shownNum(m.level), oninput: (e) => { m.level = numOf(e); changed(); } }),
+          () => reinforceRules.msLevel(m, r.maxLevel));
+          let effIn;
+          if (effects.length) {
+            const eOpts = effects.map((e) => h('option', { value: e.id }, e.name && e.name !== e.id ? `${e.name} (${e.id})` : e.id));
+            if (!effects.some((e) => e.id === m.effect)) eOpts.unshift(h('option', { value: m.effect }, m.effect ? `(목록에 없음) ${m.effect}` : '(고르세요)'));
+            effIn = h('select', { 'aria-label': `${where} 효과`, onchange: (e) => { m.effect = e.target.value; changed(); } }, eOpts);
+            effIn.value = m.effect;
+          } else {
+            effIn = h('input', { type: 'text', 'aria-label': `${where} 효과`, placeholder: 'minecraft:speed', style: 'width:14rem',
+              value: m.effect, oninput: (e) => { m.effect = e.target.value.trim(); changed(); } });
+          }
+          msChecks.add(effIn, () => reinforceRules.msEffect(m));
+          const ampIn = msChecks.add(h('input', { type: 'number', step: 1, min: 1, max: 10, 'aria-label': `${where} 레벨`, style: 'width:4.5rem',
+            value: isNum(m.amplifier) ? m.amplifier + 1 : '',
+            oninput: (e) => { const v = numOf(e); m.amplifier = isNum(v) ? v - 1 : NaN; changed(); } }),
+          () => reinforceRules.msAmplifier(m));
+          return h('tr', null,
+            h('td', null, tSel),
+            h('td', null, h('span', { class: 'muted' }, '+'), lvIn, h('span', { class: 'muted' }, ' 이상')),
+            h('td', null, effIn),
+            h('td', null, ampIn),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': `${where} 삭제`, onclick: () => {
+              r.milestones.splice(i, 1); changed(); drawMilestones();
+            } }, '삭제')));
+        }));
+        msTable.hidden = !r.milestones.length;
+        msEmpty.hidden = !!r.milestones.length;
+        msChecks.paint();
+      };
+      const milestoneCard = h('div', { class: 'card' }, h('h2', null, '단계 능력'),
+        h('p', { class: 'muted' }, '조건: 총·근접은 주손, 방패는 양손 중 하나, 방어구는 착용한 네 부위 모두 해당 단계 이상일 때 효과가 유지됩니다.'),
+        msTable, msEmpty,
+        S.catalogOk && !effects.length ? h('p', { class: 'muted' }, '효과 목록을 불러오지 못했습니다. 효과 id 를 직접 입력하세요.') : null,
+        h('button', { class: 'small', onclick: () => {
+          r.milestones.push({ target: 'armor', level: Math.min(10, validMaxLevel(r.maxLevel) ? r.maxLevel : REINFORCE_MAX_LEVEL),
+            effect: effects.length ? effects[0].id : 'minecraft:speed', amplifier: 0 });
+          changed(); drawMilestones();
+        } }, '+ 능력 추가'));
+      drawMilestones();
+
+      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, globalCard, stepCard), milestoneCard));
+      return () => { checks.paint(); rowChecks.paint(); msChecks.paint(); };
     },
   };
   registerTab(reinforceTab);

@@ -15,12 +15,13 @@ public final class CatalogJson {
 
     /**
      * {@code {"items":[{"id","name","mod"}],"entities":[...],"itemTags":[...],"entityTags":[...],
-     * "bossTypes":[...],"petKinds":[...]}}. {@code bossTypes} are the boss entity ids (names come from
-     * {@code entities}); {@code petKinds} are the pets.json species kinds. Entries are sorted by id and tags/boss types
-     * alphabetically so the output is stable.
+     * "bossTypes":[...],"petKinds":[...],"mobEffects":[{"id","name","mod"}]}}. {@code bossTypes} are the boss entity
+     * ids (names come from {@code entities}); {@code petKinds} are the pets.json species kinds; {@code mobEffects} are
+     * the potion effects (reinforce milestones). Entries are sorted by id and tags/boss types alphabetically so the
+     * output is stable.
      */
     public static String build(List<Entry> items, List<Entry> entities, List<String> itemTags, List<String> entityTags,
-                               List<String> bossTypes) {
+                               List<String> bossTypes, List<Entry> mobEffects) {
         JsonObject root = new JsonObject();
         root.add("items", entries(items));
         root.add("entities", entries(entities));
@@ -30,6 +31,7 @@ public final class CatalogJson {
         JsonArray kinds = new JsonArray();
         for (PetSpecies.Kind k : PetSpecies.Kind.values()) kinds.add(k.name().toLowerCase(Locale.ROOT));
         root.add("petKinds", kinds);
+        root.add("mobEffects", entries(mobEffects));
         return root.toString();
     }
 

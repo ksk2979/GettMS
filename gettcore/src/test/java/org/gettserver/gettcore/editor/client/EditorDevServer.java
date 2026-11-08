@@ -165,7 +165,11 @@ public final class EditorDevServer {
         }
         return CatalogJson.build(list, entities,
                 List.of("minecraft:logs", "minecraft:planks", "minecraft:coals", "c:ingots/iron"),
-                List.of("minecraft:skeletons"), bossTypes);
+                List.of("minecraft:skeletons"), bossTypes,
+                List.of(new CatalogJson.Entry("minecraft:speed", "신속", "Minecraft"),
+                        new CatalogJson.Entry("minecraft:strength", "힘", "Minecraft"),
+                        new CatalogJson.Entry("minecraft:resistance", "저항", "Minecraft"),
+                        new CatalogJson.Entry("minecraft:regeneration", "재생", "Minecraft")));
     }
 
     private static void copyTree(Path from, Path to) throws IOException {

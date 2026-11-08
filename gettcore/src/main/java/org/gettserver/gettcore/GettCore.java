@@ -2,6 +2,7 @@ package org.gettserver.gettcore;
 
 import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
@@ -29,6 +30,7 @@ import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.pet.PetRegistry;
 import org.gettserver.gettcore.pet.PetService;
 import org.gettserver.gettcore.reinforce.NtglBridge;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.gettserver.gettcore.reinforce.ReinforceEffects;
 import org.gettserver.gettcore.reinforce.ReinforceMenu;
 import org.gettserver.gettcore.reinforce.ReinforceService;
@@ -105,6 +107,8 @@ public class GettCore {
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();
         ReinforceEffects.registerReloadHook();
+        // 단계 능력 효과 id 검사: 레지스트리 조회는 sanitize 때(로드 이후)에만 일어난다.
+        ReinforceConfig.effectExists = BuiltInRegistries.MOB_EFFECT::containsKey;
         // NTGL(총) 은 선택 의존성: NtglBridge 는 이 분기 안에서만 참조해야 NTGL 없는 환경에서 클래스가 로드되지 않는다.
         // 미래 NTGL 이 API 를 바꿔 링크가 깨지면 총 보너스만 잃고 기동은 계속한다.
         if (ModList.get().isLoaded("ntgl")) {

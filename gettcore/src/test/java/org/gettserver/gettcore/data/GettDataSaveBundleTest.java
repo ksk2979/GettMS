@@ -272,7 +272,7 @@ class GettDataSaveBundleTest {
             latest = s.sorted().reduce((x, y) -> y).orElseThrow();
         }
         assertTrue(Files.isRegularFile(latest.resolve("reinforce.json")));
-        assertTrue(Files.readString(latest.resolve("reinforce.json")).contains("\"maxLevel\": 20"),
+        assertTrue(Files.readString(latest.resolve("reinforce.json")).contains("\"maxLevel\": 30"),
                 "backup holds the old file");
     }
 }

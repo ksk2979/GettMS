@@ -6,9 +6,13 @@ import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.function.Predicate;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * {@code config/gettcore/reinforce.json}: 장비 강화 수치. {@code successPercent[N]}/{@code stoneCost[N]} 은 단계 N → N+1
@@ -16,19 +20,63 @@ import net.minecraft.network.codec.StreamCodec;
  */
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                               double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
-                              double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax) {
+                              double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
+                              List<Milestone> milestones) {
 
     public static final String FILE = "reinforce.json";
 
-    public static final ReinforceConfig DEFAULT = new ReinforceConfig(20,
+    public static final ReinforceConfig DEFAULT = new ReinforceConfig(30,
             List.of(100.0, 100.0, 100.0, 90.0, 85.0, 80.0, 75.0, 70.0, 65.0, 60.0,
-                    55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0, 15.0, 10.0),
-            List.of(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
-            10, 10, 2, 1.5, 60);
+                    55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0, 15.0, 10.0,
+                    10.0, 9.0, 9.0, 8.0, 8.0, 7.0, 7.0, 6.0, 6.0, 5.0),
+            Collections.nCopies(30, 1),
+            10, 10, 1.7, 1.5, 60, List.of());
+
+    /**
+     * 효과 id 가 존재하는지(sanitize 의 milestone 검사). 레지스트리가 없는 단위 테스트에서는 항상 true; GettCore 가 시작할 때
+     * {@code BuiltInRegistries.MOB_EFFECT::containsKey} 로 바꾼다.
+     */
+    public static volatile Predicate<ResourceLocation> effectExists = id -> true;
+
+    /**
+     * 단계 능력: {@code target} 분류의 장비가 {@code level} 단계 이상이면 {@code effect} 포션 효과(세기 {@code amplifier},
+     * 0 = I). 코덱은 모르는 target/잘못된 effect id 를 null 로 읽어 sanitize 가 경고와 함께 버리게 한다.
+     */
+    public record Milestone(ReinforceRules.Target target, int level, ResourceLocation effect, int amplifier) {
+        public static final Codec<Milestone> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.STRING.optionalFieldOf("target", "").forGetter(m -> targetName(m.target)),
+                Codec.INT.optionalFieldOf("level", 0).forGetter(Milestone::level),
+                Codec.STRING.optionalFieldOf("effect", "")
+                        .forGetter(m -> m.effect == null ? "" : m.effect.toString()),
+                Codec.INT.optionalFieldOf("amplifier", 0).forGetter(Milestone::amplifier)
+        ).apply(i, (t, l, e, a) -> new Milestone(parseTarget(t), l, ResourceLocation.tryParse(e), a)));
+
+        /** {@code "gun"} 등 소문자 이름(null → 빈 문자열). */
+        public static String targetName(ReinforceRules.Target t) {
+            return t == null ? "" : t.name().toLowerCase(Locale.ROOT);
+        }
+
+        /** 소문자 이름 → 분류, 모르면 null. */
+        public static ReinforceRules.Target parseTarget(String s) {
+            for (ReinforceRules.Target t : ReinforceRules.Target.values()) {
+                if (t.name().toLowerCase(Locale.ROOT).equals(s)) return t;
+            }
+            return null;
+        }
+    }
 
     public ReinforceConfig {
         successPercent = List.copyOf(successPercent);
         stoneCost = List.copyOf(stoneCost);
+        milestones = List.copyOf(milestones);
+    }
+
+    /** Without milestones (empty list). */
+    public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
+                           double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
+                           double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax) {
+        this(maxLevel, successPercent, stoneCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, List.of());
     }
 
     public static final Codec<ReinforceConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -45,7 +93,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
             Codec.DOUBLE.optionalFieldOf("armorHealthPerLevel", DEFAULT.armorHealthPerLevel)
                     .forGetter(ReinforceConfig::armorHealthPerLevel),
             Codec.DOUBLE.optionalFieldOf("armorHealthMax", DEFAULT.armorHealthMax)
-                    .forGetter(ReinforceConfig::armorHealthMax)
+                    .forGetter(ReinforceConfig::armorHealthMax),
+            Milestone.CODEC.listOf().optionalFieldOf("milestones", DEFAULT.milestones)
+                    .forGetter(ReinforceConfig::milestones)
     ).apply(i, ReinforceConfig::new));
 
     /** Sent over the wire as the JSON text (the config is small; the client re-parses it). */
@@ -55,10 +105,12 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
 
     /**
      * Copy with out-of-range values fixed; one line in {@code warnings} per changed field. maxLevel outside 1..50
-     * takes the default (20). successPercent/stoneCost longer than maxLevel are cut, shorter ones are padded with their
+     * takes the default (30). successPercent/stoneCost longer than maxLevel are cut, shorter ones are padded with their
      * last value (an empty list takes the default list's value at that index, or its last value past its end). Each
      * successPercent is clamped to 0..100 (NaN takes the default at that index), each stoneCost to 1..64. The per-level
-     * percents, armorHealthPerLevel and armorHealthMax must be finite and &gt;= 0, else their default.
+     * percents, armorHealthPerLevel and armorHealthMax must be finite and &gt;= 0, else their default. A milestone
+     * whose target is unknown, level is outside 1..maxLevel, amplifier outside 0..9 or effect is not in
+     * {@link #effectExists} is dropped with a warning.
      */
     public ReinforceConfig sanitized(List<String> warnings) {
         int max = maxLevel;
@@ -94,7 +146,32 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                 nonNegative("shieldSpeedPercentPerLevel", shieldSpeedPercentPerLevel,
                         DEFAULT.shieldSpeedPercentPerLevel, warnings),
                 nonNegative("armorHealthPerLevel", armorHealthPerLevel, DEFAULT.armorHealthPerLevel, warnings),
-                nonNegative("armorHealthMax", armorHealthMax, DEFAULT.armorHealthMax, warnings));
+                nonNegative("armorHealthMax", armorHealthMax, DEFAULT.armorHealthMax, warnings),
+                sanitizedMilestones(milestones, max, warnings));
+    }
+
+    private static List<Milestone> sanitizedMilestones(List<Milestone> list, int max, List<String> warnings) {
+        List<Milestone> out = new ArrayList<>(list.size());
+        Predicate<ResourceLocation> exists = effectExists;
+        for (int n = 0; n < list.size(); n++) {
+            Milestone m = list.get(n);
+            String problem = milestoneProblem(m, max, exists);
+            if (problem == null) {
+                out.add(m);
+            } else {
+                warnings.add(FILE + ": milestones[" + n + "] " + problem + ", removed");
+            }
+        }
+        return out;
+    }
+
+    private static String milestoneProblem(Milestone m, int max, Predicate<ResourceLocation> exists) {
+        if (m.target() == null) return "target must be gun, melee, shield or armor";
+        if (m.level() < 1 || m.level() > max) return "level " + m.level() + " must be within [1, " + max + "]";
+        if (m.amplifier() < 0 || m.amplifier() > 9) return "amplifier " + m.amplifier() + " must be within [0, 9]";
+        if (m.effect() == null) return "effect id is invalid";
+        if (!exists.test(m.effect())) return "unknown effect " + m.effect();
+        return null;
     }
 
     private static <T> List<T> resized(String name, List<T> list, List<T> def, int size, List<String> warnings) {

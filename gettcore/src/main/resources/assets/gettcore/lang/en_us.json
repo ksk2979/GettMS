@@ -62,6 +62,8 @@
   "gettcore.screen.reinforce.max": "Max level",
   "gettcore.msg.reinforce.success": "Reinforced to +%s!",
   "gettcore.msg.reinforce.fail": "Reinforce failed… %s stone(s) were lost",
+  "gettcore.msg.reinforce.set": "Set to +%s",
+  "gettcore.msg.reinforce.not_target": "This item cannot be reinforced",
   "gettcore.tooltip.reinforce.gun": "Reinforce +%s: Weapon damage +%s%%",
   "gettcore.tooltip.reinforce.melee": "Reinforce +%s: Attack damage +%s%%",
   "gettcore.tooltip.reinforce.shield": "Reinforce +%s: Movement speed +%s%%",

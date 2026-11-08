@@ -49,7 +49,7 @@ class ReinforceEffectsTest {
         for (ModifierSpec m : ms) {
             assertEquals(Stat.MOVEMENT_SPEED, m.stat());
             assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
-            assertEquals(0.4, m.amount(), EPS);
+            assertEquals(0.34, m.amount(), EPS);
         }
     }
 
@@ -103,7 +103,7 @@ class ReinforceEffectsTest {
     void tooltipValuesAreCurrentLevelTotals() {
         assertEquals(30, ReinforceEffects.tooltipValue(Target.GUN, 3, D), EPS);
         assertEquals(30, ReinforceEffects.tooltipValue(Target.MELEE, 3, D), EPS);
-        assertEquals(6, ReinforceEffects.tooltipValue(Target.SHIELD, 3, D), EPS);
+        assertEquals(5.1, ReinforceEffects.tooltipValue(Target.SHIELD, 3, D), EPS);
         assertEquals(4.5, ReinforceEffects.tooltipValue(Target.ARMOR, 3, D), EPS);
         assertEquals("4.5", ReinforceEffects.fmt(ReinforceEffects.tooltipValue(Target.ARMOR, 3, D)));
         assertEquals("30", ReinforceEffects.fmt(ReinforceEffects.tooltipValue(Target.GUN, 3, D)));
