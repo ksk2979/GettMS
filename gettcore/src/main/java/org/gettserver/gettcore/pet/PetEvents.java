@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.pet;
 
+import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -81,7 +82,9 @@ public final class PetEvents {
     /** Mob health bar: tell the attacking player (or the attacking pet's online owner) which mob it damaged. */
     @SubscribeEvent
     public static void onDamagePost(LivingDamageEvent.Post event) {
-        if (event.getEntity() instanceof Player || event.getEntity().level().isClientSide()) return;
+        Entity victim = event.getEntity();
+        if (victim instanceof Player || victim instanceof GettPet || victim instanceof EasyNPC
+                || victim.level().isClientSide()) return;
         if (!(event.getNewDamage() > 0)) return;
         Entity attacker = event.getSource().getEntity();
         ServerPlayer target = null;
@@ -91,6 +94,6 @@ public final class PetEvents {
             MinecraftServer server = attacker.getServer();
             if (server != null) target = server.getPlayerList().getPlayer(pet.ownerId());
         }
-        if (target != null) PacketDistributor.sendToPlayer(target, new MobHitPayload(event.getEntity().getId()));
+        if (target != null) PacketDistributor.sendToPlayer(target, new MobHitPayload(victim.getId()));
     }
 }

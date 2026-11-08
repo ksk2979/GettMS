@@ -117,7 +117,11 @@ public final class MobHealthBar {
         return (a << 24) | (rgb & 0xFFFFFF);
     }
 
-    /** Rectangle (x0,y0)-(x1,y1) in nameplate space, wound like Font's text background so culling keeps it. */
+    /**
+     * Rectangle (x0,y0 top)-(x1,y1 bottom) in nameplate space. Vertex order matches vanilla's text background:
+     * Font$StringRenderOutput.finish builds Effect(left, bottom, right, top) and BakedGlyph.renderEffect emits
+     * (e.x0,e.y0),(e.x1,e.y0),(e.x1,e.y1),(e.x0,e.y1) = (left,bottom),(right,bottom),(right,top),(left,top).
+     */
     private static void quad(VertexConsumer vc, Matrix4f m, float x0, float y0, float x1, float y1, int argb,
                              int light) {
         vc.addVertex(m, x0, y1, 0).setColor(argb).setLight(light);
