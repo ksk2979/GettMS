@@ -9,7 +9,7 @@
  *   6. 상점 탭
  *   7. NPC·대화 탭
   7b. 퀘스트 탭 (엔티티 선택기, 발전과제 선택기 포함)
- *   7c. 보스 지점 탭, 펫 설정 탭
+ *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets } — 서버가 준 모양 그대로 (pets·boss_points만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect } — 서버가 준 모양 그대로 (pets·boss_points·protect만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [] },
@@ -128,7 +128,7 @@
 
   function serialize(bundle) {
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
-      boss_points: bundle.boss_points, pets: bundle.pets });
+      boss_points: bundle.boss_points, pets: bundle.pets, protect: bundle.protect });
   }
 
   /*
@@ -182,6 +182,18 @@
     };
   }
 
+  /** ProtectConfig 코덱의 기본값: 전역 둘 다 꺼짐, 구역 플래그는 모두 false(= 막음). */
+  function normalizeProtect(src) {
+    const p = src || {};
+    return {
+      explosionsBreakBlocks: !!p.explosionsBreakBlocks,
+      endermanPickup: !!p.endermanPickup,
+      regions: (Array.isArray(p.regions) ? p.regions : []).map((r) => Object.assign({}, r, {
+        flags: Object.assign({ fireSpread: false, bossGrief: false, explosions: false }, r.flags),
+      })),
+    };
+  }
+
   function normalizeBossPoints(src) {
     return (Array.isArray(src) ? src : []).map((pt) => Object.assign({}, BOSS_POINT_DEFAULTS, pt));
   }
@@ -202,6 +214,7 @@
       quests: src.quests || {},
       boss_points: normalizeBossPoints(src.boss_points !== undefined ? src.boss_points : f.boss_points),
       pets: normalizePets(src.pets !== undefined ? src.pets : f.pets),
+      protect: normalizeProtect(src.protect !== undefined ? src.protect : f.protect),
     };
     for (const s of Object.values(b.shops)) {
       s.tabs = s.tabs || [];
@@ -1656,6 +1669,68 @@
     },
   };
   registerTab(petsTab);
+
+  // 서버 EditorValidator(보호구역)와 같은 규칙: id는 비어 있지 않고 겹치지 않아야 한다.
+  function protectIdError(list, i) {
+    const id = list[i].id;
+    if (!id || !String(id).trim()) return 'id가 비어 있습니다';
+    return list.some((r, j) => j !== i && r.id === id) ? '같은 id가 있습니다' : '';
+  }
+
+  function validateProtect(bundle) {
+    const list = (bundle.protect && bundle.protect.regions) || [];
+    const out = [];
+    list.forEach((r, i) => {
+      const m = protectIdError(list, i);
+      if (m) out.push(`보호구역 ${r.id || '#' + (i + 1)}: ${m}`);
+    });
+    return out;
+  }
+
+  const PROTECT_FLAGS = [['fireSpread', '불 번짐'], ['bossGrief', '보스 파괴'], ['explosions', '폭발']];
+
+  const protectTab = {
+    id: 'protect',
+    title: '보호구역',
+    validate: validateProtect,
+    render(container) {
+      const checks = makeChecks();
+      const p = S.bundle.protect;
+      const list = p.regions;
+      const toggle = (key, label) => h('label', { class: 'chk' },
+        h('input', { type: 'checkbox', checked: !!p[key], 'aria-label': label, onchange: (e) => { p[key] = e.target.checked; changed(); } }),
+        ' ' + label);
+      const xyz = (v) => (Array.isArray(v) ? v.join(' ') : '');
+      const rows = list.map((r, i) => {
+        const idCell = checks.add(h('span', null, r.id || '(빈 id)'), () => protectIdError(list, i));
+        const flagCells = PROTECT_FLAGS.map(([key, label]) => h('td', null, h('input', { type: 'checkbox', checked: !!r.flags[key],
+          'aria-label': label, title: '체크하면 허용', onchange: (e) => { r.flags[key] = e.target.checked; changed(); } })));
+        return h('tr', null,
+          h('td', null, idCell),
+          h('td', null, h('span', { class: 'id' }, r.dimension)),
+          h('td', null, h('span', { class: 'id' }, xyz(r.min))),
+          h('td', null, h('span', { class: 'id' }, xyz(r.max))),
+          ...flagCells,
+          h('td', null, h('button', { class: 'danger small', 'aria-label': '구역 삭제', onclick: () => {
+            if (!confirm(`보호구역 '${r.id}'을(를) 삭제할까요?
+저장하면 이 구역은 더는 보호되지 않습니다.`)) return;
+            list.splice(i, 1); changed(); renderTabContent();
+          } }, '삭제')));
+      });
+      container.append(h('div', { class: 'stack' },
+        h('div', { class: 'card' }, h('h2', null, '전역 규칙'),
+          h('div', { class: 'field' }, toggle('explosionsBreakBlocks', '폭발이 블록을 부숨 (전역)')),
+          h('div', { class: 'field' }, toggle('endermanPickup', '엔더맨 블록 집기 허용 (전역)'))),
+        h('div', { class: 'card' }, h('h2', null, '보호구역'),
+          h('p', { class: 'muted' }, '구역 추가는 게임 안에서 WorldEdit 으로 선택 후 /보호구역 추가 <id>'),
+          h('p', { class: 'muted' }, '불 번짐·보스 파괴·폭발에 체크하면 그 구역 안에서 허용합니다 (체크 없음 = 막음).'),
+          list.length ? h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['id', '차원', '최소', '최대'].concat(PROTECT_FLAGS.map((x) => x[1]), ['']).map((t) => h('th', null, t)))),
+            h('tbody', null, rows))) : h('p', { class: 'muted' }, '보호구역이 없습니다.'))));
+      return () => checks.paint();
+    },
+  };
+  registerTab(protectTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

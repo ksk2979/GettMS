@@ -6,13 +6,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.List;
 import java.util.Map;
 import org.gettserver.gettcore.data.*;
+import net.minecraft.core.BlockPos;
 import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
 import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
     private static final String FULL =
-            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{}}";
+            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{}}";
 
     @Test
     void roundTrip() {
@@ -24,7 +26,9 @@ class EditorJsonTest {
                 Map.of("main", new QuestLine("main", "메인", "끝", List.of(
                         quest("q1", npc("이장"), List.of(), Rewards.EMPTY)))),
                 List.of(bossPoint("den", "gettcore:boss_lion", 20, 2, 45)),
-                pets(species("gettcore:boss_lion", true)));
+                pets(species("gettcore:boss_lion", true)),
+                new ProtectConfig(true, false, List.of(region("town", new BlockPos(-10, 0, -20),
+                        new BlockPos(30, 120, 40), new ProtectConfig.Flags(true, false, true)))));
         EditorRefs refs = new EditorRefs(List.of(new EditorRefs.AdvRef("minecraft:story/mine_diamond", "다이아몬드!")),
                 List.of("gone:item"), List.of("gone:mob"));
         String json = EditorJson.encode(b, refs);
@@ -38,6 +42,15 @@ class EditorJsonTest {
         assertEquals("den", root.getAsJsonArray("boss_points").get(0).getAsJsonObject().get("id").getAsString());
         var pets = root.getAsJsonObject("pets");
         assertTrue(pets.getAsJsonObject("species").has("gettcore:boss_lion"), json);
+        // The web page builds this shape by hand: field names, dimension string, [x,y,z] arrays.
+        var protect = root.getAsJsonObject("protect");
+        assertTrue(protect.get("explosionsBreakBlocks").getAsBoolean(), json);
+        var town = protect.getAsJsonArray("regions").get(0).getAsJsonObject();
+        assertEquals("town", town.get("id").getAsString());
+        assertEquals("minecraft:overworld", town.get("dimension").getAsString());
+        assertEquals("[-10,0,-20]", town.get("min").toString());
+        assertEquals("[30,120,40]", town.get("max").toString());
+        assertTrue(town.getAsJsonObject("flags").get("fireSpread").getAsBoolean(), json);
     }
 
     @Test
@@ -66,7 +79,7 @@ class EditorJsonTest {
 
     @Test
     void badBossPointNamesPath() {
-        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{}}";
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
@@ -82,7 +95,7 @@ class EditorJsonTest {
     @Test
     void missingSectionIsAnError() {
         // Full-replace save: a missing section must not be read as "delete everything in it".
-        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets")) {
+        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect")) {
             String json = FULL.replace("\"" + section + "\":" + (section.equals("boss_points") ? "[]" : "{}"), "\"x\":{}");
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
                     section);
@@ -92,7 +105,10 @@ class EditorJsonTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> EditorJson.decode(FULL.replace("\"pets\":{}", "\"pets\":null")));
         assertTrue(e.getMessage().startsWith("pets"), e.getMessage());
-        assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), PetConfig.DEFAULT),
-                EditorJson.decode(FULL));
+        IllegalArgumentException p = assertThrows(IllegalArgumentException.class,
+                () -> EditorJson.decode(FULL.replace("\"protect\":{}", "\"protect\":null")));
+        assertTrue(p.getMessage().startsWith("protect: missing section"), p.getMessage());
+        assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), PetConfig.DEFAULT,
+                ProtectConfig.DEFAULT), EditorJson.decode(FULL));
     }
 }

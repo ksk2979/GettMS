@@ -36,7 +36,7 @@ class MissingRefsTest {
                 new Rewards(0, List.of(new ItemReward(rl("amod:a"), 1)), 0), "");
         EditorBundle b = new EditorBundle(Map.of("s", shop), Map.of(), new NpcMapping(Map.of(), Map.of()),
                 Map.of("l", new QuestLine("l", "L", "", List.of(q))), List.of(),
-                org.gettserver.gettcore.pet.PetConfig.DEFAULT);
+                org.gettserver.gettcore.pet.PetConfig.DEFAULT, org.gettserver.gettcore.protect.ProtectConfig.DEFAULT);
         RegistryChecks checks = new RegistryChecks(r -> r.getNamespace().equals("minecraft"),
                 r -> r.getNamespace().equals("minecraft"));
         assertEquals(List.of("amod:a", "zmod:b"), MissingRefs.items(b, checks));

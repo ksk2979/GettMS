@@ -15,6 +15,7 @@ import org.gettserver.gettcore.data.NpcMapping;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
+import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 
 /** Bundle JSON as in spec 3.4: same per-file formats as the on-disk files, via the existing codecs. */
@@ -31,6 +32,7 @@ public final class EditorJson {
         root.add("quests", encodeMap(bundle.quests(), QuestLine.CODEC));
         root.add("boss_points", BossPoint.CODEC.listOf().encodeStart(JsonOps.INSTANCE, bundle.bossPoints()).getOrThrow());
         root.add("pets", PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.pets()).getOrThrow());
+        root.add("protect", ProtectConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.protect()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -64,7 +66,8 @@ public final class EditorJson {
                 decodeMap(root, "dialogs", DialogDefinition.CODEC), npcs,
                 decodeMap(root, "quests", QuestLine.CODEC),
                 decodeSection(root, "boss_points", BossPoint.CODEC.listOf()),
-                decodeSection(root, "pets", PetConfig.CODEC));
+                decodeSection(root, "pets", PetConfig.CODEC),
+                decodeSection(root, "protect", ProtectConfig.CODEC));
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

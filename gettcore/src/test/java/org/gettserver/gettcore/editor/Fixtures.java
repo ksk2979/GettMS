@@ -11,6 +11,7 @@ import org.gettserver.gettcore.data.*;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
+import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
 
 final class Fixtures {
@@ -47,13 +48,30 @@ final class Fixtures {
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests) {
-        return new EditorBundle(shops, dialogs, npcs, quests, List.of(), PetConfig.DEFAULT);
+        return new EditorBundle(shops, dialogs, npcs, quests, List.of(), PetConfig.DEFAULT, ProtectConfig.DEFAULT);
     }
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
                                PetConfig pets) {
-        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets);
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, ProtectConfig.DEFAULT);
+    }
+
+    static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
+                               NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
+                               PetConfig pets, ProtectConfig protect) {
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, protect);
+    }
+
+    /** An overworld region from min to max (as given, not normalized) with the given flags. */
+    static ProtectConfig.Region region(String id, BlockPos min, BlockPos max, ProtectConfig.Flags flags) {
+        return new ProtectConfig.Region(id, ResourceKey.create(Registries.DIMENSION, rl("minecraft:overworld")),
+                min, max, flags);
+    }
+
+    /** Protect config with both global toggles off and the given regions. */
+    static ProtectConfig protect(ProtectConfig.Region... regions) {
+        return new ProtectConfig(false, false, List.of(regions));
     }
 
     static BossPoint bossPoint(String id, String bossType, int radius, int maxCount, int respawnMinutes) {

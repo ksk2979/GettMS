@@ -122,7 +122,14 @@ public final class EditorDevServer {
                     ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse("minecraft:overworld")), new BlockPos(120, 68, -340), 16,
                     ResourceLocation.parse("gettcore:boss_lion"), 1, 30));
         }
-        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets());
+        org.gettserver.gettcore.protect.ProtectConfig protect = b.protect();
+        if (protect.regions().isEmpty()) {
+            protect = protect.withRegions(List.of(new org.gettserver.gettcore.protect.ProtectConfig.Region("town",
+                    ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse("minecraft:overworld")),
+                    new BlockPos(-40, 50, -40), new BlockPos(40, 140, 40),
+                    new org.gettserver.gettcore.protect.ProtectConfig.Flags(false, false, false))));
+        }
+        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect);
     }
 
     private static String catalog() {

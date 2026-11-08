@@ -223,4 +223,42 @@ class EditorValidatorTest {
         assertTrue(any(r.warnings(), "pets: species gettcore:boss_lion sizeScale"), r.warnings().toString());
         assertEquals(1.0, r.cleaned().pets().species().get("gettcore:boss_lion").sizeScale());
     }
+
+    private static final org.gettserver.gettcore.pet.PetConfig NO_PETS = org.gettserver.gettcore.pet.PetConfig.DEFAULT;
+    private static final org.gettserver.gettcore.protect.ProtectConfig.Flags NONE =
+            org.gettserver.gettcore.protect.ProtectConfig.Flags.DEFAULT;
+
+    @Test
+    void protectDuplicateRegionId() {
+        var p = protect(region("town", new net.minecraft.core.BlockPos(0, 0, 0), new net.minecraft.core.BlockPos(5, 5, 5), NONE),
+                region("town", new net.minecraft.core.BlockPos(9, 9, 9), new net.minecraft.core.BlockPos(12, 12, 12), NONE),
+                region("", new net.minecraft.core.BlockPos(0, 0, 0), new net.minecraft.core.BlockPos(1, 1, 1), NONE));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS, p),
+                RegistryChecks.ALL_EXIST);
+        assertEquals(List.of("protect.regions.town: duplicate id", "protect.regions[2]: id must not be empty"),
+                r.errors());
+    }
+
+    @Test
+    void protectMinMaxNormalized() {
+        var flags = new org.gettserver.gettcore.protect.ProtectConfig.Flags(true, false, false);
+        var p = new org.gettserver.gettcore.protect.ProtectConfig(true, true, List.of(
+                region("town", new net.minecraft.core.BlockPos(10, 80, -5), new net.minecraft.core.BlockPos(-10, 0, 5), flags)));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS, p),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(any(r.warnings(), "protect.regions.town: min/max swapped to -10, 0, -5 ~ 10, 80, 5"),
+                r.warnings().toString());
+        var cleaned = r.cleaned().protect();
+        assertTrue(cleaned.explosionsBreakBlocks() && cleaned.endermanPickup());
+        assertEquals(List.of(region("town", new net.minecraft.core.BlockPos(-10, 0, -5),
+                new net.minecraft.core.BlockPos(10, 80, 5), flags)), cleaned.regions());
+
+        // Already ordered: untouched, no warning.
+        var ok = protect(region("farm", new net.minecraft.core.BlockPos(0, 0, 0), new net.minecraft.core.BlockPos(3, 3, 3), NONE));
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS, ok);
+        var r2 = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertTrue(r2.errors().isEmpty() && r2.warnings().isEmpty(), r2.warnings().toString());
+        assertEquals(b, r2.cleaned());
+    }
 }

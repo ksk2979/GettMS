@@ -17,6 +17,7 @@ import org.gettserver.gettcore.data.ShopEntry;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
+import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.ItemReward;
 import org.gettserver.gettcore.quest.Objective;
 import org.gettserver.gettcore.quest.Quest;
@@ -87,8 +88,34 @@ public final class EditorValidator {
         PetConfig pets = b.pets().sanitized(petWarnings);
         for (String w : petWarnings) warnings.add(w.startsWith("pets.json: ") ? "pets: " + w.substring(11) : w);
 
+        ProtectConfig protect = validateProtect(b.protect(), errors, warnings);
+
         return new Result(errors, warnings,
-                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets));
+                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect));
+    }
+
+    /** Region ids non-empty and unique (errors); min/max swapped per axis where needed (warning). */
+    private static ProtectConfig validateProtect(ProtectConfig c, List<String> errors, List<String> warnings) {
+        Set<String> seen = new HashSet<>();
+        List<ProtectConfig.Region> out = new ArrayList<>();
+        boolean changed = false;
+        for (int n = 0; n < c.regions().size(); n++) {
+            ProtectConfig.Region r = c.regions().get(n);
+            if (r.id().isBlank()) {
+                errors.add("protect.regions[" + n + "]: id must not be empty");
+                continue;
+            }
+            String p = "protect.regions." + r.id();
+            if (!seen.add(r.id())) errors.add(p + ": duplicate id");
+            ProtectConfig.Region norm = r.normalized();
+            if (norm != r) {
+                warnings.add(p + ": min/max swapped to " + norm.min().toShortString() + " ~ "
+                        + norm.max().toShortString());
+                changed = true;
+            }
+            out.add(norm);
+        }
+        return changed ? c.withRegions(out) : c;
     }
 
     /** Each species' petEntity must be a registered entity (error); the wild key itself should be one (warning). */
