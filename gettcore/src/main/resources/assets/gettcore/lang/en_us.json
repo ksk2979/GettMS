@@ -67,6 +67,7 @@
   "gettcore.tooltip.reinforce.gun": "Reinforce +%s: Weapon damage +%s%%",
   "gettcore.tooltip.reinforce.melee": "Reinforce +%s: Attack damage +%s%%",
   "gettcore.tooltip.reinforce.shield": "Reinforce +%s: Movement speed +%s%%",
+  "gettcore.tooltip.reinforce.shield_note": "Not applied while holding a gun or ranged weapon",
   "gettcore.tooltip.reinforce.armor": "Reinforce +%s: Max health +%s",
   "enchantment.gettcore.harvest": "Harvest",
   "enchantment.gettcore.harvest.desc": "Harvests fully grown crops of the same kind within %s blocks at once",

@@ -19,6 +19,14 @@ class ReinforceRulesTest {
     private static final double EPS = 1e-9;
 
     @Test
+    void gunOrRangedMainHandBlocksShield() {
+        assertTrue(ReinforceRules.blocksShield(true, false), "gun");
+        assertTrue(ReinforceRules.blocksShield(false, true), "bow / crossbow / trident");
+        assertTrue(ReinforceRules.blocksShield(true, true));
+        assertFalse(ReinforceRules.blocksShield(false, false), "sword, shield, empty, ...");
+    }
+
+    @Test
     void gunWinsOverEverything() {
         assertEquals(Optional.of(Target.GUN), ReinforceRules.classify(true, true, true, true));
         assertEquals(Optional.of(Target.GUN), ReinforceRules.classify(true, false, false, false));

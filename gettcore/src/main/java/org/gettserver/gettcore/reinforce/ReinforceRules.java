@@ -8,8 +8,10 @@ import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.item.ShieldItem;
 import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.TridentItem;
 import org.gettserver.gettcore.GettCore;
 
 /**
@@ -43,6 +45,21 @@ public final class ReinforceRules {
         if (shield) return Optional.of(Target.SHIELD);
         if (armor) return Optional.of(Target.ARMOR);
         return Optional.empty();
+    }
+
+    /**
+     * 주손 장비가 방패 효과를 막는지: 총(주입된 판정 = 분류 GUN)이거나 활·석궁({@link ProjectileWeaponItem})·삼지창이면
+     * 양손 무기로 보고 방패(이동속도·단계 능력)는 아무것도 주지 않는다.
+     */
+    public static boolean blocksShield(ItemStack mainHand, Predicate<ItemStack> isGun) {
+        if (mainHand.isEmpty()) return false;
+        Item item = mainHand.getItem();
+        return blocksShield(isGun.test(mainHand), item instanceof ProjectileWeaponItem || item instanceof TridentItem);
+    }
+
+    /** {@link #blocksShield(ItemStack, Predicate)} 의 판정만 떼어 낸 부분(레지스트리 없이 테스트). */
+    static boolean blocksShield(boolean gun, boolean ranged) {
+        return gun || ranged;
     }
 
     /** 강화 단계(컴포넌트 없으면 0). */

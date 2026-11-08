@@ -48,23 +48,33 @@ public final class ReinforceMilestones {
     // ---- 순수 함수 ------------------------------------------------------------------------------------------
 
     /**
-     * 분류별 유효 단계. GUN/MELEE: 주손 장비가 그 분류일 때 그 단계; SHIELD: 양손 중 방패인 쪽의 최대 단계; ARMOR: 네 부위의
+     * 분류별 유효 단계. GUN/MELEE: 주손 장비가 그 분류일 때 그 단계; SHIELD: {@link #shieldLevel}(주손이 총·원거리
+     * 무기면 0); ARMOR: 네 부위의
      * 최소 단계(한 부위라도 비었거나 방어구가 아니면 0). {@code armor} 는 네 칸이어야 하며 모자라면 ARMOR 는 0.
      */
-    public static Map<Target, Integer> levels(Held main, Held off, List<Held> armor) {
+    public static Map<Target, Integer> levels(Held main, Held off, boolean shieldBlocked, List<Held> armor) {
         Map<Target, Integer> out = new EnumMap<>(Target.class);
         for (Target t : Target.values()) out.put(t, 0);
         if (main.target() == Target.GUN || main.target() == Target.MELEE) out.put(main.target(), main.level());
-        int shield = 0;
-        if (main.target() == Target.SHIELD) shield = Math.max(shield, main.level());
-        if (off.target() == Target.SHIELD) shield = Math.max(shield, off.level());
-        out.put(Target.SHIELD, shield);
+        out.put(Target.SHIELD, shieldLevel(main, off, shieldBlocked));
         int armorMin = armor.size() == ReinforceEffects.ARMOR_SLOTS.length ? Integer.MAX_VALUE : 0;
         for (Held h : armor) {
             armorMin = Math.min(armorMin, h.target() == Target.ARMOR ? h.level() : 0);
         }
         out.put(Target.ARMOR, armorMin);
         return out;
+    }
+
+    /**
+     * 방패 유효 단계: 양손 중 방패인 쪽의 최대 단계. {@code blocked}(주손이 총·활·석궁·삼지창,
+     * {@link ReinforceRules#blocksShield}) 이면 0 — 이동속도와 단계 능력이 함께 쓴다.
+     */
+    public static int shieldLevel(Held main, Held off, boolean blocked) {
+        if (blocked) return 0;
+        int shield = 0;
+        if (main.target() == Target.SHIELD) shield = Math.max(shield, main.level());
+        if (off.target() == Target.SHIELD) shield = Math.max(shield, off.level());
+        return shield;
     }
 
     /** 단계 능력으로 걸어도 되는 효과인지: 즉시 효과는 1초마다 다시 걸면 매번 발동하므로 제외(설정 검사의 이중 안전장치). */
@@ -92,8 +102,9 @@ public final class ReinforceMilestones {
         if (all.isEmpty()) return;
         List<Held> armor = new ArrayList<>(ReinforceEffects.ARMOR_SLOTS.length);
         for (EquipmentSlot slot : ReinforceEffects.ARMOR_SLOTS) armor.add(Held.armor(player.getItemBySlot(slot), slot));
-        Map<Target, Integer> levels = levels(Held.of(player.getMainHandItem()), Held.of(player.getOffhandItem()),
-                armor);
+        ItemStack main = player.getMainHandItem();
+        Map<Target, Integer> levels = levels(Held.of(main), Held.of(player.getOffhandItem()),
+                ReinforceTargets.blocksShield(main), armor);
         for (Milestone m : active(all, levels)) {
             BuiltInRegistries.MOB_EFFECT.getHolder(m.effect())
                     .filter(holder -> applicable(holder.value().isInstantenous()))

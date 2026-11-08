@@ -17,4 +17,9 @@ public final class ReinforceTargets {
     public static Optional<ReinforceRules.Target> target(ItemStack stack) {
         return ReinforceRules.target(stack, ntglWeapon);
     }
+
+    /** 주손 장비가 방패 효과를 막는지(총·활·석궁·삼지창). */
+    public static boolean blocksShield(ItemStack mainHand) {
+        return ReinforceRules.blocksShield(mainHand, ntglWeapon);
+    }
 }

@@ -39,18 +39,18 @@ class ReinforceEffectsTest {
     }
 
     @Test
-    void shieldModifiersArePerHandMultipliedTotal() {
-        List<ModifierSpec> ms = ReinforceEffects.modifiers(Target.SHIELD, 20, null, D);
-        assertEquals(2, ms.size());
-        assertEquals("gettcore:reinforce_shield_speed_mainhand", ms.get(0).id().toString());
-        assertEquals(EquipmentSlotGroup.MAINHAND, ms.get(0).group());
-        assertEquals("gettcore:reinforce_shield_speed_offhand", ms.get(1).id().toString());
-        assertEquals(EquipmentSlotGroup.OFFHAND, ms.get(1).group());
-        for (ModifierSpec m : ms) {
-            assertEquals(Stat.MOVEMENT_SPEED, m.stat());
-            assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
-            assertEquals(0.34, m.amount(), EPS);
-        }
+    void shieldHasNoItemModifiers() {
+        // 방패 이동속도는 다른 손(총·원거리 무기)을 봐야 해서 플레이어 transient 수정자로 붙는다.
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.SHIELD, 20, null, D));
+        assertEquals("gettcore:reinforce_shield_speed", ReinforceEffects.SHIELD_SPEED_ID.toString());
+    }
+
+    @Test
+    void shieldSpeedFollowsEffectiveShieldLevel() {
+        assertEquals(0.34, ReinforceEffects.shieldSpeed(20, D), EPS);
+        assertEquals(0.017, ReinforceEffects.shieldSpeed(1, D), EPS);
+        assertEquals(0, ReinforceEffects.shieldSpeed(0, D), EPS);
+        assertEquals(0, ReinforceEffects.shieldSpeed(-3, D), EPS);
     }
 
     @Test
@@ -126,6 +126,7 @@ class ReinforceEffectsTest {
                 String key = ReinforceEffects.tooltipKey(t);
                 assertTrue(lang.has(key), file + " missing " + key);
             }
+            assertTrue(lang.has(ReinforceEffects.SHIELD_NOTE_KEY), file + " missing shield note");
         }
         assertEquals("gettcore.tooltip.reinforce.gun", ReinforceEffects.tooltipKey(Target.GUN));
     }

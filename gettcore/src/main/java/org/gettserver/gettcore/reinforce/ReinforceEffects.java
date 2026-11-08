@@ -27,7 +27,7 @@ import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.reinforce.ReinforceRules.Target;
 
 /**
- * 강화 효과 중 속성 기반 부분(근접 공격력·방패 이동속도·방어구 최대 체력)과 방어구 체력 상한. 총 배율은 NTGL 이 있을 때만
+ * 강화 효과 중 속성 기반 부분(근접 공격력·방어구 최대 체력 아이템 수정자)과 방어구 체력 상한·방패 이동속도(플레이어 수정자). 총 배율은 NTGL 이 있을 때만
  * {@code NtglBridge} 가 붙인다(이 클래스는 NTGL 타입을 모른다).
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
@@ -35,9 +35,13 @@ public final class ReinforceEffects {
     /** 체력 상한 보정(음수 ADD_VALUE) 수정자. 플레이어 MAX_HEALTH 에 transient 로 붙는다. */
     public static final ResourceLocation HEALTH_CAP_ID = id("reinforce_health_cap");
     public static final ResourceLocation MELEE_ID = id("reinforce_melee");
-    /** 방패 이동속도는 손마다 따로 붙인다(양손 방패일 때 한쪽 교체가 다른 쪽 수정자를 지우지 않게). */
-    public static final ResourceLocation SHIELD_SPEED_MAINHAND_ID = id("reinforce_shield_speed_mainhand");
-    public static final ResourceLocation SHIELD_SPEED_OFFHAND_ID = id("reinforce_shield_speed_offhand");
+    /**
+     * 방패 이동속도(ADD_MULTIPLIED_TOTAL) 수정자. 아이템 수정자로는 다른 손을 볼 수 없어(총을 든 채면 방패 효과를 막아야 함)
+     * 체력 상한처럼 서버가 플레이어 MOVEMENT_SPEED 에 transient 로 붙인다(동기화 속성이라 클라 예측도 따라감).
+     */
+    public static final ResourceLocation SHIELD_SPEED_ID = id("reinforce_shield_speed");
+    /** 방패 툴팁 둘째 줄(총·원거리 무기와 함께 들면 적용 안 됨) 번역 키. */
+    public static final String SHIELD_NOTE_KEY = "gettcore.tooltip.reinforce.shield_note";
     private static final String HEALTH_PREFIX = "reinforce_health_";
     /** 체력 상한 합산 대상 네 부위(머리·몸통·다리·발). */
     static final EquipmentSlot[] ARMOR_SLOTS = {
@@ -59,25 +63,17 @@ public final class ReinforceEffects {
     // ---- 순수 함수 ------------------------------------------------------------------------------------------
 
     /**
-     * 분류·단계별 속성 수정자. 단계 ≤ 0, 총(속성 아님), 값 0(설정 0%) 이면 빈 목록. ARMOR 는 {@code armorSlot}(그 방어구의
-     * 장착 부위) 이 필요하다. 방패는 주손·보조손 수정자 두 개.
+     * 분류·단계별 아이템 속성 수정자. 단계 ≤ 0, 총(속성 아님), 방패(플레이어 수정자 → {@link #updateShieldSpeed}),
+     * 값 0(설정 0%) 이면 빈 목록. ARMOR 는 {@code armorSlot}(그 방어구의 장착 부위) 이 필요하다.
      */
     public static List<ModifierSpec> modifiers(Target target, int level, EquipmentSlot armorSlot,
             ReinforceConfig cfg) {
         if (target == null || level <= 0) return List.of();
         List<ModifierSpec> specs = switch (target) {
-            case GUN -> List.of();
+            case GUN, SHIELD -> List.of();
             case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
                     ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
                     EquipmentSlotGroup.MAINHAND));
-            case SHIELD -> {
-                double speed = ReinforceRules.shieldSpeedFraction(level, cfg);
-                yield List.of(
-                        new ModifierSpec(Stat.MOVEMENT_SPEED, SHIELD_SPEED_MAINHAND_ID, speed,
-                                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.MAINHAND),
-                        new ModifierSpec(Stat.MOVEMENT_SPEED, SHIELD_SPEED_OFFHAND_ID, speed,
-                                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.OFFHAND));
-            }
             case ARMOR -> armorSlot == null ? List.of() : List.of(new ModifierSpec(Stat.MAX_HEALTH,
                     healthId(armorSlot), ReinforceRules.armorHealth(level, cfg),
                     AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.bySlot(armorSlot)));
@@ -95,6 +91,11 @@ public final class ReinforceEffects {
         double sum = 0;
         for (int level : armorLevels) sum += ReinforceRules.armorHealth(level, cfg);
         return ReinforceRules.healthCapAdjust(sum, cfg);
+    }
+
+    /** 방패 유효 단계({@link ReinforceMilestones#shieldLevel}) → 이동속도 수정자 값. 0 이면 수정자를 떼어 낸다. */
+    public static double shieldSpeed(int shieldLevel, ReinforceConfig cfg) {
+        return shieldLevel <= 0 ? 0 : ReinforceRules.shieldSpeedFraction(shieldLevel, cfg);
     }
 
     /** 툴팁 효과 줄 번역 키. */
@@ -152,8 +153,10 @@ public final class ReinforceEffects {
      */
     @SubscribeEvent
     public static void onEquipmentChange(LivingEquipmentChangeEvent event) {
-        if (event.getSlot().getType() != EquipmentSlot.Type.HUMANOID_ARMOR) return;
-        if (event.getEntity() instanceof ServerPlayer player) updateHealthCap(player);
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        EquipmentSlot.Type type = event.getSlot().getType();
+        if (type == EquipmentSlot.Type.HUMANOID_ARMOR) updateHealthCap(player);
+        else if (type == EquipmentSlot.Type.HAND) updateShieldSpeed(player);
     }
 
     /** 리로드(설정 변경) 시 접속자 전원의 장착 수정자 값과 체력 상한을 다시 계산한다. */
@@ -165,6 +168,7 @@ public final class ReinforceEffects {
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                     refreshEquipped(p);
                     updateHealthCap(p);
+                    updateShieldSpeed(p);
                 }
             } catch (RuntimeException e) {
                 GettCore.LOGGER.error("gettcore: failed refreshing reinforce effects on reload", e);
@@ -188,6 +192,25 @@ public final class ReinforceEffects {
         }
     }
 
+    /**
+     * 방패 이동속도 갱신: 양손 중 강화 방패의 최대 단계(주손이 총·활·석궁·삼지창이면 0) → transient 수정자 갱신, 0 이면
+     * 제거. 손 장비 변경 이벤트(접속·리스폰 첫 틱 포함 — last 손 장비도 빈 상태에서 시작)와 리로드에서 부른다. 서버 전용.
+     */
+    public static void updateShieldSpeed(ServerPlayer player) {
+        AttributeInstance speed = player.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        ItemStack main = player.getMainHandItem();
+        int level = ReinforceMilestones.shieldLevel(ReinforceMilestones.Held.of(main),
+                ReinforceMilestones.Held.of(player.getOffhandItem()), ReinforceTargets.blocksShield(main));
+        double amount = shieldSpeed(level, GettData.get().reinforce());
+        if (amount == 0) {
+            speed.removeModifier(SHIELD_SPEED_ID);
+        } else {
+            speed.addOrUpdateTransientModifier(
+                    new AttributeModifier(SHIELD_SPEED_ID, amount, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+        }
+    }
+
     /** {@code stack} 이 그 부위에 맞는 강화 대상 방어구인지(체력 상한·단계 능력 공용). */
     static boolean isWornArmor(ItemStack stack, EquipmentSlot slot) {
         return stack.getItem() instanceof ArmorItem armor && armor.getEquipmentSlot() == slot
@@ -206,7 +229,6 @@ public final class ReinforceEffects {
     private static void refreshEquipped(ServerPlayer player) {
         ReinforceConfig cfg = GettData.get().reinforce();
         removeOurs(player, Attributes.ATTACK_DAMAGE, List.of(MELEE_ID));
-        removeOurs(player, Attributes.MOVEMENT_SPEED, List.of(SHIELD_SPEED_MAINHAND_ID, SHIELD_SPEED_OFFHAND_ID));
         removeOurs(player, Attributes.MAX_HEALTH, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::healthId)
                 .toList());
         for (EquipmentSlot slot : EquipmentSlot.values()) {
