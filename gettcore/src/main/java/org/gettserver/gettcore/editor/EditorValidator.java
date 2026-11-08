@@ -24,6 +24,7 @@ import org.gettserver.gettcore.quest.Quest;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.gettserver.gettcore.quest.QuestTrigger;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 
 /** Server-side gate for every editor save. Errors block the save; warnings are reported and cleaned away. */
 public final class EditorValidator {
@@ -90,8 +91,13 @@ public final class EditorValidator {
 
         ProtectConfig protect = validateProtect(b.protect(), errors, warnings);
 
+        List<String> reinforceWarnings = new ArrayList<>();
+        ReinforceConfig reinforce = b.reinforce().sanitized(reinforceWarnings);
+        String rp = ReinforceConfig.FILE + ": ";
+        for (String w : reinforceWarnings) warnings.add(w.startsWith(rp) ? "reinforce: " + w.substring(rp.length()) : w);
+
         return new Result(errors, warnings,
-                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect));
+                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce));
     }
 
     /** Region ids non-empty and unique (errors); min/max swapped per axis where needed (warning). */

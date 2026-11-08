@@ -346,7 +346,7 @@ public final class GettData {
     /** Everything the editor edits, exactly as in the files (no registry pruning). */
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
-                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect);
+                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -363,8 +363,8 @@ public final class GettData {
 
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
-     * npcs.json, boss_points.json, pets.json and protect.json (all to .tmp first, then moved), deletes files of ids
-     * no longer present and reloads. Boss points, pets and protect are replaced as a whole; the ids of boss points that are gone
+     * npcs.json, boss_points.json, pets.json, protect.json and reinforce.json (all to .tmp first, then moved), deletes
+     * files of ids no longer present and reloads. Boss points, pets, protect and reinforce are replaced as a whole; the ids of boss points that are gone
      * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
      */
@@ -413,6 +413,8 @@ public final class GettData {
                     .getOrThrow(IOException::new));
             writes.put(dir.resolve(ProtectConfig.FILE), ProtectConfig.CODEC.encodeStart(JsonOps.INSTANCE, b.protect())
                     .getOrThrow(IOException::new));
+            writes.put(dir.resolve(ReinforceConfig.FILE), ReinforceConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.reinforce()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -506,8 +508,8 @@ public final class GettData {
     }
 
     /**
-     * Copies shops/, dialogs/, quests/, npcs.json, boss_points.json, pets.json and protect.json to
-     * .backup/yyyyMMdd-HHmmss[-n]/
+     * Copies shops/, dialogs/, quests/, npcs.json, boss_points.json, pets.json, protect.json and
+     * reinforce.json to .backup/yyyyMMdd-HHmmss[-n]/
      * and prunes old backups.
      */
     private static Path backup(Path dir, List<String> pruneWarnings) throws IOException {
@@ -528,7 +530,8 @@ public final class GettData {
                 }
             }
         }
-        for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE)) {
+        for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
+                ReinforceConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }

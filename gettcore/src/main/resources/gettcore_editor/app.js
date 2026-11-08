@@ -9,7 +9,7 @@
  *   6. 상점 탭
  *   7. NPC·대화 탭
   7b. 퀘스트 탭 (엔티티 선택기, 발전과제 선택기 포함)
- *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭
+ *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭, 강화 탭
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect } — 서버가 준 모양 그대로 (pets·boss_points·protect만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [] },
@@ -128,7 +128,8 @@
 
   function serialize(bundle) {
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
-      boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect });
+      boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
+      reinforce: bundle.reinforce });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -282,6 +283,7 @@
       boss_points: normalizeBossPoints(src.boss_points !== undefined ? src.boss_points : f.boss_points),
       pets: normalizePets(src.pets !== undefined ? src.pets : f.pets),
       protect: normalizeProtect(src.protect !== undefined ? src.protect : f.protect),
+      reinforce: normalizeReinforce(src.reinforce !== undefined ? src.reinforce : f.reinforce),
     };
     for (const s of Object.values(b.shops)) {
       s.tabs = s.tabs || [];
@@ -1876,6 +1878,125 @@
     },
   };
   registerTab(protectTab);
+
+  /* ----- 강화 탭 ----- */
+
+  /** ReinforceConfig.DEFAULT 와 같은 값 (서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다). */
+  const REINFORCE_DEFAULTS = {
+    maxLevel: 20,
+    successPercent: [100, 100, 100, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10],
+    stoneCost: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    gunDamagePercentPerLevel: 10,
+    meleeDamagePercentPerLevel: 10,
+    shieldSpeedPercentPerLevel: 2,
+    armorHealthPerLevel: 1.5,
+    armorHealthMax: 60,
+  };
+  const REINFORCE_MAX_LEVEL = 50;
+  const REINFORCE_GLOBALS = [
+    ['gunDamagePercentPerLevel', '총 피해', '%/단계'],
+    ['meleeDamagePercentPerLevel', '근접 공격력', '%/단계'],
+    ['shieldSpeedPercentPerLevel', '방패 이동속도', '%/단계'],
+    ['armorHealthPerLevel', '방어구 체력', '/단계 (하트 반 칸 = 1)'],
+    ['armorHealthMax', '체력 상한', '(0 = 없음)'],
+  ];
+
+  /**
+   * 단계별 표를 size 칸으로 (서버 ReinforceConfig.sanitized 와 같은 규칙): 길면 자르고, 짧으면 마지막 값을 반복,
+   * 비어 있으면 기본 표의 같은 칸 (기본 표보다 길면 그 마지막 값).
+   */
+  function resizeReinforceList(list, def, size) {
+    const src = Array.isArray(list) ? list : [];
+    const out = [];
+    for (let n = 0; n < size; n++) {
+      if (n < src.length) out.push(src[n]);
+      else if (src.length) out.push(src[src.length - 1]);
+      else out.push(def[Math.min(n, def.length - 1)]);
+    }
+    return out;
+  }
+
+  const validMaxLevel = (v) => Number.isInteger(v) && v >= 1 && v <= REINFORCE_MAX_LEVEL;
+
+  /** 빠진 필드는 기본값, 표 두 개는 최대 단계 길이로 맞춘다 (최대 단계가 범위 밖이면 기본 20칸). */
+  function normalizeReinforce(src) {
+    const r = Object.assign({}, REINFORCE_DEFAULTS, src || {});
+    const size = validMaxLevel(r.maxLevel) ? r.maxLevel : REINFORCE_DEFAULTS.maxLevel;
+    r.successPercent = resizeReinforceList(r.successPercent, REINFORCE_DEFAULTS.successPercent, size);
+    r.stoneCost = resizeReinforceList(r.stoneCost, REINFORCE_DEFAULTS.stoneCost, size);
+    return r;
+  }
+
+  const reinforceRules = {
+    maxLevel(v) { return validMaxLevel(v) ? '' : `1~${REINFORCE_MAX_LEVEL} 사이의 정수여야 합니다`; },
+    nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
+    percent(v) { return isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'; },
+    stones(v) { return isInt(v) && v >= 1 && v <= 64 ? '' : '1~64 사이의 정수여야 합니다'; },
+  };
+  const reinforceStep = (n) => `+${n} → +${n + 1}`;
+
+  function validateReinforce(bundle) {
+    const out = [];
+    const r = bundle.reinforce;
+    const add = (m, where) => { if (m) out.push(`강화 › ${where}: ${m}`); };
+    add(reinforceRules.maxLevel(r.maxLevel), '최대 단계');
+    for (const [key, label] of REINFORCE_GLOBALS) add(reinforceRules.nonNeg(r[key]), label);
+    r.successPercent.forEach((v, n) => add(reinforceRules.percent(v), `${reinforceStep(n)} 성공 확률`));
+    r.stoneCost.forEach((v, n) => add(reinforceRules.stones(v), `${reinforceStep(n)} 강화석 개수`));
+    return out;
+  }
+
+  const reinforceTab = {
+    id: 'reinforce',
+    title: '강화',
+    validate: validateReinforce,
+    render(container) {
+      const checks = makeChecks();
+      let rowChecks = makeChecks();   // 단계별 표: 최대 단계가 바뀌면 표와 함께 새로 만든다
+      const r = S.bundle.reinforce;
+      const numIn = (chk, obj, key, label, rule, opts) => chk.add(h('input', Object.assign({ type: 'number', step: 'any', min: 0,
+        'aria-label': label, style: 'width:5.5rem', value: shownNum(obj[key]),
+        oninput: (e) => { obj[key] = numOf(e); changed(); } }, opts || {})), () => rule(obj[key]));
+      const labeled = (label, el, unit) => [h('label', { style: 'min-width:8rem' }, label), el, unit ? h('span', { class: 'muted' }, unit) : null];
+
+      const tbody = h('tbody');
+      const drawRows = () => {
+        rowChecks = makeChecks();
+        tbody.replaceChildren(...r.successPercent.map((v, n) => h('tr', null,
+          h('td', null, reinforceStep(n)),
+          h('td', null, numIn(rowChecks, r.successPercent, n, `${reinforceStep(n)} 성공 확률`, reinforceRules.percent, { max: 100 }),
+            h('span', { class: 'muted' }, ' %')),
+          h('td', null, numIn(rowChecks, r.stoneCost, n, `${reinforceStep(n)} 강화석 개수`, reinforceRules.stones, { step: 1, min: 1, max: 64 }),
+            h('span', { class: 'muted' }, ' 개')))));
+        rowChecks.paint();
+      };
+
+      // 입력 중("1" → "15")에 표가 잘리지 않도록 표 길이는 change(포커스 이동·Enter·화살표)에서 맞춘다.
+      const maxIn = numIn(checks, r, 'maxLevel', '최대 단계', reinforceRules.maxLevel, { step: 1, min: 1, max: REINFORCE_MAX_LEVEL });
+      maxIn.addEventListener('change', () => {
+        if (!validMaxLevel(r.maxLevel) || r.maxLevel === r.successPercent.length) return;
+        r.successPercent = resizeReinforceList(r.successPercent, REINFORCE_DEFAULTS.successPercent, r.maxLevel);
+        r.stoneCost = resizeReinforceList(r.stoneCost, REINFORCE_DEFAULTS.stoneCost, r.maxLevel);
+        drawRows();
+        changed();
+      });
+
+      const globalCard = h('div', { class: 'card' }, h('h2', null, '전역'),
+        h('div', { class: 'field' }, labeled('최대 단계', maxIn, `(1~${REINFORCE_MAX_LEVEL})`)),
+        REINFORCE_GLOBALS.map(([key, label, unit]) => h('div', { class: 'field' },
+          labeled(label, numIn(checks, r, key, label, reinforceRules.nonNeg), unit))),
+        h('p', { class: 'muted' }, '각 수치에 강화 단계를 곱해 적용합니다 (예: 총 피해 10 이면 +3 무기는 +30%). 체력 상한 0 = 상한 없음.'));
+      const stepCard = h('div', { class: 'card' }, h('h2', null, '단계별'),
+        h('p', { class: 'muted' }, '최대 단계를 바꾸면 표가 따라 늘거나 줄어듭니다. 늘어난 칸은 마지막 값을 복사합니다.'),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['단계', '성공 확률', '강화석 개수'].map((t) => h('th', null, t)))), tbody)));
+      drawRows();
+
+      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, globalCard, stepCard)));
+      return () => { checks.paint(); rowChecks.paint(); };
+    },
+  };
+  registerTab(reinforceTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

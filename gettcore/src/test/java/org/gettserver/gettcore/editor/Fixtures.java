@@ -14,6 +14,7 @@ import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 
 final class Fixtures {
     private Fixtures() {}
@@ -49,19 +50,31 @@ final class Fixtures {
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests) {
-        return new EditorBundle(shops, dialogs, npcs, quests, List.of(), PetConfig.DEFAULT, ProtectConfig.DEFAULT);
+        return new EditorBundle(shops, dialogs, npcs, quests, List.of(), PetConfig.DEFAULT, ProtectConfig.DEFAULT,
+                ReinforceConfig.DEFAULT);
     }
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
                                PetConfig pets) {
-        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, ProtectConfig.DEFAULT);
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, ProtectConfig.DEFAULT, ReinforceConfig.DEFAULT);
     }
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
                                PetConfig pets, ProtectConfig protect) {
-        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, protect);
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, protect, ReinforceConfig.DEFAULT);
+    }
+
+    static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
+                               NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
+                               PetConfig pets, ProtectConfig protect, ReinforceConfig reinforce) {
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets, protect, reinforce);
+    }
+
+    /** A valid, non-default reinforce config (3 levels; every number differs from DEFAULT). */
+    static ReinforceConfig reinforce() {
+        return new ReinforceConfig(3, List.of(95.0, 62.5, 30.0), List.of(1, 2, 4), 12.5, 8, 3, 2.5, 40);
     }
 
     /** An overworld region from min to max (as given, not normalized) with the given flags. */

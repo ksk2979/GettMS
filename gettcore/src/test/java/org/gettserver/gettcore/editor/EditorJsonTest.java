@@ -10,11 +10,12 @@ import net.minecraft.core.BlockPos;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
     private static final String FULL =
-            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{}}";
+            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{},\"reinforce\":{}}";
 
     @Test
     void roundTrip() {
@@ -30,7 +31,8 @@ class EditorJsonTest {
                         Map.of("gettcore:boss_lion", species("gettcore:boss_lion", true),
                                 "naturalist:lion", speciesWithOverrides("naturalist:lion", false))),
                 new ProtectConfig(true, false, List.of(region("town", new BlockPos(-10, 0, -20),
-                        new BlockPos(30, 120, 40), new ProtectConfig.Flags(true, false, true)))));
+                        new BlockPos(30, 120, 40), new ProtectConfig.Flags(true, false, true)))),
+                reinforce());
         EditorRefs refs = new EditorRefs(List.of(new EditorRefs.AdvRef("minecraft:story/mine_diamond", "다이아몬드!")),
                 List.of("gone:item"), List.of("gone:mob"));
         String json = EditorJson.encode(b, refs);
@@ -63,6 +65,16 @@ class EditorJsonTest {
         assertEquals("[-10,0,-20]", town.get("min").toString());
         assertEquals("[30,120,40]", town.get("max").toString());
         assertTrue(town.getAsJsonObject("flags").get("fireSpread").getAsBoolean(), json);
+        // The web page reads/writes reinforce.json's field names directly.
+        var reinforce = root.getAsJsonObject("reinforce");
+        assertEquals(3, reinforce.get("maxLevel").getAsInt(), json);
+        assertEquals("[95.0,62.5,30.0]", reinforce.get("successPercent").toString(), json);
+        assertEquals("[1,2,4]", reinforce.get("stoneCost").toString(), json);
+        assertEquals(12.5, reinforce.get("gunDamagePercentPerLevel").getAsDouble(), json);
+        assertEquals(8, reinforce.get("meleeDamagePercentPerLevel").getAsDouble(), json);
+        assertEquals(3, reinforce.get("shieldSpeedPercentPerLevel").getAsDouble(), json);
+        assertEquals(2.5, reinforce.get("armorHealthPerLevel").getAsDouble(), json);
+        assertEquals(40, reinforce.get("armorHealthMax").getAsDouble(), json);
     }
 
     @Test
@@ -123,7 +135,7 @@ class EditorJsonTest {
 
     @Test
     void badBossPointNamesPath() {
-        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{}}";
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{},\"reinforce\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
@@ -139,7 +151,7 @@ class EditorJsonTest {
     @Test
     void missingSectionIsAnError() {
         // Full-replace save: a missing section must not be read as "delete everything in it".
-        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect")) {
+        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect", "reinforce")) {
             String json = FULL.replace("\"" + section + "\":" + (section.equals("boss_points") ? "[]" : "{}"), "\"x\":{}");
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
                     section);
@@ -152,7 +164,11 @@ class EditorJsonTest {
         IllegalArgumentException p = assertThrows(IllegalArgumentException.class,
                 () -> EditorJson.decode(FULL.replace("\"protect\":{}", "\"protect\":null")));
         assertTrue(p.getMessage().startsWith("protect: missing section"), p.getMessage());
+        // A bundle without the key at all (e.g. a page from before the reinforce tab) is rejected too.
+        IllegalArgumentException rf = assertThrows(IllegalArgumentException.class,
+                () -> EditorJson.decode(FULL.replace(",\"reinforce\":{}", "")));
+        assertTrue(rf.getMessage().startsWith("reinforce: missing section"), rf.getMessage());
         assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), PetConfig.DEFAULT,
-                ProtectConfig.DEFAULT), EditorJson.decode(FULL));
+                ProtectConfig.DEFAULT, ReinforceConfig.DEFAULT), EditorJson.decode(FULL));
     }
 }

@@ -129,7 +129,8 @@ public final class EditorDevServer {
                     new BlockPos(-40, 50, -40), new BlockPos(40, 140, 40),
                     new org.gettserver.gettcore.protect.ProtectConfig.Flags(false, false, false))));
         }
-        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect);
+        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect,
+                b.reinforce());
     }
 
     private static String catalog() {

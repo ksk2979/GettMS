@@ -18,6 +18,7 @@ import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -54,7 +55,7 @@ class GettDataSaveBundleTest {
                 List.of(new ShopEntry(bad.item(), bad.tab(), -5, 1, true, true, 1, 1))));
         Map<String, String> before = snapshot(dir);
 
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce()),
                 RegistryChecks.ALL_EXIST);
 
         assertFalse(r.saved());
@@ -69,13 +70,13 @@ class GettDataSaveBundleTest {
         EditorBundle raw = data.rawBundle();
         Map<String, ShopDefinition> shops = new LinkedHashMap<>(raw.shops());
         shops.put("old", withId(shops.get("farmer"), "old"));
-        assertTrue(data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect()),
+        assertTrue(data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce()),
                 RegistryChecks.ALL_EXIST).saved());
         assertTrue(Files.isRegularFile(dir.resolve("shops/old.json")));
 
         shops.remove("old");
         shops.put("newshop", withId(shops.get("farmer"), "newshop"));
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce()),
                 RegistryChecks.ALL_EXIST);
 
         assertTrue(r.saved(), r.errors().toString());
@@ -104,7 +105,7 @@ class GettDataSaveBundleTest {
         Map<String, String> byName = new LinkedHashMap<>(raw.npcs().byName());
         byName.values().removeIf("enchanter"::equals);
         NpcMapping npcs = new NpcMapping(raw.npcs().byUuid(), byName);
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), dialogs, npcs, Map.of(), raw.bossPoints(), raw.pets(), raw.protect()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), dialogs, npcs, Map.of(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce()),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.saved(), r.errors().toString());
         assertFalse(Files.exists(dir.resolve("dialogs/enchanter.json")));
@@ -145,7 +146,7 @@ class GettDataSaveBundleTest {
         data.load(dir);
         Map<String, ShopDefinition> shops = new LinkedHashMap<>(data.rawBundle().shops());
         shops.put("foo", withId(shops.get("farmer"), "foo"));
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce()),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.saved(), r.errors().toString());
         assertEquals(2, r.reload().shops(), r.reload().errors().toString());
@@ -180,7 +181,7 @@ class GettDataSaveBundleTest {
         PetConfig pets = new PetConfig(new PetConfig.HealthBar(48, 100, 10, 0xFF112233), p.capture(), p.species());
 
         GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
-                List.of(point), pets, raw.protect()), RegistryChecks.ALL_EXIST);
+                List.of(point), pets, raw.protect(), raw.reinforce()), RegistryChecks.ALL_EXIST);
 
         assertTrue(r.saved(), r.errors().toString());
         assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
@@ -209,12 +210,12 @@ class GettDataSaveBundleTest {
         BossPoint cave = new BossPoint("cave", overworld, new BlockPos(9, 40, 9), 24,
                 ResourceLocation.parse("gettcore:boss_lion"), 1, 60);
         GettData.SaveResult first = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(),
-                raw.quests(), List.of(den, cave), raw.pets(), raw.protect()), RegistryChecks.ALL_EXIST);
+                raw.quests(), List.of(den, cave), raw.pets(), raw.protect(), raw.reinforce()), RegistryChecks.ALL_EXIST);
         assertTrue(first.saved(), first.errors().toString());
         assertEquals(List.of(), first.removedBossPoints());
 
         GettData.SaveResult second = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(),
-                raw.quests(), List.of(cave), raw.pets(), raw.protect()), RegistryChecks.ALL_EXIST);
+                raw.quests(), List.of(cave), raw.pets(), raw.protect(), raw.reinforce()), RegistryChecks.ALL_EXIST);
         assertTrue(second.saved(), second.errors().toString());
         assertEquals(List.of("den"), second.removedBossPoints());
         assertEquals(List.of(cave), data.bossPoints());
@@ -232,7 +233,7 @@ class GettDataSaveBundleTest {
         ProtectConfig protect = new ProtectConfig(true, false, List.of(town));
 
         GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
-                raw.bossPoints(), raw.pets(), protect), RegistryChecks.ALL_EXIST);
+                raw.bossPoints(), raw.pets(), protect, raw.reinforce()), RegistryChecks.ALL_EXIST);
 
         assertTrue(r.saved(), r.errors().toString());
         assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
@@ -245,5 +246,33 @@ class GettDataSaveBundleTest {
         }
         assertTrue(Files.isRegularFile(latest.resolve("protect.json")));
         assertFalse(Files.readString(latest.resolve("protect.json")).contains("town"), "backup holds the old file");
+    }
+
+    @Test
+    void savesReinforce(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(ReinforceConfig.DEFAULT, raw.reinforce());
+        // One value out of range on purpose: the save path sanitizes it (warning) before writing.
+        ReinforceConfig cfg = new ReinforceConfig(3, List.of(90.0, 60.0, 130.0), List.of(1, 2, 3), 12, 8, 3, 2.5, 0);
+
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), cfg), RegistryChecks.ALL_EXIST);
+
+        assertTrue(r.saved(), r.errors().toString());
+        assertTrue(r.warnings().contains("reinforce: successPercent values must be within [0, 100], clamped"),
+                r.warnings().toString());
+        assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
+        ReinforceConfig expected = new ReinforceConfig(3, List.of(90.0, 60.0, 100.0), List.of(1, 2, 3), 12, 8, 3, 2.5, 0);
+        assertEquals(expected, data.reinforce());
+        assertEquals(expected, data.rawBundle().reinforce());
+        assertTrue(Files.readString(dir.resolve("reinforce.json")).contains("\"maxLevel\": 3"));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.isRegularFile(latest.resolve("reinforce.json")));
+        assertTrue(Files.readString(latest.resolve("reinforce.json")).contains("\"maxLevel\": 20"),
+                "backup holds the old file");
     }
 }

@@ -263,4 +263,37 @@ class EditorValidatorTest {
         assertTrue(r2.errors().isEmpty() && r2.warnings().isEmpty(), r2.warnings().toString());
         assertEquals(b, r2.cleaned());
     }
+
+    @Test
+    void reinforceSanitizedWithWarnings() {
+        var bad = new org.gettserver.gettcore.reinforce.ReinforceConfig(3, List.of(150.0, 50.0), List.of(0, 2, 99, 5),
+                -1, 10, 2, 1.5, 60);
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
+                org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, bad), RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().stream().allMatch(w -> w.startsWith("reinforce: ")), r.warnings().toString());
+        assertTrue(any(r.warnings(), "reinforce: successPercent has 2 entries"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "reinforce: successPercent values must be within [0, 100]"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "reinforce: stoneCost has 4 entries"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "reinforce: stoneCost values must be within [1, 64]"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "reinforce: gunDamagePercentPerLevel -1.0"), r.warnings().toString());
+        assertEquals(new org.gettserver.gettcore.reinforce.ReinforceConfig(3, List.of(100.0, 50.0, 50.0),
+                List.of(1, 2, 64), 10, 10, 2, 1.5, 60), r.cleaned().reinforce());
+
+        // maxLevel out of range falls back to the default (20) and the lists follow it.
+        var big = new org.gettserver.gettcore.reinforce.ReinforceConfig(51, List.of(70.0), List.of(3), 10, 10, 2, 1.5, 0);
+        var r2 = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
+                org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, big), RegistryChecks.ALL_EXIST);
+        assertTrue(any(r2.warnings(), "reinforce: maxLevel 51"), r2.warnings().toString());
+        assertEquals(20, r2.cleaned().reinforce().maxLevel());
+        assertEquals(20, r2.cleaned().reinforce().successPercent().size());
+        assertEquals(0, r2.cleaned().reinforce().armorHealthMax(), "0 = no cap is kept");
+
+        // Valid config: untouched, no warning.
+        var ok = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
+                org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, reinforce());
+        var r3 = EditorValidator.validate(ok, RegistryChecks.ALL_EXIST);
+        assertTrue(r3.errors().isEmpty() && r3.warnings().isEmpty(), r3.warnings().toString());
+        assertEquals(ok, r3.cleaned());
+    }
 }
