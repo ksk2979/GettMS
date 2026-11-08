@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import net.minecraft.world.entity.PlayerRideableJumping;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -21,6 +22,10 @@ class PetClassContractTest {
             "registerGoals", "mobInteract", "isInvulnerableTo", "hurt", "removeWhenFarAway",
             "getDefaultDimensions", "addAdditionalSaveData", "readAdditionalSaveData", "defineSynchedData",
             "startSeenByPlayer", "stopSeenByPlayer", "remove");
+    private static final List<Class<?>> GROUND_MOUNTS = List.of(PetElephant.class, PetMammoth.class,
+            PetGiraffe.class, PetOstrich.class);
+    private static final List<String> MOUNT_JUMP = List.of("onPlayerJump", "canJump", "handleStartJump",
+            "handleStopJump", "tickRidden");
 
     @Test
     void everyPetDeclaresTheSharedOverrides() {
@@ -29,6 +34,18 @@ class PetClassContractTest {
             Set<String> declared = Arrays.stream(c.getDeclaredMethods()).filter(m -> !m.isSynthetic())
                     .map(Method::getName).collect(Collectors.toSet());
             for (String name : REQUIRED) {
+                assertTrue(declared.contains(name), c.getSimpleName() + " must override " + name);
+            }
+        }
+    }
+
+    @Test
+    void groundMountsJumpLikeHorses() {
+        for (Class<?> c : GROUND_MOUNTS) {
+            assertTrue(PlayerRideableJumping.class.isAssignableFrom(c), c.getSimpleName() + " is PlayerRideableJumping");
+            Set<String> declared = Arrays.stream(c.getDeclaredMethods()).filter(m -> !m.isSynthetic())
+                    .map(Method::getName).collect(Collectors.toSet());
+            for (String name : MOUNT_JUMP) {
                 assertTrue(declared.contains(name), c.getSimpleName() + " must override " + name);
             }
         }

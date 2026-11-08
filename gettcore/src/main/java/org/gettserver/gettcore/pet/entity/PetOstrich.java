@@ -180,6 +180,7 @@ public class PetOstrich extends Ostrich implements GettPet {
     protected void tickRidden(Player rider, Vec3 input) {
         super.tickRidden(rider, input);
         petState().tickRidden(rider);
+        petState().tickRiddenJump(PetBehavior.JUMP_STRENGTH_LIGHT, getBlockJumpFactor());
     }
 
     @Override
@@ -207,9 +208,22 @@ public class PetOstrich extends Ostrich implements GettPet {
     protected void dropEquipment() {
     }
 
-    // The ostrich jump lives in Naturalist's travel, which PetState bypasses while ridden: no jump bar.
+    // Rider jump bar (vanilla PlayerRideableJumping): the charge is applied in tickRidden (PetState).
+    @Override
+    public void onPlayerJump(int jumpPower) {
+        petState().onPlayerJump(jumpPower);
+    }
+
     @Override
     public boolean canJump() {
-        return false;
+        return true;
+    }
+
+    @Override
+    public void handleStartJump(int jumpPower) {
+    }
+
+    @Override
+    public void handleStopJump() {
     }
 }

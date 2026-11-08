@@ -45,6 +45,8 @@ public final class PetState {
     private boolean wasRidden;
     /** True while the ridden mount runs its original {@code travel}, which must not see the rider (see #travel). */
     private boolean inRiddenTravel;
+    /** Ground mounts: charge of the rider's released jump bar, applied on the next ridden tick (0 = none). */
+    private double pendingJumpScale;
     /** Boss pets only, server side, created when the owner starts tracking the pet. */
     @Nullable
     private ServerBossEvent bossBar;
@@ -194,6 +196,23 @@ public final class PetState {
 
     public void tickRidden(Player rider) {
         PetBehavior.steer(mob, rider);
+    }
+
+    /** {@code PlayerRideableJumping.onPlayerJump}: called on the rider's client when the jump bar is released. */
+    public void onPlayerJump(int jumpPower) {
+        pendingJumpScale = PetBehavior.chargeScale(jumpPower);
+    }
+
+    /**
+     * Ground mount ridden tick, after {@link #tickRidden}. Like {@code AbstractHorse.tickRidden} the pending jump is
+     * applied where the movement is simulated (the rider's client, which then syncs the vehicle position).
+     */
+    public void tickRiddenJump(double strength, float blockJumpFactor) {
+        if (!mob.isControlledByLocalInstance() || pendingJumpScale <= 0) return;
+        if (mob.onGround() || mob.isInWater()) {
+            PetBehavior.mountJump(mob, strength, pendingJumpScale, blockJumpFactor);
+            pendingJumpScale = 0;
+        }
     }
 
     /**

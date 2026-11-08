@@ -17,6 +17,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PlayerRideableJumping;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Animal;
@@ -28,7 +29,7 @@ import org.gettserver.gettcore.pet.PetSpecies;
 import org.jetbrains.annotations.Nullable;
 
 /** Ground mount pet: follows its owner; the owner rides it with an empty-hand right click. */
-public class PetGiraffe extends Giraffe implements GettPet {
+public class PetGiraffe extends Giraffe implements GettPet, PlayerRideableJumping {
     private static final EntityDataAccessor<CompoundTag> PET_DATA =
             SynchedEntityData.defineId(PetGiraffe.class, EntityDataSerializers.COMPOUND_TAG);
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */
@@ -180,6 +181,7 @@ public class PetGiraffe extends Giraffe implements GettPet {
     protected void tickRidden(Player rider, Vec3 input) {
         super.tickRidden(rider, input);
         petState().tickRidden(rider);
+        petState().tickRiddenJump(PetBehavior.JUMP_STRENGTH_LIGHT, getBlockJumpFactor());
     }
 
     @Override
@@ -195,5 +197,24 @@ public class PetGiraffe extends Giraffe implements GettPet {
     @Override
     public boolean shouldRiderFaceForward(Player player) {
         return true;
+    }
+
+    // Rider jump bar (vanilla PlayerRideableJumping): the charge is applied in tickRidden (PetState).
+    @Override
+    public void onPlayerJump(int jumpPower) {
+        petState().onPlayerJump(jumpPower);
+    }
+
+    @Override
+    public boolean canJump() {
+        return true;
+    }
+
+    @Override
+    public void handleStartJump(int jumpPower) {
+    }
+
+    @Override
+    public void handleStopJump() {
     }
 }

@@ -8,7 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Walks (or flies, with a flying navigation) back to the owner when farther than
- * {@link PetBehavior#FOLLOW_START_DISTANCE}; teleports beside the owner beyond {@link PetBehavior#TELEPORT_DISTANCE}.
+ * {@link PetBehavior#FOLLOW_START}; teleports beside the owner beyond {@link PetBehavior#FOLLOW_TELEPORT}.
  */
 final class PetFollowGoal extends Goal {
     private final PathfinderMob pet;
@@ -27,7 +27,7 @@ final class PetFollowGoal extends Goal {
     public boolean canUse() {
         Player candidate = PetBehavior.owner(pet);
         if (candidate == null || candidate.isSpectator() || pet.isVehicle() || pet.isPassenger()) return false;
-        if (pet.distanceToSqr(candidate) < sq(PetBehavior.FOLLOW_START_DISTANCE)) return false;
+        if (pet.distanceToSqr(candidate) < sq(PetBehavior.FOLLOW_START)) return false;
         owner = candidate;
         return true;
     }
@@ -35,7 +35,7 @@ final class PetFollowGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         return owner != null && owner.isAlive() && !pet.isVehicle() && !pet.getNavigation().isDone()
-                && pet.distanceToSqr(owner) > sq(PetBehavior.FOLLOW_STOP_DISTANCE);
+                && pet.distanceToSqr(owner) > sq(PetBehavior.FOLLOW_STOP);
     }
 
     @Override
@@ -55,7 +55,7 @@ final class PetFollowGoal extends Goal {
         pet.getLookControl().setLookAt(owner, 10.0F, pet.getMaxHeadXRot());
         if (--timeToRecalcPath > 0) return;
         timeToRecalcPath = adjustedTickDelay(10);
-        boolean teleported = pet.distanceToSqr(owner) > sq(PetBehavior.TELEPORT_DISTANCE)
+        boolean teleported = pet.distanceToSqr(owner) > sq(PetBehavior.FOLLOW_TELEPORT)
                 && PetBehavior.teleportNear(pet, owner);
         if (!teleported) pet.getNavigation().moveTo(owner, speedModifier);
     }

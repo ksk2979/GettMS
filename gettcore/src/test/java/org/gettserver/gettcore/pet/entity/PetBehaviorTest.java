@@ -69,4 +69,26 @@ class PetBehaviorTest {
         assertEquals(-0.3, PetBehavior.verticalSpeed(false, true, 0.3));
         assertEquals(0.0, PetBehavior.verticalSpeed(false, false, 0.3));
     }
+
+    @Test
+    void jumpVelocityIsStrengthTimesCharge() {
+        assertEquals(0.6, PetBehavior.jumpVelocity(0.6, 1.0));
+        assertEquals(0.2, PetBehavior.jumpVelocity(0.4, 0.5));
+    }
+
+    @Test
+    void chargeScaleFollowsHorseFormula() {
+        assertEquals(1.0, PetBehavior.chargeScale(90));
+        assertEquals(1.0, PetBehavior.chargeScale(100));
+        assertEquals(0.4, PetBehavior.chargeScale(0));
+        assertEquals(0.4, PetBehavior.chargeScale(-5));
+        assertEquals(0.6, PetBehavior.chargeScale(45), 1e-9);
+    }
+
+    @Test
+    void followThresholds() {
+        assertEquals(4.0, PetBehavior.FOLLOW_START);
+        assertEquals(12.0, PetBehavior.FOLLOW_TELEPORT);
+        assertTrue(PetBehavior.FOLLOW_STOP < PetBehavior.FOLLOW_START);
+    }
 }

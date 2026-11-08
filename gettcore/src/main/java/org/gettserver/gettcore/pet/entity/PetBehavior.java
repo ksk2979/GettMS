@@ -40,12 +40,15 @@ import org.jetbrains.annotations.Nullable;
 public final class PetBehavior {
     /** A pet farther than this from its owner is recalled. */
     public static final double RECALL_DISTANCE = 48.0;
-    /** The pet starts walking back when farther than this... */
-    public static final double FOLLOW_START_DISTANCE = 10.0;
-    /** ...stops when this close... */
-    public static final double FOLLOW_STOP_DISTANCE = 3.0;
+    /** The pet (walking or flying) starts moving back when farther than this... */
+    public static final double FOLLOW_START = 4.0;
+    /** ...stops when this close, so pets don't crowd the owner... */
+    public static final double FOLLOW_STOP = 2.0;
     /** ...and teleports beside the owner when farther than this. */
-    public static final double TELEPORT_DISTANCE = 16.0;
+    public static final double FOLLOW_TELEPORT = 12.0;
+    /** Rider jump strength (Y velocity at full charge) of the ground mounts. */
+    static final double JUMP_STRENGTH_LIGHT = 0.6;
+    static final double JUMP_STRENGTH_HEAVY = 0.4;
     static final double BOSS_SPEED_MULT = 1.3;
     static final double FOLLOW_SPEED = 1.0;
     static final double ATTACK_SPEED_MODIFIER = 1.2;
@@ -109,6 +112,25 @@ public final class PetBehavior {
     public static double verticalSpeed(boolean up, boolean down, double climbSpeed) {
         if (up == down) return 0.0;
         return up ? climbSpeed : -climbSpeed;
+    }
+
+    /** Horse-style charge of the rider's jump bar (0..100): 90+ is a full jump, otherwise 0.4..0.8. */
+    public static double chargeScale(int jumpPower) {
+        if (jumpPower < 0) jumpPower = 0;
+        return jumpPower >= 90 ? 1.0 : 0.4 + 0.4 * jumpPower / 90.0;
+    }
+
+    /** Upward velocity of a mount jump before the block jump factor. */
+    public static double jumpVelocity(double strength, double chargeScale) {
+        return strength * chargeScale;
+    }
+
+    /** Applies a rider jump: only from the ground and not while in water. */
+    static void mountJump(LivingEntity mount, double strength, double scale, float blockJumpFactor) {
+        if (!mount.onGround() || mount.isInWater()) return;
+        Vec3 v = mount.getDeltaMovement();
+        mount.setDeltaMovement(v.x, jumpVelocity(strength, scale) * blockJumpFactor, v.z);
+        mount.hasImpulse = true;
     }
 
     /** Fallback when the species is missing from pets.json (same numbers as the JSON defaults). */
