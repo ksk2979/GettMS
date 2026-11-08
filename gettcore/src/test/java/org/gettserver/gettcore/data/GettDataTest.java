@@ -306,4 +306,40 @@ class GettDataTest {
         assertEquals(3, r.warnings().stream().filter(w -> w.contains("point wild")).count(), r.warnings().toString());
         assertTrue(r.warnings().stream().anyMatch(w -> w.contains("wild radius -1")), r.warnings().toString());
     }
+
+    @Test
+    void protectInstallsDefaultSavesAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("protect.json")));
+        assertEquals(org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, data.protect());
+
+        var region = new org.gettserver.gettcore.protect.ProtectConfig.Region("town",
+                net.minecraft.world.level.Level.OVERWORLD, new net.minecraft.core.BlockPos(0, 60, 0),
+                new net.minecraft.core.BlockPos(20, 90, 20), org.gettserver.gettcore.protect.ProtectConfig.Flags.DEFAULT);
+        var cfg = new org.gettserver.gettcore.protect.ProtectConfig(true, false, java.util.List.of(region));
+        data.saveProtect(cfg);
+        assertEquals(cfg, data.protect());
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals(cfg, again.protect());
+
+        Files.writeString(dir.resolve("protect.json"), "{\"regions\":[{\"id\":1}]}");
+        GettData.LoadReport bad = again.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("protect.json")), bad.errors().toString());
+        assertEquals(cfg, again.protect());
+    }
+
+    @Test
+    void protectSanitizeWarningsReachLoadReport(@TempDir Path dir) throws IOException {
+        String region = "{\"id\":\"a\",\"dimension\":\"minecraft:overworld\",\"min\":[5,5,5],\"max\":[0,0,0]}";
+        Files.writeString(dir.resolve("protect.json"), "{\"regions\":[" + region + "," + region + "]}");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertEquals(1, data.protect().regions().size());
+        assertEquals(new net.minecraft.core.BlockPos(0, 0, 0), data.protect().regions().get(0).min());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("protect.json")), r.warnings().toString());
+    }
 }

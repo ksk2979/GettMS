@@ -18,6 +18,7 @@ public final class Perms {
     public static final PermissionNode<Boolean> SHOP_EDIT = node("shop.edit");
     public static final PermissionNode<Boolean> ADMIN = node("admin");
     public static final PermissionNode<Boolean> BOSS_ADMIN = node("boss.admin");
+    public static final PermissionNode<Boolean> PROTECT_ADMIN = node("protect.admin");
 
     private Perms() {}
 
@@ -55,6 +56,6 @@ public final class Perms {
 
     @SubscribeEvent
     public static void onGather(PermissionGatherEvent.Nodes event) {
-        event.addNodes(ECONOMY_CHECK, ECONOMY_ADMIN, SHOP_EDIT, ADMIN, BOSS_ADMIN);
+        event.addNodes(ECONOMY_CHECK, ECONOMY_ADMIN, SHOP_EDIT, ADMIN, BOSS_ADMIN, PROTECT_ADMIN);
     }
 }

@@ -31,6 +31,7 @@ import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
+import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.slf4j.Logger;
@@ -44,7 +45,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -75,6 +76,7 @@ public final class GettData {
     private volatile EnchantConfig enchant = EnchantConfig.DEFAULT;
     private volatile PetConfig pets = PetConfig.DEFAULT;
     private volatile List<BossPoint> bossPoints = List.of();
+    private volatile ProtectConfig protect = ProtectConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -164,6 +166,11 @@ public final class GettData {
                 ? read(bossFile, BossPoint.CODEC.listOf(), errors).map(l -> uniqueBossPoints(l, errors, warnings))
                         .orElse(bossPoints)
                 : List.of();
+        // An unreadable protect.json keeps the regions already loaded (a typo must not unprotect the town).
+        Path protectFile = dir.resolve(ProtectConfig.FILE);
+        ProtectConfig newProtect = Files.isRegularFile(protectFile)
+                ? read(protectFile, ProtectConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(protect)
+                : ProtectConfig.DEFAULT;
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -177,6 +184,7 @@ public final class GettData {
         enchant = newEnchant;
         pets = newPets;
         bossPoints = newBossPoints;
+        protect = newProtect;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -567,6 +575,20 @@ public final class GettData {
         JsonElement json = BossPoint.CODEC.listOf().encodeStart(JsonOps.INSTANCE, copy).getOrThrow(IOException::new);
         writeJson(dir.resolve(BOSS_POINTS_FILE), json);
         bossPoints = copy;
+    }
+
+    /** Global protection rules and regions from protect.json. */
+    public ProtectConfig protect() {
+        return protect;
+    }
+
+    /** Writes protect.json as pretty JSON and replaces the in-memory config (no reload). */
+    public synchronized void saveProtect(ProtectConfig config) throws IOException {
+        Path dir = configDir;
+        if (dir == null) throw new IOException("data not loaded");
+        JsonElement json = ProtectConfig.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow(IOException::new);
+        writeJson(dir.resolve(ProtectConfig.FILE), json);
+        protect = config;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
