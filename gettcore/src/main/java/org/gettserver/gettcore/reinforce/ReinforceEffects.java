@@ -21,7 +21,6 @@ import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.util.thread.EffectiveSide;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEquipmentChangeEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
@@ -139,19 +138,14 @@ public final class ReinforceEffects {
                 .ifPresent(spec -> event.addModifier(holder(spec.stat()), spec.toModifier(), spec.group()));
     }
 
+    /**
+     * 체력 상한 갱신. 접속·리스폰 직후에는 last 장비가 비어 있어 첫 틱의 detectEquipmentUpdates 가 착용 방어구마다 이
+     * 이벤트를 쏘므로, 상한은 아이템 수정자와 같은 패스에서 계산된다(접속/리스폰 이벤트에서 미리 붙이면 아이템 수정자보다
+     * 먼저 음수 보정만 붙어 최대 체력이 한 틱 동안 줄어든다).
+     */
     @SubscribeEvent
     public static void onEquipmentChange(LivingEquipmentChangeEvent event) {
         if (event.getSlot().getType() != EquipmentSlot.Type.HUMANOID_ARMOR) return;
-        if (event.getEntity() instanceof ServerPlayer player) updateHealthCap(player);
-    }
-
-    @SubscribeEvent
-    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) updateHealthCap(player);
-    }
-
-    @SubscribeEvent
-    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) updateHealthCap(player);
     }
 
