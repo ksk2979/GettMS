@@ -22,6 +22,7 @@ class BossBehaviorTest {
         PetSpecies ground = BossBehavior.fallbackSpecies(ResourceLocation.parse("gettcore:boss_lion"), false);
         assertEquals(5.0, ground.healthMult());
         assertEquals(2.0, ground.attackMult());
+        assertEquals(6.0, ground.attack(), "bosses keep base attack 6 (times attackMult)");
         assertEquals(1.6, ground.sizeScale());
         assertTrue(ground.boss());
         assertEquals(2.5, BossBehavior.fallbackSpecies(ResourceLocation.parse("gettcore:boss_vulture"), true).sizeScale());

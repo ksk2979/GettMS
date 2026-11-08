@@ -45,6 +45,14 @@ class PetBehaviorTest {
     }
 
     @Test
+    void fallbackSpeciesAttackIs2() {
+        var s = PetBehavior.fallbackSpecies("naturalist:lion", org.gettserver.gettcore.pet.PetSpecies.Kind.FIGHTER,
+                net.minecraft.resources.ResourceLocation.parse("gettcore:pet_lion"));
+        assertEquals(2.0, s.attack());
+        assertEquals(1.0, s.attackSpeed());
+    }
+
+    @Test
     void attackCooldownMin5() {
         assertEquals(20, PetBehavior.attackCooldownTicks(1.0));
         assertEquals(10, PetBehavior.attackCooldownTicks(2.0));

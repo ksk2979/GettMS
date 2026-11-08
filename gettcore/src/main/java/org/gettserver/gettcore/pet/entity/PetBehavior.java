@@ -113,7 +113,7 @@ public final class PetBehavior {
 
     /** Fallback when the species is missing from pets.json (same numbers as the JSON defaults). */
     static PetSpecies fallbackSpecies(String id, PetSpecies.Kind kind, ResourceLocation petEntity) {
-        return new PetSpecies(id, kind, petEntity, 6, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0);
+        return new PetSpecies(id, kind, petEntity, 2, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0);
     }
 
     /** Pets ignore all damage except sources that bypass invulnerability ({@code /kill}, the void). */

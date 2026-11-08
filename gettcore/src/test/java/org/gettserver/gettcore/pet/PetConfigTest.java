@@ -114,7 +114,7 @@ class PetConfigTest {
         PetSpecies s = cfg.sanitized(warnings).species().get("a:w");
         assertEquals(1.0, s.sizeScale());
         assertEquals(1.0, s.healthMult());
-        assertEquals(6.0, s.attack());
+        assertEquals(2.0, s.attack());
         assertEquals(0, s.killGold());
         assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w sizeScale 0.0 must be > 0")), warnings.toString());
         assertEquals(4, warnings.size(), warnings.toString());

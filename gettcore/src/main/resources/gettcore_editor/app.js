@@ -143,7 +143,7 @@
       bossBallChance: { iron: 5, gold: 8, diamond: 12, netherite: 20 },
     },
   };
-  const SPECIES_DEFAULTS = { attack: 6, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
+  const SPECIES_DEFAULTS = { attack: 2, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
     sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0 };
   const BOSS_POINT_DEFAULTS = { radius: 16, maxCount: 1, respawnMinutes: 30 };
 

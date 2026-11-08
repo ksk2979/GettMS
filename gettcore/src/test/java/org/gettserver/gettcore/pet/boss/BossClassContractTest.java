@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 class BossClassContractTest {
     private static final List<Class<?>> BOSSES = List.of(BossLion.class, BossTiger.class, BossBear.class,
             BossElephant.class, BossMammoth.class, BossVulture.class);
-    private static final List<String> REQUIRED = List.of("getVariantRegistryKey", "getDefaultVariant",
+    private static final List<String> REQUIRED = List.of("aiStep", "getVariantRegistryKey", "getDefaultVariant",
             "registerGoals", "mobInteract", "removeWhenFarAway", "getDefaultLootTable", "dropFromLootTable",
             "addAdditionalSaveData", "readAdditionalSaveData", "defineSynchedData", "getDefaultDimensions",
             "startSeenByPlayer", "stopSeenByPlayer", "bossState", "tick", "isPersistenceRequired", "canBeLeashed",

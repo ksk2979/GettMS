@@ -103,6 +103,13 @@ public class PetMammoth extends Mammoth implements GettPet {
         return NaturalistMobVariants.defaultFor(NaturalistEntityTypes.MAMMOTH.get());
     }
 
+    // Vanilla ticks the swing only for Monster/Player; without it Naturalist loops the attack animation.
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        updateSwingTime();
+    }
+
     @Override
     protected void registerGoals() {
         PetBehavior.registerGoals(this, goalSelector, targetSelector);

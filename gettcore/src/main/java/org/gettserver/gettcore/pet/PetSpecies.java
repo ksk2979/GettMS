@@ -27,7 +27,7 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     }
 
     // JSON defaults of the optional fields (also what PetConfig#sanitized resets bad values to).
-    static final double DEFAULT_ATTACK = 6.0;
+    static final double DEFAULT_ATTACK = 2.0;
     static final double DEFAULT_SPEED = 0.3;
     static final double DEFAULT_ATTACK_SPEED = 1.0;
     static final double DEFAULT_FLY_SPEED = 0.6;

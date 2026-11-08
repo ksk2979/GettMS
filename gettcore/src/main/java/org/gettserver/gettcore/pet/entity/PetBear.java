@@ -100,6 +100,13 @@ public class PetBear extends Bear implements GettPet {
         return NaturalistMobVariants.defaultFor(NaturalistEntityTypes.BEAR.get());
     }
 
+    // Vanilla ticks the swing only for Monster/Player; without it Naturalist loops the attack animation.
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        updateSwingTime();
+    }
+
     @Override
     protected void registerGoals() {
         PetBehavior.registerGoals(this, goalSelector, targetSelector);

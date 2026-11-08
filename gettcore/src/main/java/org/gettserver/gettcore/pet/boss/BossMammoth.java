@@ -81,6 +81,13 @@ public class BossMammoth extends Mammoth implements GettBoss {
         return NaturalistMobVariants.defaultFor(NaturalistEntityTypes.MAMMOTH.get());
     }
 
+    // Vanilla ticks the swing only for Monster/Player; without it Naturalist loops the attack animation.
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        updateSwingTime();
+    }
+
     @Override
     protected void registerGoals() {
         BossBehavior.registerGroundGoals(this, goalSelector, targetSelector);

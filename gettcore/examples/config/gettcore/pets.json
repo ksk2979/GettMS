@@ -26,7 +26,7 @@
     "naturalist:lion": {
       "kind": "fighter",
       "petEntity": "gettcore:pet_lion",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -36,7 +36,7 @@
     "naturalist:tiger": {
       "kind": "fighter",
       "petEntity": "gettcore:pet_tiger",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -46,7 +46,7 @@
     "naturalist:bear": {
       "kind": "fighter",
       "petEntity": "gettcore:pet_bear",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -56,7 +56,7 @@
     "naturalist:black_bear": {
       "kind": "fighter",
       "petEntity": "gettcore:pet_black_bear",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -66,7 +66,7 @@
     "naturalist:hippo": {
       "kind": "fighter",
       "petEntity": "gettcore:pet_hippo",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
