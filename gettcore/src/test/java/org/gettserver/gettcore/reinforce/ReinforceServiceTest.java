@@ -33,9 +33,11 @@ class ReinforceServiceTest {
 
     @Test
     void canApplyNeedsEnoughStonesForThisLevel() {
-        List<Integer> cost = new java.util.ArrayList<>(Collections.nCopies(20, 1));
+        List<Integer> cost = new java.util.ArrayList<>(Collections.nCopies(D.maxLevel(), 1));
         cost.set(5, 3);
-        ReinforceConfig c = new ReinforceConfig(20, D.successPercent(), cost, 10, 10, 2, 1.5, 60);
+        ReinforceConfig c = new ReinforceConfig(D.maxLevel(), D.successPercent(), cost,
+                D.gunDamagePercentPerLevel(), D.meleeDamagePercentPerLevel(), D.shieldSpeedPercentPerLevel(),
+                D.armorHealthPerLevel(), D.armorHealthMax());
         assertFalse(ReinforceService.canApply(Optional.of(Target.ARMOR), 0, 0, c));
         assertTrue(ReinforceService.canApply(Optional.of(Target.ARMOR), 0, 1, c));
         assertFalse(ReinforceService.canApply(Optional.of(Target.ARMOR), 5, 2, c));

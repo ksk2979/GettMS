@@ -189,8 +189,8 @@ class ReinforceConfigTest {
                 + "{\"target\":\"armor\",\"level\":1,\"effect\":\"Not An Id\"},"
                 + "{\"target\":\"armor\",\"level\":1,\"effect\":\"minecraft:nope\"},"
                 + "{\"target\":\"armor\",\"level\":1,\"effect\":\"minecraft:strength\"}]}");
-        var saved = ReinforceConfig.effectExists;
-        ReinforceConfig.effectExists = id -> !id.getPath().equals("nope");
+        var saved = ReinforceConfig.effectUsable;
+        ReinforceConfig.effectUsable = id -> !id.getPath().equals("nope");
         try {
             List<String> all = new ArrayList<>();
             ReinforceConfig s = c.sanitized(all);
@@ -207,10 +207,29 @@ class ReinforceConfigTest {
             assertTrue(warnings.get(3).contains("milestones[4] amplifier 10"), warnings.toString());
             assertTrue(warnings.get(4).contains("milestones[5] amplifier -1"), warnings.toString());
             assertTrue(warnings.get(5).contains("milestones[6] effect id is invalid"), warnings.toString());
-            assertTrue(warnings.get(6).contains("milestones[7] unknown effect minecraft:nope"), warnings.toString());
+            assertTrue(warnings.get(6).contains("milestones[7] effect minecraft:nope is unknown or instant"), warnings.toString());
             assertTrue(warnings.stream().allMatch(w -> w.startsWith("reinforce.json: ") && w.endsWith(", removed")));
         } finally {
-            ReinforceConfig.effectExists = saved;
+            ReinforceConfig.effectUsable = saved;
+        }
+    }
+
+    @Test
+    void instantEffectsAreDroppedViaTheUsableHook() {
+        ReinforceConfig c = parse("{\"milestones\":["
+                + "{\"target\":\"armor\",\"level\":5,\"effect\":\"minecraft:instant_health\"},"
+                + "{\"target\":\"armor\",\"level\":5,\"effect\":\"minecraft:regeneration\"}]}");
+        var saved = ReinforceConfig.effectUsable;
+        ReinforceConfig.effectUsable = id -> !id.getPath().startsWith("instant_") && !id.getPath().equals("saturation");
+        try {
+            List<String> warnings = new ArrayList<>();
+            ReinforceConfig s = c.sanitized(warnings);
+            assertEquals(List.of(new Milestone(Target.ARMOR, 5, ResourceLocation.parse("minecraft:regeneration"), 0)),
+                    s.milestones());
+            assertEquals(List.of("reinforce.json: milestones[0] effect minecraft:instant_health is unknown or instant "
+                    + "(즉시 효과는 쓸 수 없습니다), removed"), warnings);
+        } finally {
+            ReinforceConfig.effectUsable = saved;
         }
     }
 

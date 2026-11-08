@@ -307,16 +307,16 @@ class EditorValidatorTest {
                 net.minecraft.resources.ResourceLocation.parse("othermod:ghost"), 0);
         var cfg = new org.gettserver.gettcore.reinforce.ReinforceConfig(3, List.of(100.0, 50.0, 25.0),
                 List.of(1, 1, 1), 10, 10, 2, 1.5, 60, List.of(keep, unknown));
-        var saved = org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists;
-        org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists = id -> id.getNamespace().equals("minecraft");
+        var saved = org.gettserver.gettcore.reinforce.ReinforceConfig.effectUsable;
+        org.gettserver.gettcore.reinforce.ReinforceConfig.effectUsable = id -> id.getNamespace().equals("minecraft");
         try {
             var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), NO_PETS,
                     org.gettserver.gettcore.protect.ProtectConfig.DEFAULT, cfg), RegistryChecks.ALL_EXIST);
             assertTrue(r.errors().isEmpty(), r.errors().toString());
-            assertEquals(List.of("reinforce: milestones[1] unknown effect othermod:ghost, removed"), r.warnings());
+            assertEquals(List.of("reinforce: milestones[1] effect othermod:ghost is unknown or instant (즉시 효과는 쓸 수 없습니다), removed"), r.warnings());
             assertEquals(List.of(keep), r.cleaned().reinforce().milestones());
         } finally {
-            org.gettserver.gettcore.reinforce.ReinforceConfig.effectExists = saved;
+            org.gettserver.gettcore.reinforce.ReinforceConfig.effectUsable = saved;
         }
     }
 }

@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.reinforce;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,6 @@ class ReinforceCommandsTest {
 
     @Test
     void commandRangeCoversConfigRange() {
-        assertEquals(50, ReinforceCommands.MAX_COMMAND_LEVEL);
+        assertTrue(ReinforceCommands.MAX_COMMAND_LEVEL >= ReinforceConfig.MAX_LEVEL_LIMIT);
     }
 }

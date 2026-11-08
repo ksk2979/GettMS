@@ -188,11 +188,15 @@ public final class ReinforceEffects {
         }
     }
 
+    /** {@code stack} 이 그 부위에 맞는 강화 대상 방어구인지(체력 상한·단계 능력 공용). */
+    static boolean isWornArmor(ItemStack stack, EquipmentSlot slot) {
+        return stack.getItem() instanceof ArmorItem armor && armor.getEquipmentSlot() == slot
+                && ReinforceTargets.target(stack).orElse(null) == Target.ARMOR;
+    }
+
     /** 그 부위에 맞게 착용한 강화 방어구의 단계(아니면 0). */
     private static int armorLevel(ItemStack stack, EquipmentSlot slot) {
-        if (!(stack.getItem() instanceof ArmorItem armor) || armor.getEquipmentSlot() != slot) return 0;
-        if (ReinforceTargets.target(stack).orElse(null) != Target.ARMOR) return 0;
-        return ReinforceRules.level(stack);
+        return isWornArmor(stack, slot) ? ReinforceRules.level(stack) : 0;
     }
 
     /**

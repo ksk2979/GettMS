@@ -38,6 +38,11 @@ public final class ReinforceMilestones {
             Optional<Target> t = ReinforceTargets.target(stack);
             return t.map(target -> new Held(target, ReinforceRules.level(stack))).orElse(NONE);
         }
+
+        /** 방어구 칸: 그 부위에 맞는 강화 방어구일 때만 ARMOR (ReinforceEffects 체력 상한과 같은 판정). */
+        static Held armor(ItemStack stack, EquipmentSlot slot) {
+            return ReinforceEffects.isWornArmor(stack, slot) ? new Held(Target.ARMOR, ReinforceRules.level(stack)) : NONE;
+        }
     }
 
     // ---- 순수 함수 ------------------------------------------------------------------------------------------
@@ -62,6 +67,11 @@ public final class ReinforceMilestones {
         return out;
     }
 
+    /** 단계 능력으로 걸어도 되는 효과인지: 즉시 효과는 1초마다 다시 걸면 매번 발동하므로 제외(설정 검사의 이중 안전장치). */
+    static boolean applicable(boolean instantaneous) {
+        return !instantaneous;
+    }
+
     /** {@code levels} 의 분류 단계가 milestone 단계 이상인 것들(경계 포함), 설정 순서대로. */
     public static List<Milestone> active(List<Milestone> all, Map<Target, Integer> levels) {
         List<Milestone> out = new ArrayList<>();
@@ -81,12 +91,14 @@ public final class ReinforceMilestones {
         List<Milestone> all = GettData.get().reinforce().milestones();
         if (all.isEmpty()) return;
         List<Held> armor = new ArrayList<>(ReinforceEffects.ARMOR_SLOTS.length);
-        for (EquipmentSlot slot : ReinforceEffects.ARMOR_SLOTS) armor.add(Held.of(player.getItemBySlot(slot)));
+        for (EquipmentSlot slot : ReinforceEffects.ARMOR_SLOTS) armor.add(Held.armor(player.getItemBySlot(slot), slot));
         Map<Target, Integer> levels = levels(Held.of(player.getMainHandItem()), Held.of(player.getOffhandItem()),
                 armor);
         for (Milestone m : active(all, levels)) {
-            BuiltInRegistries.MOB_EFFECT.getHolder(m.effect()).ifPresent(holder ->
-                    player.addEffect(new MobEffectInstance(holder, DURATION, m.amplifier(), true, false, true)));
+            BuiltInRegistries.MOB_EFFECT.getHolder(m.effect())
+                    .filter(holder -> applicable(holder.value().isInstantenous()))
+                    .ifPresent(holder ->
+                            player.addEffect(new MobEffectInstance(holder, DURATION, m.amplifier(), true, false, true)));
         }
     }
 }

@@ -107,8 +107,9 @@ public class GettCore {
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();
         ReinforceEffects.registerReloadHook();
-        // 단계 능력 효과 id 검사: 레지스트리 조회는 sanitize 때(로드 이후)에만 일어난다.
-        ReinforceConfig.effectExists = BuiltInRegistries.MOB_EFFECT::containsKey;
+        // 단계 능력 효과 id 검사(등록됨 && 즉시 효과 아님): 레지스트리 조회는 sanitize 때(로드 이후)에만 일어난다.
+        ReinforceConfig.effectUsable = id -> BuiltInRegistries.MOB_EFFECT.getOptional(id)
+                .map(e -> !e.isInstantenous()).orElse(false);
         // NTGL(총) 은 선택 의존성: NtglBridge 는 이 분기 안에서만 참조해야 NTGL 없는 환경에서 클래스가 로드되지 않는다.
         // 미래 NTGL 이 API 를 바꿔 링크가 깨지면 총 보너스만 잃고 기동은 계속한다.
         if (ModList.get().isLoaded("ntgl")) {

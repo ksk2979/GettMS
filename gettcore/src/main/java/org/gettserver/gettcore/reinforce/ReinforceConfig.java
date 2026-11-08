@@ -32,11 +32,15 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
             Collections.nCopies(30, 1),
             10, 10, 1.7, 1.5, 60, List.of());
 
+    /** 최대 단계 상한(sanitize 가 허용하는 maxLevel 의 최댓값). */
+    public static final int MAX_LEVEL_LIMIT = 50;
+
     /**
-     * 효과 id 가 존재하는지(sanitize 의 milestone 검사). 레지스트리가 없는 단위 테스트에서는 항상 true; GettCore 가 시작할 때
-     * {@code BuiltInRegistries.MOB_EFFECT::containsKey} 로 바꾼다.
+     * 효과 id 를 단계 능력에 쓸 수 있는지(sanitize 의 milestone 검사): 등록된 효과이고 즉시 효과(즉시 회복·즉시 피해·포만감)가
+     * 아니어야 한다. 즉시 효과는 1초마다 다시 걸면 매 틱 발동한다. 레지스트리가 없는 단위 테스트에서는 항상 true;
+     * GettCore 가 시작할 때 MOB_EFFECT 레지스트리 조회로 바꾼다.
      */
-    public static volatile Predicate<ResourceLocation> effectExists = id -> true;
+    public static volatile Predicate<ResourceLocation> effectUsable = id -> true;
 
     /**
      * 단계 능력: {@code target} 분류의 장비가 {@code level} 단계 이상이면 {@code effect} 포션 효과(세기 {@code amplifier},
@@ -110,12 +114,13 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
      * successPercent is clamped to 0..100 (NaN takes the default at that index), each stoneCost to 1..64. The per-level
      * percents, armorHealthPerLevel and armorHealthMax must be finite and &gt;= 0, else their default. A milestone
      * whose target is unknown, level is outside 1..maxLevel, amplifier outside 0..9 or effect is not in
-     * {@link #effectExists} is dropped with a warning.
+     * {@link #effectUsable} (unknown or instant) is dropped with a warning.
      */
     public ReinforceConfig sanitized(List<String> warnings) {
         int max = maxLevel;
-        if (max < 1 || max > 50) {
-            warnings.add(FILE + ": maxLevel " + max + " must be within [1, 50], using default " + DEFAULT.maxLevel);
+        if (max < 1 || max > MAX_LEVEL_LIMIT) {
+            warnings.add(FILE + ": maxLevel " + max + " must be within [1, " + MAX_LEVEL_LIMIT + "], using default "
+                    + DEFAULT.maxLevel);
             max = DEFAULT.maxLevel;
         }
         List<Double> success = resized("successPercent", successPercent, DEFAULT.successPercent, max, warnings);
@@ -152,7 +157,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
 
     private static List<Milestone> sanitizedMilestones(List<Milestone> list, int max, List<String> warnings) {
         List<Milestone> out = new ArrayList<>(list.size());
-        Predicate<ResourceLocation> exists = effectExists;
+        Predicate<ResourceLocation> exists = effectUsable;
         for (int n = 0; n < list.size(); n++) {
             Milestone m = list.get(n);
             String problem = milestoneProblem(m, max, exists);
@@ -170,7 +175,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         if (m.level() < 1 || m.level() > max) return "level " + m.level() + " must be within [1, " + max + "]";
         if (m.amplifier() < 0 || m.amplifier() > 9) return "amplifier " + m.amplifier() + " must be within [0, 9]";
         if (m.effect() == null) return "effect id is invalid";
-        if (!exists.test(m.effect())) return "unknown effect " + m.effect();
+        if (!exists.test(m.effect())) {
+            return "effect " + m.effect() + " is unknown or instant (즉시 효과는 쓸 수 없습니다)";
+        }
         return null;
     }
 

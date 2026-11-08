@@ -76,6 +76,7 @@ public final class ClientCatalog {
         List<String> bossTypes = PetRegistry.BOSS_TYPES.stream().map(h -> h.getId().toString()).toList();
         List<CatalogJson.Entry> effects = new ArrayList<>();
         for (MobEffect effect : BuiltInRegistries.MOB_EFFECT) {
+            if (effect.isInstantenous()) continue;   // 단계 능력에 쓸 수 없음(매 갱신마다 발동)
             ResourceLocation id = BuiltInRegistries.MOB_EFFECT.getKey(effect);
             effects.add(new CatalogJson.Entry(id.toString(), effect.getDisplayName().getString(), modName(id)));
         }

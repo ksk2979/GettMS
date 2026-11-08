@@ -61,7 +61,8 @@ public final class ReinforceCommands {
         if (level > 0) {
             stack.set(DataComponents.UNBREAKABLE, new Unbreakable(false));
             stack.remove(DataComponents.DAMAGE);
-        } else {
+        } else if (before > 0) {
+            // 강화가 붙여 둔 unbreakable 만 지운다(원래 unbreakable 이던 0 단계 아이템은 그대로).
             stack.remove(DataComponents.UNBREAKABLE);
         }
         player.sendSystemMessage(Component.translatable(messageKey(target), level).withStyle(ChatFormatting.GREEN));

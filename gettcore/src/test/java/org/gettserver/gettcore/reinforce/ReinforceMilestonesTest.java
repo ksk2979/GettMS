@@ -60,6 +60,12 @@ class ReinforceMilestonesTest {
     }
 
     @Test
+    void instantEffectsAreNeverApplied() {
+        assertEquals(false, ReinforceMilestones.applicable(true));
+        assertEquals(true, ReinforceMilestones.applicable(false));
+    }
+
+    @Test
     void armorWithAnEmptySlotIsInactive() {
         Map<Target, Integer> levels = ReinforceMilestones.levels(NONE, NONE,
                 List.of(armor(30), armor(30), NONE, armor(30)));
