@@ -36,7 +36,7 @@ class PetLangTest {
             "boss_lion", "boss_tiger", "boss_bear", "boss_elephant", "boss_mammoth", "boss_vulture"};
 
     private static final String[] ITEM_PATHS = {
-            "check", "xp_orb_item", "return_stone", "enchant_stone", "captured_mob",
+            "check", "xp_orb_item", "return_stone", "enchant_stone", "reinforce_stone", "captured_mob",
             "capture_ball_iron", "capture_ball_gold", "capture_ball_diamond", "capture_ball_netherite"};
 
     private static Set<String> keys(String file) throws Exception {

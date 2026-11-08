@@ -5,6 +5,7 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -26,6 +27,7 @@ import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.pet.PetRegistry;
 import org.gettserver.gettcore.pet.PetService;
+import org.gettserver.gettcore.reinforce.ReinforceStoneItem;
 import org.gettserver.gettcore.shop.ShopMenu;
 import org.gettserver.gettcore.shop.ShopService;
 
@@ -45,6 +47,10 @@ public class GettCore {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<String>> CHECK_ISSUER =
             DATA_COMPONENTS.registerComponentType("check_issuer",
                     b -> b.persistent(Codec.STRING).networkSynchronized(ByteBufCodecs.STRING_UTF8));
+    /** 장비 강화 단계. 0 단계는 컴포넌트 없음. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> REINFORCE_LEVEL =
+            DATA_COMPONENTS.registerComponentType("reinforce_level",
+                    b -> b.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
 
     public static final DeferredItem<CheckItem> CHECK =
             ITEMS.registerItem("check", CheckItem::new, new Item.Properties().stacksTo(1));
@@ -55,6 +61,8 @@ public class GettCore {
             ITEMS.registerItem("return_stone", ReturnStoneItem::new, new Item.Properties().stacksTo(16));
     public static final DeferredItem<EnchantStoneItem> ENCHANT_STONE =
             ITEMS.registerItem("enchant_stone", EnchantStoneItem::new, new Item.Properties().stacksTo(64));
+    public static final DeferredItem<ReinforceStoneItem> REINFORCE_STONE =
+            ITEMS.registerItem("reinforce_stone", ReinforceStoneItem::new, new Item.Properties().stacksTo(64));
 
     public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
@@ -70,6 +78,7 @@ public class GettCore {
                         output.accept(XP_ORB.get());
                         output.accept(RETURN_STONE.get());
                         output.accept(ENCHANT_STONE.get());
+                        output.accept(REINFORCE_STONE.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
                         output.accept(PetRegistry.CAPTURE_BALL_DIAMOND.get());

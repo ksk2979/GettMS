@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
+import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -341,5 +342,32 @@ class GettDataTest {
         assertEquals(1, data.protect().regions().size());
         assertEquals(new net.minecraft.core.BlockPos(0, 0, 0), data.protect().regions().get(0).min());
         assertTrue(r.warnings().stream().anyMatch(w -> w.contains("protect.json")), r.warnings().toString());
+    }
+
+    @Test
+    void reinforceInstallsDefaultSavesAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().isEmpty(), r.warnings().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("reinforce.json")));
+        assertEquals(ReinforceConfig.DEFAULT, data.reinforce());
+
+        var cfg = new ReinforceConfig(2, java.util.List.of(100.0, 50.0), java.util.List.of(1, 3), 5, 6, 7, 2, 0);
+        data.saveReinforce(cfg);
+        assertEquals(cfg, data.reinforce());
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals(cfg, again.reinforce());
+
+        Files.writeString(dir.resolve("reinforce.json"), "{\"maxLevel\":\"many\"}");
+        GettData.LoadReport bad = again.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("reinforce.json")), bad.errors().toString());
+        assertEquals(cfg, again.reinforce());
+
+        Files.writeString(dir.resolve("reinforce.json"), "{\"maxLevel\":3}");
+        GettData.LoadReport warn = again.load(dir);
+        assertEquals(3, again.reinforce().successPercent().size());
+        assertTrue(warn.warnings().stream().anyMatch(w -> w.contains("reinforce.json")), warn.warnings().toString());
     }
 }

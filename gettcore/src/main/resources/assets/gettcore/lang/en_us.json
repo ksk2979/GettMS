@@ -46,6 +46,7 @@
   "gettcore.msg.return_point_set": "Return point set",
   "gettcore.msg.xp_gained": "Gained %d XP",
   "item.gettcore.enchant_stone": "Enchant Stone",
+  "item.gettcore.reinforce_stone": "Reinforce Stone",
   "gettcore.gui.enchant_title": "Enchanting",
   "gettcore.gui.enchant_apply": "Infuse",
   "gettcore.gui.enchant_cancel": "Cancel",

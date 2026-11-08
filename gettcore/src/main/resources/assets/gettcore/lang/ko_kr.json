@@ -46,6 +46,7 @@
   "gettcore.msg.return_point_set": "귀환 지점을 설정했습니다",
   "gettcore.msg.xp_gained": "경험치 %d를 얻었습니다",
   "item.gettcore.enchant_stone": "마법부여석",
+  "item.gettcore.reinforce_stone": "강화석",
   "gettcore.gui.enchant_title": "마법부여",
   "gettcore.gui.enchant_apply": "부여",
   "gettcore.gui.enchant_cancel": "취소",
