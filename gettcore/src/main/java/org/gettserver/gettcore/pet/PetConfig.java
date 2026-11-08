@@ -23,7 +23,7 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
 
     /** {@code captureColor} is ARGB; JSON form is {@code "#RRGGBB"} (or {@code "#AARRGGBB"}). */
     public record HealthBar(int showDistance, int fadeDelayTicks, int fadeTicks, int captureColor) {
-        static final HealthBar DEFAULT = new HealthBar(24, 60, 40, 0xFF55FF55);
+        static final HealthBar DEFAULT = new HealthBar(32, 200, 20, 0xFF55FF55);
 
         private static final Codec<Integer> COLOR_CODEC = Codec.STRING.comapFlatMap(s -> {
             try {

@@ -44,6 +44,8 @@ class PetConfigTest {
         assertEquals(2.5, vulture.sizeScale());
         assertEquals(20, vulture.obtainPercent());
         assertEquals(0xFF55FF55, cfg.healthbar().captureColor());
+        assertEquals(new PetConfig.HealthBar(32, 200, 20, 0xFF55FF55), cfg.healthbar());
+        assertEquals(PetConfig.DEFAULT.healthbar(), cfg.healthbar());
         assertEquals(PetConfig.DEFAULT.capture(), cfg.capture());
         List<String> warnings = new ArrayList<>();
         assertEquals(cfg, cfg.sanitized(warnings));

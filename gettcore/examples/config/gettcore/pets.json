@@ -1,8 +1,8 @@
 {
   "healthbar": {
-    "showDistance": 24,
-    "fadeDelayTicks": 60,
-    "fadeTicks": 40,
+    "showDistance": 32,
+    "fadeDelayTicks": 200,
+    "fadeTicks": 20,
     "captureColor": "#55FF55"
   },
   "capture": {
