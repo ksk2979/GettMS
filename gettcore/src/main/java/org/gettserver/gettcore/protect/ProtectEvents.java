@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.item.ItemStack;
@@ -44,9 +43,10 @@ public final class ProtectEvents {
     @SubscribeEvent
     public static void onDetonate(ExplosionEvent.Detonate event) {
         Level level = event.getLevel();
+        Explosion explosion = event.getExplosion();
+        if (!ProtectRules.filtersBlocks(explosion.getBlockInteraction())) return;
         if (level.isClientSide() || event.getAffectedBlocks().isEmpty()) return;
         ProtectConfig cfg = GettData.get().protect();
-        Explosion explosion = event.getExplosion();
         boolean boss = explosion.getDirectSourceEntity() instanceof GettBoss
                 || explosion.getIndirectSourceEntity() instanceof GettBoss;
         if (cfg.regions().isEmpty() && (cfg.explosionsBreakBlocks() || boss)) return;
@@ -73,7 +73,7 @@ public final class ProtectEvents {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getLevel().isClientSide() || event.getHand() != InteractionHand.MAIN_HAND) return;
+        if (event.getLevel().isClientSide()) return;
         ItemStack stack = event.getItemStack();
         if (!stack.is(Items.FLINT_AND_STEEL) && !stack.is(Items.FIRE_CHARGE)) return;
         long now = event.getLevel().getGameTime();
@@ -93,6 +93,9 @@ public final class ProtectEvents {
         if (flags.isEmpty()) return;
         Long lit = IGNITED.get(GlobalPos.of(level.dimension(), pos));
         boolean playerIgnited = lit != null && level.getGameTime() - lit <= IGNITE_TICKS;
-        if (ProtectRules.shouldExtinguish(flags, playerIgnited)) level.removeBlock(pos, false);
+        if (ProtectRules.shouldExtinguish(flags, playerIgnited)) {
+            level.removeBlock(pos, false);
+            event.setCanceled(true);
+        }
     }
 }

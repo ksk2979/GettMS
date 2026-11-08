@@ -46,6 +46,14 @@ class ProtectRulesTest {
     }
 
     @Test
+    void triggerBlockExplosionsAreNotFiltered() {
+        assertFalse(ProtectRules.filtersBlocks(net.minecraft.world.level.Explosion.BlockInteraction.TRIGGER_BLOCK));
+        assertTrue(ProtectRules.filtersBlocks(net.minecraft.world.level.Explosion.BlockInteraction.DESTROY));
+        assertTrue(ProtectRules.filtersBlocks(net.minecraft.world.level.Explosion.BlockInteraction.DESTROY_WITH_DECAY));
+        assertTrue(ProtectRules.filtersBlocks(net.minecraft.world.level.Explosion.BlockInteraction.KEEP));
+    }
+
+    @Test
     void shouldExtinguish() {
         assertTrue(ProtectRules.shouldExtinguish(Optional.of(Flags.DEFAULT), false));
         assertFalse(ProtectRules.shouldExtinguish(Optional.of(Flags.DEFAULT), true));
