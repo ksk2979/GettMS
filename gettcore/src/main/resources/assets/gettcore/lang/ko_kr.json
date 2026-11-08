@@ -271,5 +271,6 @@
   "gettcore.gui.pet_dex.release_note": "풀어준 펫은 되돌릴 수 없습니다",
   "gettcore.gui.yes": "예",
   "gettcore.gui.no": "아니오",
+  "gettcore.cmd.id_empty": "id 는 비어 있을 수 없습니다.",
   "caramelChat v%s": ""
 }

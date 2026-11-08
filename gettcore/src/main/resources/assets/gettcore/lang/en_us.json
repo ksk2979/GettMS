@@ -271,5 +271,6 @@
   "gettcore.gui.pet_dex.release_note": "A released pet cannot be recovered",
   "gettcore.gui.yes": "Yes",
   "gettcore.gui.no": "No",
+  "gettcore.cmd.id_empty": "The id must not be empty.",
   "caramelChat v%s": ""
 }

@@ -1,7 +1,7 @@
 package org.gettserver.gettcore.quest;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import org.gettserver.gettcore.pet.command.NameArgument;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -46,7 +46,7 @@ public final class QuestCommands {
                         .then(Commands.argument("player", EntityArgument.player()).executes(QuestCommands::complete)))
                 .then(Commands.literal(jump)
                         .then(Commands.argument("player", EntityArgument.player())
-                                .then(Commands.argument("quest", StringArgumentType.word()).suggests(QUEST_IDS)
+                                .then(Commands.argument("quest", NameArgument.name()).suggests(QUEST_IDS)
                                         .executes(QuestCommands::jump))));
     }
 
@@ -74,7 +74,7 @@ public final class QuestCommands {
     private static int jump(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
         String name = target.getGameProfile().getName();
-        String questId = StringArgumentType.getString(ctx, "quest");
+        String questId = NameArgument.getName(ctx, "quest");
         if (!QuestService.adminGoto(target, questId)) {
             ctx.getSource().sendFailure(Component.translatable("gettcore.quest.cmd.unknown", questId));
             return 0;

@@ -83,6 +83,7 @@ public class GettCore {
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
         PetRegistry.register(modBus);
+        org.gettserver.gettcore.pet.command.CommandArgumentTypes.register(modBus);
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();

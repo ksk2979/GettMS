@@ -2,7 +2,7 @@ package org.gettserver.gettcore.pet.boss;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import org.gettserver.gettcore.pet.command.NameArgument;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -58,7 +58,7 @@ public final class BossCommands {
         return Commands.literal(name)
                 .requires(Perms.require(Perms.BOSS_ADMIN))
                 .then(Commands.literal(add)
-                        .then(Commands.argument("id", StringArgumentType.word())
+                        .then(Commands.argument("id", NameArgument.name())
                                 .then(Commands.argument("bossType", ResourceLocationArgument.id())
                                         .suggests(BOSS_TYPES)
                                         .executes(c -> add(c, BossPoint.DEFAULT_RADIUS, BossPoint.DEFAULT_MAX_COUNT))
@@ -77,13 +77,13 @@ public final class BossCommands {
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> pointArg() {
-        return Commands.argument("id", StringArgumentType.word()).suggests(POINT_IDS);
+        return Commands.argument("id", NameArgument.name()).suggests(POINT_IDS);
     }
 
     private static int add(CommandContext<CommandSourceStack> ctx, int radius, int maxCount)
             throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         ResourceLocation type = ResourceLocationArgument.getId(ctx, "bossType");
         if (!isBossType(player.serverLevel(), type)) {
             ctx.getSource().sendFailure(Component.translatable(MSG + "not_boss", type.toString()));
@@ -104,7 +104,7 @@ public final class BossCommands {
     }
 
     private static int remove(CommandContext<CommandSourceStack> ctx) {
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         Optional<BossPoint> point = find(id);
         if (point.isEmpty()) return notFound(ctx, id);
         List<BossPoint> next = new ArrayList<>(GettData.get().bossPoints());
@@ -148,7 +148,7 @@ public final class BossCommands {
 
     private static int jump(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         Optional<BossPoint> point = find(id);
         if (point.isEmpty()) return notFound(ctx, id);
         BossPoint p = point.get();
@@ -165,7 +165,7 @@ public final class BossCommands {
     }
 
     private static int reset(CommandContext<CommandSourceStack> ctx) {
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         if (find(id).isEmpty()) return notFound(ctx, id);
         BossPointData.get(ctx.getSource().getServer()).reset(id);
         ctx.getSource().sendSuccess(() -> Component.translatable(MSG + "reset_done", id), true);

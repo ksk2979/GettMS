@@ -1,7 +1,7 @@
 package org.gettserver.gettcore.protect;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.StringArgumentType;
+import org.gettserver.gettcore.pet.command.NameArgument;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -51,7 +51,7 @@ public final class ProtectCommands {
                                                                    String list, String jump, String info) {
         return Commands.literal(name)
                 .requires(Perms.require(Perms.PROTECT_ADMIN))
-                .then(Commands.literal(add).then(Commands.argument("id", StringArgumentType.word())
+                .then(Commands.literal(add).then(Commands.argument("id", NameArgument.name())
                         .executes(ProtectCommands::add)))
                 .then(Commands.literal(remove).then(regionArg().executes(ProtectCommands::remove)))
                 .then(Commands.literal(list).executes(ProtectCommands::list))
@@ -60,12 +60,12 @@ public final class ProtectCommands {
     }
 
     private static RequiredArgumentBuilder<CommandSourceStack, String> regionArg() {
-        return Commands.argument("id", StringArgumentType.word()).suggests(REGION_IDS);
+        return Commands.argument("id", NameArgument.name()).suggests(REGION_IDS);
     }
 
     private static int add(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         if (!ModList.get().isLoaded("worldedit")) {
             ctx.getSource().sendFailure(Component.translatable(MSG + "need_worldedit"));
             return 0;
@@ -92,7 +92,7 @@ public final class ProtectCommands {
     }
 
     private static int remove(CommandContext<CommandSourceStack> ctx) {
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         ProtectConfig cfg = GettData.get().protect();
         if (cfg.region(id).isEmpty()) return notFound(ctx, id);
         List<Region> next = new ArrayList<>(cfg.regions());
@@ -119,7 +119,7 @@ public final class ProtectCommands {
 
     private static int jump(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
-        String id = StringArgumentType.getString(ctx, "id");
+        String id = NameArgument.getName(ctx, "id");
         Optional<Region> found = GettData.get().protect().region(id);
         if (found.isEmpty()) return notFound(ctx, id);
         Region r = found.get();
