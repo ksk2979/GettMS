@@ -35,7 +35,7 @@ public final class CaptureService {
         PetConfig config = GettData.get().pets();
         ResourceLocation typeId = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
         Optional<PetSpecies> species = config.species(typeId);
-        boolean hasOwner = (target instanceof TamableAnimal t && t.getOwnerUUID() != null) || target instanceof GettPet;
+        boolean hasOwner = hasOwner(target);
         double ratio = target.getMaxHealth() > 0 ? target.getHealth() / target.getMaxHealth() : 0;
         Verdict verdict = CaptureRules.evaluate(species, hasOwner, ratio, tier, config.capture(),
                 level.random.nextDouble());
@@ -63,6 +63,11 @@ public final class CaptureService {
         } else if (verdict == Verdict.FAILED) {
             level.playSound(null, x, y, z, PetRegistry.CAPTURE_FAIL.get(), SoundSource.PLAYERS, 1.0F, 1.0F);
         }
+    }
+
+    /** Tamed animals with an owner and our pets cannot be captured. */
+    public static boolean hasOwner(LivingEntity target) {
+        return (target instanceof TamableAnimal t && t.getOwnerUUID() != null) || target instanceof GettPet;
     }
 
     public static String messageKey(Verdict verdict) {

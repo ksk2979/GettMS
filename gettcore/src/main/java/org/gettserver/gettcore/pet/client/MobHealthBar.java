@@ -6,7 +6,6 @@ import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
@@ -21,8 +20,9 @@ import org.gettserver.gettcore.pet.entity.GettPet;
 import org.joml.Matrix4f;
 
 /**
- * Head-over health bar + percent for mobs the local player (or their pet) hit. Visible for
- * {@code fadeDelayTicks} after the last hit, then fades; stays while health is at or below the capture maximum.
+ * Head-over health bar (no number) for mobs the local player (or their pet) hit; filled and outlined in the
+ * capture color while capturable. Bosses are skipped (they have a boss bar). Visible for {@code fadeDelayTicks}
+ * after the last hit, then fades; stays while health is at or below the capture maximum.
  * Client-only; render thread only.
  */
 public final class MobHealthBar {
@@ -31,7 +31,6 @@ public final class MobHealthBar {
     private static final float SCALE = 0.025f;
     private static final float HALF_WIDTH = 20f;   // 40 units * 0.025 = 1 block
     private static final float BAR_HEIGHT = 4f;
-    private static final float TEXT_SCALE = 2f;
 
     /** entityId → client game time of the last hit by the local player or their pet. */
     private static final Map<Integer, Long> lastHit = new HashMap<>();
@@ -61,7 +60,8 @@ public final class MobHealthBar {
             lastHit.values().removeIf(t -> now - t > FORGET_TICKS || t > now);
         }
         if (lastHit.isEmpty()) return;
-        if (e instanceof Player || e instanceof GettPet || e instanceof EasyNPC) return;
+        // Bosses already show a boss bar.
+        if (e instanceof Player || e instanceof GettPet || e instanceof EasyNPC || e instanceof GettBoss) return;
         if (e.isInvisible() || e.isDeadOrDying()) return;
         Long hit = lastHit.get(e.getId());
         if (hit == null) return;
@@ -87,28 +87,15 @@ public final class MobHealthBar {
         ps.scale(SCALE, -SCALE, SCALE);   // nameplate space: +y is down, 1 unit = 1/40 block
         Matrix4f m = ps.last().pose();
 
-        float textY;
-        if (e instanceof GettBoss) {
-            textY = 0;
-        } else {
-            VertexConsumer vc = buf.getBuffer(RenderType.textBackgroundSeeThrough());
-            if (capturable) {
-                quad(vc, m, -HALF_WIDTH - 1, -1, HALF_WIDTH + 1, BAR_HEIGHT + 1, withAlpha(captureRgb, a), light);
-            }
-            quad(vc, m, -HALF_WIDTH, 0, HALF_WIDTH, BAR_HEIGHT, withAlpha(0x000000, a * 0.5f), light);
-            float fillRight = -HALF_WIDTH + (float) (2 * HALF_WIDTH * ratio);
-            if (fillRight > -HALF_WIDTH) {
-                quad(vc, m, -HALF_WIDTH, 0, fillRight, BAR_HEIGHT, withAlpha(0xE03030, a), light);
-            }
-            textY = BAR_HEIGHT + 2;
+        VertexConsumer vc = buf.getBuffer(RenderType.textBackgroundSeeThrough());
+        if (capturable) {
+            quad(vc, m, -HALF_WIDTH - 1, -1, HALF_WIDTH + 1, BAR_HEIGHT + 1, withAlpha(captureRgb, a), light);
         }
-
-        Font font = Minecraft.getInstance().font;
-        String text = (int) Math.ceil(ratio * 100) + "%";
-        ps.translate(0, textY, 0);
-        ps.scale(TEXT_SCALE, TEXT_SCALE, TEXT_SCALE);
-        font.drawInBatch(text, -font.width(text) / 2f, 0, withAlpha(capturable ? captureRgb : 0xFFFFFF, a), false,
-                ps.last().pose(), buf, Font.DisplayMode.SEE_THROUGH, 0, light);
+        quad(vc, m, -HALF_WIDTH, 0, HALF_WIDTH, BAR_HEIGHT, withAlpha(0x000000, a * 0.5f), light);
+        float fillRight = -HALF_WIDTH + (float) (2 * HALF_WIDTH * ratio);
+        if (fillRight > -HALF_WIDTH) {
+            quad(vc, m, -HALF_WIDTH, 0, fillRight, BAR_HEIGHT, withAlpha(capturable ? captureRgb : 0xE03030, a), light);
+        }
         ps.popPose();
     }
 
