@@ -147,8 +147,6 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
 
     /** 10.0 → "10", 1.5 → "1.5", 2.25 → "2.25". */
     static String fmt(double v) {
-        if (v == Math.rint(v) && Math.abs(v) < 1e15) return Long.toString((long) v);
-        String s = String.format(java.util.Locale.ROOT, "%.2f", v);
-        return s.replaceAll("0+$", "").replaceAll("\\.$", "");
+        return ReinforceEffects.fmt(v);
     }
 }

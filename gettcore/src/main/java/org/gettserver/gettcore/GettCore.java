@@ -13,6 +13,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -27,6 +28,8 @@ import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.pet.PetRegistry;
 import org.gettserver.gettcore.pet.PetService;
+import org.gettserver.gettcore.reinforce.NtglBridge;
+import org.gettserver.gettcore.reinforce.ReinforceEffects;
 import org.gettserver.gettcore.reinforce.ReinforceMenu;
 import org.gettserver.gettcore.reinforce.ReinforceService;
 import org.gettserver.gettcore.reinforce.ReinforceStoneItem;
@@ -101,6 +104,9 @@ public class GettCore {
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();
+        ReinforceEffects.registerReloadHook();
+        // NTGL(총) 은 선택 의존성: NtglBridge 는 이 분기 안에서만 참조해야 NTGL 없는 환경에서 클래스가 로드되지 않는다.
+        if (ModList.get().isLoaded("ntgl")) NtglBridge.install();
         PetService.registerReloadHook();
     }
 

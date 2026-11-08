@@ -139,6 +139,10 @@ dependencies {
     implementation "maven.modrinth:naturalist:9Yn8ig4c"
     // 보호구역 추가 명령이 WorldEdit 선택 영역을 읽음 (선택 의존성: protect/WorldEditBridge 만 참조)
     compileOnly "maven.modrinth:worldedit:WTAFvuRx"
+    // 강화: NTGL 총 판정·탄환/근접 배율 (선택 의존성: reinforce/NtglBridge 만 참조)
+    compileOnly "maven.modrinth:ntgl:zd7xJnqO"
+    // NTGL 의 탄환/무기 클래스가 GeckoLib 인터페이스를 구현해 컴파일에 필요 (실행 시엔 NTGL 이 끌고 옴)
+    compileOnly "maven.modrinth:geckolib:Grwn5rUB"
     // 개발 실행용: Easy NPC 설정 화면 모듈 (배포 시엔 런처가 번들로 받음)
     localRuntime "maven.modrinth:easy-npc-config-ui:5k9n62gb"
     // 개발 실행용: 한글 IME 채팅 입력 (배포 시 clientOnlyMods 로 받음)
