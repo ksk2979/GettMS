@@ -1,9 +1,11 @@
 package org.gettserver.gettcore.pet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.gettserver.gettcore.pet.CaptureRules.Verdict;
 import org.junit.jupiter.api.Test;
 
@@ -29,5 +31,21 @@ class CaptureServiceTest {
 
         ItemStack normal = CaptureService.capturedStack(new PetKey("minecraft:pig", "default"), false);
         assertEquals(Boolean.FALSE, normal.get(PetRegistry.PET_BOSS.get()));
+    }
+
+    @Test
+    void confirmIgnoresWrongItem() {
+        PetKey key = new PetKey("naturalist:bear", "brown");
+        assertFalse(CaptureService.canConfirm(new ItemStack(Items.STONE)));
+        assertFalse(CaptureService.canConfirm(ItemStack.EMPTY));
+        assertFalse(CaptureService.canConfirm(new ItemStack(PetRegistry.CAPTURED_MOB.get())), "no pet key");
+        assertTrue(CaptureService.canConfirm(CaptureService.capturedStack(key, false)));
+    }
+
+    @Test
+    void obtainOutcomeMessageKeys() {
+        assertEquals("gettcore.msg.obtain.success", CaptureService.obtainMessageKey(true, false));
+        assertEquals("gettcore.msg.obtain.duplicate", CaptureService.obtainMessageKey(true, true));
+        assertEquals("gettcore.msg.obtain.escaped", CaptureService.obtainMessageKey(false, false));
     }
 }

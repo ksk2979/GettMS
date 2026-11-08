@@ -17,6 +17,8 @@ import org.gettserver.gettcore.item.ClientReturnCasts;
 import org.gettserver.gettcore.npc.DialogClient;
 import org.gettserver.gettcore.npc.ClientNpcMappings;
 import org.gettserver.gettcore.npc.DialogSession;
+import org.gettserver.gettcore.pet.CaptureService;
+import org.gettserver.gettcore.pet.client.ObtainScreen;
 import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.quest.client.ClientQuestState;
 import org.gettserver.gettcore.quest.client.QuestScreen;
@@ -63,6 +65,12 @@ public final class GettNetwork {
                 (payload, ctx) -> QuestScreen.open(payload));
         registrar.playToClient(QuestNotifyPayload.TYPE, QuestNotifyPayload.STREAM_CODEC,
                 (payload, ctx) -> QuestToasts.enqueue(payload));
+        // ObtainScreen (client-only, pet.client) is referenced only inside the client-bound handler.
+        registrar.playToClient(OpenObtainPayload.TYPE, OpenObtainPayload.STREAM_CODEC,
+                (payload, ctx) -> ObtainScreen.open(payload));
+        registrar.playToServer(ObtainConfirmPayload.TYPE, ObtainConfirmPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> CaptureService.confirmObtain((ServerPlayer) ctx.player(), payload.hand())));
         registrar.playToServer(QuestActionPayload.TYPE, QuestActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> QuestService.onAction((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EditorSaveChunkPayload.TYPE, EditorSaveChunkPayload.STREAM_CODEC,
