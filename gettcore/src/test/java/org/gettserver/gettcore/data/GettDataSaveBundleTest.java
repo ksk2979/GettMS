@@ -196,4 +196,26 @@ class GettDataSaveBundleTest {
         assertTrue(Files.isRegularFile(latest.resolve("boss_points.json")));
         assertEquals(List.of(point), data.rawBundle().bossPoints());
     }
+
+    @Test
+    void reportsRemovedBossPoints(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        ResourceKey<net.minecraft.world.level.Level> overworld = ResourceKey.create(Registries.DIMENSION,
+                ResourceLocation.parse("minecraft:overworld"));
+        BossPoint den = new BossPoint("den", overworld, new BlockPos(1, 70, 2), 24,
+                ResourceLocation.parse("gettcore:boss_lion"), 1, 60);
+        BossPoint cave = new BossPoint("cave", overworld, new BlockPos(9, 40, 9), 24,
+                ResourceLocation.parse("gettcore:boss_lion"), 1, 60);
+        GettData.SaveResult first = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(),
+                raw.quests(), List.of(den, cave), raw.pets()), RegistryChecks.ALL_EXIST);
+        assertTrue(first.saved(), first.errors().toString());
+        assertEquals(List.of(), first.removedBossPoints());
+
+        GettData.SaveResult second = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(),
+                raw.quests(), List.of(cave), raw.pets()), RegistryChecks.ALL_EXIST);
+        assertTrue(second.saved(), second.errors().toString());
+        assertEquals(List.of("den"), second.removedBossPoints());
+        assertEquals(List.of(cave), data.bossPoints());
+    }
 }

@@ -152,10 +152,12 @@ public final class GettData {
         EnchantConfig newEnchant = (Files.isRegularFile(enchantFile)
                 ? read(enchantFile, EnchantConfig.CODEC, errors).orElse(EnchantConfig.DEFAULT) : EnchantConfig.DEFAULT)
                 .sanitized(errors);
+        // An unreadable pets.json keeps the config already loaded (DEFAULT only on the first load), like
+        // boss_points.json below: a typo must not wipe the species whitelist and the capture odds.
         Path petsFile = dir.resolve(PETS_FILE);
-        PetConfig newPets = (Files.isRegularFile(petsFile)
-                ? read(petsFile, PetConfig.CODEC, errors).orElse(PetConfig.DEFAULT) : PetConfig.DEFAULT)
-                .sanitized(errors);
+        PetConfig newPets = Files.isRegularFile(petsFile)
+                ? read(petsFile, PetConfig.CODEC, errors).map(c -> c.sanitized(errors)).orElse(pets)
+                : PetConfig.DEFAULT.sanitized(errors);
         // An unreadable boss_points.json keeps the points already loaded (a typo must not strand the bosses).
         Path bossFile = dir.resolve(BOSS_POINTS_FILE);
         List<BossPoint> newBossPoints = Files.isRegularFile(bossFile)
@@ -329,7 +331,13 @@ public final class GettData {
                 new java.util.TreeMap<>(rawQuestLines), bossPoints, pets);
     }
 
-    public record SaveResult(boolean saved, List<String> errors, List<String> warnings, LoadReport reload) {}
+    /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
+    public record SaveResult(boolean saved, List<String> errors, List<String> warnings, LoadReport reload,
+                             List<String> removedBossPoints) {
+        public SaveResult(boolean saved, List<String> errors, List<String> warnings, LoadReport reload) {
+            this(saved, errors, warnings, reload, List.of());
+        }
+    }
 
     private static final int BACKUP_KEEP = 20;
     private static final java.time.format.DateTimeFormatter BACKUP_STAMP =
@@ -338,7 +346,8 @@ public final class GettData {
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
      * npcs.json, boss_points.json and pets.json (all to .tmp first, then moved), deletes files of ids no longer
-     * present and reloads. Boss points and pets are replaced as a whole.
+     * present and reloads. Boss points and pets are replaced as a whole; the ids of boss points that are gone
+     * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
      */
     public synchronized SaveResult saveBundle(EditorBundle bundle, RegistryChecks checks) {
@@ -422,8 +431,12 @@ public final class GettData {
             return new SaveResult(false, List.of("save failed midway (" + e.getMessage()
                     + "); restore from backup " + backup), warnings, load(dir));
         }
+        List<String> pointsBefore = bossPoints.stream().map(BossPoint::id).toList();
         LoadReport reload = load(dir);
-        return new SaveResult(true, List.of(), warnings, reload);
+        Set<String> pointsAfter = new java.util.HashSet<>();
+        for (BossPoint p : bossPoints) pointsAfter.add(p.id());
+        List<String> removed = pointsBefore.stream().filter(id -> !pointsAfter.contains(id)).toList();
+        return new SaveResult(true, List.of(), warnings, reload, removed);
     }
 
     private static String pathKey(Path p) {
@@ -534,6 +547,11 @@ public final class GettData {
 
     public PetConfig pets() {
         return pets;
+    }
+
+    /** False until the first {@link #load} (e.g. while spawn chunks load before ServerStartingEvent). */
+    public boolean loaded() {
+        return configDir != null;
     }
 
     /** Boss points from boss_points.json, in file order (immutable). */

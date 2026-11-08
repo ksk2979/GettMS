@@ -33,4 +33,14 @@ class BossBehaviorTest {
         BossBehavior.dropLoot(() -> rolls[0]++);
         assertEquals(3, rolls[0]);
     }
+
+    @Test
+    void bossOfARemovedPointIsOrphaned() {
+        BossPoint den = new BossPoint("den", net.minecraft.world.level.Level.OVERWORLD,
+                new net.minecraft.core.BlockPos(0, 64, 0), 16, ResourceLocation.parse("gettcore:boss_lion"), 1, 30);
+        assertFalse(BossBehavior.isOrphan("", java.util.List.of()), "no point (e.g. /summon) is never orphaned");
+        assertFalse(BossBehavior.isOrphan("den", java.util.List.of(den)));
+        assertTrue(BossBehavior.isOrphan("den", java.util.List.of()));
+        assertTrue(BossBehavior.isOrphan("cave", java.util.List.of(den)));
+    }
 }

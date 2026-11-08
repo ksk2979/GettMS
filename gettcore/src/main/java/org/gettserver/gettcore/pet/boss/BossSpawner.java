@@ -126,14 +126,15 @@ public final class BossSpawner {
     }
 
     /**
-     * A boss entering a level (chunk load): keep it unless its point already has its maxCount of other bosses
-     * (it was given up for missing while unloaded and replaced). Bosses without a known point are kept.
+     * A boss entering a level (chunk load): dropped when its point no longer exists, or when the point already has
+     * its maxCount of other bosses (it was given up for missing while unloaded and replaced). Bosses without a
+     * point (e.g. /summon) are kept, and so is everything before the data is first loaded.
      */
     public static boolean keepOnLoad(MinecraftServer server, Entity entity, GettBoss boss) {
         String pointId = boss.pointId();
-        if (pointId.isEmpty()) return true;
+        if (pointId.isEmpty() || !GettData.get().loaded()) return true;
         Optional<BossPoint> point = BossBehavior.point(pointId);
-        if (point.isEmpty()) return true;
+        if (point.isEmpty()) return false; // orphan: its point was removed
         BossPointData data = BossPointData.get(server);
         List<UUID> alive = data.alive(pointId);
         if (alive.contains(entity.getUUID())) return true;

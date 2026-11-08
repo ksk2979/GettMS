@@ -233,18 +233,28 @@ class GettDataTest {
     }
 
     @Test
-    void petsFileInvalidFallsBackAndValidReplaces(@TempDir Path dir) throws IOException {
+    void petsFileInvalidOnFirstLoadFallsBackToDefault(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("pets.json"), "{\"species\":{\"a:w\":{\"kind\":\"bogus\",\"petEntity\":\"a:p\"}}}");
         GettData data = new GettData();
         GettData.LoadReport bad = data.load(dir);
         assertTrue(bad.errors().stream().anyMatch(e -> e.contains("pets.json")), bad.errors().toString());
         assertEquals(PetConfig.DEFAULT, data.pets());
+    }
 
+    @Test
+    void petsFileInvalidKeepsThePreviousConfig(@TempDir Path dir) throws IOException {
         Files.writeString(dir.resolve("pets.json"),
                 "{\"species\":{\"a:w\":{\"kind\":\"mount\",\"petEntity\":\"a:p\"}}}");
+        GettData data = new GettData();
         GettData.LoadReport ok = data.load(dir);
         assertTrue(ok.errors().stream().noneMatch(e -> e.contains("pets.json")), ok.errors().toString());
         assertEquals(PetSpecies.Kind.MOUNT, data.pets().species().get("a:w").kind());
+        PetConfig before = data.pets();
+
+        Files.writeString(dir.resolve("pets.json"), "{\"species\":{\"a:w\":{\"kind\":\"bogus\",\"petEntity\":\"a:p\"}}}");
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("pets.json")), bad.errors().toString());
+        assertEquals(before, data.pets());
     }
 
     @Test

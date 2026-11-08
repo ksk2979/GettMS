@@ -26,19 +26,27 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
         }, k -> k.name().toLowerCase(Locale.ROOT));
     }
 
+    // JSON defaults of the optional fields (also what PetConfig#sanitized resets bad values to).
+    static final double DEFAULT_ATTACK = 6.0;
+    static final double DEFAULT_SPEED = 0.3;
+    static final double DEFAULT_ATTACK_SPEED = 1.0;
+    static final double DEFAULT_FLY_SPEED = 0.6;
+    static final double DEFAULT_CLIMB_SPEED = 0.3;
+    static final double DEFAULT_MULT = 1.0;
+
     /** Codec for the species body; {@code id} is filled in from the map key by {@link PetConfig}. */
     static final Codec<PetSpecies> CODEC = RecordCodecBuilder.create(i -> i.group(
             Kind.CODEC.fieldOf("kind").forGetter(PetSpecies::kind),
             ResourceLocation.CODEC.fieldOf("petEntity").forGetter(PetSpecies::petEntity),
-            Codec.DOUBLE.optionalFieldOf("attack", 6.0).forGetter(PetSpecies::attack),
-            Codec.DOUBLE.optionalFieldOf("speed", 0.3).forGetter(PetSpecies::speed),
-            Codec.DOUBLE.optionalFieldOf("attackSpeed", 1.0).forGetter(PetSpecies::attackSpeed),
-            Codec.DOUBLE.optionalFieldOf("flySpeed", 0.6).forGetter(PetSpecies::flySpeed),
-            Codec.DOUBLE.optionalFieldOf("climbSpeed", 0.3).forGetter(PetSpecies::climbSpeed),
+            Codec.DOUBLE.optionalFieldOf("attack", DEFAULT_ATTACK).forGetter(PetSpecies::attack),
+            Codec.DOUBLE.optionalFieldOf("speed", DEFAULT_SPEED).forGetter(PetSpecies::speed),
+            Codec.DOUBLE.optionalFieldOf("attackSpeed", DEFAULT_ATTACK_SPEED).forGetter(PetSpecies::attackSpeed),
+            Codec.DOUBLE.optionalFieldOf("flySpeed", DEFAULT_FLY_SPEED).forGetter(PetSpecies::flySpeed),
+            Codec.DOUBLE.optionalFieldOf("climbSpeed", DEFAULT_CLIMB_SPEED).forGetter(PetSpecies::climbSpeed),
             Codec.BOOL.optionalFieldOf("boss", false).forGetter(PetSpecies::boss),
-            Codec.DOUBLE.optionalFieldOf("sizeScale", 1.0).forGetter(PetSpecies::sizeScale),
-            Codec.DOUBLE.optionalFieldOf("healthMult", 1.0).forGetter(PetSpecies::healthMult),
-            Codec.DOUBLE.optionalFieldOf("attackMult", 1.0).forGetter(PetSpecies::attackMult),
+            Codec.DOUBLE.optionalFieldOf("sizeScale", DEFAULT_MULT).forGetter(PetSpecies::sizeScale),
+            Codec.DOUBLE.optionalFieldOf("healthMult", DEFAULT_MULT).forGetter(PetSpecies::healthMult),
+            Codec.DOUBLE.optionalFieldOf("attackMult", DEFAULT_MULT).forGetter(PetSpecies::attackMult),
             Codec.LONG.optionalFieldOf("killGold", 0L).forGetter(PetSpecies::killGold),
             Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(s -> Optional.of(s.obtainPercent()))
     ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, obtain) ->

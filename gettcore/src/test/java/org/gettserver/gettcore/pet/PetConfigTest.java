@@ -105,4 +105,37 @@ class PetConfigTest {
         assertTrue(result.error().isPresent());
         assertTrue(result.error().get().message().contains("fliying_mount"), result.error().get().message());
     }
+
+    @Test
+    void sanitizeFixesSpeciesMultipliersAndNegatives() {
+        PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\","
+                + "\"sizeScale\":0,\"healthMult\":-1,\"attack\":-3,\"killGold\":-5}}}");
+        List<String> warnings = new ArrayList<>();
+        PetSpecies s = cfg.sanitized(warnings).species().get("a:w");
+        assertEquals(1.0, s.sizeScale());
+        assertEquals(1.0, s.healthMult());
+        assertEquals(6.0, s.attack());
+        assertEquals(0, s.killGold());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w sizeScale 0.0 must be > 0")), warnings.toString());
+        assertEquals(4, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    void sanitizeClampsHealthBar() {
+        PetConfig cfg = parse("{\"healthbar\":{\"showDistance\":0,\"fadeDelayTicks\":5000,\"fadeTicks\":0}}");
+        List<String> warnings = new ArrayList<>();
+        PetConfig.HealthBar h = cfg.sanitized(warnings).healthbar();
+        assertEquals(1, h.showDistance());
+        assertEquals(1200, h.fadeDelayTicks());
+        assertEquals(1, h.fadeTicks());
+        assertEquals(3, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    void bundledFileNeedsNoSanitizing() throws Exception {
+        List<String> warnings = new ArrayList<>();
+        PetConfig cfg = defaultFile();
+        assertEquals(cfg, cfg.sanitized(warnings));
+        assertTrue(warnings.isEmpty(), warnings.toString());
+    }
 }

@@ -28,6 +28,7 @@ import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.network.EditorDataPayload;
 import org.gettserver.gettcore.network.EditorSaveChunkPayload;
 import org.gettserver.gettcore.perm.Perms;
+import org.gettserver.gettcore.pet.boss.BossPointData;
 import org.gettserver.gettcore.quest.QuestService;
 
 /** Server side of the web editor: sends snapshots, assembles and applies saves. Server thread only. */
@@ -90,6 +91,9 @@ public final class EditorServerService {
                 warnings = w;
             }
             if (saved) {
+                // Bosses of removed points are discarded by their own tick (BossBehavior.isOrphan).
+                BossPointData points = BossPointData.get(server);
+                for (String id : r.removedBossPoints()) points.remove(id);
                 GettData.runReloadHooks();
                 DataEvents.syncConfig(server);
                 QuestService.refreshAll(server);

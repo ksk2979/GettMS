@@ -108,7 +108,12 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         return Optional.ofNullable(species.get(wildEntityType.toString()));
     }
 
-    /** Copy with out-of-range numbers replaced/clamped; one line in {@code warnings} per changed field. */
+    /**
+     * Copy with out-of-range numbers replaced/clamped; one line in {@code warnings} per changed field. Health bar:
+     * showDistance 1..128, fadeDelayTicks 0..1200, fadeTicks 1..200 (clamped). Species: sizeScale, healthMult and
+     * attackMult must be &gt; 0 and attack, speed, attackSpeed, flySpeed, climbSpeed &gt;= 0 (else the JSON
+     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped).
+     */
     public PetConfig sanitized(List<String> warnings) {
         Capture c = capture;
         Capture d = Capture.DEFAULT;
@@ -124,17 +129,58 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         double obtain = percent("capture.obtainPercent", c.obtainPercent, d.obtainPercent, warnings);
 
         Map<String, PetSpecies> fixed = new HashMap<>();
-        species.forEach((key, s) -> {
-            double p = s.obtainPercent();
-            if (!(p >= 0 && p <= 100)) {
-                double clamped = Double.isNaN(p) ? 0 : Math.max(0, Math.min(100, p));
-                warnings.add("pets.json: species " + key + " obtainPercent " + p + " out of [0, 100], using " + clamped);
-                s = new PetSpecies(s.id(), s.kind(), s.petEntity(), s.attack(), s.speed(), s.attackSpeed(), s.flySpeed(),
-                        s.climbSpeed(), s.boss(), s.sizeScale(), s.healthMult(), s.attackMult(), s.killGold(), clamped);
-            }
-            fixed.put(key, s);
-        });
-        return new PetConfig(healthbar, new Capture(min, max, ball, boss, obtain), Map.copyOf(fixed));
+        species.forEach((key, s) -> fixed.put(key, sanitizedSpecies(key, s, warnings)));
+        HealthBar h = healthbar;
+        HealthBar bar = new HealthBar(clamp("healthbar.showDistance", h.showDistance, 1, 128, warnings),
+                clamp("healthbar.fadeDelayTicks", h.fadeDelayTicks, 0, 1200, warnings),
+                clamp("healthbar.fadeTicks", h.fadeTicks, 1, 200, warnings), h.captureColor);
+        return new PetConfig(bar.equals(h) ? h : bar, new Capture(min, max, ball, boss, obtain), Map.copyOf(fixed));
+    }
+
+    private static PetSpecies sanitizedSpecies(String key, PetSpecies s, List<String> warnings) {
+        String at = "species " + key + " ";
+        double attack = atLeastZero(at + "attack", s.attack(), PetSpecies.DEFAULT_ATTACK, warnings);
+        double speed = atLeastZero(at + "speed", s.speed(), PetSpecies.DEFAULT_SPEED, warnings);
+        double attackSpeed = atLeastZero(at + "attackSpeed", s.attackSpeed(), PetSpecies.DEFAULT_ATTACK_SPEED,
+                warnings);
+        double flySpeed = atLeastZero(at + "flySpeed", s.flySpeed(), PetSpecies.DEFAULT_FLY_SPEED, warnings);
+        double climbSpeed = atLeastZero(at + "climbSpeed", s.climbSpeed(), PetSpecies.DEFAULT_CLIMB_SPEED, warnings);
+        double sizeScale = aboveZero(at + "sizeScale", s.sizeScale(), warnings);
+        double healthMult = aboveZero(at + "healthMult", s.healthMult(), warnings);
+        double attackMult = aboveZero(at + "attackMult", s.attackMult(), warnings);
+        long killGold = s.killGold();
+        if (killGold < 0) {
+            warnings.add("pets.json: " + at + "killGold " + killGold + " must be >= 0, using 0");
+            killGold = 0;
+        }
+        double p = s.obtainPercent();
+        if (!(p >= 0 && p <= 100)) {
+            double clamped = Double.isNaN(p) ? 0 : Math.max(0, Math.min(100, p));
+            warnings.add("pets.json: " + at + "obtainPercent " + p + " out of [0, 100], using " + clamped);
+            p = clamped;
+        }
+        PetSpecies out = new PetSpecies(s.id(), s.kind(), s.petEntity(), attack, speed, attackSpeed, flySpeed,
+                climbSpeed, s.boss(), sizeScale, healthMult, attackMult, killGold, p);
+        return out.equals(s) ? s : out;
+    }
+
+    private static double atLeastZero(String name, double v, double def, List<String> warnings) {
+        if (v >= 0) return v;
+        warnings.add("pets.json: " + name + " " + v + " must be >= 0, using default " + def);
+        return def;
+    }
+
+    private static double aboveZero(String name, double v, List<String> warnings) {
+        if (v > 0) return v;
+        warnings.add("pets.json: " + name + " " + v + " must be > 0, using default " + PetSpecies.DEFAULT_MULT);
+        return PetSpecies.DEFAULT_MULT;
+    }
+
+    private static int clamp(String name, int v, int min, int max, List<String> warnings) {
+        if (v >= min && v <= max) return v;
+        int c = Math.max(min, Math.min(max, v));
+        warnings.add("pets.json: " + name + " " + v + " must be within [" + min + ", " + max + "], using " + c);
+        return c;
     }
 
     private static double percent(String name, double v, double def, List<String> warnings) {

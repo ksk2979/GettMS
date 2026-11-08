@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.data.ChoiceAction;
 import org.gettserver.gettcore.data.DialogChoice;
 import org.gettserver.gettcore.data.DialogDefinition;
@@ -81,12 +82,28 @@ public final class EditorValidator {
         });
 
         validateBossPoints(b, errors);
+        validatePetEntities(b, checks, errors, warnings);
         List<String> petWarnings = new ArrayList<>();
         PetConfig pets = b.pets().sanitized(petWarnings);
         for (String w : petWarnings) warnings.add(w.startsWith("pets.json: ") ? "pets: " + w.substring(11) : w);
 
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets));
+    }
+
+    /** Each species' petEntity must be a registered entity (error); the wild key itself should be one (warning). */
+    private static void validatePetEntities(EditorBundle b, RegistryChecks checks, List<String> errors,
+                                            List<String> warnings) {
+        b.pets().species().forEach((key, s) -> {
+            String p = "pets." + key;
+            if (!checks.entityExists().test(s.petEntity())) {
+                errors.add(p + ": petEntity '" + s.petEntity() + "' is not a registered entity");
+            }
+            ResourceLocation wild = ResourceLocation.tryParse(key);
+            if (wild == null || !checks.entityExists().test(wild)) {
+                warnings.add(p + ": species '" + key + "' is not a registered entity");
+            }
+        });
     }
 
     /** Ids non-empty and unique, ranges as in BossPoint (respawn capped at a day), bossType a boss species. */

@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.pet.boss;
 
 import com.crispytwig.naturalist.world.entity.ai.goal.FlyingWanderGoal;
+import java.util.List;
 import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -77,8 +78,16 @@ public final class BossBehavior {
         if (instance != null && mult > 0) instance.setBaseValue(instance.getBaseValue() * mult);
     }
 
-    /** Server tick of every boss: stats on the first tick, boss bar progress, leash to its point. */
+    /**
+     * Server tick of every boss: a boss whose point no longer exists (removed in the editor or with /gett boss
+     * remove) is discarded; otherwise stats on the first tick, boss bar progress, leash to its point.
+     */
     static void serverTick(Mob boss, BossState state) {
+        if (isOrphan(state.pointId(), GettData.get().bossPoints())) {
+            state.bossEvent().removeAllPlayers();
+            boss.discard();
+            return;
+        }
         if (!state.applied()) apply(boss, species(boss));
         float max = boss.getMaxHealth();
         state.bossEvent().setProgress(max > 0 ? Mth.clamp(boss.getHealth() / max, 0.0F, 1.0F) : 0.0F);
@@ -86,6 +95,15 @@ public final class BossBehavior {
         if (id.isEmpty()) return;
         point(id).filter(p -> p.dimension().equals(boss.level().dimension()))
                 .ifPresent(p -> tickLeash(boss, p.pos(), p.radius()));
+    }
+
+    /** Pure: the boss came from a point ({@code pointId} non-empty) that is not in {@code points} any more. */
+    public static boolean isOrphan(String pointId, List<BossPoint> points) {
+        if (pointId.isEmpty()) return false;
+        for (BossPoint p : points) {
+            if (p.id().equals(pointId)) return false;
+        }
+        return true;
     }
 
     public static Optional<BossPoint> point(String id) {

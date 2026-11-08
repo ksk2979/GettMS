@@ -191,4 +191,36 @@ class EditorValidatorTest {
         assertEquals(d.capture().minPercent(), r.cleaned().pets().capture().minPercent());
         assertEquals(d.capture().obtainPercent(), r.cleaned().pets().capture().obtainPercent());
     }
+
+    @Test
+    void petEntityMustBeRegistered() {
+        RegistryChecks checks = new RegistryChecks(rl -> true, rl -> !rl.getPath().equals("pet_lion"));
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), pets(species("naturalist:lion", false)));
+        var r = EditorValidator.validate(b, checks);
+        assertEquals(List.of("pets.naturalist:lion: petEntity 'gettcore:pet_lion' is not a registered entity"),
+                r.errors());
+    }
+
+    @Test
+    void unknownWildSpeciesIsAWarning() {
+        RegistryChecks checks = new RegistryChecks(rl -> true, rl -> !rl.getNamespace().equals("gone"));
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), pets(species("gone:lion", false)));
+        var r = EditorValidator.validate(b, checks);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(any(r.warnings(), "pets.gone:lion: species 'gone:lion' is not a registered entity"),
+                r.warnings().toString());
+    }
+
+    @Test
+    void zeroSizeScaleIsResetWithAWarning() {
+        var s = species("gettcore:boss_lion", true);
+        var zero = new org.gettserver.gettcore.pet.PetSpecies(s.id(), s.kind(), s.petEntity(), s.attack(), s.speed(),
+                s.attackSpeed(), s.flySpeed(), s.climbSpeed(), true, 0, s.healthMult(), s.attackMult(), s.killGold(),
+                s.obtainPercent());
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), pets(zero)),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(any(r.warnings(), "pets: species gettcore:boss_lion sizeScale"), r.warnings().toString());
+        assertEquals(1.0, r.cleaned().pets().species().get("gettcore:boss_lion").sizeScale());
+    }
 }
