@@ -2,15 +2,20 @@ package org.gettserver.gettcore.pet;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.network.MobHitPayload;
 import org.gettserver.gettcore.pet.entity.GettPet;
 
 /** Drives {@link PetService}: dex sync on login, silent recall on logout/dimension change/death, auto-return. */
@@ -71,5 +76,21 @@ public final class PetEvents {
             event.setCanceled(true);
             event.getEntity().discard();
         }
+    }
+
+    /** Mob health bar: tell the attacking player (or the attacking pet's online owner) which mob it damaged. */
+    @SubscribeEvent
+    public static void onDamagePost(LivingDamageEvent.Post event) {
+        if (event.getEntity() instanceof Player || event.getEntity().level().isClientSide()) return;
+        if (!(event.getNewDamage() > 0)) return;
+        Entity attacker = event.getSource().getEntity();
+        ServerPlayer target = null;
+        if (attacker instanceof ServerPlayer player) {
+            target = player;
+        } else if (attacker instanceof GettPet pet && pet.ownerId() != null) {
+            MinecraftServer server = attacker.getServer();
+            if (server != null) target = server.getPlayerList().getPlayer(pet.ownerId());
+        }
+        if (target != null) PacketDistributor.sendToPlayer(target, new MobHitPayload(event.getEntity().getId()));
     }
 }

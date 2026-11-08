@@ -13,6 +13,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import org.gettserver.gettcore.enchant.AbilityKey;
 import org.gettserver.gettcore.enchant.EnchantScreen;
 import org.gettserver.gettcore.pet.PetRegistry;
+import org.gettserver.gettcore.pet.client.MobHealthBar;
 import org.gettserver.gettcore.pet.client.PetFlightInput;
 import org.gettserver.gettcore.pet.client.PetRenderers;
 import org.gettserver.gettcore.quest.client.QuestHud;
@@ -40,6 +41,8 @@ public class GettCoreClient {
         });
         // 비행 탈것 상승/하강 키(점프/달리기).
         NeoForge.EVENT_BUS.addListener(PetFlightInput::onClientTick);
+        // 몹 머리 위 체력바·퍼센트(때린 몹만).
+        NeoForge.EVENT_BUS.addListener(MobHealthBar::onRenderLiving);
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
         modBus.addListener(RegisterGuiLayersEvent.class,
                 event -> event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render));

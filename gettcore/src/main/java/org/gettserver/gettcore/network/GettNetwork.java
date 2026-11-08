@@ -21,6 +21,7 @@ import org.gettserver.gettcore.pet.CaptureService;
 import org.gettserver.gettcore.pet.PetService;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.client.ClientPetDex;
+import org.gettserver.gettcore.pet.client.MobHealthBar;
 import org.gettserver.gettcore.pet.client.ObtainScreen;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
@@ -74,6 +75,10 @@ public final class GettNetwork {
                 (payload, ctx) -> ObtainScreen.open(payload));
         registrar.playToClient(PetDexSyncPayload.TYPE, PetDexSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientPetDex.set(payload.owned(), payload.boss(), payload.active()));
+        // MobHealthBar (client-only) is referenced only inside the client-bound handler.
+        registrar.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> MobHealthBar.onHit(payload.entityId(), ctx.player().level().getGameTime())));
         registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index())));
