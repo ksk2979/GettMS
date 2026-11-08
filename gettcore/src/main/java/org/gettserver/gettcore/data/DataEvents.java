@@ -11,6 +11,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.ConfigSyncPayload;
 import org.gettserver.gettcore.network.EnchantConfigSyncPayload;
+import org.gettserver.gettcore.network.PetConfigSyncPayload;
 import org.gettserver.gettcore.network.NpcMappingSyncPayload;
 
 @EventBusSubscriber(modid = GettCore.MOD_ID)
@@ -30,12 +31,14 @@ public final class DataEvents {
         PacketDistributor.sendToAllPlayers(configPayload());
         PacketDistributor.sendToAllPlayers(NpcMappingSyncPayload.of(GettData.get().npcMapping()));
         PacketDistributor.sendToAllPlayers(new EnchantConfigSyncPayload(GettData.get().enchant()));
+        PacketDistributor.sendToAllPlayers(new PetConfigSyncPayload(GettData.get().pets()));
     }
 
     public static void syncConfig(ServerPlayer player) {
         PacketDistributor.sendToPlayer(player, configPayload());
         PacketDistributor.sendToPlayer(player, NpcMappingSyncPayload.of(GettData.get().npcMapping()));
         PacketDistributor.sendToPlayer(player, new EnchantConfigSyncPayload(GettData.get().enchant()));
+        PacketDistributor.sendToPlayer(player, new PetConfigSyncPayload(GettData.get().pets()));
     }
 
     @SubscribeEvent

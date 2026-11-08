@@ -29,6 +29,7 @@ import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.editor.EditorMerge;
 import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
+import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.slf4j.Logger;
@@ -42,7 +43,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -69,6 +70,7 @@ public final class GettData {
     private volatile NpcMapping npcs = NpcMapping.EMPTY;
     private volatile EconomyConfig economy = EconomyConfig.DEFAULT;
     private volatile EnchantConfig enchant = EnchantConfig.DEFAULT;
+    private volatile PetConfig pets = PetConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -146,6 +148,10 @@ public final class GettData {
         EnchantConfig newEnchant = (Files.isRegularFile(enchantFile)
                 ? read(enchantFile, EnchantConfig.CODEC, errors).orElse(EnchantConfig.DEFAULT) : EnchantConfig.DEFAULT)
                 .sanitized(errors);
+        Path petsFile = dir.resolve("pets.json");
+        PetConfig newPets = (Files.isRegularFile(petsFile)
+                ? read(petsFile, PetConfig.CODEC, errors).orElse(PetConfig.DEFAULT) : PetConfig.DEFAULT)
+                .sanitized(errors);
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -157,6 +163,7 @@ public final class GettData {
         npcs = newNpcs;
         economy = newEco;
         enchant = newEnchant;
+        pets = newPets;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -485,6 +492,10 @@ public final class GettData {
 
     public EnchantConfig enchant() {
         return enchant;
+    }
+
+    public PetConfig pets() {
+        return pets;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */

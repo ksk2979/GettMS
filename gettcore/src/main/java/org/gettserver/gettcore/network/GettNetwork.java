@@ -3,6 +3,7 @@ package org.gettserver.gettcore.network;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import org.gettserver.gettcore.client.ClientPetConfig;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.ClientConfig;
 import org.gettserver.gettcore.enchant.AbilityKey;
@@ -34,6 +35,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientConfig.set(payload.hudOffsetX(), payload.hudOffsetY(), payload.currencyName()));
         registrar.playToClient(EnchantConfigSyncPayload.TYPE, EnchantConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientEnchantConfig.set(payload.config()));
+        registrar.playToClient(PetConfigSyncPayload.TYPE, PetConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientPetConfig.set(payload.config()));
         registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,

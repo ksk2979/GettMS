@@ -1,0 +1,207 @@
+{
+  "healthbar": {
+    "showDistance": 24,
+    "fadeDelayTicks": 60,
+    "fadeTicks": 40,
+    "captureColor": "#55FF55"
+  },
+  "capture": {
+    "minPercent": 1,
+    "maxPercent": 20,
+    "ballChance": {
+      "iron": 10,
+      "gold": 15,
+      "diamond": 20,
+      "netherite": 30
+    },
+    "bossBallChance": {
+      "iron": 5,
+      "gold": 8,
+      "diamond": 12,
+      "netherite": 20
+    },
+    "obtainPercent": 20
+  },
+  "species": {
+    "naturalist:lion": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_lion",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:tiger": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_tiger",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:bear": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_bear",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:black_bear": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_black_bear",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:hippo": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_hippo",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:elephant": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_elephant",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:mammoth": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_mammoth",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:giraffe": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_giraffe",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "naturalist:ostrich": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_ostrich",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": false
+    },
+    "gettcore:boss_lion": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_boss_lion",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    },
+    "gettcore:boss_tiger": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_boss_tiger",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    },
+    "gettcore:boss_bear": {
+      "kind": "fighter",
+      "petEntity": "gettcore:pet_boss_bear",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    },
+    "gettcore:boss_elephant": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_boss_elephant",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    },
+    "gettcore:boss_mammoth": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_boss_mammoth",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    },
+    "gettcore:boss_vulture": {
+      "kind": "flying_mount",
+      "petEntity": "gettcore:pet_boss_vulture",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 2.5,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0,
+      "obtainPercent": 20
+    }
+  }
+}
