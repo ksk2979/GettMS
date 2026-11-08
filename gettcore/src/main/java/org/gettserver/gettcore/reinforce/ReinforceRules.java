@@ -50,6 +50,15 @@ public final class ReinforceRules {
         return Math.max(0, stack.getOrDefault(GettCore.REINFORCE_LEVEL.get(), 0));
     }
 
+    /** 강화 단계를 쓴다. 0 이하이면 컴포넌트를 지워 0 단계 = 컴포넌트 없음을 유지한다. */
+    public static void setLevel(ItemStack stack, int level) {
+        if (level <= 0) {
+            stack.remove(GettCore.REINFORCE_LEVEL.get());
+        } else {
+            stack.set(GettCore.REINFORCE_LEVEL.get(), level);
+        }
+    }
+
     /** 단계 {@code level} 에서 한 번 더 강화할 수 있는지(최대 단계 미만). */
     public static boolean canReinforce(int level, ReinforceConfig config) {
         return level >= 0 && level < config.maxLevel();

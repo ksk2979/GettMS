@@ -27,6 +27,8 @@ import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
 import org.gettserver.gettcore.pet.PetRegistry;
 import org.gettserver.gettcore.pet.PetService;
+import org.gettserver.gettcore.reinforce.ReinforceMenu;
+import org.gettserver.gettcore.reinforce.ReinforceService;
 import org.gettserver.gettcore.reinforce.ReinforceStoneItem;
 import org.gettserver.gettcore.shop.ShopMenu;
 import org.gettserver.gettcore.shop.ShopService;
@@ -68,6 +70,8 @@ public class GettCore {
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<EnchantMenu>> ENCHANT_MENU =
             MENUS.register("enchant", () -> IMenuTypeExtension.create(EnchantMenu::new));
+    public static final DeferredHolder<MenuType<?>, MenuType<ReinforceMenu>> REINFORCE_MENU =
+            MENUS.register("reinforce", () -> IMenuTypeExtension.create(ReinforceMenu::new));
 
     // 크리에이티브 인벤토리 전용 탭. 수표는 금액(0) 없는 빈 수표가 되므로 넣지 않는다.
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GETT_TAB =
@@ -96,6 +100,7 @@ public class GettCore {
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();
+        ReinforceService.registerReloadHook();
         PetService.registerReloadHook();
     }
 

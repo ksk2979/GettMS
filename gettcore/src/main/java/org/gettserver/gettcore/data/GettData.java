@@ -47,7 +47,7 @@ public final class GettData {
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
             "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "shops/farmer.json", "dialogs/farmer.json",
-            "dialogs/enchanter.json", "dialogs/chief.json", "quests/main.json"};
+            "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
@@ -57,6 +57,8 @@ public final class GettData {
     static final String MARKER = ".defaults-installed";
     /** One-shot upgrade (1.2.0): adds only the 이장 -> chief name mapping to an npcs.json installed earlier. */
     static final String NPC_CHIEF_UPGRADE = "npcs.json@chief";
+    /** One-shot upgrade (reinforce): adds only the 대장장이 -> blacksmith name mapping to an earlier npcs.json. */
+    static final String NPC_BLACKSMITH_UPGRADE = "npcs.json@blacksmith";
 
     /** Callbacks run by /gett reload after data was re-read (e.g. Task 8: close open ShopMenu screens). */
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
@@ -730,31 +732,42 @@ public final class GettData {
                 errors.add(f + ": installing default failed: " + e.getMessage());
             }
         }
-        if (!installed.contains(NPC_CHIEF_UPGRADE)) {
-            try {
-                // A freshly installed/merged npcs.json already has 이장; only an earlier install needs the patch.
-                if (!installed.contains("npcs.json") || addChiefMapping(dir)) {
-                    Files.writeString(marker, NPC_CHIEF_UPGRADE + "\n", StandardCharsets.UTF_8,
-                            java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
-                }
-            } catch (IOException e) {
-                errors.add("npcs.json: adding 이장 mapping failed: " + e.getMessage());
+        applyNpcUpgrade(dir, marker, installed, NPC_CHIEF_UPGRADE, "이장", "chief", errors);
+        applyNpcUpgrade(dir, marker, installed, NPC_BLACKSMITH_UPGRADE, "대장장이", "blacksmith", errors);
+    }
+
+    /**
+     * One-shot npcs.json patch recorded as {@code upgrade} in the marker. A freshly installed/merged npcs.json already
+     * has the mapping, so only an earlier install ({@code npcs.json} already in the marker) is patched.
+     */
+    private static void applyNpcUpgrade(Path dir, Path marker, Set<String> installed, String upgrade, String npcName,
+                                        String dialogId, List<String> errors) {
+        if (installed.contains(upgrade)) return;
+        try {
+            if (!installed.contains("npcs.json") || addNameMapping(dir, npcName, dialogId)) {
+                Files.writeString(marker, upgrade + "\n", StandardCharsets.UTF_8,
+                        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
             }
+        } catch (IOException e) {
+            errors.add("npcs.json: adding " + npcName + " mapping failed: " + e.getMessage());
         }
     }
 
     /**
-     * Adds only {@code "이장": "chief"} to an existing npcs.json when the key is absent and dialogs/chief.json exists;
-     * other (possibly deliberately deleted) defaults are left alone. Returns false if npcs.json is unreadable.
+     * Adds only {@code npcName -> dialogId} to an existing npcs.json when the key is absent and
+     * dialogs/{@code dialogId}.json exists; other (possibly deliberately deleted) defaults are left alone. Returns
+     * false if npcs.json is unreadable.
      */
-    private static boolean addChiefMapping(Path dir) throws IOException {
+    private static boolean addNameMapping(Path dir, String npcName, String dialogId) throws IOException {
         Path file = dir.resolve("npcs.json");
-        if (!Files.isRegularFile(file) || !Files.isRegularFile(dir.resolve("dialogs/chief.json"))) return true;
+        if (!Files.isRegularFile(file) || !Files.isRegularFile(dir.resolve("dialogs/" + dialogId + ".json"))) {
+            return true;
+        }
         Optional<NpcMapping> existing = read(file, NpcMapping.CODEC, new ArrayList<>());
         if (existing.isEmpty()) return false;
-        if (existing.get().byName().containsKey("이장")) return true;
+        if (existing.get().byName().containsKey(npcName)) return true;
         Map<String, String> byName = new LinkedHashMap<>(existing.get().byName());
-        byName.put("이장", "chief");
+        byName.put(npcName, dialogId);
         NpcMapping patched = new NpcMapping(existing.get().byUuid(), byName);
         writeJson(file, NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, patched).getOrThrow(IOException::new));
         return true;

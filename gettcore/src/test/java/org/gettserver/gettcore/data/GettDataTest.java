@@ -43,13 +43,44 @@ class GettDataTest {
         GettData data = new GettData();
         GettData.LoadReport r = data.load(dir.resolve("gettcore"));
         assertEquals(1, r.shops());
-        assertEquals(3, r.dialogs());
+        assertEquals(4, r.dialogs());
         assertEquals(1, r.quests());
         assertEquals(16, data.questLine("main").orElseThrow().quests().size());
         assertEquals("chief", data.dialogForNpc(UUID.randomUUID(), "이장").orElseThrow());
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertEquals("farmer", data.dialogForNpc(UUID.randomUUID(), "농부").orElseThrow());
         assertEquals("enchanter", data.dialogForNpc(UUID.randomUUID(), "마법부여사").orElseThrow());
+        assertEquals("blacksmith", data.dialogForNpc(UUID.randomUUID(), "대장장이").orElseThrow());
+        DialogDefinition smith = data.dialog("blacksmith").orElseThrow();
+        assertEquals("대장장이", smith.name());
+        var choices = smith.nodes().get(smith.start()).choices();
+        assertEquals(2, choices.size());
+        assertEquals("강화하기", choices.get(0).label());
+        assertEquals(ChoiceAction.Type.OPEN_REINFORCE, choices.get(0).action().type());
+        assertEquals(ChoiceAction.Type.CLOSE, choices.get(1).action().type());
+    }
+
+    @Test
+    void blacksmithMappingIsAddedOnceToEarlierInstall(@TempDir Path dir) throws IOException {
+        Path root = dir.resolve("gettcore");
+        new GettData().load(root);
+        // Simulate an install from before reinforce: no 대장장이 mapping and no upgrade line in the marker.
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"마법부여사\":\"enchanter\"}}");
+        Path marker = root.resolve(GettData.MARKER);
+        Files.write(marker, Files.readAllLines(marker).stream()
+                .filter(l -> !l.equals(GettData.NPC_BLACKSMITH_UPGRADE)).toList());
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(root);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertEquals("blacksmith", data.npcMapping().byName().get("대장장이"));
+        assertFalse(data.npcMapping().byName().containsKey("농부")); // deleted default not resurrected
+        assertTrue(Files.readAllLines(marker).contains(GettData.NPC_BLACKSMITH_UPGRADE));
+
+        // One-shot: removed afterwards stays removed.
+        Files.writeString(root.resolve("npcs.json"), "{\"byUuid\":{},\"byName\":{\"마법부여사\":\"enchanter\"}}");
+        GettData again = new GettData();
+        again.load(root);
+        assertFalse(again.npcMapping().byName().containsKey("대장장이"));
     }
 
     @Test

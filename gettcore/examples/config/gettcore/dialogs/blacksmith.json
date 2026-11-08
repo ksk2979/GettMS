@@ -1,0 +1,24 @@
+{
+  "id": "blacksmith",
+  "name": "대장장이",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "text": "무엇을 강화할 텐가?",
+      "choices": [
+        {
+          "label": "강화하기",
+          "action": {
+            "type": "open_reinforce"
+          }
+        },
+        {
+          "label": "나가기",
+          "action": {
+            "type": "close"
+          }
+        }
+      ]
+    }
+  }
+}

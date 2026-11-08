@@ -25,6 +25,9 @@ import org.gettserver.gettcore.pet.client.MobHealthBar;
 import org.gettserver.gettcore.pet.client.ObtainScreen;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
+import org.gettserver.gettcore.reinforce.ClientReinforceConfig;
+import org.gettserver.gettcore.reinforce.ReinforceScreen;
+import org.gettserver.gettcore.reinforce.ReinforceService;
 import org.gettserver.gettcore.quest.client.ClientQuestState;
 import org.gettserver.gettcore.quest.client.QuestScreen;
 import org.gettserver.gettcore.quest.client.QuestToasts;
@@ -44,6 +47,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientEnchantConfig.set(payload.config()));
         registrar.playToClient(PetConfigSyncPayload.TYPE, PetConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientPetConfig.set(payload.config()));
+        registrar.playToClient(ReinforceConfigSyncPayload.TYPE, ReinforceConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientReinforceConfig.set(payload.config()));
         registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,
@@ -57,6 +62,9 @@ public final class GettNetwork {
         // Same for EnchantScreen (client-only): referenced only inside the client-bound handler.
         registrar.playToClient(EnchantResultPayload.TYPE, EnchantResultPayload.STREAM_CODEC,
                 (payload, ctx) -> EnchantScreen.onResult(payload.abilityId(), payload.level()));
+        // ReinforceScreen (client-only) likewise: referenced only inside the client-bound handler.
+        registrar.playToClient(ReinforceResultPayload.TYPE, ReinforceResultPayload.STREAM_CODEC,
+                (payload, ctx) -> ReinforceScreen.onResult(payload.success(), payload.level()));
         // AbilityKey (client-only) likewise lives only inside the client-bound handler.
         registrar.playToClient(AbilityStatePayload.TYPE, AbilityStatePayload.STREAM_CODEC,
                 (payload, ctx) -> AbilityKey.setState(payload.enabled()));
@@ -105,6 +113,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.edit((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EnchantApplyPayload.TYPE, EnchantApplyPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
+        registrar.playToServer(ReinforceApplyPayload.TYPE, ReinforceApplyPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> ReinforceService.apply((ServerPlayer) ctx.player())));
         registrar.playToServer(AbilityTogglePayload.TYPE, AbilityTogglePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> AbilityToggle.toggle((ServerPlayer) ctx.player())));
         registrar.playToServer(ThrowCaptureBallPayload.TYPE, ThrowCaptureBallPayload.STREAM_CODEC,

@@ -19,6 +19,7 @@ import org.gettserver.gettcore.pet.client.PetFlightInput;
 import org.gettserver.gettcore.pet.client.PetRenderers;
 import org.gettserver.gettcore.quest.client.QuestHud;
 import org.gettserver.gettcore.quest.client.QuestKeys;
+import org.gettserver.gettcore.reinforce.ReinforceScreen;
 import org.gettserver.gettcore.shop.ShopScreen;
 
 @Mod(value = GettCore.MOD_ID, dist = Dist.CLIENT)
@@ -28,6 +29,7 @@ public class GettCoreClient {
                 event -> {
                     event.register(GettCore.SHOP_MENU.get(), ShopScreen::new);
                     event.register(GettCore.ENCHANT_MENU.get(), EnchantScreen::new);
+                    event.register(GettCore.REINFORCE_MENU.get(), ReinforceScreen::new);
                 });
         modBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(AbilityKey.TOGGLE);

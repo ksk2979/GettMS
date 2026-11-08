@@ -17,6 +17,7 @@ import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.DialogNode;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.enchant.EnchantService;
+import org.gettserver.gettcore.reinforce.ReinforceService;
 import org.gettserver.gettcore.network.OpenDialogPayload;
 import org.gettserver.gettcore.quest.QuestDialogs;
 import org.gettserver.gettcore.quest.QuestService;
@@ -89,6 +90,10 @@ public final class DialogSession {
             case OPEN_ENCHANT -> {
                 close(player);
                 EnchantService.open(player);
+            }
+            case OPEN_REINFORCE -> {
+                close(player);
+                ReinforceService.open(player);
             }
             case QUEST -> openQuest(player, session, action.target().orElse(QuestService.MAIN_LINE));
         }

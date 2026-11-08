@@ -49,6 +49,17 @@ class CodecTest {
     }
 
     @Test
+    void openReinforceActionRoundTrips() {
+        ChoiceAction a = ChoiceAction.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("{\"type\":\"open_reinforce\"}")).getOrThrow();
+        assertEquals(ChoiceAction.Type.OPEN_REINFORCE, a.type());
+        assertTrue(a.target().isEmpty());
+        JsonElement out = ChoiceAction.CODEC.encodeStart(JsonOps.INSTANCE, a).getOrThrow();
+        assertEquals("open_reinforce", out.getAsJsonObject().get("type").getAsString());
+        assertEquals(a, ChoiceAction.CODEC.parse(JsonOps.INSTANCE, out).getOrThrow());
+    }
+
+    @Test
     void shopRejectsNegativePrice() {
         String bad = SHOP.replace("\"buyPrice\":10", "\"buyPrice\":-1");
         DataResult<ShopDefinition> r = ShopDefinition.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(bad));

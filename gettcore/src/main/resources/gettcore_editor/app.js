@@ -732,7 +732,7 @@
   const DIALOG_ID = /^[a-z0-9_]+$/;
   const ACTIONS = [
     ['next', '다음 노드'], ['open_shop_buy', '상점 구매'], ['open_shop_sell', '상점 판매'],
-    ['open_enchant', '마법부여'], ['quest', '퀘스트'], ['close', '닫기'],
+    ['open_enchant', '마법부여'], ['open_reinforce', '강화'], ['quest', '퀘스트'], ['close', '닫기'],
   ];
   const isShopAction = (t) => t === 'open_shop_buy' || t === 'open_shop_sell';
 
