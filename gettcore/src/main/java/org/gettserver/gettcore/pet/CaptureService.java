@@ -20,6 +20,7 @@ import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.economy.RateLimiter;
 import org.gettserver.gettcore.pet.CaptureRules.Verdict;
+import org.gettserver.gettcore.pet.boss.BossPointData;
 import org.gettserver.gettcore.pet.boss.GettBoss;
 import org.gettserver.gettcore.pet.entity.GettPet;
 
@@ -52,6 +53,10 @@ public final class CaptureService {
             thrower.sendSystemMessage(message);
             String variant = target instanceof DataDrivenVariantAnimal v ? v.getVariantString() : DEFAULT_VARIANT;
             ItemStack stack = capturedStack(new PetKey(typeId.toString(), variant), target instanceof GettBoss);
+            if (target instanceof GettBoss boss) {
+                BossPointData.get(level.getServer()).onBossGone(boss.pointId(), target.getUUID(),
+                        level.getServer().overworld().getGameTime());
+            }
             target.discard();
             level.addFreshEntity(new ItemEntity(level, x, y, z, stack));
             level.playSound(null, x, y, z, PetRegistry.CAPTURE_SUCCESS.get(), SoundSource.PLAYERS, 1.0F, 1.0F);

@@ -23,11 +23,12 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.world.entity.Entity;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import org.gettserver.gettcore.pet.PetRegistry;
+import org.gettserver.gettcore.pet.boss.GettBoss;
 import org.gettserver.gettcore.pet.entity.GettPet;
 
 /**
- * Pet renderers: the Naturalist renderer of each original, subclassed only to scale boss pets by their sizeScale
- * (the pet classes scale the hitbox to match). Client only.
+ * Pet and boss renderers: the Naturalist renderer of each original, subclassed only to scale boss pets and bosses by
+ * their sizeScale (the entity classes scale the hitbox to match). Client only.
  */
 public final class PetRenderers {
     private PetRenderers() {}
@@ -94,13 +95,58 @@ public final class PetRenderers {
                 applyScale(entity, poseStack);
             }
         });
+        registerBosses(event);
     }
 
-    /** Boss pets render at their species' sizeScale; everything else is left at 1. */
+    private static void registerBosses(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(PetRegistry.BOSS_LION.get(), ctx -> new LionRenderer(ctx) {
+            @Override
+            protected void scale(Lion entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+        event.registerEntityRenderer(PetRegistry.BOSS_TIGER.get(), ctx -> new TigerRenderer(ctx) {
+            @Override
+            protected void scale(Tiger entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+        event.registerEntityRenderer(PetRegistry.BOSS_BEAR.get(), ctx -> new BearRenderer(ctx) {
+            @Override
+            protected void scale(Bear entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+        event.registerEntityRenderer(PetRegistry.BOSS_ELEPHANT.get(), ctx -> new ElephantRenderer(ctx) {
+            @Override
+            protected void scale(Elephant entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+        event.registerEntityRenderer(PetRegistry.BOSS_MAMMOTH.get(), ctx -> new MammothRenderer(ctx) {
+            @Override
+            protected void scale(Elephant entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+        event.registerEntityRenderer(PetRegistry.BOSS_VULTURE.get(), ctx -> new VultureRenderer(ctx) {
+            @Override
+            protected void scale(Vulture entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
+    }
+
+    /** Boss pets and bosses render at their species' sizeScale; everything else is left at 1. */
     private static void applyScale(Entity entity, PoseStack poseStack) {
+        float s;
         if (entity instanceof GettPet pet && pet.isBossPet()) {
-            float s = pet.petState().scale();
-            poseStack.scale(s, s, s);
+            s = pet.petState().scale();
+        } else if (entity instanceof GettBoss boss) {
+            s = boss.bossState().scale();
+        } else {
+            return;
         }
+        poseStack.scale(s, s, s);
     }
 }

@@ -19,12 +19,19 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.Item;
+import java.util.List;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.pet.boss.BossBear;
+import org.gettserver.gettcore.pet.boss.BossElephant;
+import org.gettserver.gettcore.pet.boss.BossLion;
+import org.gettserver.gettcore.pet.boss.BossMammoth;
+import org.gettserver.gettcore.pet.boss.BossTiger;
+import org.gettserver.gettcore.pet.boss.BossVulture;
 import org.gettserver.gettcore.pet.entity.PetBear;
 import org.gettserver.gettcore.pet.entity.PetBlackBear;
 import org.gettserver.gettcore.pet.entity.PetElephant;
@@ -92,6 +99,23 @@ public final class PetRegistry {
     public static final DeferredHolder<EntityType<?>, EntityType<PetVulture>> PET_VULTURE =
             pet("pet_vulture", PetVulture::new, 0.9F, 0.5F);
 
+    // Boss entities (spawned only at boss points, never naturally): same hitboxes as the originals, scaled per entity.
+    public static final DeferredHolder<EntityType<?>, EntityType<BossLion>> BOSS_LION =
+            pet("boss_lion", BossLion::new, 1.5F, 1.8F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossTiger>> BOSS_TIGER =
+            pet("boss_tiger", BossTiger::new, 1.5F, 1.8F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossBear>> BOSS_BEAR =
+            pet("boss_bear", BossBear::new, 1.4F, 1.7F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossElephant>> BOSS_ELEPHANT =
+            pet("boss_elephant", BossElephant::new, 2.5F, 3.5F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossMammoth>> BOSS_MAMMOTH =
+            pet("boss_mammoth", BossMammoth::new, 2.5F, 4.0F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossVulture>> BOSS_VULTURE =
+            pet("boss_vulture", BossVulture::new, 0.9F, 0.5F);
+    /** All boss types (command suggestions). */
+    public static final List<DeferredHolder<EntityType<?>, ? extends EntityType<?>>> BOSS_TYPES =
+            List.of(BOSS_LION, BOSS_TIGER, BOSS_BEAR, BOSS_ELEPHANT, BOSS_MAMMOTH, BOSS_VULTURE);
+
     public static final DeferredHolder<SoundEvent, SoundEvent> WHISTLE = sound("whistle");
     public static final DeferredHolder<SoundEvent, SoundEvent> CAPTURE_SUCCESS = sound("capture_success");
     public static final DeferredHolder<SoundEvent, SoundEvent> CAPTURE_FAIL = sound("capture_fail");
@@ -106,7 +130,10 @@ public final class PetRegistry {
         modBus.addListener(PetRegistry::onAttributes);
     }
 
-    /** Each pet uses its Naturalist original's attributes; PetBehavior.applyStats overrides speed/attack on spawn. */
+    /**
+     * Each pet and boss uses its Naturalist original's attributes; PetBehavior.applyStats overrides pet speed/attack
+     * on spawn, BossBehavior.apply multiplies boss health/attack once.
+     */
     private static void onAttributes(EntityAttributeCreationEvent event) {
         event.put(PET_LION.get(), Lion.createAttributes().build());
         event.put(PET_TIGER.get(), Tiger.createAttributes().build());
@@ -118,6 +145,12 @@ public final class PetRegistry {
         event.put(PET_GIRAFFE.get(), Giraffe.createAttributes().build());
         event.put(PET_OSTRICH.get(), Ostrich.createAttributes().build());
         event.put(PET_VULTURE.get(), Vulture.createAttributes().build());
+        event.put(BOSS_LION.get(), Lion.createAttributes().build());
+        event.put(BOSS_TIGER.get(), Tiger.createAttributes().build());
+        event.put(BOSS_BEAR.get(), Bear.createAttributes().build());
+        event.put(BOSS_ELEPHANT.get(), Elephant.createAttributes().build());
+        event.put(BOSS_MAMMOTH.get(), Mammoth.createAttributes().build());
+        event.put(BOSS_VULTURE.get(), Vulture.createAttributes().build());
     }
 
     private static <T extends Mob> DeferredHolder<EntityType<?>, EntityType<T>> pet(

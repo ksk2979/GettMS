@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -244,5 +245,39 @@ class GettDataTest {
         GettData.LoadReport ok = data.load(dir);
         assertTrue(ok.errors().stream().noneMatch(e -> e.contains("pets.json")), ok.errors().toString());
         assertEquals(PetSpecies.Kind.MOUNT, data.pets().species().get("a:w").kind());
+    }
+
+    @Test
+    void bossPointsInstallEmptySaveAndReload(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("boss_points.json")));
+        assertTrue(data.bossPoints().isEmpty());
+
+        BossPoint p = new BossPoint("hill", net.minecraft.world.level.Level.OVERWORLD,
+                new net.minecraft.core.BlockPos(5, 70, -9), 20,
+                net.minecraft.resources.ResourceLocation.parse("gettcore:boss_lion"), 2, 30);
+        data.saveBossPoints(java.util.List.of(p));
+        assertEquals(java.util.List.of(p), data.bossPoints());
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals(java.util.List.of(p), again.bossPoints());
+    }
+
+    @Test
+    void bossPointsDuplicateIdIsReportedAndBrokenFileKeepsLoaded(@TempDir Path dir) throws IOException {
+        String one = "{\"id\":\"a\",\"dimension\":\"minecraft:overworld\",\"pos\":[0,64,0],"
+                + "\"bossType\":\"gettcore:boss_bear\"}";
+        Files.writeString(dir.resolve("boss_points.json"), "[" + one + "," + one + "]");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().stream().anyMatch(e -> e.contains("duplicate boss point id a")), r.errors().toString());
+        assertEquals(1, data.bossPoints().size());
+
+        Files.writeString(dir.resolve("boss_points.json"), "[{\"id\":1}]");
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("boss_points.json")), bad.errors().toString());
+        assertEquals(1, data.bossPoints().size());
     }
 }

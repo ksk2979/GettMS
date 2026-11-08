@@ -2,8 +2,10 @@ package org.gettserver.gettcore.pet;
 
 import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,9 +19,16 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.MobHitPayload;
+import org.gettserver.gettcore.pet.boss.BossBehavior;
+import org.gettserver.gettcore.pet.boss.BossPointData;
+import org.gettserver.gettcore.pet.boss.BossSpawner;
+import org.gettserver.gettcore.pet.boss.GettBoss;
 import org.gettserver.gettcore.pet.entity.GettPet;
 
-/** Drives {@link PetService}: dex sync on login, silent recall on logout/dimension change/death, auto-return. */
+/**
+ * Drives {@link PetService}: dex sync on login, silent recall on logout/dimension change/death, auto-return; and the
+ * bosses: point bookkeeping and kill gold on death, the boss spawner, duplicate bosses on chunk load.
+ */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class PetEvents {
     private static final int CHECK_INTERVAL_TICKS = 20;
@@ -52,6 +61,13 @@ public final class PetEvents {
     public static void onDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             PetService.recall(player, true);
+        } else if (event.getEntity() instanceof GettBoss boss && event.getEntity() instanceof Mob mob
+                && mob.level() instanceof ServerLevel level) {
+            MinecraftServer server = level.getServer();
+            BossPointData.get(server).onBossGone(boss.pointId(), mob.getUUID(), server.overworld().getGameTime());
+            if (event.getSource().getEntity() instanceof ServerPlayer killer) {
+                BossBehavior.rewardKill(killer, BossBehavior.species(mob));
+            }
         }
     }
 
@@ -61,6 +77,9 @@ public final class PetEvents {
         if (server.getTickCount() % CHECK_INTERVAL_TICKS == 0) {
             PetService.tick(server);
         }
+        if (server.getTickCount() % BossSpawner.CHECK_INTERVAL_TICKS == 0) {
+            BossSpawner.tick(server);
+        }
     }
 
     @SubscribeEvent
@@ -68,10 +87,22 @@ public final class PetEvents {
         PetService.onServerStarted(event.getServer());
     }
 
-    /** A pet saved in a chunk (e.g. across a restart) that is not its online owner's tracked pet never loads. */
+    /**
+     * A pet saved in a chunk (e.g. across a restart) that is not its online owner's tracked pet never loads; nor does
+     * a boss whose point already has its maxCount of other bosses.
+     */
     @SubscribeEvent
     public static void onJoinLevel(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide() || !(event.getEntity() instanceof GettPet pet)) return;
+        if (event.getLevel().isClientSide()) return;
+        if (event.getEntity() instanceof GettBoss boss) {
+            MinecraftServer server = event.getLevel().getServer();
+            if (server != null && event.loadedFromDisk() && !BossSpawner.keepOnLoad(server, event.getEntity(), boss)) {
+                event.setCanceled(true);
+                event.getEntity().discard();
+            }
+            return;
+        }
+        if (!(event.getEntity() instanceof GettPet pet)) return;
         MinecraftServer server = event.getLevel().getServer();
         if (server != null && !PetService.isTrackedActive(server, pet, event.getEntity())) {
             event.setCanceled(true);

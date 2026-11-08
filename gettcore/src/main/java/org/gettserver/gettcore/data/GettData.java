@@ -30,6 +30,7 @@ import org.gettserver.gettcore.editor.EditorMerge;
 import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.slf4j.Logger;
@@ -43,11 +44,12 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
+    static final String BOSS_POINTS_FILE = "boss_points.json";
     /** Lists the bundled defaults already installed into the config dir. */
     static final String MARKER = ".defaults-installed";
     /** One-shot upgrade (1.2.0): adds only the 이장 -> chief name mapping to an npcs.json installed earlier. */
@@ -71,6 +73,7 @@ public final class GettData {
     private volatile EconomyConfig economy = EconomyConfig.DEFAULT;
     private volatile EnchantConfig enchant = EnchantConfig.DEFAULT;
     private volatile PetConfig pets = PetConfig.DEFAULT;
+    private volatile List<BossPoint> bossPoints = List.of();
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -152,6 +155,12 @@ public final class GettData {
         PetConfig newPets = (Files.isRegularFile(petsFile)
                 ? read(petsFile, PetConfig.CODEC, errors).orElse(PetConfig.DEFAULT) : PetConfig.DEFAULT)
                 .sanitized(errors);
+        // An unreadable boss_points.json keeps the points already loaded (a typo must not strand the bosses).
+        Path bossFile = dir.resolve(BOSS_POINTS_FILE);
+        List<BossPoint> newBossPoints = Files.isRegularFile(bossFile)
+                ? read(bossFile, BossPoint.CODEC.listOf(), errors).map(l -> uniqueBossPoints(l, errors))
+                        .orElse(bossPoints)
+                : List.of();
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -164,6 +173,7 @@ public final class GettData {
         economy = newEco;
         enchant = newEnchant;
         pets = newPets;
+        bossPoints = newBossPoints;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -190,6 +200,16 @@ public final class GettData {
         shops = Map.copyOf(pruned);
         warnings.forEach(w -> LOGGER.warn("gettcore: {}", w));
         return new LoadReport(newShops.size(), newDialogs.size(), newQuests.size(), List.copyOf(errors), List.copyOf(warnings));
+    }
+
+    private static List<BossPoint> uniqueBossPoints(List<BossPoint> points, List<String> errors) {
+        Map<String, BossPoint> byId = new LinkedHashMap<>();
+        for (BossPoint p : points) {
+            if (byId.putIfAbsent(p.id(), p) != null) {
+                errors.add(BOSS_POINTS_FILE + ": duplicate boss point id " + p.id() + " (skipped)");
+            }
+        }
+        return List.copyOf(byId.values());
     }
 
     private static void validate(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs) {
@@ -496,6 +516,21 @@ public final class GettData {
 
     public PetConfig pets() {
         return pets;
+    }
+
+    /** Boss points from boss_points.json, in file order (immutable). */
+    public List<BossPoint> bossPoints() {
+        return bossPoints;
+    }
+
+    /** Writes boss_points.json as pretty JSON and replaces the in-memory list (no reload). */
+    public synchronized void saveBossPoints(List<BossPoint> points) throws IOException {
+        Path dir = configDir;
+        if (dir == null) throw new IOException("data not loaded");
+        List<BossPoint> copy = List.copyOf(points);
+        JsonElement json = BossPoint.CODEC.listOf().encodeStart(JsonOps.INSTANCE, copy).getOrThrow(IOException::new);
+        writeJson(dir.resolve(BOSS_POINTS_FILE), json);
+        bossPoints = copy;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
