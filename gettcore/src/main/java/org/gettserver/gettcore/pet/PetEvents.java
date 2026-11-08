@@ -155,28 +155,30 @@ public final class PetEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        blockWildInteract(event);
+        if (shouldCancel(event, event.getTarget())) cancelFail(event);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
-        blockWildInteract(event);
+        if (shouldCancel(event, event.getTarget())) cancelFail(event);
     }
 
-    private static void blockWildInteract(PlayerInteractEvent.EntityInteract event) {
-        Entity target = event.getTarget();
-        if (!isBlocked(target, event.getLevel().isClientSide())) return;
-        event.setCanceled(true);
-        event.setCancellationResult(InteractionResult.FAIL);
-        feedback(event.getEntity(), event.getItemStack(), event.getLevel().isClientSide());
+    /** Shared by both events (the base class is not cancellable): decides, and sends the feedback when blocked. */
+    private static boolean shouldCancel(PlayerInteractEvent event, Entity target) {
+        boolean clientSide = event.getLevel().isClientSide();
+        if (!isBlocked(target, clientSide)) return false;
+        feedback(event.getEntity(), event.getItemStack(), clientSide);
+        return true;
     }
 
-    private static void blockWildInteract(PlayerInteractEvent.EntityInteractSpecific event) {
-        Entity target = event.getTarget();
-        if (!isBlocked(target, event.getLevel().isClientSide())) return;
+    private static void cancelFail(PlayerInteractEvent.EntityInteract event) {
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.FAIL);
-        feedback(event.getEntity(), event.getItemStack(), event.getLevel().isClientSide());
+    }
+
+    private static void cancelFail(PlayerInteractEvent.EntityInteractSpecific event) {
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.FAIL);
     }
 
     private static boolean isBlocked(Entity target, boolean clientSide) {
@@ -189,7 +191,7 @@ public final class PetEvents {
     }
 
     private static void feedback(Player player, ItemStack held, boolean clientSide) {
-        if (clientSide || !(player instanceof ServerPlayer sp) || held.isEmpty()) return;
+        if (clientSide || !(player instanceof ServerPlayer sp) || held.isEmpty() || held.getItem() instanceof CaptureBallItem) return;
         long now = System.currentTimeMillis();
         Long last = LAST_FEEDBACK.get(sp.getUUID());
         if (last != null && now - last < FEEDBACK_INTERVAL_MS) return;
