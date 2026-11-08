@@ -71,4 +71,20 @@ class ProtectRulesTest {
         assertFalse(ProtectRules.blocksExplosionDamage(Optional.empty()));
         assertFalse(ProtectRules.blocksExplosionDamage(Optional.of(new Flags(false, false, true))));
     }
+
+    @Test
+    void padYExpandsBothWays() {
+        var box = ProtectRules.padY(new net.minecraft.core.BlockPos(1, 60, 2), new net.minecraft.core.BlockPos(5, 70, 9),
+                10, -64, 319);
+        assertEquals(new net.minecraft.core.BlockPos(1, 50, 2), box.min());
+        assertEquals(new net.minecraft.core.BlockPos(5, 80, 9), box.max());
+    }
+
+    @Test
+    void padYClampsToWorldBounds() {
+        var box = ProtectRules.padY(new net.minecraft.core.BlockPos(1, -60, 2), new net.minecraft.core.BlockPos(5, 315, 9),
+                10, -64, 319);
+        assertEquals(-64, box.min().getY());
+        assertEquals(319, box.max().getY());
+    }
 }

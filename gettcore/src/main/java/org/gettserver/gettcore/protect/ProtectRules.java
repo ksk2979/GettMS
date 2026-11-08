@@ -34,6 +34,19 @@ public final class ProtectRules {
      * Whether an explosion's block list is filtered at all. TRIGGER_BLOCK blasts (wind charge, breeze) never break
      * blocks; their list only toggles doors, levers, buttons and bells, which must keep working everywhere.
      */
+    /** Min/max corners after {@link #padY}. */
+    public record Box(BlockPos min, BlockPos max) {}
+
+    /**
+     * Grows the Y range by {@code pad} below min and above max, clamped to {@code worldMin..worldMax} (both
+     * inclusive). X/Z are unchanged.
+     */
+    public static Box padY(BlockPos min, BlockPos max, int pad, int worldMin, int worldMax) {
+        int lo = Math.max(worldMin, min.getY() - pad);
+        int hi = Math.min(worldMax, max.getY() + pad);
+        return new Box(new BlockPos(min.getX(), lo, min.getZ()), new BlockPos(max.getX(), hi, max.getZ()));
+    }
+
     public static boolean filtersBlocks(Explosion.BlockInteraction interaction) {
         return interaction != Explosion.BlockInteraction.TRIGGER_BLOCK;
     }

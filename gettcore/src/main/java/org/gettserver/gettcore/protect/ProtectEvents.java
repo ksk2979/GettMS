@@ -111,7 +111,7 @@ public final class ProtectEvents {
         ProtectConfig cfg = GettData.get().protect();
         Optional<Region> region = cfg.regionAt(player.level().dimension(), player.blockPosition());
         boolean blocked = ProtectRules.blocksExplosionDamage(region.map(Region::flags));
-        GettCore.LOGGER.info("gettcore protect: explosion dmg {} to {} at {} region={} blocked={}",
+        GettCore.LOGGER.debug("gettcore protect: explosion dmg {} to {} at {} region={} blocked={}",
                 event.getSource().typeHolder().unwrapKey().map(k -> k.location().toString()).orElse("?"),
                 player.getName().getString(), player.blockPosition(), region.map(Region::id).orElse("-"), blocked);
         if (blocked) event.setCanceled(true);
@@ -124,7 +124,7 @@ public final class ProtectEvents {
         Optional<Region> region = cfg.regionAt(event.getLevel().dimension(), player.blockPosition());
         if (ProtectRules.blocksExplosionDamage(region.map(Region::flags))) {
             event.setKnockbackVelocity(Vec3.ZERO);
-            GettCore.LOGGER.info("gettcore protect: explosion knockback zeroed for {} at {} region={}",
+            GettCore.LOGGER.debug("gettcore protect: explosion knockback zeroed for {} at {} region={}",
                     player.getName().getString(), player.blockPosition(), region.map(Region::id).orElse("-"));
         }
     }

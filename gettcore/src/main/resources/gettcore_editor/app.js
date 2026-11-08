@@ -1700,7 +1700,23 @@
       const toggle = (key, label) => h('label', { class: 'chk' },
         h('input', { type: 'checkbox', checked: !!p[key], 'aria-label': label, onchange: (e) => { p[key] = e.target.checked; changed(); } }),
         ' ' + label);
-      const xyz = (v) => (Array.isArray(v) ? v.join(' ') : '');
+      // x/z는 읽기 전용, y만 수정 가능. 정수가 아니면 저장값은 그대로 두고 빨갛게 표시, min>max면 경고(서버가 순서를 바로잡음).
+      const posCell = (r, key) => {
+        const v = r[key];
+        if (!Array.isArray(v)) return h('span', { class: 'id' }, '');
+        const inp = h('input', { type: 'number', step: 1, value: v[1], 'aria-label': key === 'min' ? '최소 y' : '최대 y', style: 'width:5rem',
+          oninput: (e) => {
+            const n = Number(e.target.value);
+            if (e.target.value.trim() !== '' && Number.isInteger(n)) { v[1] = n; changed(); }
+            checks.paint();
+          } });
+        checks.add(inp, () => {
+          const raw = inp.value.trim();
+          if (raw === '' || !Number.isInteger(Number(raw))) return 'y는 정수여야 합니다';
+          return r.min[1] > r.max[1] ? '최소 y가 최대 y보다 큽니다 (저장하면 서버가 순서를 바꿉니다)' : '';
+        });
+        return h('span', { class: 'id' }, v[0] + ' ', inp, ' ' + v[2]);
+      };
       const rows = list.map((r, i) => {
         const idCell = checks.add(h('span', null, r.id || '(빈 id)'), () => protectIdError(list, i));
         const flagCells = PROTECT_FLAGS.map(([key, label]) => h('td', null, h('input', { type: 'checkbox', checked: !!r.flags[key],
@@ -1708,8 +1724,8 @@
         return h('tr', null,
           h('td', null, idCell),
           h('td', null, h('span', { class: 'id' }, r.dimension)),
-          h('td', null, h('span', { class: 'id' }, xyz(r.min))),
-          h('td', null, h('span', { class: 'id' }, xyz(r.max))),
+          h('td', null, posCell(r, 'min')),
+          h('td', null, posCell(r, 'max')),
           ...flagCells,
           h('td', null, h('button', { class: 'danger small', 'aria-label': '구역 삭제', onclick: () => {
             if (!confirm(`보호구역 '${r.id}'을(를) 삭제할까요?

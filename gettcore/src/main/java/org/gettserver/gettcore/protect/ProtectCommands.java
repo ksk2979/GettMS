@@ -63,6 +63,9 @@ public final class ProtectCommands {
         return Commands.argument("id", NameArgument.name()).suggests(REGION_IDS);
     }
 
+    /** Blocks added below min-Y and above max-Y of a WorldEdit selection when a region is created. */
+    static final int Y_PADDING = 10;
+
     private static int add(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         String id = NameArgument.getName(ctx, "id");
@@ -81,8 +84,11 @@ public final class ProtectCommands {
             ctx.getSource().sendFailure(Component.translatable(MSG + "no_selection"));
             return 0;
         }
-        Region region = new Region(id, sel.get().dimension(), sel.get().min(), sel.get().max(), Flags.DEFAULT)
-                .normalized();
+        net.minecraft.server.level.ServerLevel level = ctx.getSource().getServer().getLevel(sel.get().dimension());
+        if (level == null) level = player.serverLevel();
+        ProtectRules.Box box = ProtectRules.padY(sel.get().min(), sel.get().max(), Y_PADDING,
+                level.getMinBuildHeight(), level.getMaxBuildHeight() - 1);
+        Region region = new Region(id, sel.get().dimension(), box.min(), box.max(), Flags.DEFAULT).normalized();
         List<Region> next = new ArrayList<>(cfg.regions());
         next.add(region);
         if (!save(ctx, cfg.withRegions(next))) return 0;
