@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    " M ",
+    "MBM",
+    " M "
+  ],
+  "key": {
+    "M": {
+      "item": "minecraft:gold_ingot"
+    },
+    "B": {
+      "item": "gettcore:capture_ball_iron"
+    }
+  },
+  "result": {
+    "id": "gettcore:capture_ball_gold",
+    "count": 1
+  }
+}

@@ -24,6 +24,7 @@ import org.gettserver.gettcore.enchant.EnchantStoneItem;
 import org.gettserver.gettcore.item.ReturnStoneItem;
 import org.gettserver.gettcore.item.XpOrbItem;
 import org.gettserver.gettcore.network.GettNetwork;
+import org.gettserver.gettcore.pet.PetRegistry;
 import org.gettserver.gettcore.shop.ShopMenu;
 import org.gettserver.gettcore.shop.ShopService;
 
@@ -68,6 +69,10 @@ public class GettCore {
                         output.accept(XP_ORB.get());
                         output.accept(RETURN_STONE.get());
                         output.accept(ENCHANT_STONE.get());
+                        output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
+                        output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
+                        output.accept(PetRegistry.CAPTURE_BALL_DIAMOND.get());
+                        output.accept(PetRegistry.CAPTURE_BALL_NETHERITE.get());
                     })
                     .build());
 
@@ -76,6 +81,7 @@ public class GettCore {
         CREATIVE_TABS.register(modBus);
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
+        PetRegistry.register(modBus);
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();

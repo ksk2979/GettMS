@@ -1,0 +1,22 @@
+{
+  "whistle": {
+    "subtitle": "subtitles.gettcore.whistle",
+    "sounds": [
+      "minecraft:note/flute"
+    ]
+  },
+  "capture_success": {
+    "subtitle": "subtitles.gettcore.capture_success",
+    "sounds": [
+      "minecraft:random/levelup"
+    ]
+  },
+  "capture_fail": {
+    "subtitle": "subtitles.gettcore.capture_fail",
+    "sounds": [
+      "minecraft:mob/villager/no1",
+      "minecraft:mob/villager/no2",
+      "minecraft:mob/villager/no3"
+    ]
+  }
+}
