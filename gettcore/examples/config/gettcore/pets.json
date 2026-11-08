@@ -115,7 +115,7 @@
     },
     "gettcore:boss_lion": {
       "kind": "fighter",
-      "petEntity": "gettcore:pet_boss_lion",
+      "petEntity": "gettcore:pet_lion",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
@@ -130,7 +130,7 @@
     },
     "gettcore:boss_tiger": {
       "kind": "fighter",
-      "petEntity": "gettcore:pet_boss_tiger",
+      "petEntity": "gettcore:pet_tiger",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
@@ -145,7 +145,7 @@
     },
     "gettcore:boss_bear": {
       "kind": "fighter",
-      "petEntity": "gettcore:pet_boss_bear",
+      "petEntity": "gettcore:pet_bear",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
@@ -160,7 +160,7 @@
     },
     "gettcore:boss_elephant": {
       "kind": "mount",
-      "petEntity": "gettcore:pet_boss_elephant",
+      "petEntity": "gettcore:pet_elephant",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
@@ -175,7 +175,7 @@
     },
     "gettcore:boss_mammoth": {
       "kind": "mount",
-      "petEntity": "gettcore:pet_boss_mammoth",
+      "petEntity": "gettcore:pet_mammoth",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
@@ -190,7 +190,7 @@
     },
     "gettcore:boss_vulture": {
       "kind": "flying_mount",
-      "petEntity": "gettcore:pet_boss_vulture",
+      "petEntity": "gettcore:pet_vulture",
       "attack": 6,
       "speed": 0.3,
       "attackSpeed": 1.0,
