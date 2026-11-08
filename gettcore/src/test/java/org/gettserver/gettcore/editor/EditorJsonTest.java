@@ -26,7 +26,9 @@ class EditorJsonTest {
                 Map.of("main", new QuestLine("main", "메인", "끝", List.of(
                         quest("q1", npc("이장"), List.of(), Rewards.EMPTY)))),
                 List.of(bossPoint("den", "gettcore:boss_lion", 20, 2, 45)),
-                pets(species("gettcore:boss_lion", true)),
+                new PetConfig(PetConfig.DEFAULT.healthbar(), captureWithObtainTables(),
+                        Map.of("gettcore:boss_lion", species("gettcore:boss_lion", true),
+                                "naturalist:lion", speciesWithOverrides("naturalist:lion", false))),
                 new ProtectConfig(true, false, List.of(region("town", new BlockPos(-10, 0, -20),
                         new BlockPos(30, 120, 40), new ProtectConfig.Flags(true, false, true)))));
         EditorRefs refs = new EditorRefs(List.of(new EditorRefs.AdvRef("minecraft:story/mine_diamond", "다이아몬드!")),
@@ -42,6 +44,16 @@ class EditorJsonTest {
         assertEquals("den", root.getAsJsonArray("boss_points").get(0).getAsJsonObject().get("id").getAsString());
         var pets = root.getAsJsonObject("pets");
         assertTrue(pets.getAsJsonObject("species").has("gettcore:boss_lion"), json);
+        // The web page reads/writes these shapes: per-tier percent tables, partial species overrides, no legacy key.
+        var capture = pets.getAsJsonObject("capture");
+        assertEquals(22, capture.getAsJsonObject("obtainChance").get("gold").getAsDouble(), json);
+        assertEquals(8, capture.getAsJsonObject("bossObtainChance").get("netherite").getAsDouble(), json);
+        assertFalse(capture.has("obtainPercent"), json);
+        var lion = pets.getAsJsonObject("species").getAsJsonObject("naturalist:lion");
+        assertEquals("{\"gold\":{\"base\":10.0,\"max\":40.0}}", lion.getAsJsonObject("ballChance").toString(), json);
+        assertEquals("{\"diamond\":55.0}", lion.getAsJsonObject("obtainChance").toString(), json);
+        var boss = pets.getAsJsonObject("species").getAsJsonObject("gettcore:boss_lion");
+        assertFalse(boss.has("ballChance") || boss.has("obtainChance") || boss.has("obtainPercent"), json);
         // The web page builds this shape by hand: field names, dimension string, [x,y,z] arrays.
         var protect = root.getAsJsonObject("protect");
         assertTrue(protect.get("explosionsBreakBlocks").getAsBoolean(), json);
@@ -75,6 +87,26 @@ class EditorJsonTest {
                 + "\"iron\":{\"base\":4,\"max\":30},\"gold\":{\"base\":8,\"max\":35},"
                 + "\"diamond\":{\"base\":12,\"max\":50},\"netherite\":{\"base\":20,\"max\":70}}}}");
         assertEquals(b, EditorJson.decode(editor));
+    }
+
+    @Test
+    void legacyObtainPercentFromOldEditorIsAccepted() {
+        // A page cached from before the per-tier tables (or a restored draft) still sends obtainPercent.
+        String old = FULL.replace("\"pets\":{}", "\"pets\":{\"capture\":{\"obtainPercent\":33},\"species\":{"
+                + "\"naturalist:lion\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":45},"
+                + "\"naturalist:bear\":{\"kind\":\"fighter\",\"petEntity\":\"gettcore:pet_lion\",\"obtainPercent\":0}}}");
+        EditorBundle b = EditorJson.decode(old);
+        var cap = b.pets().capture();
+        for (var t : org.gettserver.gettcore.pet.CaptureTier.values()) {
+            assertEquals(33.0, cap.obtainChance().get(t));
+            assertEquals(33.0, cap.bossObtainChance().get(t));
+            assertEquals(45.0, b.pets().species().get("naturalist:lion").obtainChance().get(t));
+        }
+        assertTrue(b.pets().species().get("naturalist:bear").obtainChance().isEmpty());
+        EditorValidator.Result r = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertEquals(b, r.cleaned());
+        assertFalse(EditorJson.encode(r.cleaned(), null).contains("obtainPercent"));
     }
 
     @Test

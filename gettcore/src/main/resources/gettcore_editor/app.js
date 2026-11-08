@@ -128,7 +128,19 @@
 
   function serialize(bundle) {
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
-      boss_points: bundle.boss_points, pets: bundle.pets, protect: bundle.protect });
+      boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect });
+  }
+
+  /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
+  function stripEmptyPetOverrides(pets) {
+    if (!pets || !pets.species) return pets;
+    const species = {};
+    for (const [k, s] of Object.entries(pets.species)) {
+      const o = Object.assign({}, s);
+      for (const f of ['ballChance', 'obtainChance']) if (!o[f] || !Object.keys(o[f]).length) delete o[f];
+      species[k] = o;
+    }
+    return Object.assign({}, pets, { species });
   }
 
   /*
@@ -138,14 +150,18 @@
   const PET_DEFAULTS = {
     healthbar: { showDistance: 32, fadeDelayTicks: 200, fadeTicks: 20, captureColor: '#55FF55' },
     capture: {
-      minPercent: 1, maxPercent: 20, obtainPercent: 20, throwCooldownTicks: 20,
+      minPercent: 1, maxPercent: 20, throwCooldownTicks: 20,
       // 포획틀 확률: 체력이 maxPercent일 때 base, minPercent일 때 max (그 사이는 직선).
       ballChance: { iron: { base: 5, max: 25 }, gold: { base: 8, max: 35 }, diamond: { base: 12, max: 50 },
         netherite: { base: 20, max: 70 } },
       bossBallChance: { iron: { base: 3, max: 12 }, gold: { base: 5, max: 18 }, diamond: { base: 8, max: 25 },
         netherite: { base: 12, max: 40 } },
+      // 획득 확률(%): 포획된 몬스터 아이템이 펫으로 바뀔 확률. 잡힌 포획틀 등급의 값을 쓴다.
+      obtainChance: { iron: 20, gold: 25, diamond: 30, netherite: 40 },
+      bossObtainChance: { iron: 15, gold: 20, diamond: 25, netherite: 35 },
     },
   };
+  const TIER_KEYS = ['iron', 'gold', 'diamond', 'netherite'];
   const SPECIES_DEFAULTS = { attack: 2, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
     sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0, jumpHeight: 1 };
   const BOSS_POINT_DEFAULTS = { radius: 16, maxCount: 1, respawnMinutes: 30 };
@@ -162,22 +178,59 @@
     return out;
   }
 
+  /** 네 등급 모두 같은 % (예전 단일 obtainPercent). */
+  const allTiers = (v) => Object.fromEntries(TIER_KEYS.map((k) => [k, v]));
+
+  /** 전역 획득 확률 표: 표가 없으면 예전 단일 obtainPercent(네 등급 모두), 그것도 없으면 기본값. 빠진 등급은 기본값. */
+  function normalizeObtain(def, table, legacy) {
+    const src = table || (typeof legacy === 'number' ? allTiers(legacy) : {});
+    const out = {};
+    for (const k of TIER_KEYS) out[k] = src[k] === undefined || src[k] === null ? def[k] : src[k];
+    return out;
+  }
+
+  /** 종별 포획 확률 덮어쓰기: 있는 등급만 남긴다 (부분 객체). */
+  function partialChances(src) {
+    const out = {};
+    for (const k of TIER_KEYS) {
+      const v = (src || {})[k];
+      if (v === undefined || v === null) continue;
+      out[k] = typeof v !== 'object' ? { base: v, max: v } : { base: v.base, max: v.max === undefined ? v.base : v.max };
+    }
+    return out;
+  }
+
+  /** 종별 획득 확률 덮어쓰기: 있는 등급만. 표가 없고 예전 obtainPercent > 0 이면 네 등급 모두 그 값. */
+  function partialObtain(table, legacy) {
+    const src = table || (typeof legacy === 'number' && legacy > 0 ? allTiers(legacy) : {});
+    const out = {};
+    for (const k of TIER_KEYS) if (src[k] !== undefined && src[k] !== null) out[k] = src[k];
+    return out;
+  }
+
   function normalizePets(src) {
     const p = src || {};
     const cap = p.capture || {};
     const d = PET_DEFAULTS.capture;
     const species = {};
     for (const [k, s] of Object.entries(p.species || {})) {
-      const o = Object.assign({}, SPECIES_DEFAULTS, s);
-      if (o.obtainPercent === undefined) o.obtainPercent = o.boss ? 20 : 0;
+      const o = Object.assign({}, SPECIES_DEFAULTS, s, {
+        ballChance: partialChances(s.ballChance),
+        obtainChance: partialObtain(s.obtainChance, s.obtainPercent),
+      });
+      delete o.obtainPercent;   // 예전 키: 읽기만 하고 저장하지 않는다
       species[k] = o;
     }
+    const capture = Object.assign({}, d, cap, {
+      ballChance: normalizeChances(d.ballChance, cap.ballChance),
+      bossBallChance: normalizeChances(d.bossBallChance, cap.bossBallChance),
+      obtainChance: normalizeObtain(d.obtainChance, cap.obtainChance, cap.obtainPercent),
+      bossObtainChance: normalizeObtain(d.bossObtainChance, cap.bossObtainChance, cap.obtainPercent),
+    });
+    delete capture.obtainPercent;
     return {
       healthbar: Object.assign({}, PET_DEFAULTS.healthbar, p.healthbar),
-      capture: Object.assign({}, d, cap, {
-        ballChance: normalizeChances(d.ballChance, cap.ballChance),
-        bossBallChance: normalizeChances(d.bossBallChance, cap.bossBallChance),
-      }),
+      capture,
       species,
     };
   }
@@ -201,7 +254,7 @@
   /** "종 추가"의 새 항목. 펫 엔티티는 gettcore:pet_<야생 id의 경로>. */
   function newSpecies(wildId) {
     return Object.assign({ kind: 'fighter', petEntity: 'gettcore:pet_' + wildId.slice(wildId.indexOf(':') + 1) },
-      SPECIES_DEFAULTS, { obtainPercent: 0 });
+      SPECIES_DEFAULTS, { ballChance: {}, obtainChance: {} });
   }
 
   /** 서버 스냅숏(또는 임시 저장본)을 편집용 번들로. fallback: 임시 저장본에 없는 부분은 현재 번들의 것을 쓴다. */
@@ -1557,13 +1610,14 @@
     const c = p.capture;
     add(petRules.percent(c.minPercent), '포획 최소 체력%');
     add(petRules.maxPercent(c), '포획 최대 체력%');
-    add(petRules.percent(c.obtainPercent), '획득 확률');
     add(petRules.cooldownTicks(c.throwCooldownTicks), '던지기 쿨타임');
     for (const [k, label] of TIERS) {
       add(petRules.percent(c.ballChance[k].base), `포획틀 확률(${label}) 기본`);
       add(petRules.chanceMax(c.ballChance[k]), `포획틀 확률(${label}) 최대`);
       add(petRules.percent(c.bossBallChance[k].base), `보스 포획틀 확률(${label}) 기본`);
       add(petRules.chanceMax(c.bossBallChance[k]), `보스 포획틀 확률(${label}) 최대`);
+      add(petRules.percent(c.obtainChance[k]), `획득 확률(${label})`);
+      add(petRules.percent(c.bossObtainChance[k]), `보스 획득 확률(${label})`);
     }
     for (const [key, s] of Object.entries(p.species)) {
       const w = `종 ${entityName(key)}`;
@@ -1572,11 +1626,22 @@
       for (const [f, label] of SPECIES_NUM) add(petRules.nonNeg(s[f]), `${w} ${label}`);
       for (const [f, label] of SPECIES_BOSS_NUM) add(petRules.positive(s[f]), `${w} ${label}`);
       add(petRules.nonNegInt(s.killGold), `${w} 처치골드`);
-      add(petRules.percent(s.obtainPercent), `${w} 획득확률`);
       add(petRules.jumpHeight(s.jumpHeight), `${w} 점프(칸)`);
+      for (const [k, label] of TIERS) {
+        const r = (s.ballChance || {})[k];
+        if (r) {
+          add(petRules.percent(r.base), `${w} 포획(${label}) 기본`);
+          add(petRules.chanceMax(r), `${w} 포획(${label}) 최대`);
+        }
+        const o = (s.obtainChance || {})[k];
+        if (o !== undefined) add(petRules.percent(o), `${w} 획득(${label})`);
+      }
     }
     return out;
   }
+
+  /** 종 목록에서 "확률" 펼침 영역이 열린 종 (다시 그려도 유지). */
+  const petChanceOpen = new Set();
 
   const petsTab = {
     id: 'pets',
@@ -1584,6 +1649,7 @@
     validate: validatePets,
     render(container) {
       const checks = makeChecks();
+      const dynamic = [];   // 칠할 때마다 다시 계산하는 것 (종별 칸의 placeholder = 지금 적용될 전역값)
       const p = S.bundle.pets;
       const hb = p.healthbar;
       const c = p.capture;
@@ -1612,14 +1678,59 @@
         TIERS.map(([k, name]) => h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, name),
           labeled('기본', numIn(map[k], 'base', `${prefix} ${name} 기본`, petRules.percent, { min: 0, max: 100 }), '% ~'),
           labeled('최대', numIn(map[k], 'max', `${prefix} ${name} 최대`, (v, o) => petRules.chanceMax(o), { min: 0, max: 100 }), '%')))];
+      const obtainRow = (label, map) => [h('h3', null, label),
+        TIERS.map(([k, name]) => h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, name),
+          numIn(map, k, `${label} ${name}`, petRules.percent, { min: 0, max: 100 }), h('span', { class: 'muted' }, '%')))];
       const capCard = h('div', { class: 'card' }, h('h2', null, '포획'),
         h('div', { class: 'field' }, labeled('체력', numIn(c, 'minPercent', '포획 최소 체력%', petRules.percent, { min: 0, max: 100 }), '% ~'),
           numIn(c, 'maxPercent', '포획 최대 체력%', (v, o) => petRules.maxPercent(o), { min: 0, max: 100 }), h('span', { class: 'muted' }, '% 일 때 포획 가능')),
-        h('div', { class: 'field' }, labeled('획득 확률', numIn(c, 'obtainPercent', '획득 확률', petRules.percent, { min: 0, max: 100 }), '% (종별 획득확률이 0이면 이 값)')),
         h('div', { class: 'field' }, labeled('던지기 쿨타임(틱)', numIn(c, 'throwCooldownTicks', '던지기 쿨타임(틱)', petRules.cooldownTicks, { step: 1, min: 0, max: 200 }), '틱 (20틱 = 1초, 모든 포획틀 공통)')),
         tierRow('포획틀 확률', c.ballChance, '포획틀 확률'),
         tierRow('보스 포획틀 확률', c.bossBallChance, '보스 포획틀 확률'),
-        h('p', { class: 'muted' }, '포획틀 확률은 체력이 최대%일 때 기본, 최소%일 때 최대이고 그 사이는 체력이 낮을수록 올라갑니다.'));
+        h('p', { class: 'muted' }, '포획틀 확률은 체력이 최대%일 때 기본, 최소%일 때 최대이고 그 사이는 체력이 낮을수록 올라갑니다.'),
+        obtainRow('획득 확률', c.obtainChance),
+        obtainRow('보스 획득 확률', c.bossObtainChance),
+        h('p', { class: 'muted' }, '획득 확률은 포획된 몬스터가 펫으로 바뀔 확률이며, 잡을 때 쓴 포획틀 등급의 값을 씁니다.'));
+
+      const head = ['종 (야생 엔티티)', '종류', '펫 엔티티'].concat(SPECIES_NUM.map((x) => x[1]), ['보스'], SPECIES_BOSS_NUM.map((x) => x[1]), ['처치골드', '점프(칸)', '', '확률']);
+
+      /*
+       * 종별 확률 덮어쓰기 (펼침 행). 빈칸 = 전역 표 사용 (보스 종이면 보스 표), placeholder 에 그 값을 보인다.
+       * 포획: 기본·최대 둘 다 비면 그 등급을 ballChance 에서 뺀다. 하나만 있으면 둘 다 그 값으로 저장한다.
+       * 획득: 비면 그 등급을 obtainChance 에서 뺀다.
+       */
+      const speciesChanceRow = (s, name) => {
+        const ph = (el, f) => { dynamic.push(() => { el.placeholder = shownNum(f()); }); return el; };
+        const cell = (label, value, opts) => h('input', Object.assign({ type: 'number', step: 'any', min: 0, max: 100,
+          'aria-label': `${name} ${label}`, style: 'width:4.5rem', value: shownNum(value) }, opts));
+        const tiers = TIERS.map(([k, tname]) => {
+          const ball = () => (s.boss ? c.bossBallChance : c.ballChance)[k];
+          const ob = () => (s.boss ? c.bossObtainChance : c.obtainChance)[k];
+          const r = s.ballChance[k];
+          const baseEl = cell(`포획(${tname}) 기본`, r && r.base);
+          const maxEl = cell(`포획(${tname}) 최대`, r && r.max);
+          const syncBall = () => {
+            const b = baseEl.value, m = maxEl.value;
+            if (b === '' && m === '') delete s.ballChance[k];
+            else s.ballChance[k] = { base: Number(b === '' ? m : b), max: Number(m === '' ? b : m) };
+            changed();
+          };
+          baseEl.addEventListener('input', syncBall);
+          maxEl.addEventListener('input', syncBall);
+          checks.add(ph(baseEl, () => ball().base), () => (s.ballChance[k] ? petRules.percent(s.ballChance[k].base) : ''));
+          checks.add(ph(maxEl, () => ball().max), () => (s.ballChance[k] ? petRules.chanceMax(s.ballChance[k]) : ''));
+          const obEl = cell(`획득(${tname})`, s.obtainChance[k], { oninput: (e) => {
+            if (e.target.value === '') delete s.obtainChance[k]; else s.obtainChance[k] = Number(e.target.value);
+            changed();
+          } });
+          checks.add(ph(obEl, ob), () => (s.obtainChance[k] !== undefined ? petRules.percent(s.obtainChance[k]) : ''));
+          return h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, tname),
+            h('label', null, '포획'), baseEl, h('span', { class: 'muted' }, '% ~'), maxEl, h('span', { class: 'muted' }, '%'),
+            h('label', null, '획득'), obEl, h('span', { class: 'muted' }, '%'));
+        });
+        return h('tr', null, h('td', { colspan: head.length },
+          tiers, h('p', { class: 'muted' }, '빈칸은 전역 값 (보스 종은 보스 표). 포획은 체력이 최대%일 때 기본, 최소%일 때 최대.')));
+      };
 
       const kinds = S.catalog.petKinds && S.catalog.petKinds.length ? S.catalog.petKinds : Object.keys(PET_KIND_LABEL);
       const keys = Object.keys(p.species).sort();
@@ -1635,20 +1746,24 @@
         const n = (f, label, rule, opts) => h('td', null, numIn(s, f, label, rule, Object.assign({ min: 0, style: 'width:4.5rem' }, opts || {})));
         const bossChk = h('input', { type: 'checkbox', 'aria-label': '보스', checked: !!s.boss, onchange: (e) => { s.boss = e.target.checked; changed(); } });
         const name = entityName(key);
-        return h('tr', null,
+        const open = petChanceOpen.has(key);
+        const row = h('tr', null,
           h('td', null, h('div', null, name), name !== key ? h('div', { class: 'id' }, key) : null),
           h('td', null, kindSel), h('td', null, petIn),
           SPECIES_NUM.map(([f, label]) => n(f, label, petRules.nonNeg)),
           h('td', null, bossChk),
           SPECIES_BOSS_NUM.map(([f, label]) => n(f, label, petRules.positive)),
           n('killGold', '처치골드', petRules.nonNegInt, { step: 1 }),
-          n('obtainPercent', '획득확률', petRules.percent, { max: 100 }),
           n('jumpHeight', '점프(칸)', petRules.jumpHeight, { max: 10 }),
           h('td', null, h('button', { class: 'danger small', 'aria-label': '종 삭제', onclick: () => {
             const used = (S.bundle.boss_points || []).filter((b) => b.bossType === key).length;
             if (!confirm(`종 '${name}'을(를) 삭제할까요?` + (used ? `\n이 종을 쓰는 보스 지점이 ${used}개 있어, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
-            delete p.species[key]; changed(); renderTabContent();
-          } }, '삭제')));
+            delete p.species[key]; petChanceOpen.delete(key); changed(); renderTabContent();
+          } }, '삭제')),
+          h('td', null, h('button', { class: 'small', 'aria-label': '종별 확률', 'aria-expanded': open ? 'true' : 'false',
+            onclick: () => { if (open) petChanceOpen.delete(key); else petChanceOpen.add(key); renderTabContent(); } },
+            open ? '확률 ▴' : '확률 ▾')));
+        return open ? [row, speciesChanceRow(s, name)] : row;
       });
       const addSpecies = h('button', { class: 'primary', onclick: async () => {
         const id = await pickEntity({ allowTags: false, title: '포획할 야생 엔티티' });
@@ -1657,15 +1772,14 @@
         p.species[id] = newSpecies(id);
         changed(); renderTabContent();
       } }, '+ 종 추가');
-      const head = ['종 (야생 엔티티)', '종류', '펫 엔티티'].concat(SPECIES_NUM.map((x) => x[1]), ['보스'], SPECIES_BOSS_NUM.map((x) => x[1]), ['처치골드', '획득확률(%)', '점프(칸)', '']);
       const spCard = h('div', { class: 'card' }, h('h2', null, '종 목록'),
-        h('p', { class: 'muted' }, '키는 포획할 야생 엔티티 id입니다. 크기·체력·공격 배율과 처치골드는 보스 종에만 쓰입니다. 획득확률 0 = 위의 전체 획득 확률 사용. 점프(칸)은 지상 탈것이 점프 키로 뛰는 높이입니다.'),
+        h('p', { class: 'muted' }, '키는 포획할 야생 엔티티 id입니다. 크기·체력·공격 배율과 처치골드는 보스 종에만 쓰입니다. 점프(칸)은 지상 탈것이 점프 키로 뛰는 높이입니다. 확률 버튼에서 종별 포획/획득 확률을 등급별로 덮어쓸 수 있습니다. 빈칸은 전역 값.'),
         keys.length ? h('div', { class: 'scroll-x' }, h('table', null,
           h('thead', null, h('tr', null, head.map((t) => h('th', null, t)))), h('tbody', null, rows))) : h('p', { class: 'muted' }, '종이 없습니다.'),
         h('div', { class: 'field', style: 'margin-top:.5rem' }, addSpecies));
 
       container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, hbCard, capCard), spCard));
-      return () => { checks.paint(); paintSwatch(); };
+      return () => { checks.paint(); paintSwatch(); dynamic.forEach((f) => f()); };
     },
   };
   registerTab(petsTab);

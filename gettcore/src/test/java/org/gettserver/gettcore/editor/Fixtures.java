@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import org.gettserver.gettcore.data.*;
+import org.gettserver.gettcore.pet.CaptureTier;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
@@ -82,6 +83,23 @@ final class Fixtures {
     static PetSpecies species(String key, boolean boss) {
         return new PetSpecies(key, PetSpecies.Kind.FIGHTER, rl("gettcore:pet_lion"), 6, 0.3, 1, 0.6, 0.3, boss,
                 boss ? 1.6 : 1, boss ? 5 : 1, boss ? 2 : 1, 0, 1);
+    }
+
+    /** {@link #species} with partial per-tier overrides, as the editor's "확률" row builds them. */
+    static PetSpecies speciesWithOverrides(String key, boolean boss) {
+        PetSpecies s = species(key, boss);
+        return new PetSpecies(s.id(), s.kind(), s.petEntity(), s.attack(), s.speed(), s.attackSpeed(), s.flySpeed(),
+                s.climbSpeed(), s.boss(), s.sizeScale(), s.healthMult(), s.attackMult(), s.killGold(), s.jumpHeight(),
+                Map.of(CaptureTier.GOLD, new PetConfig.ChanceRange(10, 40)), Map.of(CaptureTier.DIAMOND, 55.0));
+    }
+
+    /** Non-default global obtain tables (normal and boss). */
+    static PetConfig.Capture captureWithObtainTables() {
+        PetConfig.Capture d = PetConfig.DEFAULT.capture();
+        return new PetConfig.Capture(d.minPercent(), d.maxPercent(), d.ballChance(), d.bossBallChance(),
+                Map.of(CaptureTier.IRON, 11.0, CaptureTier.GOLD, 22.0, CaptureTier.DIAMOND, 33.0, CaptureTier.NETHERITE, 44.0),
+                Map.of(CaptureTier.IRON, 5.0, CaptureTier.GOLD, 6.0, CaptureTier.DIAMOND, 7.0, CaptureTier.NETHERITE, 8.0),
+                d.throwCooldownTicks());
     }
 
     /** Pets config with the given species (keyed by their id) and default health bar/capture settings. */
