@@ -9,6 +9,7 @@
  *   6. 상점 탭
  *   7. NPC·대화 탭
   7b. 퀘스트 탭 (엔티티 선택기, 발전과제 선택기 포함)
+ *   7c. 보스 지점 탭, 펫 설정 탭
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -111,10 +112,10 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests } — 서버가 준 모양 그대로, 편집 안 하는 부분은 손대지 않는다
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets } — 서버가 준 모양 그대로 (pets·boss_points만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
-    catalog: { items: [], entities: [], itemTags: [], entityTags: [] },
+    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [] },
     catalogOk: false,
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
@@ -126,23 +127,79 @@
   let savedQuestIds = new Set();
 
   function serialize(bundle) {
-    return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests });
+    return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
+      boss_points: bundle.boss_points, pets: bundle.pets });
+  }
+
+  /*
+   * 서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다. 화면에 모든 칸을 보여 주고 저장 때 그대로 보내도록
+   * 기본값을 채운다 (PetConfig / PetSpecies / BossPoint 코덱의 기본값과 같아야 한다).
+   */
+  const PET_DEFAULTS = {
+    healthbar: { showDistance: 32, fadeDelayTicks: 200, fadeTicks: 20, captureColor: '#55FF55' },
+    capture: {
+      minPercent: 1, maxPercent: 20, obtainPercent: 20,
+      ballChance: { iron: 10, gold: 15, diamond: 20, netherite: 30 },
+      bossBallChance: { iron: 5, gold: 8, diamond: 12, netherite: 20 },
+    },
+  };
+  const SPECIES_DEFAULTS = { attack: 6, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
+    sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0 };
+  const BOSS_POINT_DEFAULTS = { radius: 16, maxCount: 1, respawnMinutes: 30 };
+
+  function normalizePets(src) {
+    const p = src || {};
+    const cap = p.capture || {};
+    const d = PET_DEFAULTS.capture;
+    const species = {};
+    for (const [k, s] of Object.entries(p.species || {})) {
+      const o = Object.assign({}, SPECIES_DEFAULTS, s);
+      if (o.obtainPercent === undefined) o.obtainPercent = o.boss ? 20 : 0;
+      species[k] = o;
+    }
+    return {
+      healthbar: Object.assign({}, PET_DEFAULTS.healthbar, p.healthbar),
+      capture: Object.assign({}, d, cap, {
+        ballChance: Object.assign({}, d.ballChance, cap.ballChance),
+        bossBallChance: Object.assign({}, d.bossBallChance, cap.bossBallChance),
+      }),
+      species,
+    };
+  }
+
+  function normalizeBossPoints(src) {
+    return (Array.isArray(src) ? src : []).map((pt) => Object.assign({}, BOSS_POINT_DEFAULTS, pt));
+  }
+
+  /** "종 추가"의 새 항목. 펫 엔티티는 gettcore:pet_<야생 id의 경로>. */
+  function newSpecies(wildId) {
+    return Object.assign({ kind: 'fighter', petEntity: 'gettcore:pet_' + wildId.slice(wildId.indexOf(':') + 1) },
+      SPECIES_DEFAULTS, { obtainPercent: 0 });
+  }
+
+  /** 서버 스냅숏(또는 임시 저장본)을 편집용 번들로. fallback: 임시 저장본에 없는 부분은 현재 번들의 것을 쓴다. */
+  function bundleFrom(src, fallback) {
+    const f = fallback || {};
+    const b = {
+      shops: src.shops || {},
+      dialogs: src.dialogs || {},
+      npcs: src.npcs || EMPTY_NPCS(),
+      quests: src.quests || {},
+      boss_points: normalizeBossPoints(src.boss_points !== undefined ? src.boss_points : f.boss_points),
+      pets: normalizePets(src.pets !== undefined ? src.pets : f.pets),
+    };
+    for (const s of Object.values(b.shops)) {
+      s.tabs = s.tabs || [];
+      s.entries = s.entries || [];
+    }
+    return b;
   }
 
   function isDirty() { return serialize(S.bundle) !== S.baseline; }
 
   function install(snap) {
     S.refs = Object.assign({ advancements: [], missingItems: [], missingEntities: [] }, snap.refs || {});
-    S.bundle = {
-      shops: snap.shops || {},
-      dialogs: snap.dialogs || {},
-      npcs: snap.npcs || EMPTY_NPCS(),
-      quests: snap.quests || {},
-    };
-    for (const s of Object.values(S.bundle.shops)) {
-      s.tabs = s.tabs || [];
-      s.entries = s.entries || [];
-    }
+    S.bundle = bundleFrom(snap);
     S.baseline = serialize(S.bundle);
     savedQuestIds = new Set();   // 서버에 저장된 적 있는 퀘스트 (id를 더는 못 바꾼다)
     for (const [k, line] of Object.entries(S.bundle.quests)) for (const q of ((line && line.quests) || [])) savedQuestIds.add(k + '/' + q.id);
@@ -1352,6 +1409,223 @@
   };
   registerTab(questsTab);
 
+  /* ===================== 7c. 보스 지점 탭 · 펫 설정 탭 ===================== */
+
+  const PET_KIND_LABEL = { fighter: '전투', mount: '탈것', flying_mount: '비행' };
+  const TIERS = [['iron', '철'], ['gold', '금'], ['diamond', '다이아'], ['netherite', '네더라이트']];
+  const COLOR = /^#?([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+  const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
+  const isInt = (v) => Number.isInteger(v);
+  /** 숫자 입력 칸의 값. 빈 칸은 NaN (검증에서 빨갛게 표시, 저장 차단). */
+  const numOf = (e) => (e.target.value === '' ? NaN : Number(e.target.value));
+  const shownNum = (v) => (isNum(v) ? v : '');
+
+  // 서버 EditorValidator(보스 지점)·PetConfig.sanitized(펫 설정)와 같은 범위.
+  const bossRules = {
+    id(list, i) {
+      const id = list[i].id;
+      if (!id || !String(id).trim()) return 'id가 비어 있습니다';
+      return list.some((p, j) => j !== i && p.id === id) ? '같은 id가 있습니다' : '';
+    },
+    radius(p) { return isInt(p.radius) && p.radius >= 1 && p.radius <= 128 ? '' : '반경은 1~128 정수여야 합니다'; },
+    maxCount(p) { return isInt(p.maxCount) && p.maxCount >= 0 && p.maxCount <= 10 ? '' : '마릿수는 0~10 정수여야 합니다'; },
+    respawn(p) { return isInt(p.respawnMinutes) && p.respawnMinutes >= 0 && p.respawnMinutes <= 1440 ? '' : '리스폰은 0~1440분 정수여야 합니다'; },
+    bossType(bundle, p) {
+      const s = ((bundle.pets && bundle.pets.species) || {})[p.bossType];
+      if (!s) return `펫 설정의 종 목록에 없는 종류입니다: ${p.bossType}`;
+      return s.boss ? '' : `펫 설정에서 보스로 표시되지 않은 종입니다: ${p.bossType}`;
+    },
+  };
+
+  function validateBossPoints(bundle) {
+    const out = [];
+    const list = bundle.boss_points || [];
+    list.forEach((p, i) => {
+      const w = `보스 지점 ${p.id || '#' + (i + 1)}`;
+      for (const m of [bossRules.id(list, i), bossRules.radius(p), bossRules.maxCount(p), bossRules.respawn(p), bossRules.bossType(bundle, p)]) {
+        if (m) out.push(`${w}: ${m}`);
+      }
+    });
+    return out;
+  }
+
+  const bossPointsTab = {
+    id: 'boss_points',
+    title: '보스 지점',
+    validate: validateBossPoints,
+    render(container) {
+      const checks = makeChecks();
+      const list = S.bundle.boss_points;
+      const types = (S.catalog.bossTypes || []).slice();
+      const num = (p, key, label, min, max, rule) => checks.add(h('input', { type: 'number', min, max, step: 1, 'aria-label': label, style: 'width:5rem',
+        value: shownNum(p[key]), oninput: (e) => { p[key] = numOf(e); changed(); } }), () => rule(p));
+      const rows = list.map((p, i) => {
+        const opts = types.map((t) => h('option', { value: t }, entityName(t) === t ? t : `${entityName(t)} (${t})`));
+        if (!types.includes(p.bossType)) opts.unshift(h('option', { value: p.bossType }, `(목록에 없음) ${p.bossType}`));
+        const sel = checks.add(h('select', { 'aria-label': '종류', onchange: (e) => { p.bossType = e.target.value; changed(); } }, opts),
+          () => bossRules.bossType(S.bundle, p));
+        sel.value = p.bossType;
+        const pos = Array.isArray(p.pos) ? p.pos.join(' ') : '';
+        const idCell = checks.add(h('span', null, p.id || '(빈 id)'), () => bossRules.id(list, i));
+        return h('tr', null,
+          h('td', null, idCell),
+          h('td', null, h('span', { class: 'id' }, p.dimension)),
+          h('td', null, h('span', { class: 'id' }, pos)),
+          h('td', null, num(p, 'radius', '반경', 1, 128, bossRules.radius)),
+          h('td', null, sel),
+          h('td', null, num(p, 'maxCount', '마릿수', 0, 10, bossRules.maxCount)),
+          h('td', null, num(p, 'respawnMinutes', '리스폰(분)', 0, 1440, bossRules.respawn)),
+          h('td', null, h('button', { class: 'danger small', 'aria-label': '지점 삭제', onclick: () => {
+            if (!confirm(`보스 지점 '${p.id}'을(를) 삭제할까요?\n저장하면 이 지점에서 더는 보스가 나오지 않습니다.`)) return;
+            list.splice(i, 1); changed(); renderTabContent();
+          } }, '삭제')));
+      });
+      container.append(h('div', { class: 'card' }, h('h2', null, '보스 지점'),
+        h('p', { class: 'muted' }, '지점은 게임 안에서 /보스지점 추가 명령으로만 추가합니다 (명령을 쓴 자리의 차원·좌표로 만들어짐). 여기서는 반경·종류·마릿수·리스폰 간격을 고치거나 삭제할 수 있습니다.'),
+        list.length ? h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['id', '차원', '좌표', '반경', '종류', '마릿수', '리스폰(분)', ''].map((t) => h('th', null, t)))),
+          h('tbody', null, rows))) : h('p', { class: 'muted' }, '보스 지점이 없습니다.'),
+        S.catalogOk && !types.length ? h('p', { class: 'muted' }, '보스 종류 목록을 불러오지 못했습니다.') : null));
+      return () => checks.paint();
+    },
+  };
+  registerTab(bossPointsTab);
+
+  const SPECIES_NUM = [
+    ['attack', '공격력'], ['speed', '이동속도'], ['attackSpeed', '공격속도'], ['flySpeed', '비행속도'], ['climbSpeed', '상승속도'],
+  ];
+  const SPECIES_BOSS_NUM = [['sizeScale', '크기배율'], ['healthMult', '체력배율'], ['attackMult', '공격배율']];
+
+  const petRules = {
+    nonNegInt(v) { return isInt(v) && v >= 0 ? '' : '0 이상의 정수여야 합니다'; },
+    color(v) { return typeof v === 'string' && COLOR.test(v) ? '' : '#RRGGBB 형식이어야 합니다'; },
+    percent(v) { return isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'; },
+    maxPercent(c) {
+      if (!isNum(c.maxPercent)) return '숫자를 입력하세요';
+      const min = isNum(c.minPercent) ? c.minPercent : 0;
+      return c.maxPercent >= min && c.maxPercent <= 100 ? '' : `최소(${min})~100 사이여야 합니다`;
+    },
+    nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
+    positive(v) { return isNum(v) && v > 0 ? '' : '0보다 커야 합니다'; },
+    petEntity(v) { return ITEM_ID.test(v || '') ? '' : '올바른 엔티티 id가 아닙니다 (예: gettcore:pet_lion)'; },
+    kind(v) { return PET_KIND_LABEL[v] ? '' : `알 수 없는 종류입니다: ${v}`; },
+  };
+
+  function validatePets(bundle) {
+    const out = [];
+    const p = bundle.pets;
+    const add = (m, where) => { if (m) out.push(`펫 설정 › ${where}: ${m}`); };
+    const hb = p.healthbar;
+    add(petRules.nonNegInt(hb.showDistance), '체력바 표시 거리');
+    add(petRules.nonNegInt(hb.fadeDelayTicks), '체력바 사라지기 전 대기');
+    add(petRules.nonNegInt(hb.fadeTicks), '체력바 사라지는 시간');
+    add(petRules.color(hb.captureColor), '포획 가능 색');
+    const c = p.capture;
+    add(petRules.percent(c.minPercent), '포획 최소 체력%');
+    add(petRules.maxPercent(c), '포획 최대 체력%');
+    add(petRules.percent(c.obtainPercent), '획득 확률');
+    for (const [k, label] of TIERS) {
+      add(petRules.percent(c.ballChance[k]), `포획틀 확률(${label})`);
+      add(petRules.percent(c.bossBallChance[k]), `보스 포획틀 확률(${label})`);
+    }
+    for (const [key, s] of Object.entries(p.species)) {
+      const w = `종 ${entityName(key)}`;
+      add(petRules.kind(s.kind), `${w} 종류`);
+      add(petRules.petEntity(s.petEntity), `${w} 펫 엔티티`);
+      for (const [f, label] of SPECIES_NUM) add(petRules.nonNeg(s[f]), `${w} ${label}`);
+      for (const [f, label] of SPECIES_BOSS_NUM) add(petRules.positive(s[f]), `${w} ${label}`);
+      add(petRules.nonNegInt(s.killGold), `${w} 처치골드`);
+      add(petRules.percent(s.obtainPercent), `${w} 획득확률`);
+    }
+    return out;
+  }
+
+  const petsTab = {
+    id: 'pets',
+    title: '펫 설정',
+    validate: validatePets,
+    render(container) {
+      const checks = makeChecks();
+      const p = S.bundle.pets;
+      const hb = p.healthbar;
+      const c = p.capture;
+      const numIn = (obj, key, label, rule, opts) => checks.add(h('input', Object.assign({ type: 'number', step: 'any', 'aria-label': label, style: 'width:5.5rem',
+        value: shownNum(obj[key]), oninput: (e) => { obj[key] = numOf(e); changed(); } }, opts || {})), () => rule(obj[key], obj));
+      const labeled = (label, el, unit) => [h('label', null, label), el, unit ? h('span', { class: 'muted' }, unit) : null];
+
+      const swatch = h('span', { class: 'swatch', 'aria-hidden': 'true' });
+      const paintSwatch = () => {
+        const v = hb.captureColor;
+        const ok = !petRules.color(v);
+        const hex = ok ? v.replace(/^#/, '') : '';
+        swatch.style.background = ok ? '#' + (hex.length === 8 ? hex.slice(2) : hex) : 'transparent';
+      };
+      const colorIn = checks.add(h('input', { type: 'text', style: 'width:6.5rem', 'aria-label': '포획 가능 색', value: hb.captureColor,
+        oninput: (e) => { hb.captureColor = e.target.value.trim(); changed(); } }), () => petRules.color(hb.captureColor));
+      const hbCard = h('div', { class: 'card' }, h('h2', null, '체력바'),
+        h('div', { class: 'field' }, labeled('표시 거리', numIn(hb, 'showDistance', '표시 거리', petRules.nonNegInt, { step: 1, min: 0 }), '블록')),
+        h('div', { class: 'field' }, labeled('사라지기 전 대기', numIn(hb, 'fadeDelayTicks', '사라지기 전 대기', petRules.nonNegInt, { step: 1, min: 0 }), '틱'),
+          labeled('사라지는 시간', numIn(hb, 'fadeTicks', '사라지는 시간', petRules.nonNegInt, { step: 1, min: 0 }), '틱')),
+        h('div', { class: 'field' }, labeled('포획 가능 색', colorIn), swatch),
+        h('p', { class: 'muted' }, '20틱 = 1초. 포획 가능 색은 체력이 포획 범위에 들어온 몹의 체력바 색입니다.'));
+
+      const tierRow = (label, map, prefix) => h('div', { class: 'field' }, h('label', { style: 'min-width:7rem' }, label),
+        TIERS.map(([k, name]) => labeled(name, numIn(map, k, `${prefix} ${name}`, petRules.percent, { min: 0, max: 100 }))), h('span', { class: 'muted' }, '%'));
+      const capCard = h('div', { class: 'card' }, h('h2', null, '포획'),
+        h('div', { class: 'field' }, labeled('체력', numIn(c, 'minPercent', '포획 최소 체력%', petRules.percent, { min: 0, max: 100 }), '% ~'),
+          numIn(c, 'maxPercent', '포획 최대 체력%', (v, o) => petRules.maxPercent(o), { min: 0, max: 100 }), h('span', { class: 'muted' }, '% 일 때 포획 가능')),
+        h('div', { class: 'field' }, labeled('획득 확률', numIn(c, 'obtainPercent', '획득 확률', petRules.percent, { min: 0, max: 100 }), '% (종별 획득확률이 0이면 이 값)')),
+        tierRow('포획틀 확률', c.ballChance, '포획틀 확률'),
+        tierRow('보스 포획틀 확률', c.bossBallChance, '보스 포획틀 확률'));
+
+      const kinds = S.catalog.petKinds && S.catalog.petKinds.length ? S.catalog.petKinds : Object.keys(PET_KIND_LABEL);
+      const keys = Object.keys(p.species).sort();
+      const rows = keys.map((key) => {
+        const s = p.species[key];
+        const kindOpts = kinds.map((k) => h('option', { value: k }, PET_KIND_LABEL[k] || k));
+        if (!kinds.includes(s.kind)) kindOpts.unshift(h('option', { value: s.kind }, `(알 수 없음) ${s.kind}`));
+        const kindSel = checks.add(h('select', { 'aria-label': '종류', onchange: (e) => { s.kind = e.target.value; changed(); } }, kindOpts),
+          () => petRules.kind(s.kind));
+        kindSel.value = s.kind;
+        const petIn = checks.add(h('input', { type: 'text', style: 'width:11rem', 'aria-label': '펫 엔티티', value: s.petEntity || '',
+          oninput: (e) => { s.petEntity = e.target.value.trim(); changed(); } }), () => petRules.petEntity(s.petEntity));
+        const n = (f, label, rule, opts) => h('td', null, numIn(s, f, label, rule, Object.assign({ min: 0, style: 'width:4.5rem' }, opts || {})));
+        const bossChk = h('input', { type: 'checkbox', 'aria-label': '보스', checked: !!s.boss, onchange: (e) => { s.boss = e.target.checked; changed(); } });
+        const name = entityName(key);
+        return h('tr', null,
+          h('td', null, h('div', null, name), name !== key ? h('div', { class: 'id' }, key) : null),
+          h('td', null, kindSel), h('td', null, petIn),
+          SPECIES_NUM.map(([f, label]) => n(f, label, petRules.nonNeg)),
+          h('td', null, bossChk),
+          SPECIES_BOSS_NUM.map(([f, label]) => n(f, label, petRules.positive)),
+          n('killGold', '처치골드', petRules.nonNegInt, { step: 1 }),
+          n('obtainPercent', '획득확률', petRules.percent, { max: 100 }),
+          h('td', null, h('button', { class: 'danger small', 'aria-label': '종 삭제', onclick: () => {
+            const used = (S.bundle.boss_points || []).filter((b) => b.bossType === key).length;
+            if (!confirm(`종 '${name}'을(를) 삭제할까요?` + (used ? `\n이 종을 쓰는 보스 지점이 ${used}개 있어, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
+            delete p.species[key]; changed(); renderTabContent();
+          } }, '삭제')));
+      });
+      const addSpecies = h('button', { class: 'primary', onclick: async () => {
+        const id = await pickEntity({ allowTags: false, title: '포획할 야생 엔티티' });
+        if (!id) return;
+        if (p.species[id]) { toast('이미 목록에 있는 종입니다'); return; }
+        p.species[id] = newSpecies(id);
+        changed(); renderTabContent();
+      } }, '+ 종 추가');
+      const head = ['종 (야생 엔티티)', '종류', '펫 엔티티'].concat(SPECIES_NUM.map((x) => x[1]), ['보스'], SPECIES_BOSS_NUM.map((x) => x[1]), ['처치골드', '획득확률(%)', '']);
+      const spCard = h('div', { class: 'card' }, h('h2', null, '종 목록'),
+        h('p', { class: 'muted' }, '키는 포획할 야생 엔티티 id입니다. 크기·체력·공격 배율과 처치골드는 보스 종에만 쓰입니다. 획득확률 0 = 위의 전체 획득 확률 사용.'),
+        keys.length ? h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, head.map((t) => h('th', null, t)))), h('tbody', null, rows))) : h('p', { class: 'muted' }, '종이 없습니다.'),
+        h('div', { class: 'field', style: 'margin-top:.5rem' }, addSpecies));
+
+      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, hbCard, capCard), spCard));
+      return () => { checks.paint(); paintSwatch(); };
+    },
+  };
+  registerTab(petsTab);
+
   /* ===================== 8. 화면 뼈대 ===================== */
 
   const app = document.getElementById('app');
@@ -1404,8 +1678,7 @@
         h('span', null, '저장하지 못한 이전 편집 내용이 있습니다.' + (stale ? ' (그 사이 서버 데이터가 바뀌었을 수 있어, 복원 후 저장하면 그 변경을 덮어씁니다.)' : '')),
         h('span', { class: 'spacer' }),
         h('button', { class: 'primary small', onclick: () => {
-          S.bundle = { shops: d.bundle.shops || {}, dialogs: d.bundle.dialogs || {}, npcs: d.bundle.npcs || EMPTY_NPCS(), quests: d.bundle.quests || {} };
-          for (const s of Object.values(S.bundle.shops)) { s.tabs = s.tabs || []; s.entries = s.entries || []; }
+          S.bundle = bundleFrom(d.bundle, S.bundle);
           S.draftOffer = null; renderDraftOffer();
           S.ui.shopId = Object.keys(S.bundle.shops)[0] || null;
           renderTabContent(); scheduleDraft();
@@ -1506,7 +1779,7 @@
     if (raw) {
       try {
         const d = JSON.parse(raw);
-        if (d && d.bundle && JSON.stringify({ shops: d.bundle.shops, dialogs: d.bundle.dialogs, npcs: d.bundle.npcs, quests: d.bundle.quests }) !== S.baseline) {
+        if (d && d.bundle && serialize(bundleFrom(d.bundle, S.bundle)) !== S.baseline) {
           S.draftOffer = d; renderDraftOffer();
         } else lsDel(DRAFT_KEY);
       } catch (e) { lsDel(DRAFT_KEY); }

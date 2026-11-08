@@ -50,6 +50,7 @@ public final class GettData {
     private static final Set<String> LEGACY_FILES = Set.of(
             "economy.json", "npcs.json", "shops/farmer.json", "dialogs/farmer.json");
     static final String BOSS_POINTS_FILE = "boss_points.json";
+    static final String PETS_FILE = "pets.json";
     /** Lists the bundled defaults already installed into the config dir. */
     static final String MARKER = ".defaults-installed";
     /** One-shot upgrade (1.2.0): adds only the 이장 -> chief name mapping to an npcs.json installed earlier. */
@@ -151,7 +152,7 @@ public final class GettData {
         EnchantConfig newEnchant = (Files.isRegularFile(enchantFile)
                 ? read(enchantFile, EnchantConfig.CODEC, errors).orElse(EnchantConfig.DEFAULT) : EnchantConfig.DEFAULT)
                 .sanitized(errors);
-        Path petsFile = dir.resolve("pets.json");
+        Path petsFile = dir.resolve(PETS_FILE);
         PetConfig newPets = (Files.isRegularFile(petsFile)
                 ? read(petsFile, PetConfig.CODEC, errors).orElse(PetConfig.DEFAULT) : PetConfig.DEFAULT)
                 .sanitized(errors);
@@ -325,7 +326,7 @@ public final class GettData {
     /** Everything the editor edits, exactly as in the files (no registry pruning). */
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
-                new java.util.TreeMap<>(rawQuestLines));
+                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets);
     }
 
     public record SaveResult(boolean saved, List<String> errors, List<String> warnings, LoadReport reload) {}
@@ -335,8 +336,9 @@ public final class GettData {
             java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     /**
-     * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file and
-     * npcs.json (all to .tmp first, then moved), deletes files of ids no longer present and reloads.
+     * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
+     * npcs.json, boss_points.json and pets.json (all to .tmp first, then moved), deletes files of ids no longer
+     * present and reloads. Boss points and pets are replaced as a whole.
      * Nothing is touched when validation fails.
      */
     public synchronized SaveResult saveBundle(EditorBundle bundle, RegistryChecks checks) {
@@ -375,6 +377,13 @@ public final class GettData {
             }
             writes.put(dir.resolve("npcs.json"),
                     NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, b.npcs()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(BOSS_POINTS_FILE),
+                    BossPoint.CODEC.listOf().encodeStart(JsonOps.INSTANCE, b.bossPoints()).getOrThrow(IOException::new));
+            // Species sorted by key so the file stays diff-friendly.
+            PetConfig pets = new PetConfig(b.pets().healthbar(), b.pets().capture(),
+                    new java.util.TreeMap<>(b.pets().species()));
+            writes.put(dir.resolve(PETS_FILE), PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, pets)
+                    .getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -463,7 +472,10 @@ public final class GettData {
         }
     }
 
-    /** Copies shops/, dialogs/, quests/ and npcs.json to .backup/yyyyMMdd-HHmmss[-n]/ and prunes old backups. */
+    /**
+     * Copies shops/, dialogs/, quests/, npcs.json, boss_points.json and pets.json to .backup/yyyyMMdd-HHmmss[-n]/
+     * and prunes old backups.
+     */
     private static Path backup(Path dir, List<String> pruneWarnings) throws IOException {
         Path root = dir.resolve(".backup");
         Files.createDirectories(root);
@@ -482,8 +494,10 @@ public final class GettData {
                 }
             }
         }
-        Path npc = dir.resolve("npcs.json");
-        if (Files.isRegularFile(npc)) Files.copy(npc, target.resolve("npcs.json"));
+        for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE)) {
+            Path f = dir.resolve(file);
+            if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
+        }
         List<Path> all;
         try (Stream<Path> s = Files.list(root)) {
             all = s.filter(Files::isDirectory).sorted().toList();

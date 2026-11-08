@@ -13,6 +13,9 @@ import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
+import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.PetSpecies;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.quest.ItemReward;
 import org.gettserver.gettcore.quest.Objective;
 import org.gettserver.gettcore.quest.Quest;
@@ -25,6 +28,8 @@ public final class EditorValidator {
     private static final Pattern ID = Pattern.compile("[a-z0-9_]+");
     /** QuestPrune's "quest line/id: " location prefix, rewritten to the dotted path style used here. */
     private static final Pattern PRUNE_PREFIX = Pattern.compile("^quest ([^/]+)/(\\S+): ");
+    /** A day; BossPoint itself only requires >= 0. */
+    static final int MAX_RESPAWN_MINUTES = 1440;
 
     public record Result(List<String> errors, List<String> warnings, EditorBundle cleaned) {}
 
@@ -75,7 +80,38 @@ public final class EditorValidator {
             for (String w : pruneWarnings) warnings.add(PRUNE_PREFIX.matcher(w).replaceFirst("quests.$1.$2: "));
         });
 
-        return new Result(errors, warnings, new EditorBundle(shops, b.dialogs(), b.npcs(), quests));
+        validateBossPoints(b, errors);
+        List<String> petWarnings = new ArrayList<>();
+        PetConfig pets = b.pets().sanitized(petWarnings);
+        for (String w : petWarnings) warnings.add(w.startsWith("pets.json: ") ? "pets: " + w.substring(11) : w);
+
+        return new Result(errors, warnings,
+                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets));
+    }
+
+    /** Ids non-empty and unique, ranges as in BossPoint (respawn capped at a day), bossType a boss species. */
+    private static void validateBossPoints(EditorBundle b, List<String> errors) {
+        Set<String> seen = new HashSet<>();
+        for (int n = 0; n < b.bossPoints().size(); n++) {
+            BossPoint pt = b.bossPoints().get(n);
+            if (pt.id().isBlank()) {
+                errors.add("boss_points[" + n + "]: id must not be empty");
+                continue;
+            }
+            String p = "boss_points." + pt.id();
+            if (!seen.add(pt.id())) errors.add(p + ": duplicate id");
+            range(p, "radius", pt.radius(), BossPoint.MIN_RADIUS, BossPoint.MAX_RADIUS, errors);
+            range(p, "maxCount", pt.maxCount(), 0, BossPoint.MAX_COUNT, errors);
+            range(p, "respawnMinutes", pt.respawnMinutes(), 0, MAX_RESPAWN_MINUTES, errors);
+            PetSpecies s = b.pets().species().get(pt.bossType().toString());
+            if (s == null || !s.boss()) {
+                errors.add(p + ": bossType " + pt.bossType() + " is not a boss species in pets.species");
+            }
+        }
+    }
+
+    private static void range(String path, String field, int v, int min, int max, List<String> errors) {
+        if (v < min || v > max) errors.add(path + ": " + field + " " + v + " must be within " + min + ".." + max);
     }
 
     private static void checkKey(String path, String key, String id, List<String> errors) {

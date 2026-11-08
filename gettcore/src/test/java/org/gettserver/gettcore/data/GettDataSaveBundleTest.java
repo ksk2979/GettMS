@@ -10,7 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Stream;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.editor.EditorBundle;
+import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -47,7 +53,7 @@ class GettDataSaveBundleTest {
                 List.of(new ShopEntry(bad.item(), bad.tab(), -5, 1, true, true, 1, 1))));
         Map<String, String> before = snapshot(dir);
 
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets()),
                 RegistryChecks.ALL_EXIST);
 
         assertFalse(r.saved());
@@ -62,13 +68,13 @@ class GettDataSaveBundleTest {
         EditorBundle raw = data.rawBundle();
         Map<String, ShopDefinition> shops = new LinkedHashMap<>(raw.shops());
         shops.put("old", withId(shops.get("farmer"), "old"));
-        assertTrue(data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests()),
+        assertTrue(data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets()),
                 RegistryChecks.ALL_EXIST).saved());
         assertTrue(Files.isRegularFile(dir.resolve("shops/old.json")));
 
         shops.remove("old");
         shops.put("newshop", withId(shops.get("farmer"), "newshop"));
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets()),
                 RegistryChecks.ALL_EXIST);
 
         assertTrue(r.saved(), r.errors().toString());
@@ -97,7 +103,7 @@ class GettDataSaveBundleTest {
         Map<String, String> byName = new LinkedHashMap<>(raw.npcs().byName());
         byName.values().removeIf("enchanter"::equals);
         NpcMapping npcs = new NpcMapping(raw.npcs().byUuid(), byName);
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), dialogs, npcs, Map.of()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), dialogs, npcs, Map.of(), raw.bossPoints(), raw.pets()),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.saved(), r.errors().toString());
         assertFalse(Files.exists(dir.resolve("dialogs/enchanter.json")));
@@ -138,7 +144,7 @@ class GettDataSaveBundleTest {
         data.load(dir);
         Map<String, ShopDefinition> shops = new LinkedHashMap<>(data.rawBundle().shops());
         shops.put("foo", withId(shops.get("farmer"), "foo"));
-        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests()),
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(shops, raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets()),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.saved(), r.errors().toString());
         assertEquals(2, r.reload().shops(), r.reload().errors().toString());
@@ -159,5 +165,35 @@ class GettDataSaveBundleTest {
         data.load(dir);
         assertEquals(1, data.shop("s").orElseThrow().entries().size());
         assertEquals(2, data.rawBundle().shops().get("s").entries().size());
+    }
+
+    @Test
+    void savesBossPointsAndPets(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertTrue(raw.pets().species().containsKey("gettcore:boss_lion"), "bundled pets.json has boss species");
+        BossPoint point = new BossPoint("den", ResourceKey.create(Registries.DIMENSION,
+                ResourceLocation.parse("minecraft:overworld")), new BlockPos(1, 70, 2), 24,
+                ResourceLocation.parse("gettcore:boss_lion"), 3, 60);
+        PetConfig p = raw.pets();
+        PetConfig pets = new PetConfig(new PetConfig.HealthBar(48, 100, 10, 0xFF112233), p.capture(), p.species());
+
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                List.of(point), pets), RegistryChecks.ALL_EXIST);
+
+        assertTrue(r.saved(), r.errors().toString());
+        assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
+        assertEquals(List.of(point), data.bossPoints());
+        assertEquals(pets, data.pets());
+        assertTrue(Files.readString(dir.resolve("pets.json")).contains("\"captureColor\": \"#112233\""));
+        assertTrue(Files.readString(dir.resolve("boss_points.json")).contains("\"den\""));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.isRegularFile(latest.resolve("pets.json")));
+        assertTrue(Files.readString(latest.resolve("pets.json")).contains("#55FF55"), "backup holds the old file");
+        assertTrue(Files.isRegularFile(latest.resolve("boss_points.json")));
+        assertEquals(List.of(point), data.rawBundle().bossPoints());
     }
 }

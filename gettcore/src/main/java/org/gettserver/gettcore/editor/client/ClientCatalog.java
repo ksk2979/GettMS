@@ -11,6 +11,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.fml.ModList;
+import org.gettserver.gettcore.pet.PetRegistry;
 
 /**
  * Item/entity/tag catalog for the editor, with names in the client's current language. Client only.
@@ -71,7 +72,9 @@ public final class ClientCatalog {
             ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
             entities.add(new CatalogJson.Entry(id.toString(), type.getDescription().getString(), modName(id)));
         }
-        return CatalogJson.build(items, entities, tags(BuiltInRegistries.ITEM), tags(BuiltInRegistries.ENTITY_TYPE));
+        List<String> bossTypes = PetRegistry.BOSS_TYPES.stream().map(h -> h.getId().toString()).toList();
+        return CatalogJson.build(items, entities, tags(BuiltInRegistries.ITEM), tags(BuiltInRegistries.ENTITY_TYPE),
+                bossTypes);
     }
 
     private static List<String> tags(Registry<?> registry) {

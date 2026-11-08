@@ -4,7 +4,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import org.gettserver.gettcore.data.*;
+import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.PetSpecies;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.quest.*;
 
 final class Fixtures {
@@ -41,6 +47,29 @@ final class Fixtures {
 
     static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                                NpcMapping npcs, Map<String, QuestLine> quests) {
-        return new EditorBundle(shops, dialogs, npcs, quests);
+        return new EditorBundle(shops, dialogs, npcs, quests, List.of(), PetConfig.DEFAULT);
+    }
+
+    static EditorBundle bundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
+                               NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
+                               PetConfig pets) {
+        return new EditorBundle(shops, dialogs, npcs, quests, bossPoints, pets);
+    }
+
+    static BossPoint bossPoint(String id, String bossType, int radius, int maxCount, int respawnMinutes) {
+        return new BossPoint(id, ResourceKey.create(Registries.DIMENSION, rl("minecraft:overworld")),
+                new BlockPos(10, 64, -20), radius, rl(bossType), maxCount, respawnMinutes);
+    }
+
+    static PetSpecies species(String key, boolean boss) {
+        return new PetSpecies(key, PetSpecies.Kind.FIGHTER, rl("gettcore:pet_lion"), 6, 0.3, 1, 0.6, 0.3, boss,
+                boss ? 1.6 : 1, boss ? 5 : 1, boss ? 2 : 1, 0, boss ? 20 : 0);
+    }
+
+    /** Pets config with the given species (keyed by their id) and default health bar/capture settings. */
+    static PetConfig pets(PetSpecies... species) {
+        Map<String, PetSpecies> m = new java.util.HashMap<>();
+        for (PetSpecies s : species) m.put(s.id(), s);
+        return new PetConfig(PetConfig.DEFAULT.healthbar(), PetConfig.DEFAULT.capture(), Map.copyOf(m));
     }
 }

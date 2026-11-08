@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.data.RegistryChecks;
@@ -23,6 +26,7 @@ import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.editor.EditorJson;
 import org.gettserver.gettcore.editor.EditorRefs;
 import org.gettserver.gettcore.editor.EditorValidator;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 
 /**
  * Manual UI check for the web editor: serves a fake backend (example data, tiny catalog, no icons).
@@ -100,7 +104,10 @@ public final class EditorDevServer {
         return o.toString();
     }
 
-    /** Adds an uninstalled item (listed in refs.missingItems) and one unknown to the catalog to the farmer shop. */
+    /**
+     * Adds an uninstalled item (listed in refs.missingItems) and one unknown to the catalog to the farmer shop, and a
+     * sample boss point when the example data has none.
+     */
     private static EditorBundle withExtraEntries(EditorBundle b) {
         ShopDefinition farmer = b.shops().get("farmer");
         if (farmer == null) return b;
@@ -109,7 +116,13 @@ public final class EditorDevServer {
         farmer = farmer.withEntry(new ShopEntry(ResourceLocation.parse("servermod:gem"), tab, 900, 300, true, true, 900, 300));
         var shops = new LinkedHashMap<>(b.shops());
         shops.put("farmer", farmer);
-        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests());
+        List<BossPoint> points = new ArrayList<>(b.bossPoints());
+        if (points.isEmpty()) {
+            points.add(new BossPoint("lion_den",
+                    ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse("minecraft:overworld")), new BlockPos(120, 68, -340), 16,
+                    ResourceLocation.parse("gettcore:boss_lion"), 1, 30));
+        }
+        return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets());
     }
 
     private static String catalog() {
@@ -128,13 +141,23 @@ public final class EditorDevServer {
         List<CatalogJson.Entry> list = new ArrayList<>();
         for (String[] i : items) list.add(new CatalogJson.Entry("minecraft:" + i[0], i[1], "Minecraft"));
         list.add(new CatalogJson.Entry("gettcore:enchant_stone", "마법부여석", "Gett Core"));
-        List<CatalogJson.Entry> entities = List.of(new CatalogJson.Entry("minecraft:zombie", "좀비", "Minecraft"),
+        List<CatalogJson.Entry> entities = new ArrayList<>(List.of(
+                new CatalogJson.Entry("minecraft:zombie", "좀비", "Minecraft"),
                 new CatalogJson.Entry("minecraft:skeleton", "스켈레톤", "Minecraft"),
                 new CatalogJson.Entry("minecraft:creeper", "크리퍼", "Minecraft"),
-                new CatalogJson.Entry("minecraft:ender_dragon", "엔더 드래곤", "Minecraft"));
+                new CatalogJson.Entry("minecraft:ender_dragon", "엔더 드래곤", "Minecraft"),
+                new CatalogJson.Entry("naturalist:lion", "사자", "Naturalist"),
+                new CatalogJson.Entry("naturalist:vulture", "독수리", "Naturalist")));
+        String[][] bosses = {{"lion", "보스 사자"}, {"tiger", "보스 호랑이"}, {"bear", "보스 곰"},
+                {"elephant", "보스 코끼리"}, {"mammoth", "보스 매머드"}, {"vulture", "보스 독수리"}};
+        List<String> bossTypes = new ArrayList<>();
+        for (String[] b : bosses) {
+            entities.add(new CatalogJson.Entry("gettcore:boss_" + b[0], b[1], "Gett Core"));
+            bossTypes.add("gettcore:boss_" + b[0]);
+        }
         return CatalogJson.build(list, entities,
                 List.of("minecraft:logs", "minecraft:planks", "minecraft:coals", "c:ingots/iron"),
-                List.of("minecraft:skeletons"));
+                List.of("minecraft:skeletons"), bossTypes);
     }
 
     private static void copyTree(Path from, Path to) throws IOException {

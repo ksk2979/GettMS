@@ -13,6 +13,8 @@ import java.util.Map;
 import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.NpcMapping;
 import org.gettserver.gettcore.data.ShopDefinition;
+import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.quest.QuestLine;
 
 /** Bundle JSON as in spec 3.4: same per-file formats as the on-disk files, via the existing codecs. */
@@ -27,6 +29,8 @@ public final class EditorJson {
         root.add("dialogs", encodeMap(bundle.dialogs(), DialogDefinition.CODEC));
         root.add("npcs", NpcMapping.CODEC.encodeStart(JsonOps.INSTANCE, bundle.npcs()).getOrThrow());
         root.add("quests", encodeMap(bundle.quests(), QuestLine.CODEC));
+        root.add("boss_points", BossPoint.CODEC.listOf().encodeStart(JsonOps.INSTANCE, bundle.bossPoints()).getOrThrow());
+        root.add("pets", PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.pets()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -58,7 +62,16 @@ public final class EditorJson {
                 m -> new IllegalArgumentException("npcs: " + m));
         return new EditorBundle(decodeMap(root, "shops", ShopDefinition.CODEC),
                 decodeMap(root, "dialogs", DialogDefinition.CODEC), npcs,
-                decodeMap(root, "quests", QuestLine.CODEC));
+                decodeMap(root, "quests", QuestLine.CODEC),
+                decodeOptional(root, "boss_points", BossPoint.CODEC.listOf(), List.of()),
+                decodeOptional(root, "pets", PetConfig.CODEC, PetConfig.DEFAULT));
+    }
+
+    /** boss_points / pets: a missing or null section reads as empty / defaults. */
+    private static <T> T decodeOptional(JsonObject root, String section, Codec<T> codec, T empty) {
+        JsonElement e = root.get(section);
+        if (e == null || e.isJsonNull()) return empty;
+        return codec.parse(JsonOps.INSTANCE, e).getOrThrow(m -> new IllegalArgumentException(section + ": " + m));
     }
 
     /** A save replaces everything, so a missing section must be an error rather than "empty". */

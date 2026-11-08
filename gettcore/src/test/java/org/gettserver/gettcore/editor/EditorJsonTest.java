@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.List;
 import java.util.Map;
 import org.gettserver.gettcore.data.*;
+import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.quest.*;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +19,9 @@ class EditorJsonTest {
                         new DialogNode("안녕", List.of(choice(ChoiceAction.Type.QUEST, null)))))),
                 new NpcMapping(Map.of(), Map.of("이장", "chief")),
                 Map.of("main", new QuestLine("main", "메인", "끝", List.of(
-                        quest("q1", npc("이장"), List.of(), Rewards.EMPTY)))));
+                        quest("q1", npc("이장"), List.of(), Rewards.EMPTY)))),
+                List.of(bossPoint("den", "gettcore:boss_lion", 20, 2, 45)),
+                pets(species("gettcore:boss_lion", true)));
         EditorRefs refs = new EditorRefs(List.of(new EditorRefs.AdvRef("minecraft:story/mine_diamond", "다이아몬드!")),
                 List.of("gone:item"), List.of("gone:mob"));
         String json = EditorJson.encode(b, refs);
@@ -28,6 +31,24 @@ class EditorJsonTest {
         assertEquals(b, EditorJson.decode(json));
         assertEquals(b, EditorJson.decode(EditorJson.encode(b, null)));
         assertFalse(EditorJson.encode(b, null).contains("\"refs\""));
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        assertEquals("den", root.getAsJsonArray("boss_points").get(0).getAsJsonObject().get("id").getAsString());
+        var pets = root.getAsJsonObject("pets");
+        assertTrue(pets.getAsJsonObject("species").has("gettcore:boss_lion"), json);
+    }
+
+    @Test
+    void missingPetSectionsDecodeToDefaults() {
+        EditorBundle b = EditorJson.decode("{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"pets\":null}");
+        assertEquals(List.of(), b.bossPoints());
+        assertEquals(PetConfig.DEFAULT, b.pets());
+    }
+
+    @Test
+    void badBossPointNamesPath() {
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}]}";
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
+        assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
 
     @Test
@@ -48,7 +69,7 @@ class EditorJsonTest {
                     section);
             assertTrue(e.getMessage().startsWith(section), e.getMessage());
         }
-        assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of()),
+        assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), PetConfig.DEFAULT),
                 EditorJson.decode("{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{}}"));
     }
 }

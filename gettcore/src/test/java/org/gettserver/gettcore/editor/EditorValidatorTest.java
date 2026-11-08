@@ -135,4 +135,60 @@ class EditorValidatorTest {
         assertTrue(any(r.warnings(), "quests.main.q"), r.warnings().toString());
         assertEquals(1, r.cleaned().quests().get("main").quests().get(0).objectives().size());
     }
+
+    @Test
+    void bossPointBadRadius() {
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q,
+                List.of(bossPoint("den", "gettcore:boss_lion", 0, 1, 30)), pets(species("gettcore:boss_lion", true)));
+        var r = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertEquals(1, r.errors().size(), r.errors().toString());
+        assertTrue(r.errors().get(0).startsWith("boss_points.den: radius"), r.errors().toString());
+    }
+
+    @Test
+    void bossPointUnknownType() {
+        // Not in species at all, and present but not a boss: both are errors.
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q,
+                List.of(bossPoint("a", "gettcore:boss_ghost", 16, 1, 30), bossPoint("b", "naturalist:lion", 16, 1, 30)),
+                pets(species("naturalist:lion", false)));
+        var r = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "boss_points.a: bossType gettcore:boss_ghost"), r.errors().toString());
+        assertTrue(any(r.errors(), "boss_points.b: bossType naturalist:lion"), r.errors().toString());
+    }
+
+    @Test
+    void bossPointRangesIdsAndValidPoint() {
+        var ok = bossPoint("ok", "gettcore:boss_lion", 128, 10, 1440);
+        var b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(ok,
+                        bossPoint("ok", "gettcore:boss_lion", 16, 1, 30),
+                        bossPoint("", "gettcore:boss_lion", 16, 1, 30),
+                        bossPoint("big", "gettcore:boss_lion", 129, 11, 1441)),
+                pets(species("gettcore:boss_lion", true)));
+        var r = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertTrue(any(r.errors(), "boss_points.ok: duplicate id"), r.errors().toString());
+        assertTrue(any(r.errors(), "boss_points[2]: id must not be empty"), r.errors().toString());
+        assertTrue(any(r.errors(), "boss_points.big: radius"), r.errors().toString());
+        assertTrue(any(r.errors(), "boss_points.big: maxCount"), r.errors().toString());
+        assertTrue(any(r.errors(), "boss_points.big: respawnMinutes"), r.errors().toString());
+        assertEquals(5, r.errors().size(), r.errors().toString());
+
+        var good = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(ok), pets(species("gettcore:boss_lion", true)));
+        var r2 = EditorValidator.validate(good, RegistryChecks.ALL_EXIST);
+        assertTrue(r2.errors().isEmpty(), r2.errors().toString());
+        assertEquals(good, r2.cleaned());
+    }
+
+    @Test
+    void petsAreSanitizedWithWarnings() {
+        var d = org.gettserver.gettcore.pet.PetConfig.DEFAULT;
+        var bad = new org.gettserver.gettcore.pet.PetConfig(d.healthbar(), new org.gettserver.gettcore.pet.PetConfig.Capture(
+                -5, 20, d.capture().ballChance(), d.capture().bossBallChance(), 150), Map.of());
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), bad),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(any(r.warnings(), "pets: capture.minPercent"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "pets: capture.obtainPercent"), r.warnings().toString());
+        assertEquals(d.capture().minPercent(), r.cleaned().pets().capture().minPercent());
+        assertEquals(d.capture().obtainPercent(), r.cleaned().pets().capture().obtainPercent());
+    }
 }
