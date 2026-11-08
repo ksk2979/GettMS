@@ -40,7 +40,7 @@ public class ObtainScreen extends Screen {
     private ObtainScreen(OpenObtainPayload data) {
         super(Component.translatable("gettcore.gui.obtain.title"));
         this.data = data;
-        this.name = CapturedMobItem.displayName(data.key(), data.boss());
+        this.name = CapturedMobItem.displayName(data.key());
         this.sizeMultiplier = data.boss()
                 ? ClientPetConfig.species(data.wildEntity()).map(PetSpecies::sizeScale).orElse(1.0).floatValue()
                 : 1.0F;

@@ -26,7 +26,6 @@ import org.gettserver.gettcore.pet.entity.GettPet;
 
 /** Server side of a capture ball hitting a mob: judge, message the thrower, and turn the mob into an item. */
 public final class CaptureService {
-    static final String DEFAULT_VARIANT = "default";
     /** One obtain confirm per server tick (50 ms) per player. */
     private static final RateLimiter OBTAIN_LIMITER = new RateLimiter(50);
 
@@ -42,7 +41,8 @@ public final class CaptureService {
                 level.random.nextDouble());
 
         Component message = switch (verdict) {
-            case HEALTH_OUT_OF_RANGE -> Component.translatable(messageKey(verdict), (int) Math.ceil(ratio * 100));
+            case HEALTH_OUT_OF_RANGE -> Component.translatable(messageKey(verdict), (int) Math.ceil(ratio * 100),
+                    (int) config.capture().maxPercent());
             case CAPTURED -> Component.translatable(messageKey(verdict), target.getName());
             default -> Component.translatable(messageKey(verdict));
         };
@@ -51,7 +51,7 @@ public final class CaptureService {
         double x = target.getX(), y = target.getY(), z = target.getZ();
         if (verdict == Verdict.CAPTURED) {
             thrower.sendSystemMessage(message);
-            String variant = target instanceof DataDrivenVariantAnimal v ? v.getVariantString() : DEFAULT_VARIANT;
+            String variant = target instanceof DataDrivenVariantAnimal v ? v.getVariantString() : PetKey.DEFAULT_VARIANT;
             ItemStack stack = capturedStack(new PetKey(typeId.toString(), variant), target instanceof GettBoss);
             if (target instanceof GettBoss boss) {
                 BossPointData.get(level.getServer()).onBossGone(boss.pointId(), target.getUUID(),
@@ -86,7 +86,10 @@ public final class CaptureService {
         return duplicate ? "gettcore.msg.obtain.duplicate" : "gettcore.msg.obtain.success";
     }
 
-    /** C2S [확정]: second-stage roll on the captured mob in {@code hand}; one item is consumed whatever the outcome. */
+    /**
+     * C2S [확정]: second-stage roll on the captured mob in {@code hand}; one item is consumed whatever the outcome.
+     * A new (non-duplicate) pet is pushed to the player's dex right away with {@link PetService#sync}.
+     */
     public static void confirmObtain(ServerPlayer player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         if (!canConfirm(stack)) return;
@@ -109,10 +112,11 @@ public final class CaptureService {
         String msgKey = obtainMessageKey(success, duplicate);
         Component message = duplicate
                 ? Component.translatable(msgKey).withStyle(ChatFormatting.YELLOW)
-                : Component.translatable(msgKey, CapturedMobItem.displayName(key, boss))
+                : Component.translatable(msgKey, CapturedMobItem.displayName(key))
                         .withStyle(success ? ChatFormatting.GREEN : ChatFormatting.RED);
         player.sendSystemMessage(message);
         if (success && !duplicate) {
+            PetService.sync(player);
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1.0F, 1.0F);
         } else if (!success) {

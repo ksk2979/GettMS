@@ -27,8 +27,7 @@ public class CapturedMobItem extends Item {
     public Component getName(ItemStack stack) {
         PetKey key = stack.get(PetRegistry.PET_KEY.get());
         if (key == null) return super.getName(stack);
-        return Component.translatable("gettcore.item.captured_mob.named",
-                displayName(key, Boolean.TRUE.equals(stack.get(PetRegistry.PET_BOSS.get()))));
+        return Component.translatable("gettcore.item.captured_mob.named", displayName(key));
     }
 
     /** Right click opens the obtain screen (the server decides the shown percent); nothing is consumed here. */
@@ -57,23 +56,18 @@ public class CapturedMobItem extends Item {
     }
 
     /**
-     * Species name for items and chat: the wild entity's name, plus {@code " (variant)"} unless the variant is
-     * default ({@code gettcore.variant.<variant>}, falling back to the raw id), prefixed by
-     * {@code gettcore.boss_prefix} for bosses.
+     * Species name for items and chat: the entity's name (a boss species' own name already reads "보스 사자"), plus
+     * {@code " (variant)"} when {@link PetKey#variantPath} has one ({@code gettcore.variant.<path>}, falling back to
+     * the path).
      */
-    public static Component displayName(PetKey key, boolean boss) {
+    public static Component displayName(PetKey key) {
         Component entity = EntityType.byString(key.speciesId())
                 .<Component>map(EntityType::getDescription)
                 .orElseGet(() -> Component.literal(key.speciesId()));
-        MutableComponent name = Component.empty();
-        if (boss) name.append(Component.translatable("gettcore.boss_prefix"));
-        name.append(entity);
-        String variant = key.variant();
-        if (!variant.isEmpty() && !CaptureService.DEFAULT_VARIANT.equals(variant)) {
-            name.append(" (")
-                    .append(Component.translatableWithFallback("gettcore.variant." + variant, variant))
-                    .append(")");
-        }
+        MutableComponent name = Component.empty().append(entity);
+        key.variantPath().ifPresent(path -> name.append(" (")
+                .append(Component.translatableWithFallback("gettcore.variant." + path, path))
+                .append(")"));
         return name;
     }
 }

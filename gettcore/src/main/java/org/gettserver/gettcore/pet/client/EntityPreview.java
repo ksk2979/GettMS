@@ -10,6 +10,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.pet.PetKey;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -30,7 +31,7 @@ public final class EntityPreview {
                 if (entity != null) entity.discard();
                 return null;
             }
-            if (living instanceof DataDrivenVariantAnimal v && !variant.isEmpty() && !"default".equals(variant)) {
+            if (living instanceof DataDrivenVariantAnimal v && PetKey.hasVariant(variant)) {
                 v.setVariantString(variant);
             }
             return living;

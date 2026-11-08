@@ -33,4 +33,29 @@ class PetServiceTest {
     void noActiveSummons() {
         assertEquals(SummonResult.SUMMONED, PetService.decide(OWNED, Optional.empty(), 0));
     }
+
+    private static PetSpecies species(double attack) {
+        return new PetSpecies("naturalist:vulture", PetSpecies.Kind.FLYING_MOUNT,
+                net.minecraft.resources.ResourceLocation.parse("gettcore:pet_vulture"), attack, 0.3, 1, 0.6, 0.3, false,
+                1, 1, 1, 0, 0);
+    }
+
+    @Test
+    void reloadKeepsUnchangedSpecies() {
+        assertEquals(PetService.ReloadAction.KEEP, PetService.reloadAction(species(6), Optional.of(species(6)), false));
+        assertEquals(PetService.ReloadAction.KEEP, PetService.reloadAction(species(6), Optional.of(species(6)), true));
+    }
+
+    @Test
+    void reloadRecallsChangedOrRemovedSpecies() {
+        assertEquals(PetService.ReloadAction.RECALL, PetService.reloadAction(species(6), Optional.of(species(9)), false));
+        assertEquals(PetService.ReloadAction.RECALL, PetService.reloadAction(species(6), Optional.empty(), false));
+        assertEquals(PetService.ReloadAction.RECALL, PetService.reloadAction(null, Optional.of(species(6)), false));
+    }
+
+    @Test
+    void reloadNeverRecallsARiddenFlyingMount() {
+        assertEquals(PetService.ReloadAction.REAPPLY, PetService.reloadAction(species(6), Optional.of(species(9)), true));
+        assertEquals(PetService.ReloadAction.REAPPLY, PetService.reloadAction(species(6), Optional.empty(), true));
+    }
 }

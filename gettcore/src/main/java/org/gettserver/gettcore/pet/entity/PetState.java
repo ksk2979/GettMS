@@ -9,12 +9,16 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.client.ClientPetConfig;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.pet.CapturedMobItem;
 import org.gettserver.gettcore.pet.PetKey;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.jetbrains.annotations.Nullable;
@@ -32,7 +36,6 @@ public final class PetState {
     private static final String BOSS = "Boss";
     private static final String SCALE = "Scale";
     private static final String OWNER = "Owner";
-    private static final String DEFAULT_VARIANT = "default";
 
     private final Mob mob;
     private final EntityDataAccessor<CompoundTag> data;
@@ -42,6 +45,9 @@ public final class PetState {
     private boolean wasRidden;
     /** True while the ridden mount runs its original {@code travel}, which must not see the rider (see #travel). */
     private boolean inRiddenTravel;
+    /** Boss pets only, server side, created when the owner starts tracking the pet. */
+    @Nullable
+    private ServerBossEvent bossBar;
 
     public PetState(Mob mob, EntityDataAccessor<CompoundTag> data, PetSpecies.Kind kind) {
         this.mob = mob;
@@ -100,12 +106,41 @@ public final class PetState {
         tag.putFloat(SCALE, boss ? (float) species.sizeScale() : 1.0F);
         if (!(mob instanceof TamableAnimal)) tag.putUUID(OWNER, id);
         mob.getEntityData().set(data, tag);
-        if (mob instanceof DataDrivenVariantAnimal animal && !key.variant().isEmpty()
-                && !DEFAULT_VARIANT.equals(key.variant())) {
+        // The stored variant is the full key (e.g. naturalist:white_tiger), exactly what setVariantString expects.
+        if (mob instanceof DataDrivenVariantAnimal animal && PetKey.hasVariant(key.variant())) {
             animal.setVariantString(key.variant());
         }
         PetBehavior.applyStats(mob, species, boss);
         // The hitbox follows the new Scale through each pet's onSyncedDataUpdated (fires on both sides).
+    }
+
+    /** Re-applies the current pets.json stats in place (config reload while the pet cannot be recalled). */
+    public void reapplyStats() {
+        if (key() != null) PetBehavior.applyStats(mob, species(), boss());
+    }
+
+    /**
+     * Spec 4.5: a summoned boss pet shows a boss bar to its owner only, always full (pets cannot be hurt). Called
+     * from each pet class's {@code startSeenByPlayer}.
+     */
+    public void startSeenBy(ServerPlayer player) {
+        PetKey key = key();
+        if (!boss() || key == null || !player.getUUID().equals(ownerId())) return;
+        if (bossBar == null) {
+            bossBar = new ServerBossEvent(CapturedMobItem.displayName(key), BossEvent.BossBarColor.PURPLE,
+                    BossEvent.BossBarOverlay.PROGRESS);
+            bossBar.setProgress(1.0F);
+        }
+        bossBar.addPlayer(player);
+    }
+
+    public void stopSeenBy(ServerPlayer player) {
+        if (bossBar != null) bossBar.removePlayer(player);
+    }
+
+    /** Entity removed (recalled, unloaded, discarded): nobody keeps seeing its bar. */
+    public void onRemoved() {
+        if (bossBar != null) bossBar.removeAllPlayers();
     }
 
     public void save(CompoundTag out) {

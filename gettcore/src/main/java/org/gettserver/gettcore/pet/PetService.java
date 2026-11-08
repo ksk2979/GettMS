@@ -18,12 +18,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.economy.RateLimiter;
 import org.gettserver.gettcore.network.PetDexSyncPayload;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.pet.entity.PetBehavior;
@@ -33,11 +33,21 @@ import org.jetbrains.annotations.Nullable;
 public final class PetService {
     public enum SummonResult { SUMMONED, RECALLED, BLOCKED_ACTIVE, INVALID_INDEX }
 
+    /** What a config reload does to one summoned pet (see {@link #reloadAction}). */
+    public enum ReloadAction { KEEP, REAPPLY, RECALL }
+
     /** Pets appear this many blocks in front of the owner (horizontally). */
     static final double SUMMON_DISTANCE = 2.0;
+    /** From the owner's feet level, how many blocks up the summon spot may be lifted to find a free 2-block space. */
+    static final int SUMMON_SEARCH_UP = 4;
 
-    /** Owner UUID to the UUID of the summoned pet entity. Server thread only. */
-    private static final Map<UUID, UUID> ACTIVE = new HashMap<>();
+    /** One summoned pet: its entity, its key, and the species config it was summoned (or last re-applied) with. */
+    private record Active(UUID petId, PetKey key, @Nullable PetSpecies species) {}
+
+    /** Owner UUID to their summoned pet. Server thread only. */
+    private static final Map<UUID, Active> ACTIVE = new HashMap<>();
+    /** One dex click per 250 ms per player. */
+    private static final RateLimiter ACTION_LIMITER = new RateLimiter(250);
 
     private PetService() {}
 
@@ -50,6 +60,7 @@ public final class PetService {
     }
 
     public static void handleAction(ServerPlayer player, int index) {
+        if (!ACTION_LIMITER.tryAcquire(player.getUUID(), System.currentTimeMillis())) return;
         PetData data = PetData.get(player.server);
         List<PetKey> owned = data.owned(player.getUUID());
         switch (decide(owned, data.active(player.getUUID()), index)) {
@@ -81,7 +92,7 @@ public final class PetService {
         created.moveTo(pos.x, pos.y, pos.z, player.getYRot() + 180.0F, 0.0F);
         pet.setOwner(player.getUUID(), key, boss);
         // Track before adding so the join-level check in PetEvents accepts the entity.
-        ACTIVE.put(player.getUUID(), created.getUUID());
+        ACTIVE.put(player.getUUID(), new Active(created.getUUID(), key, species.get()));
         if (!level.addFreshEntity(created)) {
             ACTIVE.remove(player.getUUID());
             GettCore.LOGGER.warn("gettcore: level refused pet entity {} for {}", key, player.getGameProfile().getName());
@@ -91,7 +102,7 @@ public final class PetService {
         PetData.get(player.server).setActive(player.getUUID(), key);
         whistle(player);
         player.sendSystemMessage(Component.translatable("gettcore.msg.pet.summoned",
-                CapturedMobItem.displayName(key, boss)).withStyle(ChatFormatting.GREEN));
+                CapturedMobItem.displayName(key)).withStyle(ChatFormatting.GREEN));
         sync(player);
     }
 
@@ -99,16 +110,26 @@ public final class PetService {
         player.sendSystemMessage(Component.translatable("gettcore.msg.pet.unknown").withStyle(ChatFormatting.RED));
     }
 
-    /** Two blocks in front of the owner (horizontal look direction), lifted to the surface if that spot is solid. */
+    /**
+     * Two blocks in front of the owner (horizontal look direction), starting at the owner's feet level and lifted
+     * by up to {@value #SUMMON_SEARCH_UP} blocks to the first free 2-block-high space; the owner's own position when
+     * there is none. Never the world heightmap (that would put pets on the roof of a cave or a house).
+     */
     private static Vec3 summonPos(ServerPlayer player, ServerLevel level) {
         Vec3 dir = Vec3.directionFromRotation(0.0F, player.getYRot());
-        Vec3 pos = player.position().add(dir.scale(SUMMON_DISTANCE));
-        BlockPos block = BlockPos.containing(pos);
-        if (!level.getBlockState(block).getCollisionShape(level, block).isEmpty()) {
-            BlockPos top = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, block);
-            pos = new Vec3(pos.x, top.getY(), pos.z);
+        Vec3 ahead = player.position().add(dir.scale(SUMMON_DISTANCE));
+        BlockPos base = BlockPos.containing(ahead.x, player.getY(), ahead.z);
+        for (int dy = 0; dy <= SUMMON_SEARCH_UP; dy++) {
+            BlockPos feet = base.above(dy);
+            if (isFree(level, feet) && isFree(level, feet.above())) {
+                return new Vec3(ahead.x, dy == 0 ? player.getY() : feet.getY(), ahead.z);
+            }
         }
-        return pos;
+        return player.position();
+    }
+
+    private static boolean isFree(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
     }
 
     /** Puts the active pet back: discards its entity and clears active; whistle + message unless silent. */
@@ -118,7 +139,7 @@ public final class PetService {
         if (!silent) {
             whistle(player);
             active.ifPresent(key -> player.sendSystemMessage(Component.translatable("gettcore.msg.pet.recalled",
-                    CapturedMobItem.displayName(key, isBoss(key))).withStyle(ChatFormatting.GREEN)));
+                    CapturedMobItem.displayName(key)).withStyle(ChatFormatting.GREEN)));
         }
         if (!player.hasDisconnected()) {
             sync(player);
@@ -136,9 +157,9 @@ public final class PetService {
     }
 
     private static void clear(MinecraftServer server, UUID owner) {
-        UUID petId = ACTIVE.remove(owner);
-        if (petId != null) {
-            Entity pet = findEntity(server, petId);
+        Active active = ACTIVE.remove(owner);
+        if (active != null) {
+            Entity pet = findEntity(server, active.petId());
             if (pet != null) {
                 pet.discard();
             }
@@ -188,8 +209,8 @@ public final class PetService {
 
     /** Recalls pets whose entity is gone or whose owner is offline, dead, in another dimension or too far away. */
     public static void tick(MinecraftServer server) {
-        for (Map.Entry<UUID, UUID> e : new ArrayList<>(ACTIVE.entrySet())) {
-            Entity pet = findEntity(server, e.getValue());
+        for (Map.Entry<UUID, Active> e : new ArrayList<>(ACTIVE.entrySet())) {
+            Entity pet = findEntity(server, e.getValue().petId());
             if (!(pet instanceof Mob mob) || pet.isRemoved()) {
                 recall(server, e.getKey());
                 continue;
@@ -206,22 +227,58 @@ public final class PetService {
     public static boolean isTrackedActive(MinecraftServer server, GettPet pet, Entity entity) {
         UUID owner = pet.ownerId();
         if (owner == null || server.getPlayerList().getPlayer(owner) == null) return false;
-        return entity.getUUID().equals(ACTIVE.get(owner));
+        Active active = ACTIVE.get(owner);
+        return active != null && entity.getUUID().equals(active.petId());
     }
 
-    /** Registered once at startup: /gett reload recalls every summoned pet (species config may have changed). */
+    /**
+     * Pure reload rule for one summoned pet: unchanged species entry: {@link ReloadAction#KEEP}; changed or removed:
+     * {@link ReloadAction#RECALL}, except a flying mount that is carrying someone, which is never recalled mid-air
+     * (that would drop the rider) and only gets its stats re-applied ({@link ReloadAction#REAPPLY}).
+     */
+    public static ReloadAction reloadAction(@Nullable PetSpecies before, Optional<PetSpecies> after,
+                                            boolean flyingMountWithRider) {
+        if (before != null && after.isPresent() && after.get().equals(before)) return ReloadAction.KEEP;
+        return flyingMountWithRider ? ReloadAction.REAPPLY : ReloadAction.RECALL;
+    }
+
+    /**
+     * Registered once at startup: after /gett reload or an editor save every summoned pet goes through
+     * {@link #reloadAction}. Its species entry is compared with the one it was summoned with; only pets whose entry
+     * changed or disappeared are recalled, and a flying mount with a rider is re-applied in place instead.
+     */
     public static void registerReloadHook() {
         GettData.addReloadHook(() -> {
             try {
                 MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
                 if (server == null) return;
-                for (UUID owner : new ArrayList<>(ACTIVE.keySet())) {
-                    recall(server, owner);
+                for (Map.Entry<UUID, Active> e : new ArrayList<>(ACTIVE.entrySet())) {
+                    reload(server, e.getKey(), e.getValue());
                 }
             } catch (RuntimeException e) {
-                GettCore.LOGGER.error("gettcore: failed recalling pets on reload", e);
+                GettCore.LOGGER.error("gettcore: failed re-checking pets on reload", e);
             }
         });
+    }
+
+    private static void reload(MinecraftServer server, UUID owner, Active active) {
+        Entity entity = findEntity(server, active.petId());
+        if (!(entity instanceof Mob mob) || !(entity instanceof GettPet pet) || entity.isRemoved()) {
+            recall(server, owner);
+            return;
+        }
+        Optional<PetSpecies> now = species(active.key());
+        boolean ridden = pet.kind() == PetSpecies.Kind.FLYING_MOUNT && mob.isVehicle();
+        switch (reloadAction(active.species(), now, ridden)) {
+            case KEEP -> {
+                // species entry unchanged
+            }
+            case REAPPLY -> {
+                pet.petState().reapplyStats();
+                ACTIVE.put(owner, new Active(active.petId(), active.key(), now.orElse(null)));
+            }
+            case RECALL -> recall(server, owner);
+        }
     }
 
     private static Optional<PetSpecies> species(PetKey key) {

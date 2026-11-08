@@ -193,7 +193,7 @@ public class PetDexScreen extends Screen {
         PetKey key = ClientPetDex.owned().get(idx);
         boolean boss = isBoss(idx);
         List<Component> lines = new ArrayList<>();
-        lines.add(CapturedMobItem.displayName(key, boss));
+        lines.add(CapturedMobItem.displayName(key));
         Optional<PetSpecies> sp = species(key);
         if (sp.isEmpty()) {
             lines.add(Component.translatable("gettcore.gui.pet_dex.unknown"));
@@ -217,6 +217,7 @@ public class PetDexScreen extends Screen {
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         if (super.mouseClicked(mx, my, button)) return true;
+        if (button != 0) return false; // left click only
         int size = ClientPetDex.owned().size();
         for (int c = 0; c < PER_PAGE; c++) {
             int idx = page * PER_PAGE + c;
