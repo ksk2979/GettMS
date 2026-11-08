@@ -96,4 +96,13 @@ class PetConfigTest {
         var json = PetKey.CODEC.encodeStart(JsonOps.INSTANCE, key).getOrThrow();
         assertEquals(key, PetKey.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
     }
+
+    @Test
+    void invalidKindIsCodecErrorNotException() {
+        var json = JsonParser.parseString(
+                "{\"species\":{\"a:w\":{\"kind\":\"fliying_mount\",\"petEntity\":\"a:p\"}}}");
+        var result = PetConfig.CODEC.parse(JsonOps.INSTANCE, json);
+        assertTrue(result.error().isPresent());
+        assertTrue(result.error().get().message().contains("fliying_mount"), result.error().get().message());
+    }
 }

@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.pet;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Locale;
 import java.util.Optional;
@@ -17,8 +18,12 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     public enum Kind {
         FIGHTER, MOUNT, FLYING_MOUNT;
 
-        static final Codec<Kind> CODEC = Codec.STRING.xmap(
-                s -> Kind.valueOf(s.toUpperCase(Locale.ROOT)), k -> k.name().toLowerCase(Locale.ROOT));
+        static final Codec<Kind> CODEC = Codec.STRING.comapFlatMap(s -> {
+            for (Kind k : values()) {
+                if (k.name().equalsIgnoreCase(s)) return DataResult.success(k);
+            }
+            return DataResult.error(() -> "Unknown pet kind: " + s);
+        }, k -> k.name().toLowerCase(Locale.ROOT));
     }
 
     /** Codec for the species body; {@code id} is filled in from the map key by {@link PetConfig}. */

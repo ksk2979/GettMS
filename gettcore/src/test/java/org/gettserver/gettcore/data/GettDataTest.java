@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
+import org.gettserver.gettcore.pet.PetConfig;
+import org.gettserver.gettcore.pet.PetSpecies;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -227,5 +229,20 @@ class GettDataTest {
         GettData again = new GettData();
         again.load(dir);
         assertEquals(3, again.shop("s").orElseThrow().entries().get(0).currentSellPrice());
+    }
+
+    @Test
+    void petsFileInvalidFallsBackAndValidReplaces(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("pets.json"), "{\"species\":{\"a:w\":{\"kind\":\"bogus\",\"petEntity\":\"a:p\"}}}");
+        GettData data = new GettData();
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("pets.json")), bad.errors().toString());
+        assertEquals(PetConfig.DEFAULT, data.pets());
+
+        Files.writeString(dir.resolve("pets.json"),
+                "{\"species\":{\"a:w\":{\"kind\":\"mount\",\"petEntity\":\"a:p\"}}}");
+        GettData.LoadReport ok = data.load(dir);
+        assertTrue(ok.errors().stream().noneMatch(e -> e.contains("pets.json")), ok.errors().toString());
+        assertEquals(PetSpecies.Kind.MOUNT, data.pets().species().get("a:w").kind());
     }
 }
