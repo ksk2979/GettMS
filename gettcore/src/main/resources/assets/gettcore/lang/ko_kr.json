@@ -187,6 +187,7 @@
   "gettcore.msg.pet.recalled": "%s을(를) 회수했습니다",
   "gettcore.msg.pet.blocked_active": "소환된 펫을 회수한 뒤 소환할 수 있습니다",
   "gettcore.msg.pet.unknown": "소환할 수 없는 펫입니다",
+  "gettcore.msg.pet.wild_untamable": "이 동물은 포획틀로만 얻을 수 있습니다",
   "gettcore.boss_prefix": "보스 ",
   "subtitles.gettcore.whistle": "휘파람 소리",
   "subtitles.gettcore.capture_success": "포획 성공",

@@ -187,6 +187,7 @@
   "gettcore.msg.pet.recalled": "Recalled %s",
   "gettcore.msg.pet.blocked_active": "Recall your summoned pet before summoning another",
   "gettcore.msg.pet.unknown": "This pet cannot be summoned",
+  "gettcore.msg.pet.wild_untamable": "This animal can only be obtained with a capture ball",
   "gettcore.boss_prefix": "Boss ",
   "subtitles.gettcore.whistle": "Whistle",
   "subtitles.gettcore.capture_success": "Capture succeeds",

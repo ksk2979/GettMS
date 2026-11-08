@@ -1,12 +1,21 @@
 package org.gettserver.gettcore.pet;
 
 import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Predicate;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -14,10 +23,13 @@ import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.client.ClientPetConfig;
+import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.network.MobHitPayload;
 import org.gettserver.gettcore.pet.boss.BossBehavior;
 import org.gettserver.gettcore.pet.boss.BossPointData;
@@ -126,5 +138,67 @@ public final class PetEvents {
             if (server != null) target = server.getPlayerList().getPlayer(pet.ownerId());
         }
         if (target != null) PacketDistributor.sendToPlayer(target, new MobHitPayload(victim.getId()));
+    }
+
+    // ---- Naturalist taming/saddling block ----
+
+    private static final long FEEDBACK_INTERVAL_MS = 2000;
+    private static final Map<UUID, Long> LAST_FEEDBACK = new HashMap<>();
+
+    /** True for a wild (non-gettcore) whitelisted species that is not one of our own entities. */
+    static boolean shouldBlockInteract(ResourceLocation type, boolean isGettEntity,
+                                       Predicate<ResourceLocation> whitelisted) {
+        if (isGettEntity) return false;
+        if (type.getNamespace().equals("gettcore")) return false;
+        return whitelisted.test(type);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        blockWildInteract(event);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
+        blockWildInteract(event);
+    }
+
+    private static void blockWildInteract(PlayerInteractEvent.EntityInteract event) {
+        Entity target = event.getTarget();
+        if (!isBlocked(target, event.getLevel().isClientSide())) return;
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.FAIL);
+        feedback(event.getEntity(), event.getItemStack(), event.getLevel().isClientSide());
+    }
+
+    private static void blockWildInteract(PlayerInteractEvent.EntityInteractSpecific event) {
+        Entity target = event.getTarget();
+        if (!isBlocked(target, event.getLevel().isClientSide())) return;
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.FAIL);
+        feedback(event.getEntity(), event.getItemStack(), event.getLevel().isClientSide());
+    }
+
+    private static boolean isBlocked(Entity target, boolean clientSide) {
+        boolean isGett = target instanceof GettPet || target instanceof GettBoss;
+        ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
+        Predicate<ResourceLocation> whitelisted = clientSide
+                ? key -> ClientPetConfig.species(key).isPresent()
+                : key -> GettData.get().pets().species(key).isPresent();
+        return shouldBlockInteract(id, isGett, whitelisted);
+    }
+
+    private static void feedback(Player player, ItemStack held, boolean clientSide) {
+        if (clientSide || !(player instanceof ServerPlayer sp) || held.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        Long last = LAST_FEEDBACK.get(sp.getUUID());
+        if (last != null && now - last < FEEDBACK_INTERVAL_MS) return;
+        LAST_FEEDBACK.put(sp.getUUID(), now);
+        sp.displayClientMessage(Component.translatable("gettcore.msg.pet.wild_untamable"), true);
+    }
+
+    @SubscribeEvent
+    public static void onLoggedOutClearThrottle(PlayerEvent.PlayerLoggedOutEvent event) {
+        LAST_FEEDBACK.remove(event.getEntity().getUUID());
     }
 }
