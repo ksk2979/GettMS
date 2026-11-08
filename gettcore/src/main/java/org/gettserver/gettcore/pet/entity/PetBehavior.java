@@ -3,6 +3,7 @@ package org.gettserver.gettcore.pet.entity;
 import de.markusbordihn.easynpc.entity.easynpc.EasyNPC;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
@@ -46,9 +47,11 @@ public final class PetBehavior {
     public static final double FOLLOW_STOP = 2.0;
     /** ...and teleports beside the owner when farther than this. */
     public static final double FOLLOW_TELEPORT = 12.0;
-    /** Rider jump strength (Y velocity at full charge) of the ground mounts. */
-    static final double JUMP_STRENGTH_LIGHT = 0.6;
-    static final double JUMP_STRENGTH_HEAVY = 0.4;
+    /**
+     * Whether the rider's jump key is held. Read on the rider's client (where ridden movement is simulated); set by
+     * {@code GettCoreClient}. Stays false on a dedicated server.
+     */
+    public static volatile BooleanSupplier RIDER_JUMP_INPUT = () -> false;
     static final double BOSS_SPEED_MULT = 1.3;
     static final double FOLLOW_SPEED = 1.0;
     static final double ATTACK_SPEED_MODIFIER = 1.2;
@@ -114,28 +117,43 @@ public final class PetBehavior {
         return up ? climbSpeed : -climbSpeed;
     }
 
-    /** Horse-style charge of the rider's jump bar (0..100): 90+ is a full jump, otherwise 0.4..0.8. */
-    public static double chargeScale(int jumpPower) {
-        if (jumpPower < 0) jumpPower = 0;
-        return jumpPower >= 90 ? 1.0 : 0.4 + 0.4 * jumpPower / 90.0;
+    /**
+     * Initial upward velocity that lifts an entity {@code blocks} high under vanilla gravity (each tick: move, then
+     * {@code dy -= 0.08}, {@code dy *= 0.98}); binary search over [0, 3]. Non-positive height → 0.
+     */
+    public static double jumpVelocityForHeight(double blocks) {
+        if (!(blocks > 0)) return 0.0;
+        double lo = 0.0;
+        double hi = 3.0;
+        for (int i = 0; i < 40; i++) {
+            double mid = (lo + hi) / 2;
+            if (jumpApex(mid) >= blocks) hi = mid;
+            else lo = mid;
+        }
+        return hi;
     }
 
-    /** Upward velocity of a mount jump before the block jump factor. */
-    public static double jumpVelocity(double strength, double chargeScale) {
-        return strength * chargeScale;
+    /** Highest point reached from a jump with initial upward velocity {@code v}. */
+    static double jumpApex(double v) {
+        double y = 0.0;
+        while (v > 0) {
+            y += v;
+            v = (v - 0.08) * 0.98;
+        }
+        return y;
     }
 
-    /** Applies a rider jump: only from the ground and not while in water. */
-    static void mountJump(LivingEntity mount, double strength, double scale, float blockJumpFactor) {
+    /** Applies a rider jump of the given height: only from the ground and not while in water. */
+    static void mountJump(LivingEntity mount, double blocks) {
         if (!mount.onGround() || mount.isInWater()) return;
         Vec3 v = mount.getDeltaMovement();
-        mount.setDeltaMovement(v.x, jumpVelocity(strength, scale) * blockJumpFactor, v.z);
+        mount.setDeltaMovement(v.x, jumpVelocityForHeight(blocks), v.z);
         mount.hasImpulse = true;
     }
 
     /** Fallback when the species is missing from pets.json (same numbers as the JSON defaults). */
     static PetSpecies fallbackSpecies(String id, PetSpecies.Kind kind, ResourceLocation petEntity) {
-        return new PetSpecies(id, kind, petEntity, 2, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0);
+        return new PetSpecies(id, kind, petEntity, 2, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0, PetSpecies.DEFAULT_JUMP_HEIGHT);
     }
 
     /** Pets ignore all damage except sources that bypass invulnerability ({@code /kill}, the void). */

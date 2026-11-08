@@ -43,6 +43,11 @@ class PetConfigTest {
         assertTrue(vulture.boss());
         assertEquals(2.5, vulture.sizeScale());
         assertEquals(20, vulture.obtainPercent());
+        assertEquals(3.0, cfg.species().get("naturalist:ostrich").jumpHeight());
+        assertEquals(2.0, cfg.species().get("naturalist:giraffe").jumpHeight());
+        assertEquals(1.0, cfg.species().get("naturalist:elephant").jumpHeight());
+        assertEquals(1.0, cfg.species().get("naturalist:mammoth").jumpHeight());
+        assertEquals(1.0, lion.jumpHeight());
         assertEquals(0xFF55FF55, cfg.healthbar().captureColor());
         assertEquals(new PetConfig.HealthBar(32, 200, 20, 0xFF55FF55), cfg.healthbar());
         assertEquals(PetConfig.DEFAULT.healthbar(), cfg.healthbar());
@@ -155,6 +160,22 @@ class PetConfigTest {
         assertEquals(0, s.killGold());
         assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w sizeScale 0.0 must be > 0")), warnings.toString());
         assertEquals(4, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    void sanitizeResetsOutOfRangeJumpHeight() {
+        PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"mount\",\"petEntity\":\"a:p\",\"jumpHeight\":11},"
+                + "\"a:x\":{\"kind\":\"mount\",\"petEntity\":\"a:p\",\"jumpHeight\":-1},"
+                + "\"a:y\":{\"kind\":\"mount\",\"petEntity\":\"a:p\",\"jumpHeight\":10}}}");
+        List<String> warnings = new ArrayList<>();
+        PetConfig fixed = cfg.sanitized(warnings);
+        assertEquals(1.0, fixed.species().get("a:w").jumpHeight());
+        assertEquals(1.0, fixed.species().get("a:x").jumpHeight());
+        assertEquals(10.0, fixed.species().get("a:y").jumpHeight());
+        assertEquals(2, warnings.size(), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w jumpHeight 11.0")), warnings.toString());
+        assertEquals(1.0, parse("{\"species\":{\"a:w\":{\"kind\":\"mount\",\"petEntity\":\"a:p\"}}}")
+                .species().get("a:w").jumpHeight());
     }
 
     @Test

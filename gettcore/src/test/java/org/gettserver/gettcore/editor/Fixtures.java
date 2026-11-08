@@ -63,7 +63,7 @@ final class Fixtures {
 
     static PetSpecies species(String key, boolean boss) {
         return new PetSpecies(key, PetSpecies.Kind.FIGHTER, rl("gettcore:pet_lion"), 6, 0.3, 1, 0.6, 0.3, boss,
-                boss ? 1.6 : 1, boss ? 5 : 1, boss ? 2 : 1, 0, boss ? 20 : 0);
+                boss ? 1.6 : 1, boss ? 5 : 1, boss ? 2 : 1, 0, boss ? 20 : 0, 1);
     }
 
     /** Pets config with the given species (keyed by their id) and default health bar/capture settings. */

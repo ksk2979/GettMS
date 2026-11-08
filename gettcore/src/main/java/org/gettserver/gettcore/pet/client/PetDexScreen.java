@@ -266,7 +266,10 @@ public class PetDexScreen extends Screen {
             if (idx >= owned.size()) break;
             if (cellHit(c, mx, my)) {
                 if (button == 0) {
+                    boolean recall = ClientPetDex.active().filter(owned.get(idx)::equals).isPresent();
                     PacketDistributor.sendToServer(new PetDexActionPayload(idx, PetDexActionPayload.Action.SUMMON));
+                    // A summon closes the dex so the player sees the pet; a recall keeps it open.
+                    if (!recall && minecraft != null) minecraft.setScreen(null);
                 } else if (minecraft != null) {
                     minecraft.setScreen(new ConfirmReleaseScreen(this, idx, owned.get(idx)));
                 }

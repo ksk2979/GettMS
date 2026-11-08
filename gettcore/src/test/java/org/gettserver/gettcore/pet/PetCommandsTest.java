@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class PetCommandsTest {
     private static final PetConfig.Capture CAP = PetConfig.DEFAULT.capture();
     private static final PetSpecies LION = new PetSpecies("naturalist:lion", PetSpecies.Kind.FIGHTER,
-            ResourceLocation.fromNamespaceAndPath("gettcore", "pet_lion"), 2, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0);
+            ResourceLocation.fromNamespaceAndPath("gettcore", "pet_lion"), 2, 0.3, 1, 0.6, 0.3, false, 1, 1, 1, 0, 0, 1);
 
     private static TranslatableContents tc(Component c) {
         return (TranslatableContents) c.getContents();

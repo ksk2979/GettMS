@@ -40,6 +40,9 @@ public class GettCoreClient {
             event.registerEntityRenderer(PetRegistry.THROWN_CAPTURE_BALL.get(), ThrownItemRenderer::new);
             PetRenderers.register(event);
         });
+        // 지상 탈것 점프: 탑승자 클라이언트에서 점프 키를 읽어 즉시 점프(PetState.tickRidden).
+        org.gettserver.gettcore.pet.entity.PetBehavior.RIDER_JUMP_INPUT =
+                () -> net.minecraft.client.Minecraft.getInstance().options.keyJump.isDown();
         // 비행 탈것 상승/하강 키(점프/달리기).
         NeoForge.EVENT_BUS.addListener(PetFlightInput::onClientTick);
         // 몹 머리 위 체력바·퍼센트(때린 몹만).

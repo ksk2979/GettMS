@@ -9,11 +9,13 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * One capturable species. {@code id} is the wild entity id (the key in pets.json, not a JSON field).
- * {@code obtainPercent} 0 means "use the global capture.obtainPercent".
+ * {@code obtainPercent} 0 means "use the global capture.obtainPercent". {@code jumpHeight}: blocks a ground mount
+ * jumps when its rider presses jump (0..10).
  */
 public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, double attack, double speed,
                          double attackSpeed, double flySpeed, double climbSpeed, boolean boss, double sizeScale,
-                         double healthMult, double attackMult, long killGold, double obtainPercent) {
+                         double healthMult, double attackMult, long killGold, double obtainPercent,
+                         double jumpHeight) {
 
     public enum Kind {
         FIGHTER, MOUNT, FLYING_MOUNT;
@@ -33,6 +35,8 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     static final double DEFAULT_FLY_SPEED = 0.6;
     static final double DEFAULT_CLIMB_SPEED = 0.3;
     static final double DEFAULT_MULT = 1.0;
+    public static final double DEFAULT_JUMP_HEIGHT = 1.0;
+    static final double MAX_JUMP_HEIGHT = 10.0;
 
     /** Codec for the species body; {@code id} is filled in from the map key by {@link PetConfig}. */
     static final Codec<PetSpecies> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -48,13 +52,14 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
             Codec.DOUBLE.optionalFieldOf("healthMult", DEFAULT_MULT).forGetter(PetSpecies::healthMult),
             Codec.DOUBLE.optionalFieldOf("attackMult", DEFAULT_MULT).forGetter(PetSpecies::attackMult),
             Codec.LONG.optionalFieldOf("killGold", 0L).forGetter(PetSpecies::killGold),
-            Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(s -> Optional.of(s.obtainPercent()))
-    ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, obtain) ->
+            Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(s -> Optional.of(s.obtainPercent())),
+            Codec.DOUBLE.optionalFieldOf("jumpHeight", DEFAULT_JUMP_HEIGHT).forGetter(PetSpecies::jumpHeight)
+    ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, obtain, jump) ->
             new PetSpecies("", kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold,
-                    obtain.orElse(boss ? 20.0 : 0.0))));
+                    obtain.orElse(boss ? 20.0 : 0.0), jump)));
 
     PetSpecies withId(String newId) {
         return new PetSpecies(newId, kind, petEntity, attack, speed, attackSpeed, flySpeed, climbSpeed, boss,
-                sizeScale, healthMult, attackMult, killGold, obtainPercent);
+                sizeScale, healthMult, attackMult, killGold, obtainPercent, jumpHeight);
     }
 }

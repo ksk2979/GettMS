@@ -9,16 +9,12 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerBossEvent;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.client.ClientPetConfig;
 import org.gettserver.gettcore.data.GettData;
-import org.gettserver.gettcore.pet.CapturedMobItem;
 import org.gettserver.gettcore.pet.PetKey;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.jetbrains.annotations.Nullable;
@@ -45,11 +41,8 @@ public final class PetState {
     private boolean wasRidden;
     /** True while the ridden mount runs its original {@code travel}, which must not see the rider (see #travel). */
     private boolean inRiddenTravel;
-    /** Ground mounts: charge of the rider's released jump bar, applied on the next ridden tick (0 = none). */
-    private double pendingJumpScale;
-    /** Boss pets only, server side, created when the owner starts tracking the pet. */
-    @Nullable
-    private ServerBossEvent bossBar;
+    /** Ground mounts, rider's client: jump key state last ridden tick (one jump per press). */
+    private boolean jumpKeyWasDown;
 
     public PetState(Mob mob, EntityDataAccessor<CompoundTag> data, PetSpecies.Kind kind) {
         this.mob = mob;
@@ -121,30 +114,6 @@ public final class PetState {
         if (key() != null) PetBehavior.applyStats(mob, species(), boss());
     }
 
-    /**
-     * Spec 4.5: a summoned boss pet shows a boss bar to its owner only, always full (pets cannot be hurt). Called
-     * from each pet class's {@code startSeenByPlayer}.
-     */
-    public void startSeenBy(ServerPlayer player) {
-        PetKey key = key();
-        if (!boss() || key == null || !player.getUUID().equals(ownerId())) return;
-        if (bossBar == null) {
-            bossBar = new ServerBossEvent(CapturedMobItem.displayName(key), BossEvent.BossBarColor.PURPLE,
-                    BossEvent.BossBarOverlay.PROGRESS);
-            bossBar.setProgress(1.0F);
-        }
-        bossBar.addPlayer(player);
-    }
-
-    public void stopSeenBy(ServerPlayer player) {
-        if (bossBar != null) bossBar.removePlayer(player);
-    }
-
-    /** Entity removed (recalled, unloaded, discarded): nobody keeps seeing its bar. */
-    public void onRemoved() {
-        if (bossBar != null) bossBar.removeAllPlayers();
-    }
-
     public void save(CompoundTag out) {
         out.put(NBT_KEY, tag().copy());
     }
@@ -194,27 +163,18 @@ public final class PetState {
         return inRiddenTravel;
     }
 
+    /**
+     * Ridden tick: steering, and for a ground mount the rider's jump. Like {@code AbstractHorse.tickRidden} the jump
+     * is applied where the movement is simulated (the rider's client, which then syncs the vehicle position): one
+     * instant jump of the species' {@code jumpHeight} per press of the jump key, only from the ground and not in
+     * water. A flying mount's jump key is its ascend key instead.
+     */
     public void tickRidden(Player rider) {
         PetBehavior.steer(mob, rider);
-    }
-
-    /** {@code PlayerRideableJumping.onPlayerJump}: called on the rider's client when the jump bar is released. */
-    public void onPlayerJump(int jumpPower) {
-        pendingJumpScale = PetBehavior.chargeScale(jumpPower);
-    }
-
-    /**
-     * Ground mount ridden tick, after {@link #tickRidden}. Like {@code AbstractHorse.tickRidden} the pending jump is
-     * applied where the movement is simulated (the rider's client, which then syncs the vehicle position).
-     * The charge lives for this one tick: used if the mount is on the ground (mountJump skips water), otherwise
-     * dropped, so a jump released in the air or without a rider never fires later.
-     */
-    public void tickRiddenJump(double strength, float blockJumpFactor) {
-        if (pendingJumpScale <= 0) return;
-        double scale = pendingJumpScale;
-        pendingJumpScale = 0;
-        if (controllingRider() == null || !mob.isControlledByLocalInstance() || !mob.onGround()) return;
-        PetBehavior.mountJump(mob, strength, scale, blockJumpFactor);
+        if (kind != PetSpecies.Kind.MOUNT || !mob.isControlledByLocalInstance()) return;
+        boolean down = PetBehavior.RIDER_JUMP_INPUT.getAsBoolean();
+        if (down && !jumpKeyWasDown) PetBehavior.mountJump(mob, species().jumpHeight());
+        jumpKeyWasDown = down;
     }
 
     /**
@@ -226,7 +186,6 @@ public final class PetState {
      */
     public void travel(Vec3 input, Consumer<Vec3> superTravel) {
         if (controllingRider() == null) {
-            pendingJumpScale = 0;
             superTravel.accept(input);
         } else if (kind == PetSpecies.Kind.FLYING_MOUNT) {
             PetSpecies species = species();

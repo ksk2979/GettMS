@@ -216,7 +216,7 @@ class EditorValidatorTest {
         var s = species("gettcore:boss_lion", true);
         var zero = new org.gettserver.gettcore.pet.PetSpecies(s.id(), s.kind(), s.petEntity(), s.attack(), s.speed(),
                 s.attackSpeed(), s.flySpeed(), s.climbSpeed(), true, 0, s.healthMult(), s.attackMult(), s.killGold(),
-                s.obtainPercent());
+                s.obtainPercent(), s.jumpHeight());
         var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), pets(zero)),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.errors().isEmpty(), r.errors().toString());

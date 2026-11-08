@@ -147,7 +147,7 @@
     },
   };
   const SPECIES_DEFAULTS = { attack: 2, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
-    sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0 };
+    sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0, jumpHeight: 1 };
   const BOSS_POINT_DEFAULTS = { radius: 16, maxCount: 1, respawnMinutes: 30 };
 
   /** 등급별 확률 표: 숫자(예전 형식, 고정 확률)는 {base: n, max: n}으로, max가 없으면 base로 채운다. */
@@ -1527,6 +1527,7 @@
     cooldownTicks(v) { return isInt(v) && v >= 0 && v <= 200 ? '' : '0~200 사이의 정수여야 합니다'; },
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     positive(v) { return isNum(v) && v > 0 ? '' : '0보다 커야 합니다'; },
+    jumpHeight(v) { return isNum(v) && v >= 0 && v <= 10 ? '' : '0~10 사이여야 합니다'; },
     petEntity(v) { return ITEM_ID.test(v || '') ? '' : '올바른 엔티티 id가 아닙니다 (예: gettcore:pet_lion)'; },
     kind(v) { return PET_KIND_LABEL[v] ? '' : `알 수 없는 종류입니다: ${v}`; },
   };
@@ -1559,6 +1560,7 @@
       for (const [f, label] of SPECIES_BOSS_NUM) add(petRules.positive(s[f]), `${w} ${label}`);
       add(petRules.nonNegInt(s.killGold), `${w} 처치골드`);
       add(petRules.percent(s.obtainPercent), `${w} 획득확률`);
+      add(petRules.jumpHeight(s.jumpHeight), `${w} 점프(칸)`);
     }
     return out;
   }
@@ -1628,6 +1630,7 @@
           SPECIES_BOSS_NUM.map(([f, label]) => n(f, label, petRules.positive)),
           n('killGold', '처치골드', petRules.nonNegInt, { step: 1 }),
           n('obtainPercent', '획득확률', petRules.percent, { max: 100 }),
+          n('jumpHeight', '점프(칸)', petRules.jumpHeight, { max: 10 }),
           h('td', null, h('button', { class: 'danger small', 'aria-label': '종 삭제', onclick: () => {
             const used = (S.bundle.boss_points || []).filter((b) => b.bossType === key).length;
             if (!confirm(`종 '${name}'을(를) 삭제할까요?` + (used ? `\n이 종을 쓰는 보스 지점이 ${used}개 있어, 고치지 않으면 저장이 거부됩니다.` : ''))) return;
@@ -1641,9 +1644,9 @@
         p.species[id] = newSpecies(id);
         changed(); renderTabContent();
       } }, '+ 종 추가');
-      const head = ['종 (야생 엔티티)', '종류', '펫 엔티티'].concat(SPECIES_NUM.map((x) => x[1]), ['보스'], SPECIES_BOSS_NUM.map((x) => x[1]), ['처치골드', '획득확률(%)', '']);
+      const head = ['종 (야생 엔티티)', '종류', '펫 엔티티'].concat(SPECIES_NUM.map((x) => x[1]), ['보스'], SPECIES_BOSS_NUM.map((x) => x[1]), ['처치골드', '획득확률(%)', '점프(칸)', '']);
       const spCard = h('div', { class: 'card' }, h('h2', null, '종 목록'),
-        h('p', { class: 'muted' }, '키는 포획할 야생 엔티티 id입니다. 크기·체력·공격 배율과 처치골드는 보스 종에만 쓰입니다. 획득확률 0 = 위의 전체 획득 확률 사용.'),
+        h('p', { class: 'muted' }, '키는 포획할 야생 엔티티 id입니다. 크기·체력·공격 배율과 처치골드는 보스 종에만 쓰입니다. 획득확률 0 = 위의 전체 획득 확률 사용. 점프(칸)은 지상 탈것이 점프 키로 뛰는 높이입니다.'),
         keys.length ? h('div', { class: 'scroll-x' }, h('table', null,
           h('thead', null, h('tr', null, head.map((t) => h('th', null, t)))), h('tbody', null, rows))) : h('p', { class: 'muted' }, '종이 없습니다.'),
         h('div', { class: 'field', style: 'margin-top:.5rem' }, addSpecies));

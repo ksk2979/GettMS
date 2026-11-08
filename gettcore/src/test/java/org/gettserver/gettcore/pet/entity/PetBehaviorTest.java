@@ -71,18 +71,14 @@ class PetBehaviorTest {
     }
 
     @Test
-    void jumpVelocityIsStrengthTimesCharge() {
-        assertEquals(0.6, PetBehavior.jumpVelocity(0.6, 1.0));
-        assertEquals(0.2, PetBehavior.jumpVelocity(0.4, 0.5));
-    }
-
-    @Test
-    void chargeScaleFollowsHorseFormula() {
-        assertEquals(1.0, PetBehavior.chargeScale(90));
-        assertEquals(1.0, PetBehavior.chargeScale(100));
-        assertEquals(0.4, PetBehavior.chargeScale(0));
-        assertEquals(0.4, PetBehavior.chargeScale(-5));
-        assertEquals(0.6, PetBehavior.chargeScale(45), 1e-9);
+    void jumpVelocityForHeightMatchesVanillaGravity() {
+        // Vanilla player jump: 0.42 reaches about 1.25 blocks.
+        assertEquals(0.42, PetBehavior.jumpVelocityForHeight(1.25), 0.03);
+        double three = PetBehavior.jumpVelocityForHeight(3.0);
+        assertTrue(three >= 0.62 && three <= 0.75, "3 blocks -> " + three);
+        assertEquals(0.0, PetBehavior.jumpVelocityForHeight(0));
+        assertEquals(0.0, PetBehavior.jumpVelocityForHeight(-1));
+        assertTrue(PetBehavior.jumpVelocityForHeight(2) < three);
     }
 
     @Test

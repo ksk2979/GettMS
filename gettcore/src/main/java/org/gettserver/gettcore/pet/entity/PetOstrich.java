@@ -10,7 +10,6 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -72,24 +71,6 @@ public class PetOstrich extends Ostrich implements GettPet {
     @Override
     protected EntityDimensions getDefaultDimensions(Pose pose) {
         return super.getDefaultDimensions(pose).scale(petState().scale());
-    }
-
-    @Override
-    public void startSeenByPlayer(ServerPlayer player) {
-        super.startSeenByPlayer(player);
-        petState().startSeenBy(player);
-    }
-
-    @Override
-    public void stopSeenByPlayer(ServerPlayer player) {
-        super.stopSeenByPlayer(player);
-        petState().stopSeenBy(player);
-    }
-
-    @Override
-    public void remove(RemovalReason reason) {
-        super.remove(reason);
-        petState().onRemoved();
     }
 
     // Naturalist derives the variant registry from the entity id path; point it at the wild species.
@@ -180,7 +161,6 @@ public class PetOstrich extends Ostrich implements GettPet {
     protected void tickRidden(Player rider, Vec3 input) {
         super.tickRidden(rider, input);
         petState().tickRidden(rider);
-        petState().tickRiddenJump(PetBehavior.JUMP_STRENGTH_LIGHT, getBlockJumpFactor());
     }
 
     @Override
@@ -208,22 +188,13 @@ public class PetOstrich extends Ostrich implements GettPet {
     protected void dropEquipment() {
     }
 
-    // Rider jump bar (vanilla PlayerRideableJumping): the charge is applied in tickRidden (PetState).
+    // Naturalist's Ostrich is PlayerRideableJumping: no jump bar or charge; the jump key jumps instantly (PetState).
     @Override
     public void onPlayerJump(int jumpPower) {
-        petState().onPlayerJump(jumpPower);
     }
 
     @Override
     public boolean canJump() {
-        return true;
-    }
-
-    @Override
-    public void handleStartJump(int jumpPower) {
-    }
-
-    @Override
-    public void handleStopJump() {
+        return false;
     }
 }

@@ -10,14 +10,12 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.PlayerRideableJumping;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.animal.Animal;
@@ -29,7 +27,7 @@ import org.gettserver.gettcore.pet.PetSpecies;
 import org.jetbrains.annotations.Nullable;
 
 /** Ground mount pet: follows its owner; the owner rides it with an empty-hand right click. */
-public class PetGiraffe extends Giraffe implements GettPet, PlayerRideableJumping {
+public class PetGiraffe extends Giraffe implements GettPet {
     private static final EntityDataAccessor<CompoundTag> PET_DATA =
             SynchedEntityData.defineId(PetGiraffe.class, EntityDataSerializers.COMPOUND_TAG);
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */
@@ -73,24 +71,6 @@ public class PetGiraffe extends Giraffe implements GettPet, PlayerRideableJumpin
     @Override
     protected EntityDimensions getDefaultDimensions(Pose pose) {
         return super.getDefaultDimensions(pose).scale(petState().scale());
-    }
-
-    @Override
-    public void startSeenByPlayer(ServerPlayer player) {
-        super.startSeenByPlayer(player);
-        petState().startSeenBy(player);
-    }
-
-    @Override
-    public void stopSeenByPlayer(ServerPlayer player) {
-        super.stopSeenByPlayer(player);
-        petState().stopSeenBy(player);
-    }
-
-    @Override
-    public void remove(RemovalReason reason) {
-        super.remove(reason);
-        petState().onRemoved();
     }
 
     // Naturalist derives the variant registry from the entity id path; point it at the wild species.
@@ -181,7 +161,6 @@ public class PetGiraffe extends Giraffe implements GettPet, PlayerRideableJumpin
     protected void tickRidden(Player rider, Vec3 input) {
         super.tickRidden(rider, input);
         petState().tickRidden(rider);
-        petState().tickRiddenJump(PetBehavior.JUMP_STRENGTH_LIGHT, getBlockJumpFactor());
     }
 
     @Override
@@ -197,24 +176,5 @@ public class PetGiraffe extends Giraffe implements GettPet, PlayerRideableJumpin
     @Override
     public boolean shouldRiderFaceForward(Player player) {
         return true;
-    }
-
-    // Rider jump bar (vanilla PlayerRideableJumping): the charge is applied in tickRidden (PetState).
-    @Override
-    public void onPlayerJump(int jumpPower) {
-        petState().onPlayerJump(jumpPower);
-    }
-
-    @Override
-    public boolean canJump() {
-        return true;
-    }
-
-    @Override
-    public void handleStartJump(int jumpPower) {
-    }
-
-    @Override
-    public void handleStopJump() {
     }
 }

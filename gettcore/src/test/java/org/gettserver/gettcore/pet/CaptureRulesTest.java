@@ -14,7 +14,7 @@ class CaptureRulesTest {
     private static PetSpecies species(boolean boss, double obtainPercent) {
         return new PetSpecies("zombie", PetSpecies.Kind.FIGHTER,
                 ResourceLocation.fromNamespaceAndPath("gettcore", "pet_zombie"),
-                6, 0.3, 1, 0.6, 0.3, boss, 1, 1, 1, 0, obtainPercent);
+                6, 0.3, 1, 0.6, 0.3, boss, 1, 1, 1, 0, obtainPercent, 1);
     }
 
     private static CaptureRules.Verdict eval(Optional<PetSpecies> s, boolean owned, double ratio,

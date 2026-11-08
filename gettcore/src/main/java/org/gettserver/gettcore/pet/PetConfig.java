@@ -131,7 +131,8 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
      * Copy with out-of-range numbers replaced/clamped; one line in {@code warnings} per changed field. Health bar:
      * showDistance 1..128, fadeDelayTicks 0..1200, fadeTicks 1..200 (clamped). Species: sizeScale, healthMult and
      * attackMult must be &gt; 0 and attack, speed, attackSpeed, flySpeed, climbSpeed &gt;= 0 (else the JSON
-     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped). Capture: throwCooldownTicks outside 0..200
+     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped), jumpHeight within 0..10 (else
+     * the JSON default). Capture: throwCooldownTicks outside 0..200
      * takes the default.
      */
     public PetConfig sanitized(List<String> warnings) {
@@ -186,8 +187,14 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
             warnings.add("pets.json: " + at + "obtainPercent " + p + " out of [0, 100], using " + clamped);
             p = clamped;
         }
+        double jump = s.jumpHeight();
+        if (!(jump >= 0 && jump <= PetSpecies.MAX_JUMP_HEIGHT)) {
+            warnings.add("pets.json: " + at + "jumpHeight " + jump + " must be within [0, "
+                    + PetSpecies.MAX_JUMP_HEIGHT + "], using default " + PetSpecies.DEFAULT_JUMP_HEIGHT);
+            jump = PetSpecies.DEFAULT_JUMP_HEIGHT;
+        }
         PetSpecies out = new PetSpecies(s.id(), s.kind(), s.petEntity(), attack, speed, attackSpeed, flySpeed,
-                climbSpeed, s.boss(), sizeScale, healthMult, attackMult, killGold, p);
+                climbSpeed, s.boss(), sizeScale, healthMult, attackMult, killGold, p, jump);
         return out.equals(s) ? s : out;
     }
 

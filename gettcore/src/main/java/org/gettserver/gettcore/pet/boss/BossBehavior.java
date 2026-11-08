@@ -58,7 +58,7 @@ public final class BossBehavior {
     static PetSpecies fallbackSpecies(ResourceLocation id, boolean flying) {
         return new PetSpecies(id.toString(), flying ? PetSpecies.Kind.FLYING_MOUNT : PetSpecies.Kind.FIGHTER, id,
                 6, 0.3, 1, 0.6, 0.3, true, flying ? FALLBACK_FLYING_SIZE_SCALE : FALLBACK_SIZE_SCALE,
-                FALLBACK_HEALTH_MULT, FALLBACK_ATTACK_MULT, 0, 20);
+                FALLBACK_HEALTH_MULT, FALLBACK_ATTACK_MULT, 0, 20, PetSpecies.DEFAULT_JUMP_HEIGHT);
     }
 
     /**
