@@ -19,7 +19,7 @@ public final class CaptureRules {
         if (percent < capture.minPercent() - EPS || percent > capture.maxPercent() + EPS) {
             return Verdict.HEALTH_OUT_OF_RANGE;
         }
-        return roll < chance(species.get(), tier, capture) / 100.0 ? Verdict.CAPTURED : Verdict.FAILED;
+        return roll < chance(species.get(), tier, capture, healthRatio) / 100.0 ? Verdict.CAPTURED : Verdict.FAILED;
     }
 
     /** Roll for obtaining the pet after a kill-capture; species percent (if &gt; 0) overrides the global one. */
@@ -28,9 +28,18 @@ public final class CaptureRules {
         return roll < percent / 100.0;
     }
 
-    /** Ball capture chance in percent; boss species use the boss table, missing tier is 0. */
-    public static double chance(PetSpecies species, CaptureTier tier, PetConfig.Capture capture) {
+    /**
+     * Ball capture chance in percent at the given health: the tier's {@code base} at {@code maxPercent} health,
+     * rising linearly to its {@code max} at {@code minPercent} (clamped outside the range). Boss species use the
+     * boss table; a missing tier is 0.
+     */
+    public static double chance(PetSpecies species, CaptureTier tier, PetConfig.Capture capture, double healthRatio) {
         var table = species.boss() ? capture.bossBallChance() : capture.ballChance();
-        return table.getOrDefault(tier, 0.0);
+        PetConfig.ChanceRange range = table.get(tier);
+        if (range == null) return 0;
+        double span = capture.maxPercent() - capture.minPercent();
+        double t = span <= EPS ? 1 : (capture.maxPercent() - healthRatio * 100.0) / span;
+        t = Math.max(0, Math.min(1, t));
+        return range.base() + (range.max() - range.base()) * t;
     }
 }

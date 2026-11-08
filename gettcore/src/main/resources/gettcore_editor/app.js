@@ -139,13 +139,28 @@
     healthbar: { showDistance: 32, fadeDelayTicks: 200, fadeTicks: 20, captureColor: '#55FF55' },
     capture: {
       minPercent: 1, maxPercent: 20, obtainPercent: 20,
-      ballChance: { iron: 10, gold: 15, diamond: 20, netherite: 30 },
-      bossBallChance: { iron: 5, gold: 8, diamond: 12, netherite: 20 },
+      // 포획틀 확률: 체력이 maxPercent일 때 base, minPercent일 때 max (그 사이는 직선).
+      ballChance: { iron: { base: 5, max: 25 }, gold: { base: 8, max: 35 }, diamond: { base: 12, max: 50 },
+        netherite: { base: 20, max: 70 } },
+      bossBallChance: { iron: { base: 3, max: 12 }, gold: { base: 5, max: 18 }, diamond: { base: 8, max: 25 },
+        netherite: { base: 12, max: 40 } },
     },
   };
   const SPECIES_DEFAULTS = { attack: 2, speed: 0.3, attackSpeed: 1, flySpeed: 0.6, climbSpeed: 0.3, boss: false,
     sizeScale: 1, healthMult: 1, attackMult: 1, killGold: 0 };
   const BOSS_POINT_DEFAULTS = { radius: 16, maxCount: 1, respawnMinutes: 30 };
+
+  /** 등급별 확률 표: 숫자(예전 형식, 고정 확률)는 {base: n, max: n}으로, max가 없으면 base로 채운다. */
+  function normalizeChances(def, src) {
+    const out = {};
+    for (const [k, d] of Object.entries(def)) {
+      const v = (src || {})[k];
+      if (v === undefined || v === null) out[k] = { base: d.base, max: d.max };
+      else if (typeof v !== 'object') out[k] = { base: v, max: v };
+      else out[k] = { base: v.base, max: v.max === undefined ? v.base : v.max };
+    }
+    return out;
+  }
 
   function normalizePets(src) {
     const p = src || {};
@@ -160,8 +175,8 @@
     return {
       healthbar: Object.assign({}, PET_DEFAULTS.healthbar, p.healthbar),
       capture: Object.assign({}, d, cap, {
-        ballChance: Object.assign({}, d.ballChance, cap.ballChance),
-        bossBallChance: Object.assign({}, d.bossBallChance, cap.bossBallChance),
+        ballChance: normalizeChances(d.ballChance, cap.ballChance),
+        bossBallChance: normalizeChances(d.bossBallChance, cap.bossBallChance),
       }),
       species,
     };
@@ -1505,6 +1520,10 @@
       const min = isNum(c.minPercent) ? c.minPercent : 0;
       return c.maxPercent >= min && c.maxPercent <= 100 ? '' : `최소(${min})~100 사이여야 합니다`;
     },
+    chanceMax(r) {
+      if (!isNum(r.max) || r.max < 0 || r.max > 100) return '0~100 사이여야 합니다';
+      return !isNum(r.base) || r.max >= r.base ? '' : `기본(${r.base}) 이상이어야 합니다`;
+    },
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     positive(v) { return isNum(v) && v > 0 ? '' : '0보다 커야 합니다'; },
     petEntity(v) { return ITEM_ID.test(v || '') ? '' : '올바른 엔티티 id가 아닙니다 (예: gettcore:pet_lion)'; },
@@ -1525,8 +1544,10 @@
     add(petRules.maxPercent(c), '포획 최대 체력%');
     add(petRules.percent(c.obtainPercent), '획득 확률');
     for (const [k, label] of TIERS) {
-      add(petRules.percent(c.ballChance[k]), `포획틀 확률(${label})`);
-      add(petRules.percent(c.bossBallChance[k]), `보스 포획틀 확률(${label})`);
+      add(petRules.percent(c.ballChance[k].base), `포획틀 확률(${label}) 기본`);
+      add(petRules.chanceMax(c.ballChance[k]), `포획틀 확률(${label}) 최대`);
+      add(petRules.percent(c.bossBallChance[k].base), `보스 포획틀 확률(${label}) 기본`);
+      add(petRules.chanceMax(c.bossBallChance[k]), `보스 포획틀 확률(${label}) 최대`);
     }
     for (const [key, s] of Object.entries(p.species)) {
       const w = `종 ${entityName(key)}`;
@@ -1569,14 +1590,18 @@
         h('div', { class: 'field' }, labeled('포획 가능 색', colorIn), swatch),
         h('p', { class: 'muted' }, '20틱 = 1초. 포획 가능 색은 체력이 포획 범위에 들어온 몹의 체력바 색입니다.'));
 
-      const tierRow = (label, map, prefix) => h('div', { class: 'field' }, h('label', { style: 'min-width:7rem' }, label),
-        TIERS.map(([k, name]) => labeled(name, numIn(map, k, `${prefix} ${name}`, petRules.percent, { min: 0, max: 100 }))), h('span', { class: 'muted' }, '%'));
+      // 등급마다 기본(체력 최대%일 때) ~ 최대(체력 최소%일 때). 최대 입력은 기본이 바뀌어도 다시 검사한다.
+      const tierRow = (label, map, prefix) => [h('h3', null, label),
+        TIERS.map(([k, name]) => h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, name),
+          labeled('기본', numIn(map[k], 'base', `${prefix} ${name} 기본`, petRules.percent, { min: 0, max: 100 }), '% ~'),
+          labeled('최대', numIn(map[k], 'max', `${prefix} ${name} 최대`, (v, o) => petRules.chanceMax(o), { min: 0, max: 100 }), '%')))];
       const capCard = h('div', { class: 'card' }, h('h2', null, '포획'),
         h('div', { class: 'field' }, labeled('체력', numIn(c, 'minPercent', '포획 최소 체력%', petRules.percent, { min: 0, max: 100 }), '% ~'),
           numIn(c, 'maxPercent', '포획 최대 체력%', (v, o) => petRules.maxPercent(o), { min: 0, max: 100 }), h('span', { class: 'muted' }, '% 일 때 포획 가능')),
         h('div', { class: 'field' }, labeled('획득 확률', numIn(c, 'obtainPercent', '획득 확률', petRules.percent, { min: 0, max: 100 }), '% (종별 획득확률이 0이면 이 값)')),
         tierRow('포획틀 확률', c.ballChance, '포획틀 확률'),
-        tierRow('보스 포획틀 확률', c.bossBallChance, '보스 포획틀 확률'));
+        tierRow('보스 포획틀 확률', c.bossBallChance, '보스 포획틀 확률'),
+        h('p', { class: 'muted' }, '포획틀 확률은 체력이 최대%일 때 기본, 최소%일 때 최대이고 그 사이는 체력이 낮을수록 올라갑니다.'));
 
       const kinds = S.catalog.petKinds && S.catalog.petKinds.length ? S.catalog.petKinds : Object.keys(PET_KIND_LABEL);
       const keys = Object.keys(p.species).sort();

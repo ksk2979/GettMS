@@ -56,8 +56,45 @@ class PetConfigTest {
     void missingFieldsFallToDefault() {
         assertEquals(PetConfig.DEFAULT, parse("{}"));
         PetConfig partial = parse("{\"capture\":{\"ballChance\":{\"gold\":50}}}");
-        assertEquals(50.0, partial.capture().ballChance().get(CaptureTier.GOLD));
-        assertEquals(10.0, partial.capture().ballChance().get(CaptureTier.IRON));
+        assertEquals(new PetConfig.ChanceRange(50, 50), partial.capture().ballChance().get(CaptureTier.GOLD));
+        assertEquals(new PetConfig.ChanceRange(5, 25), partial.capture().ballChance().get(CaptureTier.IRON));
+    }
+
+    @Test
+    void defaultChanceRanges() {
+        var c = PetConfig.DEFAULT.capture();
+        assertEquals(new PetConfig.ChanceRange(5, 25), c.ballChance().get(CaptureTier.IRON));
+        assertEquals(new PetConfig.ChanceRange(8, 35), c.ballChance().get(CaptureTier.GOLD));
+        assertEquals(new PetConfig.ChanceRange(12, 50), c.ballChance().get(CaptureTier.DIAMOND));
+        assertEquals(new PetConfig.ChanceRange(20, 70), c.ballChance().get(CaptureTier.NETHERITE));
+        assertEquals(new PetConfig.ChanceRange(3, 12), c.bossBallChance().get(CaptureTier.IRON));
+        assertEquals(new PetConfig.ChanceRange(5, 18), c.bossBallChance().get(CaptureTier.GOLD));
+        assertEquals(new PetConfig.ChanceRange(8, 25), c.bossBallChance().get(CaptureTier.DIAMOND));
+        assertEquals(new PetConfig.ChanceRange(12, 40), c.bossBallChance().get(CaptureTier.NETHERITE));
+    }
+
+    @Test
+    void chanceRangeObjectFormParsesAndEncodesAsObject() {
+        PetConfig cfg = parse("{\"capture\":{\"bossBallChance\":{\"gold\":{\"base\":4,\"max\":30}}}}");
+        assertEquals(new PetConfig.ChanceRange(4, 30), cfg.capture().bossBallChance().get(CaptureTier.GOLD));
+        var json = PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, cfg).getOrThrow().getAsJsonObject();
+        var gold = json.getAsJsonObject("capture").getAsJsonObject("bossBallChance").getAsJsonObject("gold");
+        assertEquals(4, gold.get("base").getAsDouble());
+        assertEquals(30, gold.get("max").getAsDouble());
+        assertEquals(cfg, PetConfig.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    @Test
+    void sanitizeFixesChanceRanges() {
+        PetConfig cfg = parse("{\"capture\":{\"ballChance\":{\"iron\":{\"base\":30,\"max\":10},"
+                + "\"gold\":{\"base\":-1,\"max\":40},\"diamond\":{\"base\":10,\"max\":150}}}}");
+        List<String> warnings = new ArrayList<>();
+        var ball = cfg.sanitized(warnings).capture().ballChance();
+        assertEquals(new PetConfig.ChanceRange(30, 30), ball.get(CaptureTier.IRON));
+        assertEquals(new PetConfig.ChanceRange(8, 40), ball.get(CaptureTier.GOLD));
+        assertEquals(new PetConfig.ChanceRange(10, 50), ball.get(CaptureTier.DIAMOND));
+        assertEquals(new PetConfig.ChanceRange(20, 70), ball.get(CaptureTier.NETHERITE));
+        assertEquals(3, warnings.size(), warnings.toString());
     }
 
     @Test

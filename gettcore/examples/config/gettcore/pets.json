@@ -9,16 +9,16 @@
     "minPercent": 1,
     "maxPercent": 20,
     "ballChance": {
-      "iron": 10,
-      "gold": 15,
-      "diamond": 20,
-      "netherite": 30
+      "iron": { "base": 5, "max": 25 },
+      "gold": { "base": 8, "max": 35 },
+      "diamond": { "base": 12, "max": 50 },
+      "netherite": { "base": 20, "max": 70 }
     },
     "bossBallChance": {
-      "iron": 5,
-      "gold": 8,
-      "diamond": 12,
-      "netherite": 20
+      "iron": { "base": 3, "max": 12 },
+      "gold": { "base": 5, "max": 18 },
+      "diamond": { "base": 8, "max": 25 },
+      "netherite": { "base": 12, "max": 40 }
     },
     "obtainPercent": 20
   },
@@ -76,7 +76,7 @@
     "naturalist:elephant": {
       "kind": "mount",
       "petEntity": "gettcore:pet_elephant",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -86,7 +86,7 @@
     "naturalist:mammoth": {
       "kind": "mount",
       "petEntity": "gettcore:pet_mammoth",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -96,7 +96,7 @@
     "naturalist:giraffe": {
       "kind": "mount",
       "petEntity": "gettcore:pet_giraffe",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,
@@ -106,7 +106,7 @@
     "naturalist:ostrich": {
       "kind": "mount",
       "petEntity": "gettcore:pet_ostrich",
-      "attack": 6,
+      "attack": 2.0,
       "speed": 0.3,
       "attackSpeed": 1.0,
       "flySpeed": 0.6,

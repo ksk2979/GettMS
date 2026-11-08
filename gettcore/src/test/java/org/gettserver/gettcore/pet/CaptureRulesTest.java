@@ -2,6 +2,8 @@ package org.gettserver.gettcore.pet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.google.gson.JsonParser;
+import com.mojang.serialization.JsonOps;
 import java.util.Optional;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
@@ -53,17 +55,60 @@ class CaptureRulesTest {
     }
 
     @Test
-    void ironRollBelow10Captures() {
+    void ironAtHp20RollBelowBaseCaptures() {
+        // hp 20% (= maxPercent) uses the iron base chance, 5%.
         assertEquals(CaptureRules.Verdict.CAPTURED,
-                eval(Optional.of(species(false, 0)), false, 0.1, CaptureTier.IRON, 0.099));
+                eval(Optional.of(species(false, 0)), false, 0.2, CaptureTier.IRON, 0.049));
         assertEquals(CaptureRules.Verdict.FAILED,
-                eval(Optional.of(species(false, 0)), false, 0.1, CaptureTier.IRON, 0.10));
+                eval(Optional.of(species(false, 0)), false, 0.2, CaptureTier.IRON, 0.05));
+    }
+
+    @Test
+    void lowerHealthRaisesChance() {
+        // hp 1% (= minPercent) uses the iron max chance, 25%.
+        assertEquals(CaptureRules.Verdict.CAPTURED,
+                eval(Optional.of(species(false, 0)), false, 0.01, CaptureTier.IRON, 0.249));
+        assertEquals(CaptureRules.Verdict.FAILED,
+                eval(Optional.of(species(false, 0)), false, 0.01, CaptureTier.IRON, 0.25));
     }
 
     @Test
     void bossUsesBossChance() {
+        // boss iron base is 3%; the normal table (5%) would capture at this roll.
         assertEquals(CaptureRules.Verdict.FAILED,
-                eval(Optional.of(species(true, 0)), false, 0.1, CaptureTier.IRON, 0.06));
+                eval(Optional.of(species(true, 0)), false, 0.2, CaptureTier.IRON, 0.04));
+        assertEquals(CaptureRules.Verdict.CAPTURED,
+                eval(Optional.of(species(false, 0)), false, 0.2, CaptureTier.IRON, 0.04));
+    }
+
+    @Test
+    void chanceScalesWithHealth() {
+        PetSpecies s = species(false, 0);
+        assertEquals(5.0, CaptureRules.chance(s, CaptureTier.IRON, CAP, 0.20), 1e-9);
+        assertEquals(25.0, CaptureRules.chance(s, CaptureTier.IRON, CAP, 0.01), 1e-9);
+        assertEquals(15.0, CaptureRules.chance(s, CaptureTier.IRON, CAP, 0.105), 1e-9);
+        assertEquals(45.0, CaptureRules.chance(s, CaptureTier.NETHERITE, CAP, 0.105), 1e-9);
+        // outside the range the chance is clamped to base/max
+        assertEquals(5.0, CaptureRules.chance(s, CaptureTier.IRON, CAP, 0.9), 1e-9);
+        assertEquals(25.0, CaptureRules.chance(s, CaptureTier.IRON, CAP, 0.0), 1e-9);
+        PetSpecies boss = species(true, 0);
+        assertEquals(3.0, CaptureRules.chance(boss, CaptureTier.IRON, CAP, 0.20), 1e-9);
+        assertEquals(40.0, CaptureRules.chance(boss, CaptureTier.NETHERITE, CAP, 0.01), 1e-9);
+    }
+
+    @Test
+    void legacyNumberIsFlat() {
+        PetConfig cfg = PetConfig.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("{\"capture\":{\"ballChance\":{\"iron\":10}}}")).getOrThrow();
+        PetSpecies s = species(false, 0);
+        assertEquals(10.0, CaptureRules.chance(s, CaptureTier.IRON, cfg.capture(), 0.20), 1e-9);
+        assertEquals(10.0, CaptureRules.chance(s, CaptureTier.IRON, cfg.capture(), 0.01), 1e-9);
+    }
+
+    @Test
+    void equalMinMaxPercentUsesMax() {
+        var cap = new PetConfig.Capture(10, 10, CAP.ballChance(), CAP.bossBallChance(), 20);
+        assertEquals(25.0, CaptureRules.chance(species(false, 0), CaptureTier.IRON, cap, 0.10), 1e-9);
     }
 
     @Test

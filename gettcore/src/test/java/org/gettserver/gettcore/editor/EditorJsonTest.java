@@ -41,6 +41,29 @@ class EditorJsonTest {
     }
 
     @Test
+    void petChanceRangesRoundTrip() {
+        var d = PetConfig.DEFAULT.capture();
+        var ball = new java.util.EnumMap<>(d.ballChance());
+        ball.put(org.gettserver.gettcore.pet.CaptureTier.IRON, new PetConfig.ChanceRange(4, 30));
+        PetConfig pets = new PetConfig(PetConfig.DEFAULT.healthbar(),
+                new PetConfig.Capture(d.minPercent(), d.maxPercent(), ball, d.bossBallChance(), d.obtainPercent()),
+                Map.of());
+        EditorBundle b = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), pets);
+        String json = EditorJson.encode(b, null);
+        var iron = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("pets")
+                .getAsJsonObject("capture").getAsJsonObject("ballChance").getAsJsonObject("iron");
+        assertEquals(4, iron.get("base").getAsDouble(), json);
+        assertEquals(30, iron.get("max").getAsDouble(), json);
+        assertEquals(b, EditorJson.decode(json));
+
+        // What the editor sends: every tier in object form.
+        String editor = FULL.replace("\"pets\":{}", "\"pets\":{\"capture\":{\"ballChance\":{"
+                + "\"iron\":{\"base\":4,\"max\":30},\"gold\":{\"base\":8,\"max\":35},"
+                + "\"diamond\":{\"base\":12,\"max\":50},\"netherite\":{\"base\":20,\"max\":70}}}}");
+        assertEquals(b, EditorJson.decode(editor));
+    }
+
+    @Test
     void badBossPointNamesPath() {
         String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
