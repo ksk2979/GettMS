@@ -62,43 +62,76 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
 
     /**
      * {@code minPercent}/{@code maxPercent}: health range (percent of max health) in which capture is allowed.
-     * Chances and {@code obtainPercent} are percents (0-100). {@code throwCooldownTicks}: item cooldown applied to
-     * every capture ball after a throw (0..200).
+     * Chances are percents (0-100). {@code obtainChance}/{@code bossObtainChance}: second-stage (obtain) percent per
+     * capture ball tier. {@code throwCooldownTicks}: item cooldown applied to every capture ball after a throw
+     * (0..200). The legacy single {@code obtainPercent} is still read: an obtain table missing from the JSON takes
+     * that value for all four tiers. It is never written back.
      */
     public record Capture(double minPercent, double maxPercent, Map<CaptureTier, ChanceRange> ballChance,
-                          Map<CaptureTier, ChanceRange> bossBallChance, double obtainPercent,
-                          int throwCooldownTicks) {
+                          Map<CaptureTier, ChanceRange> bossBallChance, Map<CaptureTier, Double> obtainChance,
+                          Map<CaptureTier, Double> bossObtainChance, int throwCooldownTicks) {
+        private static final CaptureTier[] ORDER =
+                {CaptureTier.IRON, CaptureTier.GOLD, CaptureTier.DIAMOND, CaptureTier.NETHERITE};
+
         static final Map<CaptureTier, ChanceRange> DEFAULT_BALL = tiers(5, 25, 8, 35, 12, 50, 20, 70);
         static final Map<CaptureTier, ChanceRange> DEFAULT_BOSS_BALL = tiers(3, 12, 5, 18, 8, 25, 12, 40);
-        static final Capture DEFAULT = new Capture(1, 20, DEFAULT_BALL, DEFAULT_BOSS_BALL, 20, 20);
+        static final Map<CaptureTier, Double> DEFAULT_OBTAIN = percents(20, 25, 30, 40);
+        static final Map<CaptureTier, Double> DEFAULT_BOSS_OBTAIN = percents(15, 20, 25, 35);
+        static final Capture DEFAULT = new Capture(1, 20, DEFAULT_BALL, DEFAULT_BOSS_BALL, DEFAULT_OBTAIN,
+                DEFAULT_BOSS_OBTAIN, 20);
 
         /** Base/max pairs in tier order: iron, gold, diamond, netherite. */
         private static Map<CaptureTier, ChanceRange> tiers(double... baseMax) {
             Map<CaptureTier, ChanceRange> m = new EnumMap<>(CaptureTier.class);
-            CaptureTier[] order = {CaptureTier.IRON, CaptureTier.GOLD, CaptureTier.DIAMOND, CaptureTier.NETHERITE};
-            for (int k = 0; k < order.length; k++) m.put(order[k], new ChanceRange(baseMax[2 * k], baseMax[2 * k + 1]));
+            for (int k = 0; k < ORDER.length; k++) m.put(ORDER[k], new ChanceRange(baseMax[2 * k], baseMax[2 * k + 1]));
             return m;
         }
 
+        /** Percents in tier order: iron, gold, diamond, netherite. */
+        private static Map<CaptureTier, Double> percents(double... values) {
+            Map<CaptureTier, Double> m = new EnumMap<>(CaptureTier.class);
+            for (int k = 0; k < ORDER.length; k++) m.put(ORDER[k], values[k]);
+            return m;
+        }
+
+        /** The same percent for every tier (legacy single {@code obtainPercent}). */
+        static Map<CaptureTier, Double> allTiers(double percent) {
+            return percents(percent, percent, percent, percent);
+        }
+
         /** Tier map codec; tiers missing from the JSON take the default. */
-        private static Codec<Map<CaptureTier, ChanceRange>> tierMap(Map<CaptureTier, ChanceRange> def) {
-            return Codec.unboundedMap(CaptureTier.CODEC, ChanceRange.CODEC).xmap(read -> {
-                Map<CaptureTier, ChanceRange> m = new EnumMap<>(def);
+        private static <V> Codec<Map<CaptureTier, V>> tierMap(Codec<V> value, Map<CaptureTier, V> def) {
+            return Codec.unboundedMap(CaptureTier.CODEC, value).xmap(read -> {
+                Map<CaptureTier, V> m = new EnumMap<>(def);
                 m.putAll(read);
                 return m;
             }, m -> m);
         }
 
+        /** The obtain table from the JSON, else the legacy single percent on all tiers, else the default. */
+        private static Map<CaptureTier, Double> obtainTable(Optional<Map<CaptureTier, Double>> table,
+                                                            Optional<Double> legacy, Map<CaptureTier, Double> def) {
+            return table.orElseGet(() -> legacy.map(Capture::allTiers).orElse(def));
+        }
+
         static final Codec<Capture> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Codec.DOUBLE.optionalFieldOf("minPercent", DEFAULT.minPercent).forGetter(Capture::minPercent),
                 Codec.DOUBLE.optionalFieldOf("maxPercent", DEFAULT.maxPercent).forGetter(Capture::maxPercent),
-                tierMap(DEFAULT_BALL).optionalFieldOf("ballChance", DEFAULT_BALL).forGetter(Capture::ballChance),
-                tierMap(DEFAULT_BOSS_BALL).optionalFieldOf("bossBallChance", DEFAULT_BOSS_BALL)
+                tierMap(ChanceRange.CODEC, DEFAULT_BALL).optionalFieldOf("ballChance", DEFAULT_BALL)
+                        .forGetter(Capture::ballChance),
+                tierMap(ChanceRange.CODEC, DEFAULT_BOSS_BALL).optionalFieldOf("bossBallChance", DEFAULT_BOSS_BALL)
                         .forGetter(Capture::bossBallChance),
-                Codec.DOUBLE.optionalFieldOf("obtainPercent", DEFAULT.obtainPercent).forGetter(Capture::obtainPercent),
+                tierMap(Codec.DOUBLE, DEFAULT_OBTAIN).optionalFieldOf("obtainChance")
+                        .forGetter(c -> Optional.of(c.obtainChance)),
+                tierMap(Codec.DOUBLE, DEFAULT_BOSS_OBTAIN).optionalFieldOf("bossObtainChance")
+                        .forGetter(c -> Optional.of(c.bossObtainChance)),
+                // Legacy, read only: never encoded.
+                Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(c -> Optional.empty()),
                 Codec.INT.optionalFieldOf("throwCooldownTicks", DEFAULT.throwCooldownTicks)
                         .forGetter(Capture::throwCooldownTicks)
-        ).apply(i, Capture::new));
+        ).apply(i, (min, max, ball, bossBall, obtain, bossObtain, legacy, cooldown) -> new Capture(min, max, ball,
+                bossBall, obtainTable(obtain, legacy, DEFAULT_OBTAIN),
+                obtainTable(bossObtain, legacy, DEFAULT_BOSS_OBTAIN), cooldown)));
     }
 
     public static final PetConfig DEFAULT = new PetConfig(HealthBar.DEFAULT, Capture.DEFAULT, Map.of());
@@ -131,9 +164,10 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
      * Copy with out-of-range numbers replaced/clamped; one line in {@code warnings} per changed field. Health bar:
      * showDistance 1..128, fadeDelayTicks 0..1200, fadeTicks 1..200 (clamped). Species: sizeScale, healthMult and
      * attackMult must be &gt; 0 and attack, speed, attackSpeed, flySpeed, climbSpeed &gt;= 0 (else the JSON
-     * default), killGold &gt;= 0 (else 0), obtainPercent within 0..100 (clamped), jumpHeight within 0..10 (else
-     * the JSON default). Capture: throwCooldownTicks outside 0..200
-     * takes the default.
+     * default), killGold &gt;= 0 (else 0), jumpHeight within 0..10 (else the JSON default); a ballChance or
+     * obtainChance override entry outside 0..100 is removed (the global table applies), an override range with
+     * max &lt; base gets max = base. Capture: each obtainChance/bossObtainChance tier outside 0..100 takes that
+     * tier's default; throwCooldownTicks outside 0..200 takes the default.
      */
     public PetConfig sanitized(List<String> warnings) {
         Capture c = capture;
@@ -147,7 +181,9 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         }
         Map<CaptureTier, ChanceRange> ball = chances("capture.ballChance", c.ballChance, d.ballChance, warnings);
         Map<CaptureTier, ChanceRange> boss = chances("capture.bossBallChance", c.bossBallChance, d.bossBallChance, warnings);
-        double obtain = percent("capture.obtainPercent", c.obtainPercent, d.obtainPercent, warnings);
+        Map<CaptureTier, Double> obtain = percents("capture.obtainChance", c.obtainChance, d.obtainChance, warnings);
+        Map<CaptureTier, Double> bossObtain = percents("capture.bossObtainChance", c.bossObtainChance,
+                d.bossObtainChance, warnings);
         int cooldown = c.throwCooldownTicks;
         if (cooldown < 0 || cooldown > 200) {
             warnings.add("pets.json: capture.throwCooldownTicks " + cooldown + " must be within [0, 200], using default "
@@ -161,8 +197,8 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         HealthBar bar = new HealthBar(clamp("healthbar.showDistance", h.showDistance, 1, 128, warnings),
                 clamp("healthbar.fadeDelayTicks", h.fadeDelayTicks, 0, 1200, warnings),
                 clamp("healthbar.fadeTicks", h.fadeTicks, 1, 200, warnings), h.captureColor);
-        return new PetConfig(bar.equals(h) ? h : bar, new Capture(min, max, ball, boss, obtain, cooldown),
-                Map.copyOf(fixed));
+        return new PetConfig(bar.equals(h) ? h : bar,
+                new Capture(min, max, ball, boss, obtain, bossObtain, cooldown), Map.copyOf(fixed));
     }
 
     private static PetSpecies sanitizedSpecies(String key, PetSpecies s, List<String> warnings) {
@@ -181,20 +217,25 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
             warnings.add("pets.json: " + at + "killGold " + killGold + " must be >= 0, using 0");
             killGold = 0;
         }
-        double p = s.obtainPercent();
-        if (!(p >= 0 && p <= 100)) {
-            double clamped = Double.isNaN(p) ? 0 : Math.max(0, Math.min(100, p));
-            warnings.add("pets.json: " + at + "obtainPercent " + p + " out of [0, 100], using " + clamped);
-            p = clamped;
-        }
         double jump = s.jumpHeight();
         if (!(jump >= 0 && jump <= PetSpecies.MAX_JUMP_HEIGHT)) {
             warnings.add("pets.json: " + at + "jumpHeight " + jump + " must be within [0, "
                     + PetSpecies.MAX_JUMP_HEIGHT + "], using default " + PetSpecies.DEFAULT_JUMP_HEIGHT);
             jump = PetSpecies.DEFAULT_JUMP_HEIGHT;
         }
+        Map<CaptureTier, ChanceRange> ball = new EnumMap<>(CaptureTier.class);
+        s.ballChance().forEach((t, r) -> {
+            ChanceRange fixed = overrideRange(at + "ballChance." + t.key(), r, warnings);
+            if (fixed != null) ball.put(t, fixed);
+        });
+        Map<CaptureTier, Double> obtain = new EnumMap<>(CaptureTier.class);
+        s.obtainChance().forEach((t, p) -> {
+            if (p >= 0 && p <= 100) obtain.put(t, p);
+            else warnings.add("pets.json: " + at + "obtainChance." + t.key() + " " + p
+                    + " must be within [0, 100], removed (global value used)");
+        });
         PetSpecies out = new PetSpecies(s.id(), s.kind(), s.petEntity(), attack, speed, attackSpeed, flySpeed,
-                climbSpeed, s.boss(), sizeScale, healthMult, attackMult, killGold, p, jump);
+                climbSpeed, s.boss(), sizeScale, healthMult, attackMult, killGold, jump, ball, obtain);
         return out.equals(s) ? s : out;
     }
 
@@ -223,6 +264,17 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
         return def;
     }
 
+    /** Each tier within 0..100, else that tier's default. */
+    private static Map<CaptureTier, Double> percents(String name, Map<CaptureTier, Double> m,
+                                                     Map<CaptureTier, Double> def, List<String> warnings) {
+        Map<CaptureTier, Double> out = new EnumMap<>(CaptureTier.class);
+        for (CaptureTier t : CaptureTier.values()) {
+            double d = def.get(t);
+            out.put(t, percent(name + "." + t.key(), m.getOrDefault(t, d), d, warnings));
+        }
+        return out;
+    }
+
     /** Base and max each within 0..100 (else that tier's default), then max &gt;= base (else max = base). */
     private static Map<CaptureTier, ChanceRange> chances(String name, Map<CaptureTier, ChanceRange> m,
                                                          Map<CaptureTier, ChanceRange> def, List<String> warnings) {
@@ -233,12 +285,25 @@ public record PetConfig(HealthBar healthbar, Capture capture, Map<String, PetSpe
             String at = name + "." + t.key();
             double base = percent(at + ".base", r.base(), d.base(), warnings);
             double max = percent(at + ".max", r.max(), d.max(), warnings);
-            if (max < base) {
-                warnings.add("pets.json: " + at + ".max " + max + " must be >= base " + base + ", using " + base);
-                max = base;
-            }
-            out.put(t, new ChanceRange(base, max));
+            out.put(t, maxAtLeastBase(at, base, max, warnings));
         }
         return out;
+    }
+
+    /** {@code max < base} becomes {@code max = base}, with a warning. */
+    private static ChanceRange maxAtLeastBase(String at, double base, double max, List<String> warnings) {
+        if (max >= base) return new ChanceRange(base, max);
+        warnings.add("pets.json: " + at + ".max " + max + " must be >= base " + base + ", using " + base);
+        return new ChanceRange(base, base);
+    }
+
+    /** A species override range; null (removed, with a warning) if base or max is outside 0..100. */
+    private static ChanceRange overrideRange(String at, ChanceRange r, List<String> warnings) {
+        if (!(r.base() >= 0 && r.base() <= 100 && r.max() >= 0 && r.max() <= 100)) {
+            warnings.add("pets.json: " + at + " " + r.base() + "~" + r.max()
+                    + " must be within [0, 100], removed (global value used)");
+            return null;
+        }
+        return maxAtLeastBase(at, r.base(), r.max(), warnings);
     }
 }

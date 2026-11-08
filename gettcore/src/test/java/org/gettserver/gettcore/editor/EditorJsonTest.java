@@ -59,8 +59,8 @@ class EditorJsonTest {
         var ball = new java.util.EnumMap<>(d.ballChance());
         ball.put(org.gettserver.gettcore.pet.CaptureTier.IRON, new PetConfig.ChanceRange(4, 30));
         PetConfig pets = new PetConfig(PetConfig.DEFAULT.healthbar(),
-                new PetConfig.Capture(d.minPercent(), d.maxPercent(), ball, d.bossBallChance(), d.obtainPercent(),
-                        d.throwCooldownTicks()),
+                new PetConfig.Capture(d.minPercent(), d.maxPercent(), ball, d.bossBallChance(), d.obtainChance(),
+                        d.bossObtainChance(), d.throwCooldownTicks()),
                 Map.of());
         EditorBundle b = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), pets);
         String json = EditorJson.encode(b, null);

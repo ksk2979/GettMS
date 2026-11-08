@@ -22,20 +22,31 @@ public final class CaptureRules {
         return roll < chance(species.get(), tier, capture, healthRatio) / 100.0 ? Verdict.CAPTURED : Verdict.FAILED;
     }
 
-    /** Roll for obtaining the pet after a kill-capture; species percent (if &gt; 0) overrides the global one. */
-    public static boolean obtain(PetSpecies species, PetConfig.Capture capture, double roll) {
-        double percent = species.obtainPercent() > 0 ? species.obtainPercent() : capture.obtainPercent();
-        return roll < percent / 100.0;
+    /**
+     * Obtain percent for a mob caught with a {@code tier} ball: the species' {@code obtainChance} for that tier,
+     * else the global table (the boss one for boss species); a tier missing everywhere is 0.
+     */
+    public static double obtainChance(PetSpecies species, CaptureTier tier, PetConfig.Capture capture) {
+        Double own = species.obtainChance().get(tier);
+        if (own != null) return own;
+        Double global = (species.boss() ? capture.bossObtainChance() : capture.obtainChance()).get(tier);
+        return global == null ? 0 : global;
+    }
+
+    /** Roll for obtaining the pet after a capture with a {@code tier} ball; @param roll uniform [0,1) */
+    public static boolean obtain(PetSpecies species, CaptureTier tier, PetConfig.Capture capture, double roll) {
+        return roll < obtainChance(species, tier, capture) / 100.0;
     }
 
     /**
      * Ball capture chance in percent at the given health: the tier's {@code base} at {@code maxPercent} health,
-     * rising linearly to its {@code max} at {@code minPercent} (clamped outside the range). Boss species use the
-     * boss table; a missing tier is 0.
+     * rising linearly to its {@code max} at {@code minPercent} (clamped outside the range). The tier's range is the
+     * species' {@code ballChance} override, else the global table (the boss one for boss species); a missing tier
+     * is 0.
      */
     public static double chance(PetSpecies species, CaptureTier tier, PetConfig.Capture capture, double healthRatio) {
-        var table = species.boss() ? capture.bossBallChance() : capture.ballChance();
-        PetConfig.ChanceRange range = table.get(tier);
+        PetConfig.ChanceRange range = species.ballChance().get(tier);
+        if (range == null) range = (species.boss() ? capture.bossBallChance() : capture.ballChance()).get(tier);
         if (range == null) return 0;
         double span = capture.maxPercent() - capture.minPercent();
         double t = span <= EPS ? 1 : (capture.maxPercent() - healthRatio * 100.0) / span;

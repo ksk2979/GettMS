@@ -96,6 +96,7 @@ class PetLangTest {
             need(ko, missing, "gettcore.msg.obtain." + k);
         for (String p : ENTITY_PATHS) need(ko, missing, "entity.gettcore." + p);
         for (String p : ITEM_PATHS) need(ko, missing, "item.gettcore." + p);
+        for (CaptureTier t : CaptureTier.values()) need(ko, missing, "gettcore.tier." + t.key());
         // Non-base coats of the whitelisted Naturalist species (only the tiger has any in Naturalist 2.0.7).
         for (String v : new String[]{"white_tiger", "leopard", "black_panther"}) need(ko, missing, "gettcore.variant." + v);
 

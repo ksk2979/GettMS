@@ -20,7 +20,8 @@
       "diamond": { "base": 8, "max": 25 },
       "netherite": { "base": 12, "max": 40 }
     },
-    "obtainPercent": 20,
+    "obtainChance": { "iron": 20, "gold": 25, "diamond": 30, "netherite": 40 },
+    "bossObtainChance": { "iron": 15, "gold": 20, "diamond": 25, "netherite": 35 },
     "throwCooldownTicks": 20
   },
   "species": {
@@ -130,8 +131,7 @@
       "sizeScale": 1.6,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainPercent": 20
+      "killGold": 0
     },
     "gettcore:boss_tiger": {
       "kind": "fighter",
@@ -145,8 +145,7 @@
       "sizeScale": 1.6,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainPercent": 20
+      "killGold": 0
     },
     "gettcore:boss_bear": {
       "kind": "fighter",
@@ -160,8 +159,7 @@
       "sizeScale": 1.6,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainPercent": 20
+      "killGold": 0
     },
     "gettcore:boss_elephant": {
       "kind": "mount",
@@ -175,8 +173,7 @@
       "sizeScale": 1.6,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainPercent": 20
+      "killGold": 0
     },
     "gettcore:boss_mammoth": {
       "kind": "mount",
@@ -190,8 +187,7 @@
       "sizeScale": 1.6,
       "healthMult": 5,
       "attackMult": 2,
-      "killGold": 0,
-      "obtainPercent": 20
+      "killGold": 0
     },
     "gettcore:boss_vulture": {
       "kind": "flying_mount",
@@ -206,7 +202,7 @@
       "healthMult": 5,
       "attackMult": 2,
       "killGold": 0,
-      "obtainPercent": 20
+      "obtainChance": { "netherite": 50 }
     }
   }
 }

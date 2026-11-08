@@ -23,14 +23,26 @@ class CaptureServiceTest {
     @Test
     void capturedStackCarriesKeyAndBoss() {
         PetKey key = new PetKey("naturalist:bear", "brown");
-        ItemStack stack = CaptureService.capturedStack(key, true);
+        ItemStack stack = CaptureService.capturedStack(key, true, CaptureTier.DIAMOND);
         assertTrue(stack.is(PetRegistry.CAPTURED_MOB.get()));
         assertEquals(1, stack.getCount());
         assertEquals(key, stack.get(PetRegistry.PET_KEY.get()));
         assertEquals(Boolean.TRUE, stack.get(PetRegistry.PET_BOSS.get()));
+        assertEquals(CaptureTier.DIAMOND, stack.get(PetRegistry.PET_TIER.get()));
+        assertEquals(CaptureTier.DIAMOND, CaptureService.tierOf(stack));
 
-        ItemStack normal = CaptureService.capturedStack(new PetKey("minecraft:pig", "default"), false);
+        ItemStack normal = CaptureService.capturedStack(new PetKey("minecraft:pig", "default"), false,
+                CaptureTier.NETHERITE);
         assertEquals(Boolean.FALSE, normal.get(PetRegistry.PET_BOSS.get()));
+        assertEquals(CaptureTier.NETHERITE, CaptureService.tierOf(normal));
+    }
+
+    @Test
+    void stackWithoutTierCountsAsIron() {
+        ItemStack old = new ItemStack(PetRegistry.CAPTURED_MOB.get());
+        old.set(PetRegistry.PET_KEY.get(), new PetKey("naturalist:bear", "brown"));
+        assertFalse(old.has(PetRegistry.PET_TIER.get()));
+        assertEquals(CaptureTier.IRON, CaptureService.tierOf(old));
     }
 
     @Test
@@ -39,7 +51,7 @@ class CaptureServiceTest {
         assertFalse(CaptureService.canConfirm(new ItemStack(Items.STONE)));
         assertFalse(CaptureService.canConfirm(ItemStack.EMPTY));
         assertFalse(CaptureService.canConfirm(new ItemStack(PetRegistry.CAPTURED_MOB.get())), "no pet key");
-        assertTrue(CaptureService.canConfirm(CaptureService.capturedStack(key, false)));
+        assertTrue(CaptureService.canConfirm(CaptureService.capturedStack(key, false, CaptureTier.IRON)));
     }
 
     @Test

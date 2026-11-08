@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.util.ByIdMap;
 import net.minecraft.sounds.SoundEvent;
 import com.crispytwig.naturalist.world.entity.animal.bear.Bear;
 import com.crispytwig.naturalist.world.entity.animal.bear.BlackBear;
@@ -62,6 +63,12 @@ public final class PetRegistry {
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> PET_BOSS =
             DATA_COMPONENTS.registerComponentType("pet_boss",
                     b -> b.persistent(Codec.BOOL).networkSynchronized(ByteBufCodecs.BOOL));
+    /** Ball tier a captured mob was caught with (missing on older items: treated as iron). */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CaptureTier>> PET_TIER =
+            DATA_COMPONENTS.registerComponentType("pet_tier",
+                    b -> b.persistent(CaptureTier.CODEC).networkSynchronized(ByteBufCodecs.idMapper(
+                            ByIdMap.continuous(CaptureTier::ordinal, CaptureTier.values(),
+                                    ByIdMap.OutOfBoundsStrategy.ZERO), CaptureTier::ordinal)));
 
     public static final DeferredItem<CaptureBallItem> CAPTURE_BALL_IRON = ball("iron", CaptureTier.IRON);
     public static final DeferredItem<CaptureBallItem> CAPTURE_BALL_GOLD = ball("gold", CaptureTier.GOLD);

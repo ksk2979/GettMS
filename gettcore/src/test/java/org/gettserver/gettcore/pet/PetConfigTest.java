@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.pet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -13,6 +14,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
@@ -37,12 +39,14 @@ class PetConfigTest {
         PetSpecies lion = cfg.species(ResourceLocation.parse("naturalist:lion")).orElseThrow();
         assertEquals(PetSpecies.Kind.FIGHTER, lion.kind());
         assertEquals("naturalist:lion", lion.id());
-        assertEquals(0, lion.obtainPercent());
+        assertTrue(lion.obtainChance().isEmpty());
+        assertTrue(lion.ballChance().isEmpty());
         PetSpecies vulture = cfg.species().get("gettcore:boss_vulture");
         assertEquals(PetSpecies.Kind.FLYING_MOUNT, vulture.kind());
         assertTrue(vulture.boss());
         assertEquals(2.5, vulture.sizeScale());
-        assertEquals(20, vulture.obtainPercent());
+        assertEquals(Map.of(CaptureTier.NETHERITE, 50.0), vulture.obtainChance());
+        assertTrue(cfg.species().get("gettcore:boss_lion").obtainChance().isEmpty());
         assertEquals(3.0, cfg.species().get("naturalist:ostrich").jumpHeight());
         assertEquals(2.0, cfg.species().get("naturalist:giraffe").jumpHeight());
         assertEquals(1.0, cfg.species().get("naturalist:elephant").jumpHeight());
@@ -103,11 +107,120 @@ class PetConfigTest {
     }
 
     @Test
-    void bossObtainPercentDefaultsTo20() {
+    void speciesWithoutOverridesHasEmptyMaps() {
         PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\"},"
                 + "\"a:b\":{\"kind\":\"mount\",\"petEntity\":\"a:q\",\"boss\":true}}}");
-        assertEquals(0, cfg.species().get("a:w").obtainPercent());
-        assertEquals(20, cfg.species().get("a:b").obtainPercent());
+        assertTrue(cfg.species().get("a:w").obtainChance().isEmpty());
+        assertTrue(cfg.species().get("a:b").obtainChance().isEmpty(), "boss default now comes from the global table");
+        assertTrue(cfg.species().get("a:b").ballChance().isEmpty());
+    }
+
+    @Test
+    void defaultObtainTables() {
+        var c = PetConfig.DEFAULT.capture();
+        assertEquals(Map.of(CaptureTier.IRON, 20.0, CaptureTier.GOLD, 25.0, CaptureTier.DIAMOND, 30.0,
+                CaptureTier.NETHERITE, 40.0), c.obtainChance());
+        assertEquals(Map.of(CaptureTier.IRON, 15.0, CaptureTier.GOLD, 20.0, CaptureTier.DIAMOND, 25.0,
+                CaptureTier.NETHERITE, 35.0), c.bossObtainChance());
+        assertEquals(c, parse("{\"capture\":{}}").capture());
+    }
+
+    @Test
+    void legacyGlobalObtainPercentFillsBothTables() {
+        var c = parse("{\"capture\":{\"obtainPercent\":33}}").capture();
+        assertEquals(PetConfig.Capture.allTiers(33), c.obtainChance());
+        assertEquals(PetConfig.Capture.allTiers(33), c.bossObtainChance());
+        // A present table wins over the legacy value; the absent one still takes it.
+        var mixed = parse("{\"capture\":{\"obtainPercent\":33,\"obtainChance\":{\"gold\":50}}}").capture();
+        assertEquals(50.0, mixed.obtainChance().get(CaptureTier.GOLD));
+        assertEquals(20.0, mixed.obtainChance().get(CaptureTier.IRON), "missing tier takes the default");
+        assertEquals(PetConfig.Capture.allTiers(33), mixed.bossObtainChance());
+    }
+
+    @Test
+    void partialGlobalObtainTableFallsBackToDefaults() {
+        var c = parse("{\"capture\":{\"bossObtainChance\":{\"netherite\":90}}}").capture();
+        assertEquals(90.0, c.bossObtainChance().get(CaptureTier.NETHERITE));
+        assertEquals(15.0, c.bossObtainChance().get(CaptureTier.IRON));
+        assertEquals(PetConfig.DEFAULT.capture().obtainChance(), c.obtainChance());
+    }
+
+    @Test
+    void legacySpeciesObtainPercentFillsAllTiers() {
+        PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"obtainPercent\":45},"
+                + "\"a:z\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"obtainPercent\":0},"
+                + "\"a:x\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"obtainPercent\":45,\"obtainChance\":{\"iron\":10}}}}");
+        assertEquals(PetConfig.Capture.allTiers(45), cfg.species().get("a:w").obtainChance());
+        assertTrue(cfg.species().get("a:z").obtainChance().isEmpty(), "0 meant 'use global'");
+        assertEquals(Map.of(CaptureTier.IRON, 10.0), cfg.species().get("a:x").obtainChance(), "new key wins");
+    }
+
+    @Test
+    void speciesOverridesParseAndRoundTrip() {
+        PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\","
+                + "\"ballChance\":{\"gold\":{\"base\":30,\"max\":60},\"iron\":7},\"obtainChance\":{\"netherite\":50}}}}");
+        PetSpecies s = cfg.species().get("a:w");
+        assertEquals(Map.of(CaptureTier.GOLD, new PetConfig.ChanceRange(30, 60),
+                CaptureTier.IRON, new PetConfig.ChanceRange(7, 7)), s.ballChance());
+        assertEquals(Map.of(CaptureTier.NETHERITE, 50.0), s.obtainChance());
+        var json = PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, cfg).getOrThrow().getAsJsonObject();
+        var sj = json.getAsJsonObject("species").getAsJsonObject("a:w");
+        assertEquals(30, sj.getAsJsonObject("ballChance").getAsJsonObject("gold").get("base").getAsDouble());
+        assertEquals(50, sj.getAsJsonObject("obtainChance").get("netherite").getAsDouble());
+        assertEquals(cfg, PetConfig.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    @Test
+    void encodeWritesOnlyNewKeys() throws Exception {
+        PetConfig legacy = parse("{\"capture\":{\"obtainPercent\":33},\"species\":{"
+                + "\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\",\"obtainPercent\":45},"
+                + "\"a:e\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\"}}}");
+        var json = PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, legacy).getOrThrow().getAsJsonObject();
+        var capture = json.getAsJsonObject("capture");
+        assertFalse(capture.has("obtainPercent"), capture.toString());
+        assertEquals(33, capture.getAsJsonObject("obtainChance").get("diamond").getAsDouble());
+        assertEquals(33, capture.getAsJsonObject("bossObtainChance").get("iron").getAsDouble());
+        var w = json.getAsJsonObject("species").getAsJsonObject("a:w");
+        assertFalse(w.has("obtainPercent"), w.toString());
+        assertEquals(45, w.getAsJsonObject("obtainChance").get("gold").getAsDouble());
+        var e = json.getAsJsonObject("species").getAsJsonObject("a:e");
+        assertFalse(e.has("obtainChance"), "empty override not encoded: " + e);
+        assertFalse(e.has("ballChance"), "empty override not encoded: " + e);
+        assertFalse(e.has("obtainPercent"), e.toString());
+        assertEquals(legacy, PetConfig.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+        String all = PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, defaultFile()).getOrThrow().toString();
+        assertFalse(all.contains("obtainPercent"), all);
+    }
+
+    @Test
+    void sanitizeObtainTablesUsesTierDefault() {
+        PetConfig cfg = parse("{\"capture\":{\"obtainChance\":{\"gold\":150},"
+                + "\"bossObtainChance\":{\"iron\":-1,\"netherite\":100}}}");
+        List<String> warnings = new ArrayList<>();
+        var c = cfg.sanitized(warnings).capture();
+        assertEquals(25.0, c.obtainChance().get(CaptureTier.GOLD));
+        assertEquals(15.0, c.bossObtainChance().get(CaptureTier.IRON));
+        assertEquals(100.0, c.bossObtainChance().get(CaptureTier.NETHERITE));
+        assertEquals(2, warnings.size(), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("capture.obtainChance.gold 150.0")), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("capture.bossObtainChance.iron -1.0")),
+                warnings.toString());
+    }
+
+    @Test
+    void sanitizeSpeciesOverridesDropsBadTiers() {
+        PetConfig cfg = parse("{\"species\":{\"a:w\":{\"kind\":\"fighter\",\"petEntity\":\"a:p\","
+                + "\"ballChance\":{\"iron\":{\"base\":-1,\"max\":20},\"gold\":{\"base\":30,\"max\":10},"
+                + "\"diamond\":{\"base\":10,\"max\":20}},\"obtainChance\":{\"gold\":101,\"diamond\":60}}}}");
+        List<String> warnings = new ArrayList<>();
+        PetSpecies s = cfg.sanitized(warnings).species().get("a:w");
+        assertEquals(Map.of(CaptureTier.GOLD, new PetConfig.ChanceRange(30, 30),
+                CaptureTier.DIAMOND, new PetConfig.ChanceRange(10, 20)), s.ballChance());
+        assertEquals(Map.of(CaptureTier.DIAMOND, 60.0), s.obtainChance());
+        assertEquals(3, warnings.size(), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w ballChance.iron")), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w ballChance.gold.max 10.0")), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("a:w obtainChance.gold 101.0")), warnings.toString());
     }
 
     @Test

@@ -182,14 +182,16 @@ class EditorValidatorTest {
     void petsAreSanitizedWithWarnings() {
         var d = org.gettserver.gettcore.pet.PetConfig.DEFAULT;
         var bad = new org.gettserver.gettcore.pet.PetConfig(d.healthbar(), new org.gettserver.gettcore.pet.PetConfig.Capture(
-                -5, 20, d.capture().ballChance(), d.capture().bossBallChance(), 150, 20), Map.of());
+                -5, 20, d.capture().ballChance(), d.capture().bossBallChance(),
+                java.util.Map.of(org.gettserver.gettcore.pet.CaptureTier.GOLD, 150.0), d.capture().bossObtainChance(), 20),
+                Map.of());
         var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), bad),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertTrue(any(r.warnings(), "pets: capture.minPercent"), r.warnings().toString());
-        assertTrue(any(r.warnings(), "pets: capture.obtainPercent"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "pets: capture.obtainChance.gold"), r.warnings().toString());
         assertEquals(d.capture().minPercent(), r.cleaned().pets().capture().minPercent());
-        assertEquals(d.capture().obtainPercent(), r.cleaned().pets().capture().obtainPercent());
+        assertEquals(d.capture().obtainChance(), r.cleaned().pets().capture().obtainChance());
     }
 
     @Test
@@ -216,7 +218,7 @@ class EditorValidatorTest {
         var s = species("gettcore:boss_lion", true);
         var zero = new org.gettserver.gettcore.pet.PetSpecies(s.id(), s.kind(), s.petEntity(), s.attack(), s.speed(),
                 s.attackSpeed(), s.flySpeed(), s.climbSpeed(), true, 0, s.healthMult(), s.attackMult(), s.killGold(),
-                s.obtainPercent(), s.jumpHeight());
+                s.jumpHeight(), s.ballChance(), s.obtainChance());
         var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q, List.of(), pets(zero)),
                 RegistryChecks.ALL_EXIST);
         assertTrue(r.errors().isEmpty(), r.errors().toString());

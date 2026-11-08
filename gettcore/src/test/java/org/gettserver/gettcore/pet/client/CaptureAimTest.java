@@ -17,7 +17,7 @@ class CaptureAimTest {
     private static Optional<PetSpecies> species() {
         return Optional.of(new PetSpecies("a:w", PetSpecies.Kind.FIGHTER,
                 ResourceLocation.fromNamespaceAndPath("a", "p"), 2, 0.3, 1, 0.6, 0.3, false,
-                1, 1, 1, 0, 0, 1));
+                1, 1, 1, 0, 1));
     }
 
     @Test

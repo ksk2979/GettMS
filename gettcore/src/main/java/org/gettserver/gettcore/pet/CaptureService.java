@@ -93,7 +93,7 @@ public final class CaptureService {
         if (verdict == Verdict.CAPTURED) {
             thrower.sendSystemMessage(message);
             String variant = target instanceof DataDrivenVariantAnimal v ? v.getVariantString() : PetKey.DEFAULT_VARIANT;
-            ItemStack stack = capturedStack(new PetKey(typeId.toString(), variant), target instanceof GettBoss);
+            ItemStack stack = capturedStack(new PetKey(typeId.toString(), variant), target instanceof GettBoss, tier);
             if (target instanceof GettBoss boss) {
                 BossPointData.get(level.getServer()).onBossGone(boss.pointId(), target.getUUID(),
                         level.getServer().overworld().getGameTime());
@@ -115,11 +115,18 @@ public final class CaptureService {
         return "gettcore.msg.capture." + verdict.name().toLowerCase(Locale.ROOT);
     }
 
-    public static ItemStack capturedStack(PetKey key, boolean boss) {
+    /** A captured mob item with its species/variant, boss flag and the ball tier it was caught with. */
+    public static ItemStack capturedStack(PetKey key, boolean boss, CaptureTier tier) {
         ItemStack stack = new ItemStack(PetRegistry.CAPTURED_MOB.get());
         stack.set(PetRegistry.PET_KEY.get(), key);
         stack.set(PetRegistry.PET_BOSS.get(), boss);
+        stack.set(PetRegistry.PET_TIER.get(), tier);
         return stack;
+    }
+
+    /** Ball tier a captured mob was caught with; items from before tiers were recorded count as iron. */
+    public static CaptureTier tierOf(ItemStack stack) {
+        return stack.getOrDefault(PetRegistry.PET_TIER.get(), CaptureTier.IRON);
     }
 
     /** True if the stack is a captured mob carrying a pet key — the only thing [확정] may act on. */
@@ -142,6 +149,7 @@ public final class CaptureService {
         if (!OBTAIN_LIMITER.tryAcquire(player.getUUID(), System.currentTimeMillis())) return;
         PetKey key = stack.get(PetRegistry.PET_KEY.get());
         boolean boss = Boolean.TRUE.equals(stack.get(PetRegistry.PET_BOSS.get()));
+        CaptureTier tier = tierOf(stack);
         PetConfig config = GettData.get().pets();
         ResourceLocation wild = ResourceLocation.tryParse(key.speciesId());
         Optional<PetSpecies> species = wild == null ? Optional.empty() : config.species(wild);
@@ -151,7 +159,8 @@ public final class CaptureService {
             return;
         }
 
-        boolean success = CaptureRules.obtain(species.get(), config.capture(), player.getRandom().nextDouble());
+        boolean success = CaptureRules.obtain(species.get(), tier, config.capture(),
+                player.getRandom().nextDouble());
         boolean duplicate = success && !PetData.get(player.server).add(player.getUUID(), key);
         stack.shrink(1);
 
@@ -170,7 +179,7 @@ public final class CaptureService {
                     SoundEvents.VILLAGER_NO, SoundSource.PLAYERS, 1.0F, 1.0F);
         }
         String outcome = !success ? "escaped" : duplicate ? "duplicate" : "obtained";
-        GettCore.LOGGER.info("gettcore: {} obtain {} [{}]{} -> {}", player.getGameProfile().getName(),
-                key.speciesId(), key.variant(), boss ? " boss" : "", outcome);
+        GettCore.LOGGER.info("gettcore: {} obtain {} [{}]{} ({}) -> {}", player.getGameProfile().getName(),
+                key.speciesId(), key.variant(), boss ? " boss" : "", tier.key(), outcome);
     }
 }

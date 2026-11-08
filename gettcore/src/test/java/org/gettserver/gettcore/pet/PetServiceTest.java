@@ -50,7 +50,7 @@ class PetServiceTest {
     private static PetSpecies species(double attack) {
         return new PetSpecies("naturalist:vulture", PetSpecies.Kind.FLYING_MOUNT,
                 net.minecraft.resources.ResourceLocation.parse("gettcore:pet_vulture"), attack, 0.3, 1, 0.6, 0.3, false,
-                1, 1, 1, 0, 0, 1);
+                1, 1, 1, 0, 1);
     }
 
     @Test

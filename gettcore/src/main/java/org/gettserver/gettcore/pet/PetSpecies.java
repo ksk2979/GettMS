@@ -4,18 +4,34 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import net.minecraft.resources.ResourceLocation;
 
 /**
  * One capturable species. {@code id} is the wild entity id (the key in pets.json, not a JSON field).
- * {@code obtainPercent} 0 means "use the global capture.obtainPercent". {@code jumpHeight}: blocks a ground mount
- * jumps when its rider presses jump (0..10).
+ * {@code jumpHeight}: blocks a ground mount jumps when its rider presses jump (0..10). {@code ballChance} /
+ * {@code obtainChance}: per-tier overrides of the global capture / obtain tables (a missing tier, or an empty map,
+ * uses the global table: the boss one for boss species). The legacy {@code obtainPercent} (&gt; 0) is read as an
+ * obtainChance override on all four tiers when {@code obtainChance} is absent; it is never written back.
  */
 public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, double attack, double speed,
                          double attackSpeed, double flySpeed, double climbSpeed, boolean boss, double sizeScale,
-                         double healthMult, double attackMult, long killGold, double obtainPercent,
-                         double jumpHeight) {
+                         double healthMult, double attackMult, long killGold, double jumpHeight,
+                         Map<CaptureTier, PetConfig.ChanceRange> ballChance, Map<CaptureTier, Double> obtainChance) {
+
+    public PetSpecies {
+        ballChance = ballChance == null ? Map.of() : Map.copyOf(ballChance);
+        obtainChance = obtainChance == null ? Map.of() : Map.copyOf(obtainChance);
+    }
+
+    /** No capture/obtain overrides. */
+    public PetSpecies(String id, Kind kind, ResourceLocation petEntity, double attack, double speed,
+                      double attackSpeed, double flySpeed, double climbSpeed, boolean boss, double sizeScale,
+                      double healthMult, double attackMult, long killGold, double jumpHeight) {
+        this(id, kind, petEntity, attack, speed, attackSpeed, flySpeed, climbSpeed, boss, sizeScale, healthMult,
+                attackMult, killGold, jumpHeight, Map.of(), Map.of());
+    }
 
     public enum Kind {
         FIGHTER, MOUNT, FLYING_MOUNT;
@@ -38,6 +54,11 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
     public static final double DEFAULT_JUMP_HEIGHT = 1.0;
     static final double MAX_JUMP_HEIGHT = 10.0;
 
+    /** Optional getter that leaves an empty override map out of the JSON. */
+    private static <V> Optional<Map<CaptureTier, V>> nonEmpty(Map<CaptureTier, V> m) {
+        return m.isEmpty() ? Optional.empty() : Optional.of(m);
+    }
+
     /** Codec for the species body; {@code id} is filled in from the map key by {@link PetConfig}. */
     static final Codec<PetSpecies> CODEC = RecordCodecBuilder.create(i -> i.group(
             Kind.CODEC.fieldOf("kind").forGetter(PetSpecies::kind),
@@ -52,14 +73,20 @@ public record PetSpecies(String id, Kind kind, ResourceLocation petEntity, doubl
             Codec.DOUBLE.optionalFieldOf("healthMult", DEFAULT_MULT).forGetter(PetSpecies::healthMult),
             Codec.DOUBLE.optionalFieldOf("attackMult", DEFAULT_MULT).forGetter(PetSpecies::attackMult),
             Codec.LONG.optionalFieldOf("killGold", 0L).forGetter(PetSpecies::killGold),
-            Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(s -> Optional.of(s.obtainPercent())),
-            Codec.DOUBLE.optionalFieldOf("jumpHeight", DEFAULT_JUMP_HEIGHT).forGetter(PetSpecies::jumpHeight)
-    ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, obtain, jump) ->
-            new PetSpecies("", kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold,
-                    obtain.orElse(boss ? 20.0 : 0.0), jump)));
+            Codec.DOUBLE.optionalFieldOf("jumpHeight", DEFAULT_JUMP_HEIGHT).forGetter(PetSpecies::jumpHeight),
+            Codec.unboundedMap(CaptureTier.CODEC, PetConfig.ChanceRange.CODEC).optionalFieldOf("ballChance")
+                    .forGetter(s -> nonEmpty(s.ballChance)),
+            Codec.unboundedMap(CaptureTier.CODEC, Codec.DOUBLE).optionalFieldOf("obtainChance")
+                    .forGetter(s -> nonEmpty(s.obtainChance)),
+            // Legacy, read only: never encoded.
+            Codec.DOUBLE.optionalFieldOf("obtainPercent").forGetter(s -> Optional.empty())
+    ).apply(i, (kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold, jump, ball, obtain,
+                legacy) -> new PetSpecies("", kind, pet, atk, spd, atkSpd, fly, climb, boss, size, hp, atkMult, gold,
+            jump, ball.orElse(Map.of()), obtain.orElseGet(() -> legacy.filter(p -> p > 0)
+                    .map(PetConfig.Capture::allTiers).orElse(Map.of())))));
 
     PetSpecies withId(String newId) {
         return new PetSpecies(newId, kind, petEntity, attack, speed, attackSpeed, flySpeed, climbSpeed, boss,
-                sizeScale, healthMult, attackMult, killGold, obtainPercent, jumpHeight);
+                sizeScale, healthMult, attackMult, killGold, jumpHeight, ballChance, obtainChance);
     }
 }
