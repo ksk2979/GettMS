@@ -158,7 +158,7 @@ public final class GettData {
         // An unreadable boss_points.json keeps the points already loaded (a typo must not strand the bosses).
         Path bossFile = dir.resolve(BOSS_POINTS_FILE);
         List<BossPoint> newBossPoints = Files.isRegularFile(bossFile)
-                ? read(bossFile, BossPoint.CODEC.listOf(), errors).map(l -> uniqueBossPoints(l, errors))
+                ? read(bossFile, BossPoint.CODEC.listOf(), errors).map(l -> uniqueBossPoints(l, errors, warnings))
                         .orElse(bossPoints)
                 : List.of();
 
@@ -202,11 +202,15 @@ public final class GettData {
         return new LoadReport(newShops.size(), newDialogs.size(), newQuests.size(), List.copyOf(errors), List.copyOf(warnings));
     }
 
-    private static List<BossPoint> uniqueBossPoints(List<BossPoint> points, List<String> errors) {
+    /** Drops duplicate ids (errors) and clamps out-of-range values (warnings). */
+    private static List<BossPoint> uniqueBossPoints(List<BossPoint> points, List<String> errors,
+                                                    List<String> warnings) {
         Map<String, BossPoint> byId = new LinkedHashMap<>();
         for (BossPoint p : points) {
-            if (byId.putIfAbsent(p.id(), p) != null) {
+            if (byId.containsKey(p.id())) {
                 errors.add(BOSS_POINTS_FILE + ": duplicate boss point id " + p.id() + " (skipped)");
+            } else {
+                byId.put(p.id(), p.sanitized(warnings));
             }
         }
         return List.copyOf(byId.values());

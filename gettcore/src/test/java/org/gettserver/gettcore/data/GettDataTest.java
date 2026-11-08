@@ -280,4 +280,20 @@ class GettDataTest {
         assertTrue(bad.errors().stream().anyMatch(e -> e.contains("boss_points.json")), bad.errors().toString());
         assertEquals(1, data.bossPoints().size());
     }
+
+    @Test
+    void bossPointsOutOfRangeAreClampedWithWarnings(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("boss_points.json"), "[{\"id\":\"wild\",\"dimension\":\"minecraft:overworld\","
+                + "\"pos\":[0,64,0],\"radius\":-1,\"bossType\":\"gettcore:boss_bear\",\"maxCount\":99,"
+                + "\"respawnMinutes\":-5}]");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        BossPoint p = data.bossPoints().get(0);
+        assertEquals(1, p.radius());
+        assertEquals(10, p.maxCount());
+        assertEquals(0, p.respawnMinutes());
+        assertEquals(3, r.warnings().stream().filter(w -> w.contains("point wild")).count(), r.warnings().toString());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("wild radius -1")), r.warnings().toString());
+    }
 }

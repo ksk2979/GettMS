@@ -86,9 +86,14 @@ public class BossPointData extends SavedData {
         return s.alive.size();
     }
 
-    /** Admin reset: forget the bosses and make the point spawn as soon as a player is near. */
+    /**
+     * Admin reset: the respawn timer counts as elapsed, so missing bosses spawn at the next check. The bosses still
+     * alive stay registered (and counted), so the point never goes over its maxCount.
+     */
     public void reset(String pointId) {
-        points.remove(pointId);
+        State s = points.get(pointId);
+        if (s == null) return;
+        s.lastGone = NEVER_GONE;
         setDirty();
     }
 

@@ -108,6 +108,7 @@ public final class BossSpawner {
      * liquid, in an already loaded chunk; {@value #SPAWN_ATTEMPTS} attempts.
      */
     public static Optional<BlockPos> pickSpawnPos(ServerLevel level, BlockPos center, int radius, RandomSource r) {
+        radius = Math.max(1, radius);
         for (int n = 0; n < SPAWN_ATTEMPTS; n++) {
             int dx = r.nextInt(radius * 2 + 1) - radius;
             int dz = r.nextInt(radius * 2 + 1) - radius;

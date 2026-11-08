@@ -31,12 +31,12 @@ class BossPointDataTest {
     }
 
     @Test
-    void resetClearsAliveAndLastGone() {
+    void resetKeepsAliveAndClearsLastGone() {
         BossPointData data = new BossPointData();
         data.registerAlive("p", A);
         data.onBossGone("p", B, 500);
         data.reset("p");
-        assertTrue(data.alive("p").isEmpty());
+        assertEquals(List.of(A), data.alive("p"));
         assertEquals(-1, data.lastGone("p"));
     }
 
