@@ -206,13 +206,15 @@ public final class PetState {
     /**
      * Ground mount ridden tick, after {@link #tickRidden}. Like {@code AbstractHorse.tickRidden} the pending jump is
      * applied where the movement is simulated (the rider's client, which then syncs the vehicle position).
+     * The charge lives for this one tick: used if the mount is on the ground (mountJump skips water), otherwise
+     * dropped, so a jump released in the air or without a rider never fires later.
      */
     public void tickRiddenJump(double strength, float blockJumpFactor) {
-        if (!mob.isControlledByLocalInstance() || pendingJumpScale <= 0) return;
-        if (mob.onGround() || mob.isInWater()) {
-            PetBehavior.mountJump(mob, strength, pendingJumpScale, blockJumpFactor);
-            pendingJumpScale = 0;
-        }
+        if (pendingJumpScale <= 0) return;
+        double scale = pendingJumpScale;
+        pendingJumpScale = 0;
+        if (controllingRider() == null || !mob.isControlledByLocalInstance() || !mob.onGround()) return;
+        PetBehavior.mountJump(mob, strength, scale, blockJumpFactor);
     }
 
     /**
@@ -224,6 +226,7 @@ public final class PetState {
      */
     public void travel(Vec3 input, Consumer<Vec3> superTravel) {
         if (controllingRider() == null) {
+            pendingJumpScale = 0;
             superTravel.accept(input);
         } else if (kind == PetSpecies.Kind.FLYING_MOUNT) {
             PetSpecies species = species();
