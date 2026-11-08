@@ -385,7 +385,10 @@ class GettDataTest {
         assertEquals(ReinforceConfig.DEFAULT, data.reinforce());
 
         var cfg = new ReinforceConfig(2, java.util.List.of(100.0, 50.0), java.util.List.of(1, 3), 5, 6, 7, 2, 0);
-        data.saveReinforce(cfg);
+        Files.writeString(dir.resolve("reinforce.json"), ReinforceConfig.CODEC
+                .encodeStart(com.mojang.serialization.JsonOps.INSTANCE, cfg).getOrThrow().toString());
+        GettData.LoadReport saved = data.load(dir);
+        assertTrue(saved.errors().isEmpty(), saved.errors().toString());
         assertEquals(cfg, data.reinforce());
         GettData again = new GettData();
         again.load(dir);

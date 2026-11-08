@@ -612,15 +612,6 @@ public final class GettData {
         return reinforce;
     }
 
-    /** Writes reinforce.json as pretty JSON and replaces the in-memory config (no reload). */
-    public synchronized void saveReinforce(ReinforceConfig config) throws IOException {
-        Path dir = configDir;
-        if (dir == null) throw new IOException("data not loaded");
-        JsonElement json = ReinforceConfig.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow(IOException::new);
-        writeJson(dir.resolve(ReinforceConfig.FILE), json);
-        reinforce = config;
-    }
-
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
     public synchronized void saveShop(ShopDefinition shop) throws IOException {
         if (!economy.priceDynamics().enabled()) shop = normalized(shop);

@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
@@ -21,13 +20,17 @@ import org.junit.jupiter.api.Test;
 
 /** ReinforceEffects 의 순수 부분: 수정자 선택, 체력 상한 합산, 툴팁 수치·키. (이벤트·NTGL 브리지는 게임 필요) */
 class ReinforceEffectsTest {
+    private static ModifierSpec single(List<ModifierSpec> specs) {
+        assertEquals(1, specs.size(), specs.toString());
+        return specs.get(0);
+    }
 
     private static final ReinforceConfig D = ReinforceConfig.DEFAULT;
     private static final double EPS = 1e-9;
 
     @Test
     void meleeModifierIsMainhandMultipliedTotal() {
-        ModifierSpec m = ReinforceEffects.modifier(Target.MELEE, 3, null, D).orElseThrow();
+        ModifierSpec m = single(ReinforceEffects.modifiers(Target.MELEE, 3, null, D));
         assertEquals(Stat.ATTACK_DAMAGE, m.stat());
         assertEquals("gettcore:reinforce_melee", m.id().toString());
         assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
@@ -36,13 +39,18 @@ class ReinforceEffectsTest {
     }
 
     @Test
-    void shieldModifierIsHandMultipliedTotal() {
-        ModifierSpec m = ReinforceEffects.modifier(Target.SHIELD, 20, null, D).orElseThrow();
-        assertEquals(Stat.MOVEMENT_SPEED, m.stat());
-        assertEquals("gettcore:reinforce_shield_speed", m.id().toString());
-        assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
-        assertEquals(EquipmentSlotGroup.HAND, m.group());
-        assertEquals(0.4, m.amount(), EPS);
+    void shieldModifiersArePerHandMultipliedTotal() {
+        List<ModifierSpec> ms = ReinforceEffects.modifiers(Target.SHIELD, 20, null, D);
+        assertEquals(2, ms.size());
+        assertEquals("gettcore:reinforce_shield_speed_mainhand", ms.get(0).id().toString());
+        assertEquals(EquipmentSlotGroup.MAINHAND, ms.get(0).group());
+        assertEquals("gettcore:reinforce_shield_speed_offhand", ms.get(1).id().toString());
+        assertEquals(EquipmentSlotGroup.OFFHAND, ms.get(1).group());
+        for (ModifierSpec m : ms) {
+            assertEquals(Stat.MOVEMENT_SPEED, m.stat());
+            assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
+            assertEquals(0.4, m.amount(), EPS);
+        }
     }
 
     @Test
@@ -53,7 +61,7 @@ class ReinforceEffectsTest {
                 new Case(EquipmentSlot.CHEST, "gettcore:reinforce_health_chest", EquipmentSlotGroup.CHEST),
                 new Case(EquipmentSlot.LEGS, "gettcore:reinforce_health_legs", EquipmentSlotGroup.LEGS),
                 new Case(EquipmentSlot.FEET, "gettcore:reinforce_health_feet", EquipmentSlotGroup.FEET))) {
-            ModifierSpec m = ReinforceEffects.modifier(Target.ARMOR, 10, c.slot(), D).orElseThrow();
+            ModifierSpec m = single(ReinforceEffects.modifiers(Target.ARMOR, 10, c.slot(), D));
             assertEquals(Stat.MAX_HEALTH, m.stat());
             assertEquals(c.id(), m.id().toString());
             assertEquals(Operation.ADD_VALUE, m.operation());
@@ -64,15 +72,15 @@ class ReinforceEffectsTest {
 
     @Test
     void noModifierForGunZeroLevelZeroValueOrMissingSlot() {
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(Target.GUN, 5, null, D));
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(Target.MELEE, 0, null, D));
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(Target.MELEE, -1, null, D));
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(null, 3, null, D));
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(Target.ARMOR, 3, null, D));
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.GUN, 5, null, D));
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.MELEE, 0, null, D));
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.MELEE, -1, null, D));
+        assertEquals(List.of(), ReinforceEffects.modifiers(null, 3, null, D));
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.ARMOR, 3, null, D));
         ReinforceConfig zero = new ReinforceConfig(D.maxLevel(), D.successPercent(), D.stoneCost(),
                 D.gunDamagePercentPerLevel(), 0, D.shieldSpeedPercentPerLevel(), D.armorHealthPerLevel(),
                 D.armorHealthMax());
-        assertEquals(Optional.empty(), ReinforceEffects.modifier(Target.MELEE, 3, null, zero));
+        assertEquals(List.of(), ReinforceEffects.modifiers(Target.MELEE, 3, null, zero));
     }
 
     @Test

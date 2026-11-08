@@ -35,7 +35,9 @@ public final class ReinforceEffects {
     /** 체력 상한 보정(음수 ADD_VALUE) 수정자. 플레이어 MAX_HEALTH 에 transient 로 붙는다. */
     public static final ResourceLocation HEALTH_CAP_ID = id("reinforce_health_cap");
     public static final ResourceLocation MELEE_ID = id("reinforce_melee");
-    public static final ResourceLocation SHIELD_SPEED_ID = id("reinforce_shield_speed");
+    /** 방패 이동속도는 손마다 따로 붙인다(양손 방패일 때 한쪽 교체가 다른 쪽 수정자를 지우지 않게). */
+    public static final ResourceLocation SHIELD_SPEED_MAINHAND_ID = id("reinforce_shield_speed_mainhand");
+    public static final ResourceLocation SHIELD_SPEED_OFFHAND_ID = id("reinforce_shield_speed_offhand");
     private static final String HEALTH_PREFIX = "reinforce_health_";
     /** 체력 상한 합산 대상 네 부위(머리·몸통·다리·발). */
     static final EquipmentSlot[] ARMOR_SLOTS = {
@@ -57,25 +59,30 @@ public final class ReinforceEffects {
     // ---- 순수 함수 ------------------------------------------------------------------------------------------
 
     /**
-     * 분류·단계별 속성 수정자. 단계 ≤ 0, 총(속성 아님), 값 0(설정 0%) 이면 empty. ARMOR 는 {@code armorSlot}(그 방어구의
-     * 장착 부위) 이 필요하다.
+     * 분류·단계별 속성 수정자. 단계 ≤ 0, 총(속성 아님), 값 0(설정 0%) 이면 빈 목록. ARMOR 는 {@code armorSlot}(그 방어구의
+     * 장착 부위) 이 필요하다. 방패는 주손·보조손 수정자 두 개.
      */
-    public static Optional<ModifierSpec> modifier(Target target, int level, EquipmentSlot armorSlot,
+    public static List<ModifierSpec> modifiers(Target target, int level, EquipmentSlot armorSlot,
             ReinforceConfig cfg) {
-        if (target == null || level <= 0) return Optional.empty();
-        ModifierSpec spec = switch (target) {
-            case GUN -> null;
-            case MELEE -> new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID, ReinforceRules.meleeFraction(level, cfg),
-                    AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.MAINHAND);
-            case SHIELD -> new ModifierSpec(Stat.MOVEMENT_SPEED, SHIELD_SPEED_ID,
-                    ReinforceRules.shieldSpeedFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
-                    EquipmentSlotGroup.HAND);
-            case ARMOR -> armorSlot == null ? null : new ModifierSpec(Stat.MAX_HEALTH, healthId(armorSlot),
-                    ReinforceRules.armorHealth(level, cfg), AttributeModifier.Operation.ADD_VALUE,
-                    EquipmentSlotGroup.bySlot(armorSlot));
+        if (target == null || level <= 0) return List.of();
+        List<ModifierSpec> specs = switch (target) {
+            case GUN -> List.of();
+            case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
+                    ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
+                    EquipmentSlotGroup.MAINHAND));
+            case SHIELD -> {
+                double speed = ReinforceRules.shieldSpeedFraction(level, cfg);
+                yield List.of(
+                        new ModifierSpec(Stat.MOVEMENT_SPEED, SHIELD_SPEED_MAINHAND_ID, speed,
+                                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.MAINHAND),
+                        new ModifierSpec(Stat.MOVEMENT_SPEED, SHIELD_SPEED_OFFHAND_ID, speed,
+                                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, EquipmentSlotGroup.OFFHAND));
+            }
+            case ARMOR -> armorSlot == null ? List.of() : List.of(new ModifierSpec(Stat.MAX_HEALTH,
+                    healthId(armorSlot), ReinforceRules.armorHealth(level, cfg),
+                    AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.bySlot(armorSlot)));
         };
-        if (spec == null || spec.amount() == 0) return Optional.empty();
-        return Optional.of(spec);
+        return specs.stream().filter(spec -> spec.amount() != 0).toList();
     }
 
     /** 부위별 방어구 체력 수정자 id {@code gettcore:reinforce_health_<slot>}. */
@@ -134,8 +141,8 @@ public final class ReinforceEffects {
         Optional<Target> target = ReinforceTargets.target(stack);
         if (target.isEmpty()) return;
         EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
-        modifier(target.get(), level, armorSlot, config())
-                .ifPresent(spec -> event.addModifier(holder(spec.stat()), spec.toModifier(), spec.group()));
+        for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, config()))
+            event.addModifier(holder(spec.stat()), spec.toModifier(), spec.group());
     }
 
     /**
@@ -195,7 +202,7 @@ public final class ReinforceEffects {
     private static void refreshEquipped(ServerPlayer player) {
         ReinforceConfig cfg = GettData.get().reinforce();
         removeOurs(player, Attributes.ATTACK_DAMAGE, List.of(MELEE_ID));
-        removeOurs(player, Attributes.MOVEMENT_SPEED, List.of(SHIELD_SPEED_ID));
+        removeOurs(player, Attributes.MOVEMENT_SPEED, List.of(SHIELD_SPEED_MAINHAND_ID, SHIELD_SPEED_OFFHAND_ID));
         removeOurs(player, Attributes.MAX_HEALTH, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::healthId)
                 .toList());
         for (EquipmentSlot slot : EquipmentSlot.values()) {
@@ -205,10 +212,11 @@ public final class ReinforceEffects {
             Optional<Target> target = ReinforceTargets.target(stack);
             if (target.isEmpty()) continue;
             EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
-            modifier(target.get(), level, armorSlot, cfg).filter(spec -> spec.group().test(slot)).ifPresent(spec -> {
+            for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, cfg)) {
+                if (!spec.group().test(slot)) continue;
                 AttributeInstance inst = player.getAttribute(holder(spec.stat()));
                 if (inst != null) inst.addOrUpdateTransientModifier(spec.toModifier());
-            });
+            }
         }
     }
 

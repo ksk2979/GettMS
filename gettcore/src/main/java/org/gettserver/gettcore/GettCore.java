@@ -106,7 +106,14 @@ public class GettCore {
         ReinforceService.registerReloadHook();
         ReinforceEffects.registerReloadHook();
         // NTGL(총) 은 선택 의존성: NtglBridge 는 이 분기 안에서만 참조해야 NTGL 없는 환경에서 클래스가 로드되지 않는다.
-        if (ModList.get().isLoaded("ntgl")) NtglBridge.install();
+        // 미래 NTGL 이 API 를 바꿔 링크가 깨지면 총 보너스만 잃고 기동은 계속한다.
+        if (ModList.get().isLoaded("ntgl")) {
+            try {
+                NtglBridge.install();
+            } catch (LinkageError e) {
+                LOGGER.warn("gettcore: NTGL 연동 비활성 (호환되지 않는 NTGL 버전?): {}", e.toString());
+            }
+        }
         PetService.registerReloadHook();
     }
 
