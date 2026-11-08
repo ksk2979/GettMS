@@ -11,6 +11,9 @@ import org.gettserver.gettcore.quest.*;
 import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
+    private static final String FULL =
+            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{}}";
+
     @Test
     void roundTrip() {
         EditorBundle b = bundle(
@@ -38,22 +41,15 @@ class EditorJsonTest {
     }
 
     @Test
-    void missingPetSectionsDecodeToDefaults() {
-        EditorBundle b = EditorJson.decode("{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"pets\":null}");
-        assertEquals(List.of(), b.bossPoints());
-        assertEquals(PetConfig.DEFAULT, b.pets());
-    }
-
-    @Test
     void badBossPointNamesPath() {
-        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}]}";
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
 
     @Test
     void decodeErrorNamesPath() {
-        String json = "{\"shops\":{\"farmer\":{\"id\":\"farmer\"}},\"dialogs\":{},\"npcs\":{},\"quests\":{}}";
+        String json = FULL.replace("\"shops\":{}", "\"shops\":{\"farmer\":{\"id\":\"farmer\"}}");
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("shops.farmer"), e.getMessage());
         assertThrows(IllegalArgumentException.class, () -> EditorJson.decode("not json"));
@@ -62,14 +58,17 @@ class EditorJsonTest {
     @Test
     void missingSectionIsAnError() {
         // Full-replace save: a missing section must not be read as "delete everything in it".
-        for (String section : List.of("shops", "dialogs", "npcs", "quests")) {
-            String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{}}"
-                    .replace("\"" + section + "\":{}", "\"x\":{}");
+        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets")) {
+            String json = FULL.replace("\"" + section + "\":" + (section.equals("boss_points") ? "[]" : "{}"), "\"x\":{}");
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
                     section);
             assertTrue(e.getMessage().startsWith(section), e.getMessage());
         }
+        // null counts as missing too.
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> EditorJson.decode(FULL.replace("\"pets\":{}", "\"pets\":null")));
+        assertTrue(e.getMessage().startsWith("pets"), e.getMessage());
         assertEquals(new EditorBundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of(), List.of(), PetConfig.DEFAULT),
-                EditorJson.decode("{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{}}"));
+                EditorJson.decode(FULL));
     }
 }

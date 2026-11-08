@@ -63,15 +63,14 @@ public final class EditorJson {
         return new EditorBundle(decodeMap(root, "shops", ShopDefinition.CODEC),
                 decodeMap(root, "dialogs", DialogDefinition.CODEC), npcs,
                 decodeMap(root, "quests", QuestLine.CODEC),
-                decodeOptional(root, "boss_points", BossPoint.CODEC.listOf(), List.of()),
-                decodeOptional(root, "pets", PetConfig.CODEC, PetConfig.DEFAULT));
+                decodeSection(root, "boss_points", BossPoint.CODEC.listOf()),
+                decodeSection(root, "pets", PetConfig.CODEC));
     }
 
-    /** boss_points / pets: a missing or null section reads as empty / defaults. */
-    private static <T> T decodeOptional(JsonObject root, String section, Codec<T> codec, T empty) {
-        JsonElement e = root.get(section);
-        if (e == null || e.isJsonNull()) return empty;
-        return codec.parse(JsonOps.INSTANCE, e).getOrThrow(m -> new IllegalArgumentException(section + ": " + m));
+    private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {
+        requireSection(root, section);
+        return codec.parse(JsonOps.INSTANCE, root.get(section))
+                .getOrThrow(m -> new IllegalArgumentException(section + ": " + m));
     }
 
     /** A save replaces everything, so a missing section must be an error rather than "empty". */
