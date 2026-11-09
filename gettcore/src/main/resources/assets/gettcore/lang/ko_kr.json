@@ -300,5 +300,6 @@
   "gettcore.gui.yes": "예",
   "gettcore.gui.no": "아니오",
   "gettcore.cmd.id_empty": "id 는 비어 있을 수 없습니다.",
-  "caramelChat v%s": ""
+  "caramelChat v%s": "",
+  "block.gettcore.sturdy_anvil": "튼튼한 모루"
 }

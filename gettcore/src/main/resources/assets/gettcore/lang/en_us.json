@@ -300,5 +300,6 @@
   "gettcore.gui.yes": "Yes",
   "gettcore.gui.no": "No",
   "gettcore.cmd.id_empty": "The id must not be empty.",
-  "caramelChat v%s": ""
+  "caramelChat v%s": "",
+  "block.gettcore.sturdy_anvil": "Sturdy Anvil"
 }

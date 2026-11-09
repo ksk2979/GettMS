@@ -43,6 +43,7 @@ public class GettCore {
     public static final String MOD_ID = "gettcore";
     public static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
 
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MOD_ID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MOD_ID);
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MOD_ID);
@@ -71,6 +72,13 @@ public class GettCore {
     public static final DeferredItem<ReinforceStoneItem> REINFORCE_STONE =
             ITEMS.registerItem("reinforce_stone", ReinforceStoneItem::new, new Item.Properties().stacksTo(64));
 
+    /** 튼튼한 모루: 써도 금이 가지 않고 떨어지지 않음. 관리자 지급 전용(크리에이티브 탭·/give). */
+    public static final net.neoforged.neoforge.registries.DeferredBlock<org.gettserver.gettcore.anvil.SturdyAnvilBlock> STURDY_ANVIL =
+            BLOCKS.registerBlock("sturdy_anvil", org.gettserver.gettcore.anvil.SturdyAnvilBlock::new,
+                    net.minecraft.world.level.block.state.BlockBehaviour.Properties.ofFullCopy(net.minecraft.world.level.block.Blocks.ANVIL));
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> STURDY_ANVIL_ITEM =
+            ITEMS.registerSimpleBlockItem(STURDY_ANVIL);
+
     public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<EnchantMenu>> ENCHANT_MENU =
@@ -88,6 +96,7 @@ public class GettCore {
                         output.accept(RETURN_STONE.get());
                         output.accept(ENCHANT_STONE.get());
                         output.accept(REINFORCE_STONE.get());
+                        output.accept(STURDY_ANVIL_ITEM.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
                         output.accept(PetRegistry.CAPTURE_BALL_DIAMOND.get());
@@ -96,6 +105,7 @@ public class GettCore {
                     .build());
 
     public GettCore(IEventBus modBus, ModContainer container) {
+        BLOCKS.register(modBus);
         ITEMS.register(modBus);
         CREATIVE_TABS.register(modBus);
         MENUS.register(modBus);
