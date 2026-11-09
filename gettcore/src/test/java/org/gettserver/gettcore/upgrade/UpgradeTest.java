@@ -122,7 +122,7 @@ class UpgradeTest {
             List<String> w = new ArrayList<>();
             assertSame(c, c.sanitized(w));
             assertEquals(List.of(), w);
-            assertEquals(116, c.steps().size()); // 29 Epic Knights weapon/shield families x 4 steps
+            assertEquals(136, c.steps().size()); // 29 Epic Knights + 5 Epic Fight families x 4 steps
             Step last = c.step("magistuarmory:diamond_buckler").orElseThrow();
             assertEquals(new Step("magistuarmory:diamond_buckler", "magistuarmory:netherite_buckler",
                     "minecraft:netherite_ingot", 1, 0), last);

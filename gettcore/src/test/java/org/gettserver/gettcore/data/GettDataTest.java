@@ -475,7 +475,7 @@ class GettDataTest {
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertTrue(r.warnings().stream().noneMatch(w -> w.contains("upgrade.json")), r.warnings().toString());
         assertTrue(Files.isRegularFile(dir.resolve("upgrade.json")));
-        assertEquals(116, data.upgrade().steps().size());
+        assertEquals(136, data.upgrade().steps().size());
 
         Files.writeString(dir.resolve("upgrade.json"), "{\"steps\":[{\"from\":\"a:x\",\"to\":\"a:y\","
                 + "\"material\":\"minecraft:diamond\",\"count\":0},{\"from\":\"a:x\",\"to\":\"a:z\",\"material\":\"m:m\"}]}");

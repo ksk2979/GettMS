@@ -811,6 +811,146 @@
       "material": "minecraft:netherite_ingot",
       "count": 1,
       "gold": 0
+    },
+    {
+      "from": "epicfight:wooden_dagger",
+      "to": "epicfight:stone_dagger",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:stone_dagger",
+      "to": "epicfight:iron_dagger",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:iron_dagger",
+      "to": "epicfight:diamond_dagger",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:diamond_dagger",
+      "to": "epicfight:netherite_dagger",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:wooden_greatsword",
+      "to": "epicfight:stone_greatsword",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:stone_greatsword",
+      "to": "epicfight:iron_greatsword",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:iron_greatsword",
+      "to": "epicfight:diamond_greatsword",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:diamond_greatsword",
+      "to": "epicfight:netherite_greatsword",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:wooden_longsword",
+      "to": "epicfight:stone_longsword",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:stone_longsword",
+      "to": "epicfight:iron_longsword",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:iron_longsword",
+      "to": "epicfight:diamond_longsword",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:diamond_longsword",
+      "to": "epicfight:netherite_longsword",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:wooden_spear",
+      "to": "epicfight:stone_spear",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:stone_spear",
+      "to": "epicfight:iron_spear",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:iron_spear",
+      "to": "epicfight:diamond_spear",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:diamond_spear",
+      "to": "epicfight:netherite_spear",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:wooden_tachi",
+      "to": "epicfight:stone_tachi",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:stone_tachi",
+      "to": "epicfight:iron_tachi",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:iron_tachi",
+      "to": "epicfight:diamond_tachi",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "epicfight:diamond_tachi",
+      "to": "epicfight:netherite_tachi",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
     }
   ]
 }

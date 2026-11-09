@@ -340,7 +340,7 @@ class GettDataSaveBundleTest {
     void savesUpgradeWithBackup(@TempDir Path dir) throws IOException {
         GettData data = loaded(dir);
         EditorBundle raw = data.rawBundle();
-        assertEquals(116, raw.upgrade().steps().size(), "bundled default is installed");
+        assertEquals(136, raw.upgrade().steps().size(), "bundled default is installed");
         var upgrade = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
                 new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("minecraft:iron_sword",
                         "minecraft:diamond_sword", "minecraft:diamond", 2, 50)));
