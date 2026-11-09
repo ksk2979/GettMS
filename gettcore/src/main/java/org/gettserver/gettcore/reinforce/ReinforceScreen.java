@@ -10,10 +10,14 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.gettserver.gettcore.economy.ClientBalance;
+import org.gettserver.gettcore.economy.Gold;
+import org.gettserver.gettcore.economy.StoneCounter;
 import org.gettserver.gettcore.network.ReinforceApplyPayload;
 
 /**
- * Client-only. Gear slot + stone slot, three centred info lines (level, effect at the next level, odds/cost) from
+ * Client-only. Gear slot, five centred info lines (level, effect at the next level, odds, stones needed/held, gold
+ * needed/held; a short one is red) from
  * {@link ClientReinforceConfig}; a result from the server flashes the gear slot for one second (green = success,
  * red = fail). Only loaded from client paths ({@code GettCoreClient} screen registration and the client-bound
  * result handler). Gun classification uses {@link ReinforceTargets#ntglWeapon}, which stays false until the NTGL
@@ -28,7 +32,8 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
     private static final int APPLY_COOLDOWN = 20;
     /** Width of the left (slots) area; the info lines are centred in it. */
     private static final int LEFT_W = ReinforceMenu.INV_X - 4;
-    private static final int LINE_Y = 64;
+    private static final int LINE_Y = 42;
+    private static final int SHORT_TEXT = 0xFFB03030;
 
     private Button applyButton;
     private int flashTicks;
@@ -66,8 +71,14 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
         updateApplyButton();
     }
 
+    /** 클라이언트 인벤토리의 강화석 수. */
+    private int heldStones() {
+        return minecraft == null || minecraft.player == null ? 0
+                : StoneCounter.count(StoneCounter.slots(minecraft.player.getInventory()), ReinforceMenu::isStone);
+    }
+
     private void updateApplyButton() {
-        applyButton.active = cooldown == 0 && menu.canApply(ClientReinforceConfig.get());
+        applyButton.active = cooldown == 0 && menu.canApply(ClientReinforceConfig.get(), heldStones(), ClientBalance.get());
     }
 
     @Override
@@ -123,8 +134,15 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
         centred(g, Component.translatable("gettcore.screen.reinforce.level", level, next), LINE_Y, TEXT);
         centred(g, effectLine(target.get(), next, config), LINE_Y + 11, TEXT);
         centred(g, Component.translatable("gettcore.screen.reinforce.odds",
-                fmt(ReinforceRules.successPercent(level, config)), ReinforceRules.stoneCost(level, config)),
-                LINE_Y + 22, TEXT);
+                fmt(ReinforceRules.successPercent(level, config))), LINE_Y + 22, TEXT);
+        int stones = ReinforceRules.stoneCost(target.get(), level, config);
+        int held = heldStones();
+        centred(g, Component.translatable("gettcore.screen.cost.reinforce_stone", stones, held), LINE_Y + 33,
+                held >= stones ? TEXT : SHORT_TEXT);
+        long gold = ReinforceRules.goldCost(target.get(), level, config);
+        long balance = ClientBalance.get();
+        centred(g, Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
+                LINE_Y + 44, balance >= gold ? TEXT : SHORT_TEXT);
     }
 
     /** Effect of the item at level {@code next} (total, not the increment). */

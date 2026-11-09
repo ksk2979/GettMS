@@ -16,23 +16,20 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.gettserver.gettcore.GettCore;
 
-/** 강화 메뉴: 장비 1칸 + 강화석 1칸 + 플레이어 인벤토리. 강화 판정은 서버의 {@link ReinforceService#apply}. */
+/** 강화 메뉴: 장비 1칸 + 플레이어 인벤토리. 강화석·골드는 인벤토리/잔액에서 자동으로 센다. 판정은 서버의 {@link ReinforceService#apply}. */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class ReinforceMenu extends AbstractContainerMenu {
     public static final int GEAR_SLOT = 0;
-    public static final int STONE_SLOT = 1;
-    public static final int GEAR_X = 36;
-    public static final int GEAR_Y = 40;
-    public static final int STONE_X = 100;
-    public static final int STONE_Y = 40;
+    public static final int GEAR_X = 65;
+    public static final int GEAR_Y = 20;
     public static final int INV_X = 150;
     public static final int INV_Y = 62;
 
-    private static final int INV_START = 2;
+    private static final int INV_START = 1;
     private static final int HOTBAR_START = INV_START + 27;
     private static final int INV_END = HOTBAR_START + 9;
 
-    private final Container container = new SimpleContainer(2);
+    private final Container container = new SimpleContainer(1);
 
     /** Client constructor (menu type factory); the buffer carries nothing. */
     public ReinforceMenu(int id, Inventory inv, RegistryFriendlyByteBuf buf) {
@@ -52,12 +49,6 @@ public class ReinforceMenu extends AbstractContainerMenu {
                 return 1;
             }
         });
-        addSlot(new Slot(container, STONE_SLOT, STONE_X, STONE_Y) {
-            @Override
-            public boolean mayPlace(ItemStack stack) {
-                return stack.is(GettCore.REINFORCE_STONE.get());
-            }
-        });
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inv, col + row * 9 + 9, INV_X + col * 18, INV_Y + row * 18));
@@ -72,20 +63,18 @@ public class ReinforceMenu extends AbstractContainerMenu {
         return container.getItem(GEAR_SLOT);
     }
 
-    public ItemStack stone() {
-        return container.getItem(STONE_SLOT);
+    /** 강화석 판정(인벤토리 자동 인식용). */
+    public static boolean isStone(ItemStack stack) {
+        return stack.is(GettCore.REINFORCE_STONE.get());
     }
 
-    /** 강화석 칸의 강화석 수(다른 아이템이면 0). */
-    public int stoneCount() {
-        ItemStack s = stone();
-        return s.is(GettCore.REINFORCE_STONE.get()) ? s.getCount() : 0;
-    }
-
-    /** 대상 장비가 있고, 최대 단계 미만이고, 강화석이 이번 단계 비용 이상. 설정은 호출 측(서버/클라이언트)의 것. */
-    public boolean canApply(ReinforceConfig config) {
+    /**
+     * 대상 장비가 있고, 최대 단계 미만이고, 가진 강화석·골드가 이번 단계 비용 이상. 설정·개수·잔액은 호출 측(서버/클라이언트)의
+     * 것.
+     */
+    public boolean canApply(ReinforceConfig config, int stones, long gold) {
         ItemStack gear = gear();
-        return ReinforceService.canApply(ReinforceTargets.target(gear), ReinforceRules.level(gear), stoneCount(),
+        return ReinforceService.canApply(ReinforceTargets.target(gear), ReinforceRules.level(gear), stones, gold,
                 config);
     }
 
@@ -102,7 +91,7 @@ public class ReinforceMenu extends AbstractContainerMenu {
         }
     }
 
-    /** 두 칸의 아이템을 인벤토리로 옮긴다(넘치는 것만 발밑에 떨군다). 서버 전용. */
+    /** 장비 칸의 아이템을 인벤토리로 옮긴다(넘치는 것만 발밑에 떨군다). 서버 전용. */
     public void returnItems(ServerPlayer player) {
         for (int i = 0; i < container.getContainerSize(); i++) {
             ItemStack stack = container.removeItemNoUpdate(i);
@@ -137,8 +126,6 @@ public class ReinforceMenu extends AbstractContainerMenu {
         boolean moved;
         if (index < INV_START) {
             moved = moveItemStackTo(stack, INV_START, INV_END, true);
-        } else if (stack.is(GettCore.REINFORCE_STONE.get())) {
-            moved = moveItemStackTo(stack, STONE_SLOT, STONE_SLOT + 1, false);
         } else if (ReinforceTargets.target(stack).isPresent()) {
             moved = moveItemStackTo(stack, GEAR_SLOT, GEAR_SLOT + 1, false);
         } else if (index < HOTBAR_START) {
