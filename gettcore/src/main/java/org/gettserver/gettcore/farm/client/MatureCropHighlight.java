@@ -1,15 +1,12 @@
 package org.gettserver.gettcore.farm.client;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CocoaBlock;
@@ -20,25 +17,23 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.gettserver.gettcore.GettCore;
 
-/** 주변(가로 8칸, 위아래 3칸)의 다 자란 작물에 연두색 테두리를 그린다. 항상 켜져 있음. */
+/**
+ * 주변(가로 8칸, 위아래 3칸)의 다 자란 작물 위로 초록 반짝이(뼛가루와 같은 파티클)가 가끔 올라온다. 항상 켜져 있음.
+ * 클라이언트에서만 그리는 효과라 서버·다른 플레이어에게는 영향이 없다.
+ */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class MatureCropHighlight {
-    private static final double INSET = 0.02;
-    private static final float R = 0.45f, G = 1.0f, B = 0.2f, A = 1.0f;
+    /** 검사 한 번(10틱)마다 작물 하나에서 반짝이가 날 확률 → 작물당 초당 약 0.7개. */
+    private static final float SPARKLE_CHANCE = 0.35f;
 
     private static final BlockPos.MutableBlockPos CURSOR = new BlockPos.MutableBlockPos();
-    /** minX, minY, minZ, maxX, maxY, maxZ per box (world coords), reused between scans. */
-    private static final double[] BOXES = new double[CropRipeness.MAX_BOXES * 6];
-    private static int count;
     private static long ticks;
 
     private MatureCropHighlight() {}
@@ -48,15 +43,12 @@ public final class MatureCropHighlight {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         Player player = mc.player;
-        if (level == null || player == null) {
-            count = 0;
-            return;
-        }
+        if (level == null || player == null || mc.isPaused()) return;
         if (!CropRipeness.shouldScan(ticks++)) return;
-        scan(level, player.blockPosition());
+        scan(level, player.blockPosition(), level.getRandom());
     }
 
-    private static void scan(ClientLevel level, BlockPos feet) {
+    private static void scan(ClientLevel level, BlockPos feet, RandomSource random) {
         int n = 0;
         int r = CropRipeness.RADIUS;
         outer:
@@ -67,24 +59,21 @@ public final class MatureCropHighlight {
                     CURSOR.set(feet.getX() + dx, feet.getY() + dy, feet.getZ() + dz);
                     BlockState state = level.getBlockState(CURSOR);
                     if (state.isAir() || !isMature(state)) continue;
-                    VoxelShape shape = state.getShape(level, CURSOR);
-                    int i = n * 6;
-                    if (shape.isEmpty()) {
-                        BOXES[i] = 0; BOXES[i + 1] = 0; BOXES[i + 2] = 0;
-                        BOXES[i + 3] = 1; BOXES[i + 4] = 1; BOXES[i + 5] = 1;
-                    } else {
-                        AABB b = shape.bounds();
-                        BOXES[i] = b.minX; BOXES[i + 1] = b.minY; BOXES[i + 2] = b.minZ;
-                        BOXES[i + 3] = b.maxX; BOXES[i + 4] = b.maxY; BOXES[i + 5] = b.maxZ;
-                    }
-                    BOXES[i] += CURSOR.getX(); BOXES[i + 3] += CURSOR.getX();
-                    BOXES[i + 1] += CURSOR.getY(); BOXES[i + 4] += CURSOR.getY();
-                    BOXES[i + 2] += CURSOR.getZ(); BOXES[i + 5] += CURSOR.getZ();
+                    if (random.nextFloat() < SPARKLE_CHANCE) sparkle(level, state, random);
                     if (++n >= CropRipeness.MAX_BOXES) break outer;
                 }
             }
         }
-        count = n;
+    }
+
+    /** 작물 모양 안 무작위 위치(윗부분)에서 반짝이 하나. */
+    private static void sparkle(ClientLevel level, BlockState state, RandomSource random) {
+        VoxelShape shape = state.getShape(level, CURSOR);
+        AABB b = shape.isEmpty() ? new AABB(0, 0, 0, 1, 1, 1) : shape.bounds();
+        double x = CURSOR.getX() + b.minX + random.nextDouble() * (b.maxX - b.minX);
+        double y = CURSOR.getY() + b.minY + (0.5 + random.nextDouble() * 0.5) * (b.maxY - b.minY);
+        double z = CURSOR.getZ() + b.minZ + random.nextDouble() * (b.maxZ - b.minZ);
+        level.addParticle(ParticleTypes.HAPPY_VILLAGER, x, y, z, 0, 0.02, 0);
     }
 
     static boolean isMature(BlockState state) {
@@ -103,29 +92,5 @@ public final class MatureCropHighlight {
             }
         }
         return false;
-    }
-
-    @SubscribeEvent
-    public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
-        int n = count;
-        if (n == 0) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        PoseStack pose = event.getPoseStack();
-        Vec3 cam = event.getCamera().getPosition();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer vc = buffers.getBuffer(RenderType.lines());
-        pose.pushPose();
-        pose.translate(-cam.x, -cam.y, -cam.z);
-        for (int k = 0; k < n; k++) {
-            int i = k * 6;
-            LevelRenderer.renderLineBox(pose, vc,
-                    BOXES[i] + INSET, BOXES[i + 1] + INSET, BOXES[i + 2] + INSET,
-                    BOXES[i + 3] - INSET, BOXES[i + 4] - INSET, BOXES[i + 5] - INSET,
-                    R, G, B, A);
-        }
-        pose.popPose();
-        buffers.endBatch(RenderType.lines());
     }
 }
