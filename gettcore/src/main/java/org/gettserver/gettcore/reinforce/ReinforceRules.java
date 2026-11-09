@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.ElytraItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileWeaponItem;
@@ -20,13 +21,14 @@ import org.gettserver.gettcore.GettCore;
  */
 public final class ReinforceRules {
 
-    public enum Target { GUN, MELEE, SHIELD, ARMOR }
+    public enum Target { GUN, MELEE, SHIELD, ARMOR, ELYTRA }
 
     private ReinforceRules() {}
 
     /**
      * 강화 대상 분류. 총(주입된 NTGL 판정)이 먼저, 그 다음 SwordItem/AxeItem/{@code #minecraft:swords}/
-     * {@code #minecraft:axes} → MELEE, ShieldItem → SHIELD, ArmorItem → ARMOR. 그 밖(빈 스택·도구·활·석궁)은 empty.
+     * {@code #minecraft:axes} → MELEE, ShieldItem → SHIELD, ArmorItem → ARMOR, ElytraItem → ELYTRA. 그 밖(빈 스택·도구·활·석궁)은
+     * empty.
      */
     public static Optional<Target> target(ItemStack stack, Predicate<ItemStack> isNtglWeapon) {
         if (stack.isEmpty()) return Optional.empty();
@@ -35,15 +37,21 @@ public final class ReinforceRules {
                 item instanceof SwordItem || item instanceof AxeItem
                         || stack.is(ItemTags.SWORDS) || stack.is(ItemTags.AXES),
                 item instanceof ShieldItem,
-                item instanceof ArmorItem);
+                item instanceof ArmorItem,
+                item instanceof ElytraItem);
     }
 
     /** {@link #target} 의 우선순위만 떼어 낸 부분(레지스트리 없이 테스트). */
     static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor) {
+        return classify(gun, melee, shield, armor, false);
+    }
+
+    static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor, boolean elytra) {
         if (gun) return Optional.of(Target.GUN);
         if (melee) return Optional.of(Target.MELEE);
         if (shield) return Optional.of(Target.SHIELD);
         if (armor) return Optional.of(Target.ARMOR);
+        if (elytra) return Optional.of(Target.ELYTRA);
         return Optional.empty();
     }
 
@@ -96,6 +104,30 @@ public final class ReinforceRules {
     /** 굴림: {@code r} 은 [0, 1) 균등 난수. {@code r*100 < 성공률} 이면 성공(100% 는 항상, 0% 는 절대 성공 못 함). */
     public static boolean roll(int level, ReinforceConfig config, double r) {
         return canReinforce(level, config) && r * 100 < successPercent(level, config);
+    }
+
+    /** 분류별 강화석 비용: 겉날개 0→1강만 elytra.firstStoneCost, 나머지는 공통 표. 최대 단계면 0. */
+    public static int stoneCost(Target target, int level, ReinforceConfig config) {
+        if (!canReinforce(level, config)) return 0;
+        if (target == Target.ELYTRA && level <= 0) return config.elytra().firstStoneCost();
+        return stoneCost(level, config);
+    }
+
+    /** 분류별 골드 비용: 겉날개 0→1강만 elytra.firstGoldCost, 나머지는 공통 goldCost 표. 최대 단계면 0. */
+    public static long goldCost(Target target, int level, ReinforceConfig config) {
+        if (!canReinforce(level, config)) return 0;
+        if (target == Target.ELYTRA && level <= 0) return config.elytra().firstGoldCost();
+        return at(config.goldCost(), Math.max(0, level), 0L);
+    }
+
+    /** 겉날개 비행 속도 증가 % = (N-1) × speedPercentPerLevel (1강은 0). */
+    public static double elytraSpeedPercent(int level, ReinforceConfig config) {
+        return Math.max(0, level - 1) * config.elytra().speedPercentPerLevel();
+    }
+
+    /** 겉날개 폭죽 부스트 증가 %: fireworkBoostLevel 단계 이상이면 fireworkBoostPercent, 아니면 0. */
+    public static double elytraFireworkPercent(int level, ReinforceConfig config) {
+        return level >= config.elytra().fireworkBoostLevel() ? config.elytra().fireworkBoostPercent() : 0;
     }
 
     /** 총 피해 배율 1 + N × gunDamagePercentPerLevel/100. */

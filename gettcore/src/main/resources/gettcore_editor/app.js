@@ -1881,6 +1881,15 @@
 
   /* ----- 강화 탭 ----- */
 
+  const REINFORCE_MAX_STONES = 999;
+  const REINFORCE_MAX_GOLD = 999999999;
+  /** ReinforceConfig.defaultGoldAt: 100 × 1.25^n 을 10 단위로 반올림 (Java Math.round 와 같은 반올림). */
+  function defaultGold(size) {
+    const out = [];
+    for (let n = 0; n < size; n++) out.push(Math.round(100 * Math.pow(1.25, n) / 10) * 10);
+    return out;
+  }
+
   /** ReinforceConfig.DEFAULT 와 같은 값 (서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다). */
   const REINFORCE_DEFAULTS = {
     maxLevel: 30,
@@ -1893,6 +1902,9 @@
     armorHealthPerLevel: 0.5,
     armorHealthMax: 60,
     armorDefensePerLevel: 0.05,
+    goldCost: defaultGold(30),
+    enchantGoldCost: 1000,
+    elytra: { firstStoneCost: 32, firstGoldCost: 50000, speedPercentPerLevel: 1, fireworkBoostLevel: 15, fireworkBoostPercent: 30 },
     milestones: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
@@ -1931,6 +1943,9 @@
     const size = validMaxLevel(r.maxLevel) ? r.maxLevel : REINFORCE_DEFAULTS.maxLevel;
     r.successPercent = resizeReinforceList(r.successPercent, REINFORCE_DEFAULTS.successPercent, size);
     r.stoneCost = resizeReinforceList(r.stoneCost, REINFORCE_DEFAULTS.stoneCost, size);
+    // 골드 표가 없으면(서버 코덱은 기본값과 같은 필드를 뺀다) 최대 단계 길이의 기본 공식.
+    r.goldCost = Array.isArray(src && src.goldCost) ? resizeReinforceList(r.goldCost, defaultGold(size), size) : defaultGold(size);
+    r.elytra = Object.assign({}, REINFORCE_DEFAULTS.elytra, (src && src.elytra) || {});
     // 단계 능력: 서버 코덱은 빠진 칸을 기본값(target·effect 빈 문자열, level·amplifier 0)으로 읽는다.
     r.milestones = (Array.isArray(r.milestones) ? r.milestones : []).map((m) => Object.assign(
       { target: '', level: 0, effect: '', amplifier: 0 }, m && typeof m === 'object' ? m : {}));
@@ -1941,7 +1956,9 @@
     maxLevel(v) { return validMaxLevel(v) ? '' : `1~${REINFORCE_MAX_LEVEL} 사이의 정수여야 합니다`; },
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     percent(v) { return isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'; },
-    stones(v) { return isInt(v) && v >= 1 && v <= 64 ? '' : '1~64 사이의 정수여야 합니다'; },
+    stones(v) { return isInt(v) && v >= 1 && v <= REINFORCE_MAX_STONES ? '' : `1~${REINFORCE_MAX_STONES} 사이의 정수여야 합니다`; },
+    gold(v) { return isInt(v) && v >= 0 && v <= REINFORCE_MAX_GOLD ? '' : `0~${REINFORCE_MAX_GOLD} 사이의 정수여야 합니다`; },
+    boostLevel(v) { return isInt(v) && v >= 1 && v <= REINFORCE_MAX_LEVEL ? '' : `1~${REINFORCE_MAX_LEVEL} 사이의 정수여야 합니다`; },
     msTarget(m) { return REINFORCE_TARGETS.some(([t]) => t === m.target) ? '' : '대상을 고르세요'; },
     msLevel(m, max) {
       const top = validMaxLevel(max) ? max : REINFORCE_MAX_LEVEL;
@@ -1966,6 +1983,13 @@
     for (const [key, label] of REINFORCE_GLOBALS) add(reinforceRules.nonNeg(r[key]), label);
     r.successPercent.forEach((v, n) => add(reinforceRules.percent(v), `${reinforceStep(n)} 성공 확률`));
     r.stoneCost.forEach((v, n) => add(reinforceRules.stones(v), `${reinforceStep(n)} 강화석 개수`));
+    r.goldCost.forEach((v, n) => add(reinforceRules.gold(v), `${reinforceStep(n)} 골드`));
+    add(reinforceRules.gold(r.enchantGoldCost), '마법부여 골드');
+    add(reinforceRules.stones(r.elytra.firstStoneCost), '겉날개 1강 강화석');
+    add(reinforceRules.gold(r.elytra.firstGoldCost), '겉날개 1강 골드');
+    add(reinforceRules.nonNeg(r.elytra.speedPercentPerLevel), '겉날개 비행 속도');
+    add(reinforceRules.boostLevel(r.elytra.fireworkBoostLevel), '겉날개 폭죽 부스트 단계');
+    add(reinforceRules.nonNeg(r.elytra.fireworkBoostPercent), '겉날개 폭죽 부스트');
     r.milestones.forEach((m, i) => {
       add(reinforceRules.msTarget(m), `${milestoneWhere(i)} 대상`);
       add(reinforceRules.msLevel(m, r.maxLevel), `${milestoneWhere(i)} 단계`);
@@ -1995,8 +2019,10 @@
           h('td', null, reinforceStep(n)),
           h('td', null, numIn(rowChecks, r.successPercent, n, `${reinforceStep(n)} 성공 확률`, reinforceRules.percent, { max: 100 }),
             h('span', { class: 'muted' }, ' %')),
-          h('td', null, numIn(rowChecks, r.stoneCost, n, `${reinforceStep(n)} 강화석 개수`, reinforceRules.stones, { step: 1, min: 1, max: 64 }),
-            h('span', { class: 'muted' }, ' 개')))));
+          h('td', null, numIn(rowChecks, r.stoneCost, n, `${reinforceStep(n)} 강화석 개수`, reinforceRules.stones, { step: 1, min: 1, max: REINFORCE_MAX_STONES }),
+            h('span', { class: 'muted' }, ' 개')),
+          h('td', null, numIn(rowChecks, r.goldCost, n, `${reinforceStep(n)} 골드`, reinforceRules.gold, { step: 1, min: 0, max: REINFORCE_MAX_GOLD, style: 'width:7.5rem' }),
+            h('span', { class: 'muted' }, ' 골드')))));
         rowChecks.paint();
       };
 
@@ -2006,6 +2032,7 @@
         if (!validMaxLevel(r.maxLevel) || r.maxLevel === r.successPercent.length) return;
         r.successPercent = resizeReinforceList(r.successPercent, REINFORCE_DEFAULTS.successPercent, r.maxLevel);
         r.stoneCost = resizeReinforceList(r.stoneCost, REINFORCE_DEFAULTS.stoneCost, r.maxLevel);
+        r.goldCost = resizeReinforceList(r.goldCost, defaultGold(r.maxLevel), r.maxLevel);
         drawRows();
         changed();
       });
@@ -2018,7 +2045,17 @@
       const stepCard = h('div', { class: 'card' }, h('h2', null, '단계별'),
         h('p', { class: 'muted' }, '최대 단계를 바꾸면 표가 따라 늘거나 줄어듭니다. 늘어난 칸은 마지막 값을 복사합니다.'),
         h('div', { class: 'scroll-x' }, h('table', null,
-          h('thead', null, h('tr', null, ['단계', '성공 확률', '강화석 개수'].map((t) => h('th', null, t)))), tbody)));
+          h('thead', null, h('tr', null, ['단계', '성공 확률', '강화석 개수', '골드'].map((t) => h('th', null, t)))), tbody)));
+      const e = r.elytra;
+      const elytraCard = h('div', { class: 'card' }, h('h2', null, '겉날개'),
+        h('div', { class: 'field' }, labeled('1강 강화석', numIn(checks, e, 'firstStoneCost', '겉날개 1강 강화석', reinforceRules.stones, { step: 1, min: 1, max: REINFORCE_MAX_STONES }), '개')),
+        h('div', { class: 'field' }, labeled('1강 골드', numIn(checks, e, 'firstGoldCost', '겉날개 1강 골드', reinforceRules.gold, { step: 1, min: 0, max: REINFORCE_MAX_GOLD, style: 'width:7.5rem' }), '골드')),
+        h('div', { class: 'field' }, labeled('비행 속도', numIn(checks, e, 'speedPercentPerLevel', '겉날개 비행 속도', reinforceRules.nonNeg), '%/단계 (2강부터)')),
+        h('div', { class: 'field' }, labeled('폭죽 부스트 단계', numIn(checks, e, 'fireworkBoostLevel', '겉날개 폭죽 부스트 단계', reinforceRules.boostLevel, { step: 1, min: 1, max: REINFORCE_MAX_LEVEL }), '강 이상')),
+        h('div', { class: 'field' }, labeled('폭죽 부스트', numIn(checks, e, 'fireworkBoostPercent', '겉날개 폭죽 부스트', reinforceRules.nonNeg), '%')),
+        h('p', { class: 'muted' }, '1강(내구도 무한)만 위 비용을 쓰고, 성공 확률과 2강 이후 비용은 단계별 표를 따릅니다.'));
+      const enchantCard = h('div', { class: 'card' }, h('h2', null, '마법부여 비용'),
+        h('div', { class: 'field' }, labeled('1회 골드', numIn(checks, r, 'enchantGoldCost', '마법부여 골드', reinforceRules.gold, { step: 1, min: 0, max: REINFORCE_MAX_GOLD, style: 'width:7.5rem' }), '골드 (+ 마법부여석 1개)')));
       drawRows();
 
       // 단계 능력: 행 추가/삭제는 이 카드의 표만 다시 그린다.
@@ -2079,7 +2116,8 @@
         } }, '+ 능력 추가'));
       drawMilestones();
 
-      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, globalCard, stepCard), milestoneCard));
+      container.append(h('div', { class: 'stack' }, h('div', { class: 'petcards' }, globalCard, stepCard),
+        h('div', { class: 'petcards' }, elytraCard, enchantCard), milestoneCard));
       return () => { checks.paint(); rowChecks.paint(); msChecks.paint(); };
     },
   };

@@ -130,11 +130,11 @@ class ReinforceConfigTest {
 
     @Test
     void valuesAreClamped() {
-        ReinforceConfig c = parse("{\"maxLevel\":3,\"successPercent\":[150,-5,40],\"stoneCost\":[0,100,5]}");
+        ReinforceConfig c = parse("{\"maxLevel\":3,\"successPercent\":[150,-5,40],\"stoneCost\":[0,1000,5]}");
         List<String> warnings = new ArrayList<>();
         ReinforceConfig s = c.sanitized(warnings);
         assertEquals(List.of(100.0, 0.0, 40.0), s.successPercent());
-        assertEquals(List.of(1, 64, 5), s.stoneCost());
+        assertEquals(List.of(1, 999, 5), s.stoneCost());
         assertEquals(2, warnings.size(), warnings.toString());
         assertTrue(warnings.get(0).contains("successPercent"));
         assertTrue(warnings.get(1).contains("stoneCost"));
@@ -242,5 +242,68 @@ class ReinforceConfigTest {
         assertEquals(0, s.gunDamagePercentPerLevel());
         assertEquals(0, s.armorHealthMax());
         assertTrue(warnings.isEmpty(), warnings.toString());
+    }
+
+    private static long goldFormula(int n) {
+        return Math.round(100 * Math.pow(1.25, n) / 10) * 10;
+    }
+
+    @Test
+    void goldAndElytraDefaults() {
+        ReinforceConfig d = ReinforceConfig.DEFAULT;
+        assertEquals(30, d.goldCost().size());
+        assertEquals(100L, d.goldCost().get(0));
+        assertEquals(130L, d.goldCost().get(1));
+        for (int n = 0; n < 30; n++) assertEquals(goldFormula(n), d.goldCost().get(n), "goldCost[" + n + "]");
+        assertEquals(1000L, d.enchantGoldCost());
+        assertEquals(new ReinforceConfig.Elytra(32, 50000, 1, 15, 30), ReinforceConfig.Elytra.DEFAULT);
+        assertEquals(ReinforceConfig.Elytra.DEFAULT, d.elytra());
+    }
+
+    @Test
+    void legacyFileGetsNewDefaults() {
+        ReinforceConfig c = parse("{\"maxLevel\":30,\"stoneCost\":[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],"
+                + "\"armorHealthPerLevel\":1.5,\"milestones\":[]}");
+        List<String> warnings = new ArrayList<>();
+        ReinforceConfig s = c.sanitized(warnings);
+        assertTrue(warnings.isEmpty(), warnings.toString());
+        assertEquals(ReinforceConfig.DEFAULT.goldCost(), s.goldCost());
+        assertEquals(1000L, s.enchantGoldCost());
+        assertEquals(ReinforceConfig.Elytra.DEFAULT, s.elytra());
+        assertEquals(Collections.nCopies(30, 2), s.stoneCost());
+        assertEquals(1.5, s.armorHealthPerLevel());
+    }
+
+    @Test
+    void goldCostSanitized() {
+        ReinforceConfig c = parse("{\"maxLevel\":3,\"goldCost\":[-5,20]}");
+        List<String> warnings = new ArrayList<>();
+        ReinforceConfig s = c.sanitized(warnings);
+        assertEquals(List.of(0L, 20L, 20L), s.goldCost());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("goldCost")), warnings.toString());
+    }
+
+    @Test
+    void elytraSectionParsesAndSanitizes() {
+        ReinforceConfig c = parse("{\"enchantGoldCost\":-1,\"elytra\":{\"firstStoneCost\":5000,\"firstGoldCost\":7,"
+                + "\"speedPercentPerLevel\":2,\"fireworkBoostLevel\":10,\"fireworkBoostPercent\":-3}}");
+        List<String> warnings = new ArrayList<>();
+        ReinforceConfig s = c.sanitized(warnings);
+        assertEquals(999, s.elytra().firstStoneCost());
+        assertEquals(7L, s.elytra().firstGoldCost());
+        assertEquals(2.0, s.elytra().speedPercentPerLevel());
+        assertEquals(10, s.elytra().fireworkBoostLevel());
+        assertEquals(30.0, s.elytra().fireworkBoostPercent());
+        assertEquals(1000L, s.enchantGoldCost());
+        assertEquals(3, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    void elytraIsNotAMilestoneTarget() {
+        ReinforceConfig c = parse("{\"milestones\":[{\"target\":\"elytra\",\"level\":5,\"effect\":\"minecraft:speed\"}]}");
+        List<String> warnings = new ArrayList<>();
+        ReinforceConfig s = c.sanitized(warnings);
+        assertTrue(s.milestones().isEmpty());
+        assertEquals(1, warnings.size(), warnings.toString());
     }
 }

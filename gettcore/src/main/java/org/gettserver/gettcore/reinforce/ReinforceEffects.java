@@ -71,7 +71,7 @@ public final class ReinforceEffects {
             ReinforceConfig cfg) {
         if (target == null || level <= 0) return List.of();
         List<ModifierSpec> specs = switch (target) {
-            case GUN, SHIELD -> List.of();
+            case GUN, SHIELD, ELYTRA -> List.of();
             case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
                     ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
                     EquipmentSlotGroup.MAINHAND));
@@ -111,7 +111,16 @@ public final class ReinforceEffects {
         return "gettcore.tooltip.reinforce." + target.name().toLowerCase(Locale.ROOT);
     }
 
-    /** 툴팁 효과 줄 수치(현재 단계의 합계): 총·근접·방패는 %, 방어구는 체력(방어는 툴팁 셋째 인자). */
+    /** 툴팁 셋째 인자: 방어구는 방어, 겉날개는 폭죽 부스트 %, 나머지는 쓰지 않음. */
+    public static double tooltipExtra(Target target, int level, ReinforceConfig cfg) {
+        return switch (target) {
+            case ARMOR -> ReinforceRules.armorDefense(level, cfg);
+            case ELYTRA -> ReinforceRules.elytraFireworkPercent(level, cfg);
+            default -> 0;
+        };
+    }
+
+    /** 툴팁 효과 줄 수치(현재 단계의 합계): 총·근접·방패는 %, 방어구는 체력, 겉날개는 비행 속도 %. */
     public static double tooltipValue(Target target, int level, ReinforceConfig cfg) {
         int n = Math.max(0, level);
         return switch (target) {
@@ -119,6 +128,7 @@ public final class ReinforceEffects {
             case MELEE -> n * cfg.meleeDamagePercentPerLevel();
             case SHIELD -> n * cfg.shieldSpeedPercentPerLevel();
             case ARMOR -> ReinforceRules.armorHealth(n, cfg);
+            case ELYTRA -> ReinforceRules.elytraSpeedPercent(n, cfg);
         };
     }
 

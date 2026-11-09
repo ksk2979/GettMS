@@ -19,21 +19,87 @@ import net.minecraft.resources.ResourceLocation;
  * 강화의 성공률(%)과 필요 강화석 수. 빠진 필드는 기본값; 범위 밖 값은 {@link #sanitized(List)} 가 고친다.
  */
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
+                              List<Long> goldCost,
                               double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
                               double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
-                              double armorDefensePerLevel, List<Milestone> milestones) {
+                              double armorDefensePerLevel, long enchantGoldCost, Elytra elytra,
+                              List<Milestone> milestones) {
 
     public static final String FILE = "reinforce.json";
+
+    /** 강화석 개수 상한(칸 제한이 없어져 64 → 999). */
+    public static final int MAX_STONES = 999;
+    /** 골드 비용 상한. */
+    public static final long MAX_GOLD = 999_999_999L;
+
+    /** 방어구 부위당 방어(ARMOR 속성) 증가 기본값/단계: 30강 4부위 = +6. */
+    static final double DEFAULT_ARMOR_DEFENSE = 0.05;
+    /** 마법부여 1회 골드 기본값. */
+    static final long DEFAULT_ENCHANT_GOLD = 1000;
+
+    /** 기본 골드 비용 단계 n (n → n+1): 100 × 1.25^n 을 10 단위로 반올림. */
+    public static long defaultGoldAt(int n) {
+        return Math.round(100 * Math.pow(1.25, n) / 10) * 10;
+    }
+
+    /** 기본 골드 비용 표(길이 size). */
+    public static List<Long> defaultGold(int size) {
+        List<Long> out = new ArrayList<>(size);
+        for (int n = 0; n < size; n++) out.add(defaultGoldAt(n));
+        return List.copyOf(out);
+    }
+
+    static final List<Long> DEFAULT_GOLD = defaultGold(30);
+
+    /**
+     * 겉날개 강화: 0→1강 비용만 따로({@code firstStoneCost}/{@code firstGoldCost}), 성공률과 2강 이후 비용은 공통 표. 비행
+     * 속도 +(N-1)×speedPercentPerLevel %, {@code fireworkBoostLevel} 단계 이상이면 폭죽 부스트 +fireworkBoostPercent %.
+     */
+    public record Elytra(int firstStoneCost, long firstGoldCost, double speedPercentPerLevel, int fireworkBoostLevel,
+                         double fireworkBoostPercent) {
+        public static final Elytra DEFAULT = new Elytra(32, 50_000, 1, 15, 30);
+
+        public static final Codec<Elytra> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.INT.optionalFieldOf("firstStoneCost", DEFAULT.firstStoneCost).forGetter(Elytra::firstStoneCost),
+                Codec.LONG.optionalFieldOf("firstGoldCost", DEFAULT.firstGoldCost).forGetter(Elytra::firstGoldCost),
+                Codec.DOUBLE.optionalFieldOf("speedPercentPerLevel", DEFAULT.speedPercentPerLevel)
+                        .forGetter(Elytra::speedPercentPerLevel),
+                Codec.INT.optionalFieldOf("fireworkBoostLevel", DEFAULT.fireworkBoostLevel)
+                        .forGetter(Elytra::fireworkBoostLevel),
+                Codec.DOUBLE.optionalFieldOf("fireworkBoostPercent", DEFAULT.fireworkBoostPercent)
+                        .forGetter(Elytra::fireworkBoostPercent)
+        ).apply(i, Elytra::new));
+
+        Elytra sanitized(List<String> warnings) {
+            int stones = Math.max(1, Math.min(MAX_STONES, firstStoneCost));
+            if (stones != firstStoneCost) {
+                warnings.add(FILE + ": elytra.firstStoneCost must be within [1, " + MAX_STONES + "], clamped");
+            }
+            long gold = Math.max(0, Math.min(MAX_GOLD, firstGoldCost));
+            if (gold != firstGoldCost) {
+                warnings.add(FILE + ": elytra.firstGoldCost must be within [0, " + MAX_GOLD + "], clamped");
+            }
+            int boostLevel = fireworkBoostLevel;
+            if (boostLevel < 1 || boostLevel > MAX_LEVEL_LIMIT) {
+                warnings.add(FILE + ": elytra.fireworkBoostLevel " + boostLevel + " must be within [1, "
+                        + MAX_LEVEL_LIMIT + "], using default " + DEFAULT.fireworkBoostLevel);
+                boostLevel = DEFAULT.fireworkBoostLevel;
+            }
+            return new Elytra(stones, gold,
+                    nonNegative("elytra.speedPercentPerLevel", speedPercentPerLevel, DEFAULT.speedPercentPerLevel,
+                            warnings),
+                    boostLevel,
+                    nonNegative("elytra.fireworkBoostPercent", fireworkBoostPercent, DEFAULT.fireworkBoostPercent,
+                            warnings));
+        }
+    }
 
     public static final ReinforceConfig DEFAULT = new ReinforceConfig(30,
             List.of(100.0, 100.0, 100.0, 90.0, 85.0, 80.0, 75.0, 70.0, 65.0, 60.0,
                     55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0, 15.0, 10.0,
                     10.0, 9.0, 9.0, 8.0, 8.0, 7.0, 7.0, 6.0, 6.0, 5.0),
-            Collections.nCopies(30, 1),
-            10, 10, 1.7, 0.5, 60, 0.05, List.of());
-
-    /** 방어구 부위당 방어(ARMOR 속성) 증가 기본값/단계: 30강 4부위 = +6. */
-    static final double DEFAULT_ARMOR_DEFENSE = 0.05;
+            Collections.nCopies(30, 1), DEFAULT_GOLD,
+            10, 10, 1.7, 0.5, 60, DEFAULT_ARMOR_DEFENSE, DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, List.of());
 
     /** 최대 단계 상한(sanitize 가 허용하는 maxLevel 의 최댓값). */
     public static final int MAX_LEVEL_LIMIT = 50;
@@ -75,6 +141,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
     public ReinforceConfig {
         successPercent = List.copyOf(successPercent);
         stoneCost = List.copyOf(stoneCost);
+        goldCost = List.copyOf(goldCost);
         milestones = List.copyOf(milestones);
     }
 
@@ -91,8 +158,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                            double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
                            double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
                            List<Milestone> milestones) {
-        this(maxLevel, successPercent, stoneCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
-                shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, DEFAULT_ARMOR_DEFENSE, milestones);
+        this(maxLevel, successPercent, stoneCost, defaultGold(Math.max(1, Math.min(MAX_LEVEL_LIMIT, maxLevel))), gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, DEFAULT_ARMOR_DEFENSE,
+                DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, milestones);
     }
 
     public static final Codec<ReinforceConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -100,6 +168,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
             Codec.DOUBLE.listOf().optionalFieldOf("successPercent", DEFAULT.successPercent)
                     .forGetter(ReinforceConfig::successPercent),
             Codec.INT.listOf().optionalFieldOf("stoneCost", DEFAULT.stoneCost).forGetter(ReinforceConfig::stoneCost),
+            Codec.LONG.listOf().optionalFieldOf("goldCost", DEFAULT_GOLD).forGetter(ReinforceConfig::goldCost),
             Codec.DOUBLE.optionalFieldOf("gunDamagePercentPerLevel", DEFAULT.gunDamagePercentPerLevel)
                     .forGetter(ReinforceConfig::gunDamagePercentPerLevel),
             Codec.DOUBLE.optionalFieldOf("meleeDamagePercentPerLevel", DEFAULT.meleeDamagePercentPerLevel)
@@ -112,6 +181,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                     .forGetter(ReinforceConfig::armorHealthMax),
             Codec.DOUBLE.optionalFieldOf("armorDefensePerLevel", DEFAULT_ARMOR_DEFENSE)
                     .forGetter(ReinforceConfig::armorDefensePerLevel),
+            Codec.LONG.optionalFieldOf("enchantGoldCost", DEFAULT_ENCHANT_GOLD)
+                    .forGetter(ReinforceConfig::enchantGoldCost),
+            Elytra.CODEC.optionalFieldOf("elytra", Elytra.DEFAULT).forGetter(ReinforceConfig::elytra),
             Milestone.CODEC.listOf().optionalFieldOf("milestones", DEFAULT.milestones)
                     .forGetter(ReinforceConfig::milestones)
     ).apply(i, ReinforceConfig::new));
@@ -125,7 +197,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
      * Copy with out-of-range values fixed; one line in {@code warnings} per changed field. maxLevel outside 1..50
      * takes the default (30). successPercent/stoneCost longer than maxLevel are cut, shorter ones are padded with their
      * last value (an empty list takes the default list's value at that index, or its last value past its end). Each
-     * successPercent is clamped to 0..100 (NaN takes the default at that index), each stoneCost to 1..64. The per-level
+     * successPercent is clamped to 0..100 (NaN takes the default at that index), each stoneCost to 1..999, each goldCost to 0..999,999,999 (a missing goldCost is the default formula for any maxLevel, without warnings). The per-level
      * percents, armorHealthPerLevel, armorHealthMax and armorDefensePerLevel must be finite and &gt;= 0, else their default. A milestone
      * whose target is unknown, level is outside 1..maxLevel, amplifier outside 0..9 or effect is not in
      * {@link #effectUsable} (unknown or instant) is dropped with a warning.
@@ -152,12 +224,33 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         boolean costClamped = false;
         for (int n = 0; n < max; n++) {
             int v = cost.get(n);
-            int fixed = Math.max(1, Math.min(64, v));
+            int fixed = Math.max(1, Math.min(MAX_STONES, v));
             if (fixed != v) costClamped = true;
             costFixed.add(fixed);
         }
-        if (costClamped) warnings.add(FILE + ": stoneCost values must be within [1, 64], clamped");
-        return new ReinforceConfig(max, successFixed, costFixed,
+        if (costClamped) warnings.add(FILE + ": stoneCost values must be within [1, " + MAX_STONES + "], clamped");
+        List<Long> goldFixed;
+        if (!goldCost.isEmpty() && goldCost.equals(defaultGold(goldCost.size()))) {
+            goldFixed = defaultGold(max);
+        } else {
+            List<Long> gold = resized("goldCost", goldCost, DEFAULT_GOLD, max, warnings);
+            goldFixed = new ArrayList<>(max);
+            boolean goldClamped = false;
+            for (int n = 0; n < max; n++) {
+                long v = gold.get(n);
+                long fixed = Math.max(0, Math.min(MAX_GOLD, v));
+                if (fixed != v) goldClamped = true;
+                goldFixed.add(fixed);
+            }
+            if (goldClamped) warnings.add(FILE + ": goldCost values must be within [0, " + MAX_GOLD + "], clamped");
+        }
+        long enchantGold = enchantGoldCost;
+        if (enchantGold < 0 || enchantGold > MAX_GOLD) {
+            warnings.add(FILE + ": enchantGoldCost " + enchantGold + " must be within [0, " + MAX_GOLD
+                    + "], using default " + DEFAULT_ENCHANT_GOLD);
+            enchantGold = DEFAULT_ENCHANT_GOLD;
+        }
+        return new ReinforceConfig(max, successFixed, costFixed, goldFixed,
                 nonNegative("gunDamagePercentPerLevel", gunDamagePercentPerLevel,
                         DEFAULT.gunDamagePercentPerLevel, warnings),
                 nonNegative("meleeDamagePercentPerLevel", meleeDamagePercentPerLevel,
@@ -167,6 +260,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                 nonNegative("armorHealthPerLevel", armorHealthPerLevel, DEFAULT.armorHealthPerLevel, warnings),
                 nonNegative("armorHealthMax", armorHealthMax, DEFAULT.armorHealthMax, warnings),
                 nonNegative("armorDefensePerLevel", armorDefensePerLevel, DEFAULT_ARMOR_DEFENSE, warnings),
+                enchantGold, elytra.sanitized(warnings),
                 sanitizedMilestones(milestones, max, warnings));
     }
 
@@ -186,7 +280,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
     }
 
     private static String milestoneProblem(Milestone m, int max, Predicate<ResourceLocation> exists) {
-        if (m.target() == null) return "target must be gun, melee, shield or armor";
+        if (m.target() == null || m.target() == ReinforceRules.Target.ELYTRA) {
+            return "target must be gun, melee, shield or armor";
+        }
         if (m.level() < 1 || m.level() > max) return "level " + m.level() + " must be within [1, " + max + "]";
         if (m.amplifier() < 0 || m.amplifier() > 9) return "amplifier " + m.amplifier() + " must be within [0, 9]";
         if (m.effect() == null) return "effect id is invalid";

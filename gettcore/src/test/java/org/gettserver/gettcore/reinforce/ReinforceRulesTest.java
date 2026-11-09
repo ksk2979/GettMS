@@ -94,4 +94,33 @@ class ReinforceRulesTest {
         ReinforceConfig noCap = new ReinforceConfig(20, D.successPercent(), D.stoneCost(), 10, 10, 2, 1.5, 0);
         assertEquals(0.0, ReinforceRules.healthCapAdjust(500, noCap), EPS);
     }
+
+    @Test
+    void elytraClassification() {
+        assertEquals(Optional.of(Target.ELYTRA), ReinforceRules.classify(false, false, false, false, true));
+        assertEquals(Optional.of(Target.ARMOR), ReinforceRules.classify(false, false, false, true, true));
+        assertEquals(Optional.empty(), ReinforceRules.classify(false, false, false, false, false));
+    }
+
+    @Test
+    void elytraCostsOverrideOnlyTheFirstLevel() {
+        assertEquals(32, ReinforceRules.stoneCost(Target.ELYTRA, 0, D));
+        assertEquals(50000L, ReinforceRules.goldCost(Target.ELYTRA, 0, D));
+        assertEquals(ReinforceRules.stoneCost(1, D), ReinforceRules.stoneCost(Target.ELYTRA, 1, D));
+        assertEquals(D.goldCost().get(1), ReinforceRules.goldCost(Target.ELYTRA, 1, D));
+        assertEquals(100L, ReinforceRules.goldCost(Target.MELEE, 0, D));
+        assertEquals(1, ReinforceRules.stoneCost(Target.MELEE, 0, D));
+        assertEquals(0L, ReinforceRules.goldCost(Target.MELEE, 30, D));
+        assertEquals(0, ReinforceRules.stoneCost(Target.ELYTRA, 30, D));
+    }
+
+    @Test
+    void elytraEffects() {
+        assertEquals(0.0, ReinforceRules.elytraSpeedPercent(0, D), EPS);
+        assertEquals(0.0, ReinforceRules.elytraSpeedPercent(1, D), EPS);
+        assertEquals(1.0, ReinforceRules.elytraSpeedPercent(2, D), EPS);
+        assertEquals(29.0, ReinforceRules.elytraSpeedPercent(30, D), EPS);
+        assertEquals(0.0, ReinforceRules.elytraFireworkPercent(14, D), EPS);
+        assertEquals(30.0, ReinforceRules.elytraFireworkPercent(15, D), EPS);
+    }
 }
