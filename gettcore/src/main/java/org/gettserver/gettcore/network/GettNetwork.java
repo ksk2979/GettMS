@@ -125,6 +125,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
         registrar.playToServer(ReinforceApplyPayload.TYPE, ReinforceApplyPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ReinforceService.apply((ServerPlayer) ctx.player())));
+        registrar.playToServer(UpgradeApplyPayload.TYPE, UpgradeApplyPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.upgrade.UpgradeService.apply((ServerPlayer) ctx.player())));
         registrar.playToServer(AbilityTogglePayload.TYPE, AbilityTogglePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> AbilityToggle.toggle((ServerPlayer) ctx.player())));
         registrar.playToServer(ThrowCaptureBallPayload.TYPE, ThrowCaptureBallPayload.STREAM_CODEC,

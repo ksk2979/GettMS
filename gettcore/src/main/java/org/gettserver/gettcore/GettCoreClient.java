@@ -30,6 +30,7 @@ public class GettCoreClient {
                     event.register(GettCore.SHOP_MENU.get(), ShopScreen::new);
                     event.register(GettCore.ENCHANT_MENU.get(), EnchantScreen::new);
                     event.register(GettCore.REINFORCE_MENU.get(), ReinforceScreen::new);
+                    event.register(GettCore.UPGRADE_MENU.get(), org.gettserver.gettcore.upgrade.UpgradeScreen::new);
                 });
         modBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(AbilityKey.TOGGLE);

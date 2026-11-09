@@ -85,6 +85,8 @@ public class GettCore {
             MENUS.register("enchant", () -> IMenuTypeExtension.create(EnchantMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<ReinforceMenu>> REINFORCE_MENU =
             MENUS.register("reinforce", () -> IMenuTypeExtension.create(ReinforceMenu::new));
+    public static final DeferredHolder<MenuType<?>, MenuType<org.gettserver.gettcore.upgrade.UpgradeMenu>> UPGRADE_MENU =
+            MENUS.register("upgrade", () -> IMenuTypeExtension.create(org.gettserver.gettcore.upgrade.UpgradeMenu::new));
 
     // 크리에이티브 인벤토리 전용 탭. 수표는 금액(0) 없는 빈 수표가 되므로 넣지 않는다.
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> GETT_TAB =
@@ -117,6 +119,7 @@ public class GettCore {
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();
+        org.gettserver.gettcore.upgrade.UpgradeService.registerReloadHook();
         ReinforceEffects.registerReloadHook();
         org.gettserver.gettcore.equipment.EquipmentEffects.registerReloadHook();
         // 단계 능력 효과 id 검사(등록됨 && 즉시 효과 아님): 레지스트리 조회는 sanitize 때(로드 이후)에만 일어난다.
