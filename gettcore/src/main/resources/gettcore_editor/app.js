@@ -2561,6 +2561,131 @@
   };
   registerTab(equipmentTab);
 
+  /* ----- 업그레이드 탭 (upgrade.json: 대장장이 '업그레이드' 단계) ----- */
+
+  // 서버 UpgradeConfig.errors() 와 같은 규칙: 앞에서부터 보며, 앞 단계와 겹치거나 앞 단계들과 순환을 만드는 단계가 오류.
+  function upgradeRowErrors(steps) {
+    const out = steps.map(() => []);
+    const next = new Map();
+    const reaches = (start, target) => {
+      const seen = new Set();
+      for (let cur = start; cur !== undefined && !seen.has(cur); cur = next.get(cur)) {
+        if (cur === target) return true;
+        seen.add(cur);
+      }
+      return false;
+    };
+    steps.forEach((s, i) => {
+      const e = out[i];
+      for (const [key, label] of [['from', '현재 장비'], ['to', '다음 장비'], ['material', '재료']]) {
+        if (!ITEM_ID.test(s[key] || '')) e.push(`${label}를 고르세요`);
+      }
+      if (e.length) return;
+      if (s.from === s.to) { e.push('현재 장비와 다음 장비가 같습니다'); return; }
+      if (next.has(s.from)) { e.push('같은 장비에서 시작하는 단계가 이미 있습니다'); return; }
+      if (reaches(s.to, s.from)) { e.push('단계를 따라가면 다시 이 장비로 돌아옵니다 (순환)'); return; }
+      if (!Number.isInteger(s.count) || s.count < 1 || s.count > 2304) e.push('재료 개수는 1~2304 정수여야 합니다');
+      if (!Number.isInteger(s.gold) || s.gold < 0) e.push('골드는 0 이상의 정수여야 합니다');
+      next.set(s.from, s.to);
+    });
+    return out;
+  }
+
+  function validateUpgrade(bundle) {
+    const steps = (bundle.upgrade && bundle.upgrade.steps) || [];
+    const out = [];
+    upgradeRowErrors(steps).forEach((errs, i) => {
+      for (const m of errs) out.push(`업그레이드 ${i + 1}번 (${steps[i].from ? itemName(steps[i].from) : '빈 단계'}): ${m}`);
+    });
+    return out;
+  }
+
+  const upgradeUi = { query: '' };
+
+  const upgradeTab = {
+    id: 'upgrade',
+    title: '업그레이드',
+    validate: validateUpgrade,
+    render(container) {
+      let rowChecks = makeChecks();
+      const steps = S.bundle.upgrade.steps;
+      const tbody = h('tbody');
+      const count = h('span', { class: 'muted' });
+      const rowError = (i) => { const e = upgradeRowErrors(steps)[i]; return e ? e.join(' · ') : ''; };
+      // 서버·클라이언트 목록에 없는 아이템: 저장은 되지만(모드가 다시 들어오면 쓰임) 지금은 그 단계가 동작하지 않는다.
+      const unknownNote = (id) => {
+        const st = itemStatus(id);
+        return st === 'ok' ? null : h('div', { class: 'id', style: 'color:var(--warn)' },
+          st === 'missing' ? '서버에 없는 아이템 (이 단계는 동작하지 않음)' : '아이템 목록에 없음');
+      };
+      const itemBtn = (s, key, label) => h('div', null,
+        h('button', { class: 'icon-btn', title: `${label} 바꾸기`, 'aria-label': `${label} 바꾸기`, onclick: async () => {
+          const id = await pickItem({ title: label });
+          if (!id) return;
+          s[key] = id; changed(); draw();
+        } }, iconEl(s[key], 28), h('span', null, s[key] ? itemName(s[key]) : '— 선택 —')),
+        h('div', { class: 'id' }, s[key] || ''), unknownNote(s[key]));
+      const intIn = (s, key, label, min) => h('input', { type: 'number', min, step: 1, style: 'width:5rem', 'aria-label': label,
+        value: Number.isNaN(s[key]) ? '' : s[key],
+        oninput: (e) => { s[key] = e.target.value.trim() === '' ? NaN : Number(e.target.value); changed(); } });
+
+      const draw = () => {
+        rowChecks = makeChecks();
+        const q = upgradeUi.query.trim().toLowerCase();
+        const text = (id) => (id ? (itemName(id) + ' ' + id).toLowerCase() : '');
+        const shown = [];
+        steps.forEach((s, i) => {
+          if (q && !(text(s.from) + ' ' + text(s.to) + ' ' + text(s.material)).includes(q)) return;
+          shown.push(i);
+        });
+        count.textContent = `${shown.length} / ${steps.length}단계`;
+        tbody.replaceChildren(...shown.map((i) => {
+          const s = steps[i];
+          const status = rowChecks.add(h('span', { class: 'muted' }, String(i + 1)), () => rowError(i));
+          const err = h('div', { class: 'id', style: 'color:var(--bad)' });
+          rowChecks.add(err, () => { err.textContent = rowError(i); return ''; });
+          return h('tr', null,
+            h('td', null, status),
+            h('td', null, itemBtn(s, 'from', '현재 장비'), err),
+            h('td', null, h('span', { class: 'muted' }, '→')),
+            h('td', null, itemBtn(s, 'to', '다음 장비')),
+            h('td', null, itemBtn(s, 'material', '재료')),
+            h('td', null, rowChecks.add(intIn(s, 'count', '재료 개수', 1), () => (Number.isInteger(s.count) && s.count >= 1 && s.count <= 2304 ? '' : '1~2304 정수'))),
+            h('td', null, rowChecks.add(intIn(s, 'gold', '골드', 0), () => (Number.isInteger(s.gold) && s.gold >= 0 ? '' : '0 이상의 정수'))),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': '단계 삭제', onclick: () => {
+              steps.splice(i, 1); changed(); draw();
+            } }, '삭제')));
+        }));
+        rowChecks.paint();
+      };
+
+      const search = h('input', { type: 'search', placeholder: '이름·id 검색 (현재·다음 장비, 재료)', 'aria-label': '업그레이드 검색',
+        value: upgradeUi.query, style: 'width:18rem', oninput: (e) => { upgradeUi.query = e.target.value; draw(); } });
+      const add = h('button', { onclick: async () => {
+        const from = await pickItem({ title: '업그레이드할 장비 (현재 등급)' });
+        if (!from) return;
+        const to = await pickItem({ title: '업그레이드 결과 장비 (다음 등급)' });
+        if (!to) return;
+        const material = await pickItem({ title: '재료 아이템' });
+        if (!material) return;
+        steps.push({ from, to, material, count: 1, gold: 0 });
+        upgradeUi.query = '';
+        search.value = '';
+        changed(); draw();
+      } }, '단계 추가');
+
+      container.append(h('div', { class: 'card' }, h('h2', null, '장비 업그레이드'),
+        h('p', { class: 'muted' }, '대장장이의 \'업그레이드\' 화면에서 현재 장비를 재료(와 골드)로 다음 장비로 바꿉니다. 한 장비에서 시작하는 단계는 하나뿐이고, 마지막 등급(다음 단계가 없는 장비)은 \'최대 등급\'으로 보입니다.'),
+        h('p', { class: 'muted' }, '강화 단계·인챈트·이름 등은 그대로 이어지고, 공격력·내구도 같은 수치는 다음 장비의 것이 됩니다. 재료는 인벤토리에서 자동으로 셉니다.'),
+        h('div', { class: 'field' }, search, add, count),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['#', '현재 장비', '', '다음 장비', '재료', '개수', '골드', ''].map((t) => h('th', null, t)))), tbody))));
+      draw();
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(upgradeTab);
+
   /* ----- 총 탭 · 등장 탭 (서버 월드의 데이터팩 gett_balance 에 모드 원본 파일의 사본을 씀) ----- */
 
   const round3 = (v) => Math.round(v * 1000) / 1000;
