@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.enchant;
 
+import org.gettserver.gettcore.client.GuiText;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.Gold;
 import org.gettserver.gettcore.economy.StoneCounter;
@@ -18,6 +19,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.item.ItemStack;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.EnchantApplyPayload;
 
@@ -29,7 +31,7 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final int PANEL = 0xFFF4E8CC;
     private static final int BORDER = 0xFF4A3B24;
     private static final ResourceLocation CIRCLE = GettCore.id("textures/effect/magic_circle.png");
-    private static final int CIRCLE_SIZE = 64;
+    private static final int CIRCLE_SIZE = 32;
     private static final int CIRCLE_TEX = 512;
     /** Circle top-left, chosen so its center is the tool slot's center (TOOL_X+8, TOOL_Y+8). */
     private static final int CIRCLE_X = EnchantMenu.TOOL_X + 8 - CIRCLE_SIZE / 2;
@@ -43,7 +45,10 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final int SHORT_TEXT = 0xFFB03030;
     /** Width of the left (slot) area; the cost lines are centred in it. */
     private static final int LEFT_W = EnchantMenu.INV_X - 4;
-    private static final int COST_Y = 74;
+    private static final int TEXT_X = 10;
+    private static final int LINE_Y = 40;
+    private static final int COST_Y = 80;
+    private static final int COST_RIGHT = LEFT_W - 6;
 
     private Button applyButton;
     private float angle;
@@ -145,17 +150,18 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
         super.renderLabels(g, mouseX, mouseY);
         if (menu.tool().isEmpty()) return;
+        int max = LEFT_W - TEXT_X - 4;
+        GuiText.big(g, font, Component.translatable("gettcore.screen.enchant.info1"), TEXT_X, LINE_Y, max, TEXT);
+        GuiText.big(g, font, Component.translatable("gettcore.screen.enchant.info2"), TEXT_X, LINE_Y + 12, max, TEXT);
         int held = heldStones();
-        centred(g, Component.translatable("gettcore.screen.cost.enchant_stone", 1, held), COST_Y,
+        GuiText.smallRight(g, font, new ItemStack(GettCore.ENCHANT_STONE.get()),
+                Component.translatable("gettcore.screen.cost.enchant_stone", 1, held), COST_RIGHT, COST_Y,
                 held >= 1 ? TEXT : SHORT_TEXT);
         long gold = goldCost();
         long balance = ClientBalance.get();
-        centred(g, Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
-                COST_Y + 11, balance >= gold ? TEXT : SHORT_TEXT);
-    }
-
-    private void centred(GuiGraphics g, Component text, int y, int color) {
-        g.drawString(font, text, (LEFT_W - font.width(text)) / 2, y, color, false);
+        GuiText.smallRight(g, font, ItemStack.EMPTY,
+                Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
+                COST_RIGHT, COST_Y + 9, balance >= gold ? TEXT : SHORT_TEXT);
     }
 
     private void renderCircle(GuiGraphics g, float partialTick) {

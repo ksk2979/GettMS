@@ -20,8 +20,8 @@ import org.gettserver.gettcore.GettCore;
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class EnchantMenu extends AbstractContainerMenu {
     public static final int TOOL_SLOT = 0;
-    public static final int TOOL_X = 65;
-    public static final int TOOL_Y = 28;
+    public static final int TOOL_X = 8;
+    public static final int TOOL_Y = 18;
     /** 플레이어 인벤토리 위치(상점보다 작은 화면). */
     public static final int INV_X = 150;
     public static final int INV_Y = 62;

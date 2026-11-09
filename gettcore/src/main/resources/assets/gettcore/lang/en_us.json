@@ -63,6 +63,8 @@
   "gettcore.screen.reinforce.odds": "Success %s%%",
   "gettcore.screen.cost.reinforce_stone": "Reinforce stone x%s (have %s)",
   "gettcore.screen.cost.enchant_stone": "Enchant stone x%s (have %s)",
+  "gettcore.screen.enchant.info1": "Grants 1 random special ability",
+  "gettcore.screen.enchant.info2": "Replaces any existing one",
   "gettcore.screen.cost.gold": "%s gold (have %s)",
   "gettcore.screen.reinforce.max": "Max level",
   "gettcore.msg.reinforce.success": "Reinforced to +%s!",

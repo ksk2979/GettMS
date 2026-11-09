@@ -63,6 +63,8 @@
   "gettcore.screen.reinforce.odds": "성공 확률 %s%%",
   "gettcore.screen.cost.reinforce_stone": "강화석 x%s (보유 %s)",
   "gettcore.screen.cost.enchant_stone": "마법부여석 x%s (보유 %s)",
+  "gettcore.screen.enchant.info1": "특수 능력 1개 무작위 부여",
+  "gettcore.screen.enchant.info2": "기존 특수 능력은 바뀝니다",
   "gettcore.screen.cost.gold": "%s 골드 (보유 %s)",
   "gettcore.screen.reinforce.max": "최대 강화",
   "gettcore.msg.reinforce.success": "+%s 강화 성공!",

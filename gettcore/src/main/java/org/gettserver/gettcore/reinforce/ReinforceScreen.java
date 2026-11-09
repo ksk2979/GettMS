@@ -10,14 +10,16 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.client.GuiText;
 import org.gettserver.gettcore.economy.ClientBalance;
 import org.gettserver.gettcore.economy.Gold;
 import org.gettserver.gettcore.economy.StoneCounter;
 import org.gettserver.gettcore.network.ReinforceApplyPayload;
 
 /**
- * Client-only. Gear slot, five centred info lines (level, effect at the next level, odds, stones needed/held, gold
- * needed/held; a short one is red) from
+ * Client-only. Gear slot top-left; below it three big left-aligned lines (level, effect at the next level, odds) and two
+ * small right-aligned cost lines (stones needed/held with the stone icon, gold needed/held; a short one is red) from
  * {@link ClientReinforceConfig}; a result from the server flashes the gear slot for one second (green = success,
  * red = fail). Only loaded from client paths ({@code GettCoreClient} screen registration and the client-bound
  * result handler). Gun classification uses {@link ReinforceTargets#ntglWeapon}, which stays false until the NTGL
@@ -30,9 +32,12 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
     private static final int MAX_TEXT = 0xFFB07A00;
     private static final int FLASH_TICKS = 20;
     private static final int APPLY_COOLDOWN = 20;
-    /** Width of the left (slots) area; the info lines are centred in it. */
+    /** Width of the left (slots) area. */
     private static final int LEFT_W = ReinforceMenu.INV_X - 4;
-    private static final int LINE_Y = 42;
+    private static final int TEXT_X = 10;
+    private static final int LINE_Y = 40;
+    private static final int COST_Y = 80;
+    private static final int COST_RIGHT = LEFT_W - 6;
     private static final int SHORT_TEXT = 0xFFB03030;
 
     private Button applyButton;
@@ -127,22 +132,24 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
         ReinforceConfig config = ClientReinforceConfig.get();
         int level = ReinforceRules.level(gear);
         if (!ReinforceRules.canReinforce(level, config)) {
-            centred(g, Component.translatable("gettcore.screen.reinforce.max"), LINE_Y, MAX_TEXT);
+            big(g, Component.translatable("gettcore.screen.reinforce.max"), LINE_Y, MAX_TEXT);
             return;
         }
         int next = level + 1;
-        centred(g, Component.translatable("gettcore.screen.reinforce.level", level, next), LINE_Y, TEXT);
-        centred(g, effectLine(target.get(), next, config), LINE_Y + 11, TEXT);
-        centred(g, Component.translatable("gettcore.screen.reinforce.odds",
-                fmt(ReinforceRules.successPercent(level, config))), LINE_Y + 22, TEXT);
+        big(g, Component.translatable("gettcore.screen.reinforce.level", level, next), LINE_Y, TEXT);
+        big(g, effectLine(target.get(), next, config), LINE_Y + 12, TEXT);
+        big(g, Component.translatable("gettcore.screen.reinforce.odds",
+                fmt(ReinforceRules.successPercent(level, config))), LINE_Y + 24, TEXT);
         int stones = ReinforceRules.stoneCost(target.get(), level, config);
         int held = heldStones();
-        centred(g, Component.translatable("gettcore.screen.cost.reinforce_stone", stones, held), LINE_Y + 33,
+        GuiText.smallRight(g, font, new ItemStack(GettCore.REINFORCE_STONE.get()),
+                Component.translatable("gettcore.screen.cost.reinforce_stone", stones, held), COST_RIGHT, COST_Y,
                 held >= stones ? TEXT : SHORT_TEXT);
         long gold = ReinforceRules.goldCost(target.get(), level, config);
         long balance = ClientBalance.get();
-        centred(g, Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
-                LINE_Y + 44, balance >= gold ? TEXT : SHORT_TEXT);
+        GuiText.smallRight(g, font, ItemStack.EMPTY,
+                Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
+                COST_RIGHT, COST_Y + 9, balance >= gold ? TEXT : SHORT_TEXT);
     }
 
     /** Effect of the item at level {@code next} (total, not the increment). */
@@ -162,8 +169,8 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
         };
     }
 
-    private void centred(GuiGraphics g, Component text, int y, int color) {
-        g.drawString(font, text, (LEFT_W - font.width(text)) / 2, y, color, false);
+    private void big(GuiGraphics g, Component text, int y, int color) {
+        GuiText.big(g, font, text, TEXT_X, y, LEFT_W - TEXT_X - 4, color);
     }
 
     /** 10.0 → "10", 1.5 → "1.5", 2.25 → "2.25". */

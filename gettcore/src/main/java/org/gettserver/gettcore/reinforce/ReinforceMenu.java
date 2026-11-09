@@ -20,8 +20,8 @@ import org.gettserver.gettcore.GettCore;
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class ReinforceMenu extends AbstractContainerMenu {
     public static final int GEAR_SLOT = 0;
-    public static final int GEAR_X = 65;
-    public static final int GEAR_Y = 20;
+    public static final int GEAR_X = 8;
+    public static final int GEAR_Y = 18;
     public static final int INV_X = 150;
     public static final int INV_Y = 62;
 
