@@ -51,8 +51,10 @@ Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 | `/보호구역 삭제\|이동 <id>` | 구역 삭제·구역 중심으로 이동 |
 | `/보호구역 목록`, `/보호구역 정보` | 구역 목록 / 지금 서 있는 곳의 구역 |
 | `/강화 <단계>` (`/reinforce`) | 손에 든 장비의 강화 단계를 그 값으로 설정(0 = 해제). 설정의 최대 단계보다 높게도 가능 |
+| `/인벤 <플레이어>` (`/invsee`) | 접속 중인 플레이어의 인벤토리(가방·핫바·갑옷·보조손) 열기. 넣고 빼기 가능, 회색 유리판 칸은 빈 자리 |
+| `/엔더 <플레이어>` (`/endersee`) | 접속 중인 플레이어의 엔더 상자 열기(넣고 빼기 가능) |
 
-권한 노드: `gettcore.admin`(reload·편집기·귀환지점), `gettcore.economy.admin`, `gettcore.economy.check`, `gettcore.shop.edit`, `gettcore.boss.admin`, `gettcore.protect.admin`.
+권한 노드: `gettcore.admin`(reload·편집기·귀환지점·인벤·엔더), `gettcore.economy.admin`, `gettcore.economy.check`, `gettcore.shop.edit`, `gettcore.boss.admin`, `gettcore.protect.admin`.
 
 ### 인챈트(마법부여) 넣기
 

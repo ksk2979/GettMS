@@ -319,5 +319,7 @@
   "gettcore.gui.no": "No",
   "gettcore.cmd.id_empty": "The id must not be empty.",
   "caramelChat v%s": "",
-  "block.gettcore.sturdy_anvil": "Sturdy Anvil"
+  "block.gettcore.sturdy_anvil": "Sturdy Anvil",
+  "gettcore.container.invsee": "%s's Inventory",
+  "gettcore.container.endersee": "%s's Ender Chest"
 }
