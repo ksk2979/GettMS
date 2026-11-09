@@ -175,7 +175,13 @@ public final class EditorDevServer {
                         new CatalogJson.MobStat("minecraft:creeper", "크리퍼", "Minecraft", "monster", 20.0, null, 0.25, 0.0),
                         new CatalogJson.MobStat("minecraft:cow", "소", "Minecraft", "creature", 10.0, null, 0.2, 0.0),
                         new CatalogJson.MobStat("naturalist:lion", "사자", "Naturalist", "creature", 30.0, 6.0, 0.3, 0.0),
-                        new CatalogJson.MobStat("gettcore:boss_lion", "보스 사자", "Gett Core", "creature", 30.0, 6.0, 0.3, 0.0)));
+                        new CatalogJson.MobStat("gettcore:boss_lion", "보스 사자", "Gett Core", "creature", 30.0, 6.0, 0.3, 0.0)),
+                List.of(new CatalogJson.Gear("minecraft:diamond_sword", "다이아몬드 검", "Minecraft", "melee", "mainhand", 7.0, 1.6, null, null, null),
+                        new CatalogJson.Gear("minecraft:iron_axe", "철 도끼", "Minecraft", "melee", "mainhand", 9.0, 0.9, null, null, null),
+                        new CatalogJson.Gear("minecraft:netherite_chestplate", "네더라이트 흉갑", "Minecraft", "armor", "chest", null, null, 8.0, 3.0, 0.1),
+                        new CatalogJson.Gear("minecraft:iron_helmet", "철 투구", "Minecraft", "armor", "head", null, null, 2.0, null, null),
+                        new CatalogJson.Gear("minecraft:shield", "방패", "Minecraft", "shield", "offhand", null, null, null, null, null),
+                        new CatalogJson.Gear("magistuarmory:steel_longsword", "강철 롱소드", "Epic Knights", "melee", "mainhand", 8.0, 1.2, null, null, null)));
     }
 
     private static void copyTree(Path from, Path to) throws IOException {

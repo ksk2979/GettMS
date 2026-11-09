@@ -32,7 +32,21 @@ class CatalogJsonTest {
                 + "\"mobs\":[{\"id\":\"minecraft:creeper\",\"name\":\"크리퍼\",\"mod\":\"Minecraft\",\"category\":\"monster\","
                 + "\"health\":20.0,\"speed\":0.25,\"armor\":0.0},"
                 + "{\"id\":\"minecraft:zombie\",\"name\":\"좀비\",\"mod\":\"Minecraft\",\"category\":\"monster\","
-                + "\"health\":20.0,\"attack\":3.0,\"speed\":0.23,\"armor\":2.0}]}", json);
+                + "\"health\":20.0,\"attack\":3.0,\"speed\":0.23,\"armor\":2.0}],\"gear\":[]}", json);
+    }
+
+    @Test
+    void gearShape() {
+        String json = CatalogJson.build(List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(new CatalogJson.Gear("minecraft:shield", "방패", "Minecraft", "shield", "offhand",
+                                null, null, null, null, null),
+                        new CatalogJson.Gear("minecraft:diamond_sword", "다이아몬드 검", "Minecraft", "melee", "mainhand",
+                                7.0, 1.6, null, null, null)));
+        JsonObject o = JsonParser.parseString(json).getAsJsonObject();
+        assertEquals("[{\"id\":\"minecraft:diamond_sword\",\"name\":\"다이아몬드 검\",\"mod\":\"Minecraft\","
+                + "\"kind\":\"melee\",\"slot\":\"mainhand\",\"attackDamage\":7.0,\"attackSpeed\":1.6},"
+                + "{\"id\":\"minecraft:shield\",\"name\":\"방패\",\"mod\":\"Minecraft\",\"kind\":\"shield\","
+                + "\"slot\":\"offhand\"}]", o.getAsJsonArray("gear").toString());
     }
 
     @Test

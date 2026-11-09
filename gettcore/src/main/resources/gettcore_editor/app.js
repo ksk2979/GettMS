@@ -115,7 +115,7 @@
     bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
-    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [] },
+    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
     catalogOk: false,
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
@@ -2405,6 +2405,126 @@
     },
   };
   registerTab(mobsTab);
+
+  /* ----- 장비 탭 ----- */
+
+  // [키, 제목, 최소, 최대, 화면 배율(밀치기 저항은 툴팁처럼 %), 단위, 해당 분류]
+  const EQUIP_STATS = [
+    ['attackDamage', '공격력', 0, 2048, 1, '', 'melee'],
+    ['attackSpeed', '공격 속도', 0, 1024, 1, '', 'melee'],
+    ['armor', '방어', 0, 30, 1, '', 'defense'],
+    ['toughness', '방어 강도', 0, 20, 1, '', 'defense'],
+    ['knockbackResistance', '밀치기 저항', 0, 1, 100, '%', 'defense'],
+  ];
+  const EQUIP_KIND_LABEL = { melee: '근접 무기', armor: '방어구', shield: '방패' };
+  const EQUIP_SLOT_LABEL = { head: '머리', chest: '몸통', legs: '다리', feet: '발', body: '몸(동물)', armor: '방어구 칸', mainhand: '주 손', offhand: '보조 손', hand: '손', any: '아무 칸' };
+
+  function equipRule(key, v) {
+    if (v === undefined) return '';
+    const s = EQUIP_STATS.find((x) => x[0] === key);
+    if (!isNum(v)) return '숫자여야 합니다 (비우면 원래 값)';
+    return v >= s[2] && v <= s[3] ? '' : `${s[2] * s[4]}~${s[3] * s[4]}${s[5]} 사이여야 합니다`;
+  }
+
+  function validateEquipment(bundle) {
+    const out = [];
+    for (const [id, o] of Object.entries((bundle.equipment && bundle.equipment.items) || {})) {
+      for (const [key, label] of EQUIP_STATS) {
+        const m = equipRule(key, o[key]);
+        if (m) out.push(`장비 ${id} › ${label}: ${m}`);
+      }
+    }
+    return out;
+  }
+
+  const equipUi = { query: '', kind: 'melee', slot: '', mod: '', onlyChanged: false };
+
+  const equipmentTab = {
+    id: 'equipment',
+    title: '장비',
+    validate: validateEquipment,
+    render(container) {
+      let rowChecks = makeChecks();
+      const items = S.bundle.equipment.items;
+      const catalog = (S.catalog.gear || []).slice();
+      const known = new Set(catalog.map((g) => g.id));
+      for (const id of Object.keys(items)) if (!known.has(id)) catalog.push({ id, name: '', mod: '', kind: '', slot: '', missing: true });
+      catalog.sort((a, b) => (a.mod || '').localeCompare(b.mod || '') || (a.name || a.id).localeCompare(b.name || b.id));
+      const round = (v) => Math.round(v * 1000) / 1000;
+      const shown = (v, mul, unit) => (isNum(v) ? String(round(v * mul)) + unit : '없음');
+      const relevant = (g, group) => g.missing || (group === 'melee' ? g.kind === 'melee' : g.kind === 'armor' || g.kind === 'shield');
+
+      const tbody = h('tbody');
+      const count = h('span', { class: 'muted' });
+      const draw = () => {
+        rowChecks = makeChecks();
+        const q = equipUi.query.trim().toLowerCase();
+        const list = catalog.filter((g) => (!equipUi.onlyChanged || items[g.id])
+          && (!equipUi.kind || g.missing || g.kind === equipUi.kind)
+          && (!equipUi.slot || g.missing || g.slot === equipUi.slot)
+          && (!equipUi.mod || g.mod === equipUi.mod)
+          && (!q || ((g.name || '') + ' ' + g.id + ' ' + (g.mod || '')).toLowerCase().includes(q)));
+        count.textContent = `${list.length}개`;
+        tbody.replaceChildren(...list.map((g) => {
+          const cells = EQUIP_STATS.map(([key, label, , , mul, unit, group]) => {
+            const o = items[g.id];
+            const cur = o ? o[key] : undefined;
+            if (!relevant(g, group) && cur === undefined) return h('td', null, h('span', { class: 'muted' }, '—'));
+            const base = g[key];
+            const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:5.5rem', 'aria-label': `${g.name || g.id} ${label}`,
+              placeholder: shown(base, mul, ''), value: isNum(cur) ? String(round(cur * mul)) : shownNum(cur),
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const row = items[g.id] || (items[g.id] = {});
+                if (raw === '') delete row[key]; else row[key] = Number(raw) / mul;
+                if (!Object.keys(row).length) delete items[g.id];
+                changed();
+              } }), () => equipRule(key, items[g.id] ? items[g.id][key] : undefined));
+            return h('td', null, inp, unit ? h('span', { class: 'muted' }, unit) : null, h('div', { class: 'id' }, `원래 ${shown(base, mul, unit)}`));
+          });
+          const kindText = g.missing ? '' : (EQUIP_KIND_LABEL[g.kind] || g.kind) + (g.kind === 'armor' ? ' · ' + (EQUIP_SLOT_LABEL[g.slot] || g.slot) : '');
+          return h('tr', null,
+            h('td', null, h('div', null, g.missing ? '(목록에 없음)' : (g.name || g.id)), h('div', { class: 'id' }, g.id + (g.mod ? ' · ' + g.mod : ''))),
+            h('td', null, h('span', { class: 'muted' }, kindText)),
+            ...cells,
+            h('td', null, items[g.id] ? h('button', { class: 'small', 'aria-label': `${g.id} 원래대로`, onclick: () => {
+              delete items[g.id]; changed(); draw();
+            } }, '원래대로') : null));
+        }));
+        rowChecks.paint();
+      };
+
+      const kindSel = h('select', { 'aria-label': '분류', onchange: (e) => { equipUi.kind = e.target.value; slotSel.disabled = equipUi.kind !== 'armor'; draw(); } },
+        h('option', { value: '' }, '전체'), ...Object.entries(EQUIP_KIND_LABEL).map(([k, t]) => h('option', { value: k }, t)));
+      kindSel.value = equipUi.kind;
+      const slots = Array.from(new Set((S.catalog.gear || []).filter((g) => g.kind === 'armor').map((g) => g.slot))).sort();
+      const slotSel = h('select', { 'aria-label': '부위', onchange: (e) => { equipUi.slot = e.target.value; draw(); } },
+        h('option', { value: '' }, '모든 부위'), ...slots.map((s) => h('option', { value: s }, EQUIP_SLOT_LABEL[s] || s)));
+      slotSel.value = slots.includes(equipUi.slot) ? equipUi.slot : '';
+      equipUi.slot = slotSel.value;
+      slotSel.disabled = equipUi.kind !== 'armor';
+      const mods = Array.from(new Set((S.catalog.gear || []).map((g) => g.mod).filter(Boolean))).sort();
+      const modSel = h('select', { 'aria-label': '모드', onchange: (e) => { equipUi.mod = e.target.value; draw(); } },
+        h('option', { value: '' }, '모든 모드'), ...mods.map((m) => h('option', { value: m }, m)));
+      modSel.value = mods.includes(equipUi.mod) ? equipUi.mod : '';
+      equipUi.mod = modSel.value;
+      const search = h('input', { type: 'search', placeholder: '이름·id·모드 검색', 'aria-label': '장비 검색', value: equipUi.query, style: 'width:16rem',
+        oninput: (e) => { equipUi.query = e.target.value; draw(); } });
+      const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: equipUi.onlyChanged,
+        onchange: (e) => { equipUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+
+      container.append(h('div', { class: 'card' }, h('h2', null, '장비 수치'),
+        h('p', { class: 'muted' }, '칸에 숫자를 넣으면 그 아이템의 값을 바꿉니다 (빈 칸 = 원래 값). 숫자는 아이템 설명(툴팁)에 보이는 최종값 그대로입니다 — 예: 다이아몬드 검 공격력 7, 공격 속도 1.6. 밀치기 저항도 툴팁처럼 % 로 적습니다.'),
+        h('p', { class: 'muted' }, '모든 모드의 아이템에 똑같이 적용되고, 강화(+n) 보너스는 바꾼 값 위에 그대로 더해집니다. 저장하면 접속 중인 사람의 장착 장비에도 바로 적용됩니다.'),
+        S.catalogOk && !(S.catalog.gear || []).length ? h('p', { class: 'muted' }, '장비 목록을 불러오지 못했습니다. 바꾼 항목만 보입니다.') : null,
+        h('div', { class: 'field' }, search, kindSel, slotSel, modSel, onlyChanged, count),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['아이템', '분류'].concat(EQUIP_STATS.map((s) => s[1]), ['']).map((t) => h('th', null, t)))), tbody))));
+      draw();
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(equipmentTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

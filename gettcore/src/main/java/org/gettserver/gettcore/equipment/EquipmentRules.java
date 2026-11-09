@@ -2,9 +2,13 @@ package org.gettserver.gettcore.equipment;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -127,6 +131,56 @@ public final class EquipmentRules {
             if (!out.contains(id)) out.add(id);
         }
         return out;
+    }
+
+    /**
+     * Editor catalog row: kind "melee" / "armor" / "shield", the slot group name it is evaluated in and the tooltip
+     * value of each stat it has a modifier for (absent = none).
+     */
+    public record Gear(String kind, String slot, Map<Stat, Double> values) {}
+
+    private static final Set<Stat> DEFENSE = EnumSet.of(Stat.ARMOR, Stat.ARMOR_TOUGHNESS, Stat.KNOCKBACK_RESISTANCE);
+
+    /**
+     * Classifies an item from its unmodified modifiers: shield first, then armor (ArmorItem slot, or no attack but
+     * defense modifiers), then melee (has attack damage). Null = no attack or defense at all (not equipment).
+     */
+    public static Gear describe(List<Mod> mods, EquipmentSlot armorSlot, boolean shield) {
+        String kind;
+        EquipmentSlotGroup group;
+        boolean attack = mods.stream().anyMatch(m -> m.stat() == Stat.ATTACK_DAMAGE);
+        Optional<Mod> defense = mods.stream().filter(m -> DEFENSE.contains(m.stat())).findFirst();
+        if (shield) {
+            kind = "shield";
+            group = EquipmentSlotGroup.OFFHAND;
+        } else if (armorSlot != null) {
+            kind = "armor";
+            group = EquipmentSlotGroup.bySlot(armorSlot);
+        } else if (attack) {
+            kind = "melee";
+            group = EquipmentSlotGroup.MAINHAND;
+        } else if (defense.isPresent()) {
+            kind = "armor";
+            group = defense.get().group();
+        } else {
+            return null;
+        }
+        EquipmentSlot slot = representative(group);
+        Map<Stat, Double> values = new EnumMap<>(Stat.class);
+        for (Stat stat : Stat.values()) {
+            if (mods.stream().anyMatch(m -> m.stat() == stat && m.group().test(slot))) {
+                values.put(stat, finalValue(stat, mods, slot));
+            }
+        }
+        return new Gear(kind, group.getSerializedName(), values);
+    }
+
+    private static EquipmentSlot representative(EquipmentSlotGroup group) {
+        for (EquipmentSlot s : new EquipmentSlot[] {EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND, EquipmentSlot.CHEST,
+                EquipmentSlot.HEAD, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.BODY}) {
+            if (group.test(s)) return s;
+        }
+        return EquipmentSlot.MAINHAND;
     }
 
     /** The attribute value a player wearing these modifiers in {@code slot} gets (vanilla formula). */

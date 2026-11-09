@@ -16,8 +16,11 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.fml.ModList;
+import org.gettserver.gettcore.equipment.EquipmentEffects;
+import org.gettserver.gettcore.equipment.EquipmentRules;
 import org.gettserver.gettcore.pet.PetRegistry;
 
 /**
@@ -69,10 +72,24 @@ public final class ClientCatalog {
 
     private static String build() {
         List<CatalogJson.Entry> items = new ArrayList<>();
+        List<CatalogJson.Gear> gear = new ArrayList<>();
         for (Item item : BuiltInRegistries.ITEM) {
             if (item == Items.AIR) continue;
             ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
             items.add(new CatalogJson.Entry(id.toString(), item.getDescription().getString(), modName(id)));
+            EquipmentRules.Gear g;
+            try {
+                g = EquipmentEffects.describe(new ItemStack(item));
+            } catch (RuntimeException e) {
+                continue;   // 다른 모드 아이템이 빈 스택 수정자 계산에서 예외를 던져도 목록은 계속 만든다
+            }
+            if (g != null) {
+                gear.add(new CatalogJson.Gear(id.toString(), item.getDescription().getString(), modName(id), g.kind(),
+                        g.slot(), g.values().get(EquipmentRules.Stat.ATTACK_DAMAGE),
+                        g.values().get(EquipmentRules.Stat.ATTACK_SPEED), g.values().get(EquipmentRules.Stat.ARMOR),
+                        g.values().get(EquipmentRules.Stat.ARMOR_TOUGHNESS),
+                        g.values().get(EquipmentRules.Stat.KNOCKBACK_RESISTANCE)));
+            }
         }
         List<CatalogJson.Entry> entities = new ArrayList<>();
         List<CatalogJson.MobStat> mobs = new ArrayList<>();
@@ -97,7 +114,7 @@ public final class ClientCatalog {
             effects.add(new CatalogJson.Entry(id.toString(), effect.getDisplayName().getString(), modName(id)));
         }
         return CatalogJson.build(items, entities, tags(BuiltInRegistries.ITEM), tags(BuiltInRegistries.ENTITY_TYPE),
-                bossTypes, effects, mobs);
+                bossTypes, effects, mobs, gear);
     }
 
     private static Double base(AttributeSupplier attrs, Holder<Attribute> attribute) {

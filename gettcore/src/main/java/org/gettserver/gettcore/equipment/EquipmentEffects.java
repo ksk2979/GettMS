@@ -68,10 +68,26 @@ public final class EquipmentEffects {
         }
     }
 
+    /** Editor catalog row for {@code stack} from its modifiers without equipment.json (null = not equipment). */
+    public static EquipmentRules.Gear describe(ItemStack stack) {
+        List<Mod> mods;
+        BYPASS.set(true);
+        try {
+            mods = toMods(stack.getAttributeModifiers().modifiers());
+        } finally {
+            BYPASS.set(false);
+        }
+        EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
+        return EquipmentRules.describe(mods, armorSlot, isShield(stack));
+    }
+
+    private static boolean isShield(ItemStack stack) {
+        return stack.getItem() instanceof ShieldItem || stack.canPerformAction(ItemAbilities.SHIELD_BLOCK);
+    }
+
     private static net.minecraft.world.entity.EquipmentSlotGroup fallbackGroup(ItemStack stack) {
         EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
-        boolean shield = stack.getItem() instanceof ShieldItem || stack.canPerformAction(ItemAbilities.SHIELD_BLOCK);
-        return EquipmentRules.fallbackGroup(armorSlot, shield);
+        return EquipmentRules.fallbackGroup(armorSlot, isShield(stack));
     }
 
     private static List<Mod> toMods(List<ItemAttributeModifiers.Entry> entries) {

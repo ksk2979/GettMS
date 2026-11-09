@@ -237,6 +237,37 @@ class EquipmentTest {
     }
 
     @Test
+    void describeClassifiesAndShowsTooltipValues() {
+        EquipmentRules.Gear sword = EquipmentRules.describe(diamondSword(), null, false);
+        assertEquals("melee", sword.kind());
+        assertEquals("mainhand", sword.slot());
+        assertEquals(7.0, sword.values().get(Stat.ATTACK_DAMAGE), EPS);
+        assertEquals(1.6, sword.values().get(Stat.ATTACK_SPEED), EPS);
+        assertFalse(sword.values().containsKey(Stat.ARMOR));
+
+        List<Mod> chest = List.of(add(Stat.ARMOR, "minecraft:armor.chest", 8, EquipmentSlotGroup.CHEST),
+                add(Stat.ARMOR_TOUGHNESS, "minecraft:armor.chest", 3, EquipmentSlotGroup.CHEST),
+                add(Stat.KNOCKBACK_RESISTANCE, "minecraft:armor.chest", 0.1, EquipmentSlotGroup.CHEST));
+        EquipmentRules.Gear plate = EquipmentRules.describe(chest, EquipmentSlot.CHEST, false);
+        assertEquals("armor", plate.kind());
+        assertEquals("chest", plate.slot());
+        assertEquals(8.0, plate.values().get(Stat.ARMOR), EPS);
+        assertEquals(0.1, plate.values().get(Stat.KNOCKBACK_RESISTANCE), EPS);
+        // A mod trinket without ArmorItem: classified by its defense modifiers, slot from their group.
+        EquipmentRules.Gear trinket = EquipmentRules.describe(List.of(add(Stat.ARMOR, "t:a", 2,
+                EquipmentSlotGroup.LEGS)), null, false);
+        assertEquals("armor", trinket.kind());
+        assertEquals("legs", trinket.slot());
+
+        EquipmentRules.Gear shield = EquipmentRules.describe(List.of(), null, true);
+        assertEquals("shield", shield.kind());
+        assertEquals("offhand", shield.slot());
+        assertTrue(shield.values().isEmpty());
+
+        assertNull(EquipmentRules.describe(List.of(), null, false), "no attack or defense: not equipment");
+    }
+
+    @Test
     void finalValueFollowsVanillaFormula() {
         List<Mod> mods = List.of(add(Stat.ARMOR, "a:a", 4, EquipmentSlotGroup.CHEST),
                 new Mod(Stat.ARMOR, ResourceLocation.parse("a:b"), 0.5, Operation.ADD_MULTIPLIED_BASE,

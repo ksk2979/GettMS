@@ -18,6 +18,13 @@ public final class CatalogJson {
     public record MobStat(String id, String name, String mod, String category, Double health, Double attack,
                           Double speed, Double armor) {}
 
+    /**
+     * A melee weapon / armor piece / shield (equipment tab) with its tooltip values before equipment.json overrides.
+     * {@code kind} is melee, armor or shield; {@code slot} the slot group name; a null value = no such modifier.
+     */
+    public record Gear(String id, String name, String mod, String kind, String slot, Double attackDamage,
+                       Double attackSpeed, Double armor, Double toughness, Double knockbackResistance) {}
+
     private CatalogJson() {}
 
     /**
@@ -30,6 +37,12 @@ public final class CatalogJson {
      */
     public static String build(List<Entry> items, List<Entry> entities, List<String> itemTags, List<String> entityTags,
                                List<String> bossTypes, List<Entry> mobEffects, List<MobStat> mobs) {
+        return build(items, entities, itemTags, entityTags, bossTypes, mobEffects, mobs, List.of());
+    }
+
+    /** As above plus {@code "gear":[{"id","name","mod","kind","slot",attackDamage?,attackSpeed?,armor?,toughness?,knockbackResistance?}]}. */
+    public static String build(List<Entry> items, List<Entry> entities, List<String> itemTags, List<String> entityTags,
+                               List<String> bossTypes, List<Entry> mobEffects, List<MobStat> mobs, List<Gear> gear) {
         JsonObject root = new JsonObject();
         root.add("items", entries(items));
         root.add("entities", entries(entities));
@@ -55,6 +68,22 @@ public final class CatalogJson {
             m.add(o);
         });
         root.add("mobs", m);
+        JsonArray g = new JsonArray();
+        gear.stream().sorted(Comparator.comparing(Gear::id)).forEach(e -> {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", e.id());
+            o.addProperty("name", e.name());
+            o.addProperty("mod", e.mod());
+            o.addProperty("kind", e.kind());
+            o.addProperty("slot", e.slot());
+            if (e.attackDamage() != null) o.addProperty("attackDamage", e.attackDamage());
+            if (e.attackSpeed() != null) o.addProperty("attackSpeed", e.attackSpeed());
+            if (e.armor() != null) o.addProperty("armor", e.armor());
+            if (e.toughness() != null) o.addProperty("toughness", e.toughness());
+            if (e.knockbackResistance() != null) o.addProperty("knockbackResistance", e.knockbackResistance());
+            g.add(o);
+        });
+        root.add("gear", g);
         return root.toString();
     }
 
