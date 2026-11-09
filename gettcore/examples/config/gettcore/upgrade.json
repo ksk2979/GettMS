@@ -1,0 +1,816 @@
+{
+  "steps": [
+    {
+      "from": "magistuarmory:wood_ahlspiess",
+      "to": "magistuarmory:stone_ahlspiess",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_ahlspiess",
+      "to": "magistuarmory:iron_ahlspiess",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_ahlspiess",
+      "to": "magistuarmory:diamond_ahlspiess",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_ahlspiess",
+      "to": "magistuarmory:netherite_ahlspiess",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_bastardsword",
+      "to": "magistuarmory:stone_bastardsword",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_bastardsword",
+      "to": "magistuarmory:iron_bastardsword",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_bastardsword",
+      "to": "magistuarmory:diamond_bastardsword",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_bastardsword",
+      "to": "magistuarmory:netherite_bastardsword",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_buckler",
+      "to": "magistuarmory:stone_buckler",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_buckler",
+      "to": "magistuarmory:iron_buckler",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_buckler",
+      "to": "magistuarmory:diamond_buckler",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_buckler",
+      "to": "magistuarmory:netherite_buckler",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_chainmorgenstern",
+      "to": "magistuarmory:stone_chainmorgenstern",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_chainmorgenstern",
+      "to": "magistuarmory:iron_chainmorgenstern",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_chainmorgenstern",
+      "to": "magistuarmory:diamond_chainmorgenstern",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_chainmorgenstern",
+      "to": "magistuarmory:netherite_chainmorgenstern",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_chivalrylance",
+      "to": "magistuarmory:stone_chivalrylance",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_chivalrylance",
+      "to": "magistuarmory:iron_chivalrylance",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_chivalrylance",
+      "to": "magistuarmory:diamond_chivalrylance",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_chivalrylance",
+      "to": "magistuarmory:netherite_chivalrylance",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_claymore",
+      "to": "magistuarmory:stone_claymore",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_claymore",
+      "to": "magistuarmory:iron_claymore",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_claymore",
+      "to": "magistuarmory:diamond_claymore",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_claymore",
+      "to": "magistuarmory:netherite_claymore",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_concavehalberd",
+      "to": "magistuarmory:stone_concavehalberd",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_concavehalberd",
+      "to": "magistuarmory:iron_concavehalberd",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_concavehalberd",
+      "to": "magistuarmory:diamond_concavehalberd",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_concavehalberd",
+      "to": "magistuarmory:netherite_concavehalberd",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_ellipticalshield",
+      "to": "magistuarmory:stone_ellipticalshield",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_ellipticalshield",
+      "to": "magistuarmory:iron_ellipticalshield",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_ellipticalshield",
+      "to": "magistuarmory:diamond_ellipticalshield",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_ellipticalshield",
+      "to": "magistuarmory:netherite_ellipticalshield",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_estoc",
+      "to": "magistuarmory:stone_estoc",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_estoc",
+      "to": "magistuarmory:iron_estoc",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_estoc",
+      "to": "magistuarmory:diamond_estoc",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_estoc",
+      "to": "magistuarmory:netherite_estoc",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_flamebladedsword",
+      "to": "magistuarmory:stone_flamebladedsword",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_flamebladedsword",
+      "to": "magistuarmory:iron_flamebladedsword",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_flamebladedsword",
+      "to": "magistuarmory:diamond_flamebladedsword",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_flamebladedsword",
+      "to": "magistuarmory:netherite_flamebladedsword",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_guisarme",
+      "to": "magistuarmory:stone_guisarme",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_guisarme",
+      "to": "magistuarmory:iron_guisarme",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_guisarme",
+      "to": "magistuarmory:diamond_guisarme",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_guisarme",
+      "to": "magistuarmory:netherite_guisarme",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_heatershield",
+      "to": "magistuarmory:stone_heatershield",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_heatershield",
+      "to": "magistuarmory:iron_heatershield",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_heatershield",
+      "to": "magistuarmory:diamond_heatershield",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_heatershield",
+      "to": "magistuarmory:netherite_heatershield",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_heavymace",
+      "to": "magistuarmory:stone_heavymace",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_heavymace",
+      "to": "magistuarmory:iron_heavymace",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_heavymace",
+      "to": "magistuarmory:diamond_heavymace",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_heavymace",
+      "to": "magistuarmory:netherite_heavymace",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_heavywarhammer",
+      "to": "magistuarmory:stone_heavywarhammer",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_heavywarhammer",
+      "to": "magistuarmory:iron_heavywarhammer",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_heavywarhammer",
+      "to": "magistuarmory:diamond_heavywarhammer",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_heavywarhammer",
+      "to": "magistuarmory:netherite_heavywarhammer",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_katzbalger",
+      "to": "magistuarmory:stone_katzbalger",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_katzbalger",
+      "to": "magistuarmory:iron_katzbalger",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_katzbalger",
+      "to": "magistuarmory:diamond_katzbalger",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_katzbalger",
+      "to": "magistuarmory:netherite_katzbalger",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_kiteshield",
+      "to": "magistuarmory:stone_kiteshield",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_kiteshield",
+      "to": "magistuarmory:iron_kiteshield",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_kiteshield",
+      "to": "magistuarmory:diamond_kiteshield",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_kiteshield",
+      "to": "magistuarmory:netherite_kiteshield",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_lochaberaxe",
+      "to": "magistuarmory:stone_lochaberaxe",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_lochaberaxe",
+      "to": "magistuarmory:iron_lochaberaxe",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_lochaberaxe",
+      "to": "magistuarmory:diamond_lochaberaxe",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_lochaberaxe",
+      "to": "magistuarmory:netherite_lochaberaxe",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_lucernhammer",
+      "to": "magistuarmory:stone_lucernhammer",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_lucernhammer",
+      "to": "magistuarmory:iron_lucernhammer",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_lucernhammer",
+      "to": "magistuarmory:diamond_lucernhammer",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_lucernhammer",
+      "to": "magistuarmory:netherite_lucernhammer",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_morgenstern",
+      "to": "magistuarmory:stone_morgenstern",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_morgenstern",
+      "to": "magistuarmory:iron_morgenstern",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_morgenstern",
+      "to": "magistuarmory:diamond_morgenstern",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_morgenstern",
+      "to": "magistuarmory:netherite_morgenstern",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_pavese",
+      "to": "magistuarmory:stone_pavese",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_pavese",
+      "to": "magistuarmory:iron_pavese",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_pavese",
+      "to": "magistuarmory:diamond_pavese",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_pavese",
+      "to": "magistuarmory:netherite_pavese",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_pike",
+      "to": "magistuarmory:stone_pike",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_pike",
+      "to": "magistuarmory:iron_pike",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_pike",
+      "to": "magistuarmory:diamond_pike",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_pike",
+      "to": "magistuarmory:netherite_pike",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_ranseur",
+      "to": "magistuarmory:stone_ranseur",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_ranseur",
+      "to": "magistuarmory:iron_ranseur",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_ranseur",
+      "to": "magistuarmory:diamond_ranseur",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_ranseur",
+      "to": "magistuarmory:netherite_ranseur",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_rondache",
+      "to": "magistuarmory:stone_rondache",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_rondache",
+      "to": "magistuarmory:iron_rondache",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_rondache",
+      "to": "magistuarmory:diamond_rondache",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_rondache",
+      "to": "magistuarmory:netherite_rondache",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_roundshield",
+      "to": "magistuarmory:stone_roundshield",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_roundshield",
+      "to": "magistuarmory:iron_roundshield",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_roundshield",
+      "to": "magistuarmory:diamond_roundshield",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_roundshield",
+      "to": "magistuarmory:netherite_roundshield",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_shortsword",
+      "to": "magistuarmory:stone_shortsword",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_shortsword",
+      "to": "magistuarmory:iron_shortsword",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_shortsword",
+      "to": "magistuarmory:diamond_shortsword",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_shortsword",
+      "to": "magistuarmory:netherite_shortsword",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_stylet",
+      "to": "magistuarmory:stone_stylet",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_stylet",
+      "to": "magistuarmory:iron_stylet",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_stylet",
+      "to": "magistuarmory:diamond_stylet",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_stylet",
+      "to": "magistuarmory:netherite_stylet",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_target",
+      "to": "magistuarmory:stone_target",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_target",
+      "to": "magistuarmory:iron_target",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_target",
+      "to": "magistuarmory:diamond_target",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_target",
+      "to": "magistuarmory:netherite_target",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_tartsche",
+      "to": "magistuarmory:stone_tartsche",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_tartsche",
+      "to": "magistuarmory:iron_tartsche",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_tartsche",
+      "to": "magistuarmory:diamond_tartsche",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_tartsche",
+      "to": "magistuarmory:netherite_tartsche",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:wood_zweihander",
+      "to": "magistuarmory:stone_zweihander",
+      "material": "minecraft:cobblestone",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:stone_zweihander",
+      "to": "magistuarmory:iron_zweihander",
+      "material": "minecraft:iron_ingot",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:iron_zweihander",
+      "to": "magistuarmory:diamond_zweihander",
+      "material": "minecraft:diamond",
+      "count": 3,
+      "gold": 0
+    },
+    {
+      "from": "magistuarmory:diamond_zweihander",
+      "to": "magistuarmory:netherite_zweihander",
+      "material": "minecraft:netherite_ingot",
+      "count": 1,
+      "gold": 0
+    }
+  ]
+}
