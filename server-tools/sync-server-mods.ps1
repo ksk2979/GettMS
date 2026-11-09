@@ -1,6 +1,7 @@
 ﻿# Gett Server: 서버 mods 폴더를 런처 설정(GitHub 의 launcher.config.json)과 똑같이 맞춘다.
 # 사용법: 서버 폴더에 이 파일을 두고, 서버를 끈 상태에서 더블클릭(또는 우클릭 → PowerShell 로 실행).
-# 하는 일: 설정의 mods 목록 + 필수 의존성을 Modrinth 에서 1.21.1 NeoForge 빌드로 받고(sha512 검증), 목록 밖 jar 는 _removed 폴더로 옮긴다.
+# 하는 일: 설정에 모드 고정 목록(lock)이 있으면 그 목록의 서버용 항목(both+server)을 그대로 받고, 없으면 예전처럼 mods 목록 +
+#          필수 의존성을 Modrinth 에서 1.21.1 NeoForge 최신 빌드로 받는다(sha512 검증). 목록 밖 jar 는 _removed 폴더로 옮긴다.
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -18,9 +19,18 @@ $serverList = @($cfg.mods) + $serverOnly
 Write-Host "Minecraft $mc / NeoForge $($cfg.neoforgeVersion) / 서버 모드 $($serverList.Count)개 (공통 $($cfg.mods.Count) + 서버전용 $($serverOnly.Count))"
 
 $want = @{}   # filename -> @{url; sha512; slug; version}
+$useLock = $cfg.lock -and @($cfg.lock).Count -gt 0
+if ($useLock) {
+  Write-Host "모드 고정 목록(lock) 사용: $(@($cfg.lock).Count)개 중 서버용만"
+  foreach ($e in $cfg.lock) {
+    if ($e.side -eq 'both' -or $e.side -eq 'server') {
+      $want[$e.file] = @{ url = $e.url; sha512 = $e.sha512; slug = $e.slug; version = 'lock' }
+    }
+  }
+}
 $queue = [System.Collections.Generic.Queue[string]]::new()
 $seen = @{}
-foreach ($s in $serverList) { if ($s) { $queue.Enqueue($s) } }
+if (-not $useLock) { foreach ($s in $serverList) { if ($s) { $queue.Enqueue($s) } } }
 
 while ($queue.Count -gt 0) {
   $slug = $queue.Dequeue()
@@ -42,7 +52,8 @@ while ($queue.Count -gt 0) {
   }
 }
 
-$customServer = @($cfg.customMods | Where-Object { $_ -and ($_.side -eq 'both' -or $_.side -eq 'server') })
+$customServer = @()
+if (-not $useLock) { $customServer = @($cfg.customMods | Where-Object { $_ -and ($_.side -eq 'both' -or $_.side -eq 'server') }) }
 foreach ($c in $customServer) {
   $want[$c.file] = @{ url = $c.url; sha512 = $c.sha512; slug = $c.name; version = 'custom' }
 }
@@ -54,7 +65,15 @@ foreach ($name in $want.Keys) {
   $w = $want[$name]
   Write-Host "받는 중: $($w.slug) $($w.version)"
   $tmp = "$dest.part"
-  Invoke-WebRequest -Uri $w.url -OutFile $tmp -Headers $Headers
+  # 일시적인 실패(GitHub 504 등)는 3번까지 다시 시도
+  for ($try = 1; ; $try++) {
+    try { Invoke-WebRequest -Uri $w.url -OutFile $tmp -Headers $Headers; break }
+    catch {
+      if ($try -ge 3) { throw }
+      Write-Host "  다운로드 실패, 다시 시도 ($try/3): $($_.Exception.Message)"
+      Start-Sleep -Seconds (2 * $try)
+    }
+  }
   $hash = (Get-FileHash $tmp -Algorithm SHA512).Hash.ToLower()
   if ($hash -ne $w.sha512.ToLower()) { Remove-Item $tmp -Force; throw "해시 불일치: $name" }
   Move-Item $tmp $dest -Force
