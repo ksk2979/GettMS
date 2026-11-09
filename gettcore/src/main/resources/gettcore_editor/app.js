@@ -517,14 +517,20 @@
   let currentPaint = null;
   function paintCurrent() { if (currentPaint) currentPaint(); }
 
-  /** 입력 요소에 검증 함수를 묶는다. paint 때마다 check()가 오류 문장을 돌려주면 빨갛게 표시. */
+  /**
+   * 입력 요소에 검증 함수를 묶는다. paint 때마다 check()가 오류 문장을 돌려주면 빨갛게 표시.
+   * 행을 지운 직후(changed → 다시 그리기 전)에는 지워진 행의 check 가 없는 번호를 읽어 예외가 날 수 있다 —
+   * 예전에는 그 예외로 changed() 가 멈춰 뒤따르는 다시 그리기가 안 돼, 탭을 바꿀 때까지 목록이 그대로였다.
+   */
   function makeChecks() {
     const list = [];
     return {
       add(el, check) { list.push({ el, check }); return el; },
       paint() {
         for (const { el, check } of list) {
-          const m = check();
+          if (!el.isConnected) continue;
+          let m = '';
+          try { m = check(); } catch (e) { continue; }   // 지워진 행: 곧 다시 그려진다
           el.classList.toggle('bad', !!m);
           if (m) el.setAttribute('title', m); else el.removeAttribute('title');
         }
