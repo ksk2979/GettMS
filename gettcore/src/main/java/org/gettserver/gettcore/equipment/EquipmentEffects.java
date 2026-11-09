@@ -33,8 +33,8 @@ import org.gettserver.gettcore.equipment.EquipmentRules.Stat;
 
 /**
  * Applies equipment.json in {@link ItemAttributeModifierEvent} (any mod's item, both sides: the client uses the synced
- * copy so tooltips match). Runs at LOWEST priority so other mods' modifiers are already there to be replaced;
- * gettcore's own modifiers (reinforce) are kept, see {@link EquipmentRules}.
+ * copy so tooltips match). Runs at LOWEST priority; replaces only the item's own (default) modifiers of an overridden
+ * stat — modifiers other mods add in this event and gettcore's own (reinforce) are kept, see {@link EquipmentRules}.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class EquipmentEffects {
@@ -59,7 +59,12 @@ public final class EquipmentEffects {
         Optional<Values> values = cfg.get(BuiltInRegistries.ITEM.getKey(stack.getItem()));
         if (values.isEmpty()) return;
         List<Mod> before = toMods(event.getModifiers());
-        List<Mod> after = EquipmentRules.apply(before, values.get(), stat -> fallbackGroup(stack));
+        // The item's own modifiers (its component, before any event handler): only these are replaced, so bonuses
+        // other mods add through this event stay on top of the override.
+        java.util.Set<String> own = new java.util.HashSet<>();
+        for (Mod m : toMods(event.getDefaultModifiers().modifiers())) own.add(m.stat() + "|" + m.id());
+        List<Mod> after = EquipmentRules.apply(before, m -> own.contains(m.stat() + "|" + m.id()), values.get(),
+                stat -> fallbackGroup(stack));
         EquipmentRules.Diff diff = EquipmentRules.diff(before, after);
         for (Mod m : diff.removed()) event.removeModifier(holder(m.stat()), m.id());
         for (Mod m : diff.added()) {

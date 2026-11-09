@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
@@ -17,11 +18,15 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation;
 import org.gettserver.gettcore.equipment.EquipmentConfig.Values;
 
 /**
- * Pure rules for equipment.json. For every overridden stat, every modifier of that stat that is not gettcore's own
- * (gettcore namespace, not {@code equip_*}, e.g. {@code gettcore:reinforce_melee}) is removed and one ADD_VALUE
+ * Pure rules for equipment.json. For every overridden stat, the item's own modifiers of that stat (the ones the item
+ * declares itself — its default modifiers — plus vanilla base ids and our {@code equip_*} ids) are removed and one
+ * ADD_VALUE
  * modifier with the tooltip value minus the player's base is added in the slot group the item already used for that
  * stat (else the group of its other stats, else the caller's fallback). The result does not depend on whether the
- * reinforce modifiers were added before or after, and applying it twice changes nothing.
+ * reinforce modifiers were added before or after, and applying it twice changes nothing. Modifiers other mods add
+ * through ItemAttributeModifierEvent (affixes, set bonuses, ...) and gettcore's own (reinforce) stay and stack on top.
+ * Epic Fight's damage_bonus / speed_bonus are not item modifiers at all (Epic Fight adds them straight to the player
+ * on equipment change, ids epicfight:attack_damage / attack_speed), so they always add on top as well.
  */
 public final class EquipmentRules {
     private EquipmentRules() {}
@@ -86,23 +91,41 @@ public final class EquipmentRules {
         return id.getNamespace().equals(NAMESPACE) && !id.getPath().startsWith(PREFIX);
     }
 
-    /** {@code mods} after the overrides in {@code values} (null / empty = unchanged). */
+    /** Ids that are always the item's base value: vanilla's base / armor ids and our override ids. */
+    public static boolean isBaseId(ResourceLocation id) {
+        if (id.equals(BASE_ATTACK_DAMAGE_ID) || id.equals(BASE_ATTACK_SPEED_ID)) return true;
+        if (id.getNamespace().equals("minecraft") && id.getPath().startsWith("armor.")) return true;
+        return id.getNamespace().equals(NAMESPACE) && id.getPath().startsWith(PREFIX);
+    }
+
+    /** {@link #apply(List, Predicate, Values, Function)} with every modifier counted as the item's own. */
     public static List<Mod> apply(List<Mod> mods, Values values, Function<Stat, EquipmentSlotGroup> fallback) {
+        return apply(mods, m -> true, values, fallback);
+    }
+
+    /**
+     * {@code mods} after the overrides in {@code values} (null / empty = unchanged). {@code own}: whether a modifier is
+     * one the item declares itself (replaced); the others (added by other mods through the event) are kept.
+     */
+    public static List<Mod> apply(List<Mod> mods, Predicate<Mod> own, Values values,
+                                  Function<Stat, EquipmentSlotGroup> fallback) {
+        Predicate<Mod> replaceable = m -> !isKept(m.id()) && (isBaseId(m.id()) || own.test(m));
         List<Mod> out = new ArrayList<>(mods);
         for (Stat stat : Stat.values()) {
             Optional<Double> v = value(values, stat);
             if (v.isEmpty()) continue;
-            EquipmentSlotGroup group = groupFor(mods, stat, fallback);
-            out.removeIf(m -> m.stat() == stat && !isKept(m.id()));
+            EquipmentSlotGroup group = groupFor(mods, stat, replaceable, fallback);
+            out.removeIf(m -> m.stat() == stat && replaceable.test(m));
             out.add(new Mod(stat, overrideId(stat, group), amount(stat, v.get()), Operation.ADD_VALUE, group));
         }
         return out;
     }
 
     /** Group of the first replaceable modifier of {@code stat}, else of any stat, else the fallback. */
-    static EquipmentSlotGroup groupFor(List<Mod> mods, Stat stat, Function<Stat, EquipmentSlotGroup> fallback) {
-        for (Mod m : mods) if (m.stat() == stat && !isKept(m.id())) return m.group();
-        for (Mod m : mods) if (!isKept(m.id())) return m.group();
+    static EquipmentSlotGroup groupFor(List<Mod> mods, Stat stat, Predicate<Mod> replaceable,
+                                       Function<Stat, EquipmentSlotGroup> fallback) {
+        for (Mod m : mods) if (m.stat() == stat && replaceable.test(m)) return m.group();
+        for (Mod m : mods) if (replaceable.test(m)) return m.group();
         return fallback.apply(stat);
     }
 

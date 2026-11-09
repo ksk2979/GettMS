@@ -175,6 +175,33 @@ class EquipmentTest {
     }
 
     @Test
+    void modifiersOtherModsAddThroughTheEventAreKept() {
+        // The item declares the two vanilla base modifiers; another mod's event handler adds +3 damage, gettcore
+        // reinforce adds 10 %. Only the item's own (base) modifiers are replaced.
+        Mod affix = add(Stat.ATTACK_DAMAGE, "affixmod:sharp", 3, EquipmentSlotGroup.MAINHAND);
+        Mod otherSpeed = add(Stat.ATTACK_SPEED, "affixmod:quick", 0.5, EquipmentSlotGroup.MAINHAND);
+        List<Mod> event = new ArrayList<>(diamondSword());
+        event.add(affix);
+        event.add(otherSpeed);
+        event.add(REINFORCE);
+        java.util.Set<Mod> own = new HashSet<>(diamondSword());
+        List<Mod> out = EquipmentRules.apply(event, own::contains, v(10.0, 1.2, null, null, null),
+                EquipmentTest::mainhand);
+        assertTrue(out.contains(affix) && out.contains(otherSpeed) && out.contains(REINFORCE), out.toString());
+        assertFalse(out.contains(diamondSword().get(0)));
+        assertEquals((10.0 + 3) * 1.1, EquipmentRules.finalValue(Stat.ATTACK_DAMAGE, out, EquipmentSlot.MAINHAND), EPS);
+        assertEquals(1.7, EquipmentRules.finalValue(Stat.ATTACK_SPEED, out, EquipmentSlot.MAINHAND), EPS);
+        // Vanilla base ids and our own equip_* ids are always replaceable (e.g. a second pass), never doubled.
+        assertEquals(new HashSet<>(out), new HashSet<>(EquipmentRules.apply(out, m -> false,
+                v(10.0, 1.2, null, null, null), EquipmentTest::mainhand)));
+        List<Mod> chest = List.of(add(Stat.ARMOR, "minecraft:armor.chestplate", 8, EquipmentSlotGroup.CHEST),
+                add(Stat.ARMOR, "affixmod:tough", 1, EquipmentSlotGroup.CHEST));
+        List<Mod> armored = EquipmentRules.apply(chest, m -> false, v(null, null, 5.0, null, null),
+                s -> EquipmentSlotGroup.CHEST);
+        assertEquals(6.0, EquipmentRules.finalValue(Stat.ARMOR, armored, EquipmentSlot.CHEST), EPS);
+    }
+
+    @Test
     void armorKeepsItsOwnSlotGroupWithPerGroupIds() {
         // A mod trinket that puts armor on the chest group although it is no chestplate.
         List<Mod> trinket = List.of(add(Stat.ARMOR, "trinkets:armor", 2, EquipmentSlotGroup.CHEST),
