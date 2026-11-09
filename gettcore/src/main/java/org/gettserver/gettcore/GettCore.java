@@ -117,6 +117,7 @@ public class GettCore {
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();
         ReinforceEffects.registerReloadHook();
+        org.gettserver.gettcore.equipment.EquipmentEffects.registerReloadHook();
         // 단계 능력 효과 id 검사(등록됨 && 즉시 효과 아님): 레지스트리 조회는 sanitize 때(로드 이후)에만 일어난다.
         ReinforceConfig.effectUsable = id -> BuiltInRegistries.MOB_EFFECT.getOptional(id)
                 .map(e -> !e.isInstantenous()).orElse(false);

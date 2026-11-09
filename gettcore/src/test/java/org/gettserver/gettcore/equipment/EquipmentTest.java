@@ -207,6 +207,36 @@ class EquipmentTest {
     }
 
     @Test
+    void diffRemovesThenAddsOnlyWhatChanged() {
+        List<Mod> before = new ArrayList<>(diamondSword());
+        before.add(REINFORCE);
+        List<Mod> after = EquipmentRules.apply(before, v(9.0, null, null, null, null), EquipmentTest::mainhand);
+        EquipmentRules.Diff d = EquipmentRules.diff(before, after);
+        assertEquals(List.of(diamondSword().get(0)), d.removed());
+        assertEquals(List.of(new Mod(Stat.ATTACK_DAMAGE, BASE_DMG, 8, Operation.ADD_VALUE,
+                EquipmentSlotGroup.MAINHAND)), d.added());
+        EquipmentRules.Diff none = EquipmentRules.diff(before, before);
+        assertTrue(none.removed().isEmpty() && none.added().isEmpty());
+    }
+
+    @Test
+    void fallbackGroupByItemKind() {
+        assertEquals(EquipmentSlotGroup.LEGS, EquipmentRules.fallbackGroup(EquipmentSlot.LEGS, false));
+        assertEquals(EquipmentSlotGroup.OFFHAND, EquipmentRules.fallbackGroup(null, true));
+        assertEquals(EquipmentSlotGroup.MAINHAND, EquipmentRules.fallbackGroup(null, false));
+    }
+
+    @Test
+    void everyPossibleOverrideIdIsListedForRefresh() {
+        List<ResourceLocation> ids = EquipmentRules.possibleOverrideIds(Stat.ATTACK_DAMAGE);
+        assertTrue(ids.contains(BASE_DMG), ids.toString());
+        for (EquipmentSlotGroup g : EquipmentSlotGroup.values()) {
+            assertTrue(ids.contains(EquipmentRules.overrideId(Stat.ATTACK_DAMAGE, g)), g.toString());
+        }
+        assertTrue(EquipmentRules.possibleOverrideIds(Stat.ARMOR).stream().noneMatch(BASE_DMG::equals));
+    }
+
+    @Test
     void finalValueFollowsVanillaFormula() {
         List<Mod> mods = List.of(add(Stat.ARMOR, "a:a", 4, EquipmentSlotGroup.CHEST),
                 new Mod(Stat.ARMOR, ResourceLocation.parse("a:b"), 0.5, Operation.ADD_MULTIPLIED_BASE,

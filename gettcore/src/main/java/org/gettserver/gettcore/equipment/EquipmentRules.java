@@ -102,6 +102,33 @@ public final class EquipmentRules {
         return fallback.apply(stat);
     }
 
+    /** What to remove from and add to the event (removals first: a replacement may reuse a removed id). */
+    public record Diff(List<Mod> removed, List<Mod> added) {}
+
+    public static Diff diff(List<Mod> before, List<Mod> after) {
+        return new Diff(before.stream().filter(m -> !after.contains(m)).toList(),
+                after.stream().filter(m -> !before.contains(m)).toList());
+    }
+
+    /**
+     * Group for a stat the item has no modifier for at all: armor = its slot, shield = off hand, else main hand.
+     * {@code armorSlot} is null for non-armor items.
+     */
+    public static EquipmentSlotGroup fallbackGroup(EquipmentSlot armorSlot, boolean shield) {
+        if (armorSlot != null) return EquipmentSlotGroup.bySlot(armorSlot);
+        return shield ? EquipmentSlotGroup.OFFHAND : EquipmentSlotGroup.MAINHAND;
+    }
+
+    /** Every id {@link #overrideId} can return for {@code stat} (to clear stale ones from players on reload). */
+    public static List<ResourceLocation> possibleOverrideIds(Stat stat) {
+        List<ResourceLocation> out = new ArrayList<>();
+        for (EquipmentSlotGroup g : EquipmentSlotGroup.values()) {
+            ResourceLocation id = overrideId(stat, g);
+            if (!out.contains(id)) out.add(id);
+        }
+        return out;
+    }
+
     /** The attribute value a player wearing these modifiers in {@code slot} gets (vanilla formula). */
     public static double finalValue(Stat stat, Collection<Mod> mods, EquipmentSlot slot) {
         double base = stat.playerBase();
