@@ -12,7 +12,9 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingEquipmentChangeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.network.QuietHealthDropPayload;
 
 /**
  * 강화 방어구 체력 보존(MC-17876 보정). 강화 체력은 아이템 수정자라 저장되지 않아, 접속 시 NBT 의 Health 를 읽는 순간 최대 체력이
@@ -22,6 +24,9 @@ import org.gettserver.gettcore.GettCore;
  *
  * <p>또 풀피일 때 방어구를 바꿔 최대 체력이 늘면 현재 체력도 새 최대치로 채운다(조금이라도 깎여 있으면 그대로). 접속·엔드 귀환
  * 직후의 첫 장비 패스는 제외한다(재접속만으로 회복되지 않게; 그때는 위 복원이 맡음).
+ *
+ * <p>반대로 방어구를 벗어 최대 체력이 줄며 체력이 잘리면, 클라이언트가 이를 피격으로 보고 화면을 흔드므로 체력 패킷 직전에
+ * {@link QuietHealthDropPayload} 를 보내 연출을 끈다.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class HealthRestore {
@@ -36,8 +41,15 @@ public final class HealthRestore {
     private static final Set<UUID> TOP_UP = new HashSet<>();
     /** 접속·엔드 귀환 후 첫 틱이 아직 안 끝난 플레이어(첫 장비 패스는 채우기 제외). */
     private static final Set<UUID> JUST_JOINED = new HashSet<>();
+    /** 틱 시작 시 [체력, 최대 체력] (최대 체력 감소로 잘렸는지 판정용). */
+    private static final Map<UUID, float[]> TICK_START = new HashMap<>();
 
     private HealthRestore() {}
+
+    /** 최대 체력이 줄어 체력이 새 최대치로 잘린 것인지(피해 아님). */
+    static boolean clampedByMaxDrop(float startHealth, float startMax, float health, float max) {
+        return max < startMax && health < startHealth && health >= max - 1.0e-4F;
+    }
 
     /**
      * 이번 틱에 복원할 체력, 아직 기다리면 -1. 현재 체력이 이미 저장 값 이상이면(복원할 게 없음) 현재 체력을 돌려준다.
@@ -54,6 +66,7 @@ public final class HealthRestore {
             PENDING.remove(player.getUUID());
             TOP_UP.remove(player.getUUID());
             JUST_JOINED.remove(player.getUUID());
+            TICK_START.remove(player.getUUID());
         }
     }
 
@@ -84,8 +97,20 @@ public final class HealthRestore {
     }
 
     @SubscribeEvent
+    public static void onPlayerTickStart(PlayerTickEvent.Pre event) {
+        if (event.getEntity() instanceof ServerPlayer player)
+            TICK_START.put(player.getUUID(), new float[]{player.getHealth(), player.getMaxHealth()});
+    }
+
+    @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        // 장비 변경·속성 갱신(체력 잘림)은 플레이어 틱 안, 체력 패킷은 그 뒤 doTick 에서 나간다 → 지금 보내면 먼저 도착.
+        float[] start = TICK_START.remove(player.getUUID());
+        if (start != null && player.isAlive()
+                && clampedByMaxDrop(start[0], start[1], player.getHealth(), player.getMaxHealth())) {
+            PacketDistributor.sendToPlayer(player, QuietHealthDropPayload.INSTANCE);
+        }
         Pending p = PENDING.get(player.getUUID());
         if (p != null) {
             if (!player.isAlive()) {

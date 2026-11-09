@@ -87,6 +87,10 @@ public final class GettNetwork {
         registrar.playToClient(MobHitPayload.TYPE, MobHitPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> MobHealthBar.onHit(payload.entityId(), ctx.player().level().getGameTime())));
+        // ClientQuietHealth (client-only) is referenced only inside the client-bound handler.
+        registrar.playToClient(QuietHealthDropPayload.TYPE, QuietHealthDropPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        org.gettserver.gettcore.reinforce.ClientQuietHealth::suppressNextFlash));
         registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index(), payload.action())));
