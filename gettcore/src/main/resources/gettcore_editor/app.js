@@ -117,7 +117,7 @@
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
     catalogOk: false,
-    dpCatalog: null,    // 서버가 준 총·등장 원래 값 (스냅숏의 datapackCatalog, 저장하지 않음)
+    dpCatalog: null,    // 서버가 준 총·등장·Epic Fight 원래 값 (스냅숏의 datapackCatalog, 저장하지 않음)
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
     result: null,       // 마지막 저장 결과 {kind, title, errors[], warnings[]}
@@ -294,13 +294,14 @@
   }
 
   /**
-   * 데이터팩 사본(총·등장)의 현재 덮어쓰기. 서버 스냅숏에 이 구역이 없으면 null — 그대로 저장하면 서버가 데이터팩을 건드리지 않는다.
-   * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율} }
+   * 데이터팩 사본(총·등장·Epic Fight)의 현재 덮어쓰기. 서버 스냅숏에 이 구역이 없으면 null — 그대로 저장하면 서버가 데이터팩을 건드리지 않는다.
+   * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율},
+   *   epicfight: {아이템: {스타일: {damage_bonus, speed_bonus, armor_negation, impact, max_strikes}}} }
    */
   function normalizeDatapack(src) {
     if (!src || typeof src !== 'object') return null;
     const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? JSON.parse(JSON.stringify(v)) : {});
-    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs) };
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight) };
   }
 
   function normalizeBossPoints(src) {
@@ -2544,7 +2545,7 @@
 
   const round3 = (v) => Math.round(v * 1000) / 1000;
   const dpShown = (v, unit) => (isNum(v) ? String(round3(v)) + (unit || '') : '—');
-  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
+  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
 
   // [키, 제목, 최소, 최대, 정수?, 단위] — 서버 GunBalance.FIELDS 와 같은 범위. 시간은 초(20틱 = 1초, 가장 가까운 틱으로 반올림).
   const GUN_FIELDS = [
@@ -2872,6 +2873,147 @@
     },
   };
   registerTab(spawnsTab);
+
+  /* ----- Epic Fight 탭 (무기 특성: data/<모드>/capabilities/weapons/<아이템>.json 의 사본) ----- */
+
+  // [키, 제목, 최소, 최대, 정수?, 단위] — 서버 EpicFightBalance.FIELDS 와 같은 키·범위.
+  const EF_FIELDS = [
+    ['damage_bonus', '추가 피해', -100, 1000, false, ''],
+    ['speed_bonus', '공격 속도 보정', -4, 4, false, ''],
+    ['armor_negation', '방어 무시', 0, 100, false, '%'],
+    ['impact', '충격', -10, 100, false, ''],
+    ['max_strikes', '최대 타격 수', 0, 50, true, ''],
+  ];
+  const EF_STYLE_NAMES = { common: '공통', one_hand: '한손', two_hand: '양손' };
+  const EF_SHOW_MAX = 150;
+  const efStyleName = (s) => EF_STYLE_NAMES[s] || s;
+
+  function efRule(key, v) {
+    if (v === undefined) return '';
+    const f = EF_FIELDS.find((x) => x[0] === key);
+    if (!f) return '모르는 항목입니다';
+    if (!isNum(v)) return '숫자여야 합니다 (비우면 원래 값)';
+    if (f[4] && !Number.isInteger(v)) return '정수여야 합니다';
+    return v >= f[2] && v <= f[3] ? '' : `${f[2]}~${f[3]} 사이여야 합니다`;
+  }
+
+  function validateEpicFight(bundle) {
+    const out = [];
+    const ef = (bundle.datapack && bundle.datapack.epicfight) || {};
+    for (const [id, styles] of Object.entries(ef)) {
+      for (const [style, o] of Object.entries(styles || {})) {
+        for (const [key, label] of EF_FIELDS) {
+          const m = efRule(key, (o || {})[key]);
+          if (m) out.push(`Epic Fight ${id} › ${efStyleName(style)} › ${label}: ${m}`);
+        }
+      }
+    }
+    return out;
+  }
+
+  const efUi = { query: '', mod: '', type: '', onlyChanged: false };
+
+  const epicFightTab = {
+    id: 'epicfight',
+    title: 'Epic Fight',
+    validate: validateEpicFight,
+    render(container) {
+      const card = h('div', { class: 'card' }, h('h2', null, 'Epic Fight 무기 특성'),
+        h('p', { class: 'muted' }, 'Epic Fight 가 무기마다 읽는 특성 파일(data/<모드>/capabilities/weapons/…) 값을 바꿉니다. 칸에 숫자를 넣으면 바뀌고, 빈 칸은 모드의 원래 값입니다. "—" 는 원본 파일에 없는 값입니다 (넣으면 새로 추가).'),
+        h('p', { class: 'muted' }, '추가 피해 = 공격력에 더함, 공격 속도 보정 = 공격 속도에 더함, 방어 무시 = 상대 방어를 무시하는 %, 충격 = 경직(스턴) 세기, 최대 타격 수 = 한 번 휘둘러 맞히는 대상 수에 더함. 스타일: 공통(모든 자세) / 한손 / 양손 — 원본에 있는 스타일만 보이고, 특성이 하나도 없는 무기는 "공통" 에 새로 넣을 수 있습니다.'),
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 파일의 사본(원본 그대로 + 바꾼 값만)을 쓰고 /reload 를 자동으로 실행합니다. Epic Fight 는 /reload 때 무기 특성을 다시 읽고 접속자에게 다시 보냅니다 — 손에 들고 있던 무기는 다른 칸으로 바꿨다가 다시 들어야 반영될 수 있습니다. "원래대로" = 사본 삭제.'));
+      container.append(card);
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      if (!cat || !dp) { card.append(dpMissing()); return null; }
+      const ef = dp.epicfight;
+      let rowChecks = makeChecks();
+      const catalog = (Array.isArray(cat.epicfight) ? cat.epicfight : []).slice();
+      const known = new Set(catalog.map((w) => w.id));
+      for (const id of Object.keys(ef)) if (!known.has(id)) catalog.push({ id, mod: '', type: '', styles: {}, missing: true });
+
+      const cleanup = (id) => {
+        const row = ef[id];
+        if (!row) return;
+        for (const s of Object.keys(row)) if (!row[s] || !Object.keys(row[s]).length) delete row[s];
+        if (!Object.keys(row).length) delete ef[id];
+      };
+      /** 이 무기에 보여 줄 스타일: 원본의 스타일, 바꾼 값이 있는 스타일, 특성이 없는 무기는 공통. */
+      const stylesOf = (w) => {
+        const list = Object.keys(w.styles || {});
+        for (const s of Object.keys(ef[w.id] || {})) if (!list.includes(s)) list.push(s);
+        if (!list.length) list.push('common');
+        return list;
+      };
+
+      const tbody = h('tbody');
+      const count = h('span', { class: 'muted' });
+      const draw = () => {
+        rowChecks = makeChecks();
+        const q = efUi.query.trim().toLowerCase();
+        const list = catalog.filter((w) => (!efUi.onlyChanged || ef[w.id])
+          && (!efUi.mod || w.mod === efUi.mod)
+          && (!efUi.type || w.type === efUi.type)
+          && (!q || (itemName(w.id) + ' ' + w.id + ' ' + w.type).toLowerCase().includes(q)));
+        const shown = list.slice(0, EF_SHOW_MAX);
+        count.textContent = list.length > shown.length ? `${list.length}개 중 ${shown.length}개 표시 — 검색·필터로 좁히세요` : `${list.length}개`;
+        tbody.replaceChildren(...shown.map((w) => {
+          const styles = stylesOf(w);
+          const cells = EF_FIELDS.map(([key, label, , , , unit]) => h('td', null, ...styles.map((style) => {
+            const base = w.styles && w.styles[style] ? w.styles[style][key] : undefined;
+            const cur = ef[w.id] && ef[w.id][style] ? ef[w.id][style][key] : undefined;
+            const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:4.5rem',
+              'aria-label': `${itemName(w.id)} ${efStyleName(style)} ${label}`,
+              placeholder: dpShown(base), value: shownNum(cur),
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const row = ef[w.id] || (ef[w.id] = {});
+                const st = row[style] || (row[style] = {});
+                const v = Number(raw);
+                if (raw === '' || (isNum(base) && Math.abs(v - base) < 1e-9)) delete st[key]; else st[key] = v;
+                cleanup(w.id);
+                changed();
+              } }), () => efRule(key, ef[w.id] && ef[w.id][style] ? ef[w.id][style][key] : undefined));
+            return h('div', { style: 'margin-bottom:.2rem;white-space:nowrap' }, inp, h('span', { class: 'muted' }, unit),
+              h('div', { class: 'id' }, `${styles.length > 1 || style !== 'common' ? efStyleName(style) + ' · ' : ''}원래 ${dpShown(base, unit)}`));
+          })));
+          return h('tr', null,
+            h('td', null, h('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, w.missing ? null : iconEl(w.id, 24),
+              h('div', null, h('div', null, w.missing ? '(서버에 없음 — 저장하면 무시)' : itemName(w.id)), h('div', { class: 'id' }, w.id)))),
+            h('td', null, h('span', { class: 'id' }, w.type || '—')),
+            ...cells,
+            h('td', null, ef[w.id] ? h('button', { class: 'small', 'aria-label': `${w.id} 원래대로`, onclick: () => {
+              delete ef[w.id]; changed(); draw();
+            } }, '원래대로') : null));
+        }));
+        rowChecks.paint();
+      };
+
+      const all = Array.isArray(cat.epicfight) ? cat.epicfight : [];
+      const mods = Array.from(new Set(all.map((w) => w.mod).filter(Boolean))).sort();
+      const modSel = h('select', { 'aria-label': '모드', onchange: (e) => { efUi.mod = e.target.value; draw(); } },
+        h('option', { value: '' }, '모든 모드'), ...mods.map((m) => h('option', { value: m }, m)));
+      modSel.value = mods.includes(efUi.mod) ? efUi.mod : '';
+      efUi.mod = modSel.value;
+      const types = Array.from(new Set(all.map((w) => w.type).filter(Boolean))).sort();
+      const typeSel = h('select', { 'aria-label': '무기 종류', onchange: (e) => { efUi.type = e.target.value; draw(); } },
+        h('option', { value: '' }, '모든 종류'), ...types.map((t) => h('option', { value: t }, t)));
+      typeSel.value = types.includes(efUi.type) ? efUi.type : '';
+      efUi.type = typeSel.value;
+      const search = h('input', { type: 'search', placeholder: '이름·id·종류 검색', 'aria-label': '무기 검색', value: efUi.query, style: 'width:16rem',
+        oninput: (e) => { efUi.query = e.target.value; draw(); } });
+      const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: efUi.onlyChanged,
+        onchange: (e) => { efUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+      card.append(
+        !all.length ? h('p', { class: 'muted' }, '서버에 Epic Fight 무기 특성 파일이 없습니다 (Epic Fight 가 설치돼 있는지 확인).') : null,
+        h('div', { class: 'field' }, search, modSel, typeSel, onlyChanged, count),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['무기', '종류'].concat(EF_FIELDS.map((f) => f[1]), ['']).map((t) => h('th', null, t)))), tbody)));
+      draw();
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(epicFightTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 
