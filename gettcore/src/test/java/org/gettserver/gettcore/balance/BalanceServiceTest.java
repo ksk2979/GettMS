@@ -26,6 +26,9 @@ class BalanceServiceTest {
                 "{\"guns\":{\"a:weapons/x\":{\"rate\":0}}}").getAsJsonObject()).size());
         assertEquals(3, BalanceService.validate(JsonParser.parseString(
                 "{\"spawnRules\":{\"a:b\":{\"disabled\":1}},\"spawnMobs\":{\"a:b\":-1},\"guns\":[]}").getAsJsonObject()).size());
+        assertEquals(2, BalanceService.validate(JsonParser.parseString(
+                "{\"epicfight\":{\"a:b\":{\"common\":{\"armor_negation\":-1,\"max_strikes\":0.5}}}}").getAsJsonObject()).size());
+        assertEquals(1, BalanceService.validate(JsonParser.parseString("{\"epicfight\":[]}").getAsJsonObject()).size());
     }
 
     @Test

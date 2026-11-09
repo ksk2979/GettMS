@@ -27,7 +27,8 @@ import org.gettserver.gettcore.GettCore;
 
 /**
  * Editor side of the balance data pack: what the server sends (original values + our current overrides) and how a
- * save is applied (copies written/deleted, pack enabled, /reload when gun data changed). Server thread only.
+ * save is applied (copies written/deleted, pack enabled, /reload when gun or Epic Fight data changed).
+ * Server thread only.
  *
  * <p>Snapshot sections: {@code datapack} (editable overrides, sent back on save) and {@code datapackCatalog}
  * (read-only original values). A save without a {@code datapack} section leaves the pack untouched.
@@ -39,6 +40,7 @@ public final class BalanceService {
     public static final String GUNS = "guns";
     public static final String SPAWN_RULES = "spawnRules";
     public static final String SPAWN_MOBS = "spawnMobs";
+    public static final String EPICFIGHT = "epicfight";
 
     /** Spawn copies changed since this server started: they wait for a restart (biome modifiers load once). */
     private static volatile boolean spawnRestartPending;
@@ -87,9 +89,11 @@ public final class BalanceService {
             JsonObject root = JsonParser.parseString(snapshotJson).getAsJsonObject();
             Map<ResourceLocation, JsonObject> guns = originals(server.getResourceManager(), GunBalance.FOLDER);
             Map<ResourceLocation, JsonObject> mods = originals(server.getResourceManager(), SpawnBalance.FOLDER);
+            Map<ResourceLocation, JsonObject> ef = originals(server.getResourceManager(), EpicFightBalance.FOLDER);
             Path pack = packDir(server);
             JsonObject state = new JsonObject();
             state.add(GUNS, GunBalance.state(guns, pack));
+            state.add(EPICFIGHT, EpicFightBalance.state(ef, pack));
             state.add(SPAWN_RULES, SpawnBalance.ruleState(mods, pack));
             JsonObject mobState = SpawnBalance.mobState(pack);
             state.add(SPAWN_MOBS, mobState);
@@ -97,6 +101,7 @@ public final class BalanceService {
             cat.addProperty("packEnabled", packEnabled(server));
             cat.addProperty("spawnRestartPending", spawnRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
+            cat.add(EPICFIGHT, EpicFightBalance.catalog(ef));
             cat.add(SPAWN_RULES, SpawnBalance.ruleCatalog(mods));
             cat.add(SPAWN_MOBS, SpawnBalance.mobRows(liveSpawns(server), new ArrayList<>(mobState.keySet())));
             return addSections(root, state, cat);
@@ -132,6 +137,8 @@ public final class BalanceService {
         if (rules != null) errs.addAll(SpawnBalance.validateRules(rules));
         JsonObject mobs = section(desired, SPAWN_MOBS, errs);
         if (mobs != null) errs.addAll(SpawnBalance.validateMobs(mobs));
+        JsonObject ef = section(desired, EPICFIGHT, errs);
+        if (ef != null) errs.addAll(EpicFightBalance.validate(ef));
         return errs;
     }
 
@@ -147,6 +154,18 @@ public final class BalanceService {
             msgs.addAll(o.warnings());
             gunsChanged = o.changed();
             if (gunsChanged) msgs.add("총 수치: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)");
+        }
+        boolean efChanged = false;
+        JsonObject ef = section(desired, EPICFIGHT, new ArrayList<>());
+        if (ef != null) {
+            EpicFightBalance.Outcome o = EpicFightBalance.reconcile(
+                    originals(server.getResourceManager(), EpicFightBalance.FOLDER), pack, ef);
+            msgs.addAll(o.warnings());
+            efChanged = o.changed();
+            if (efChanged) {
+                msgs.add("Epic Fight 무기 특성: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)"
+                        + " — /reload 뒤 접속자에게 다시 보내집니다. 손에 든 무기는 다시 들어야 반영될 수 있습니다");
+            }
         }
         int spawnWritten = 0;
         int spawnDeleted = 0;
@@ -174,11 +193,11 @@ public final class BalanceService {
         boolean hasData = PackFiles.hasData(pack);
         if (hasData && PackFiles.ensurePack(pack)) msgs.add("데이터팩 gett_balance 를 새로 만들었습니다");
         boolean enable = hasData && !packEnabled(server);
-        boolean reload = gunsChanged || enable;
+        boolean reload = gunsChanged || efChanged || enable;
         if (reload) {
             reload(server);
             msgs.add(enable ? "데이터팩 gett_balance 를 켜고 /reload 를 실행합니다"
-                    : "총 수치 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
+                    : "총·Epic Fight 수치 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
         }
         if (!msgs.isEmpty()) GettCore.LOGGER.info("balance save: {}", msgs);
         return new Applied(reload, msgs);

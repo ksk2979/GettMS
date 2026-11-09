@@ -82,7 +82,7 @@ public final class EditorServerService {
         List<String> warnings = List.of();
         try {
             EditorBundle bundle = EditorJson.decode(text);
-            // Balance data pack (guns / spawns): checked before anything is written, applied after the bundle saved.
+            // Balance data pack (guns / spawns / Epic Fight): checked before anything is written, applied after the bundle saved.
             JsonObject balance = BalanceService.desiredOf(text);
             List<String> balanceErrors = balance == null ? List.of() : BalanceService.validate(balance);
             if (!balanceErrors.isEmpty()) {
@@ -112,7 +112,7 @@ public final class EditorServerService {
                         w.addAll(BalanceService.apply(server, balance).messages());
                     } catch (IOException | RuntimeException e) {
                         GettCore.LOGGER.error("balance data pack save failed", e);
-                        w.add("총·등장 데이터팩을 쓰지 못했습니다: " + e.getMessage());
+                        w.add("총·등장·Epic Fight 데이터팩을 쓰지 못했습니다: " + e.getMessage());
                     }
                     warnings = w;
                 }

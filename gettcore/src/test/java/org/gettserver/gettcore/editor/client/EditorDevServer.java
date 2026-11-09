@@ -19,6 +19,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.balance.BalanceService;
+import org.gettserver.gettcore.balance.EpicFightBalance;
 import org.gettserver.gettcore.balance.GunBalance;
 import org.gettserver.gettcore.balance.SpawnBalance;
 import org.gettserver.gettcore.data.GettData;
@@ -97,7 +98,7 @@ public final class EditorDevServer {
                 current = r.cleaned();
                 if (balance != null) {
                     datapack = balance;
-                    warnings.add("(dev) 총·등장은 메모리에만 저장 — 실제 서버는 데이터팩 사본을 씀");
+                    warnings.add("(dev) 총·등장·Epic Fight 는 메모리에만 저장 — 실제 서버는 데이터팩 사본을 씀");
                 }
                 snapshot = withBalance(EditorJson.encode(current, refs));
             }
@@ -162,6 +163,17 @@ public final class EditorDevServer {
         cat.addProperty("packEnabled", true);
         cat.addProperty("spawnRestartPending", datapack.size() > 0);
         cat.add(BalanceService.GUNS, GunBalance.catalog(guns));
+        java.util.Map<ResourceLocation, JsonObject> ef = new LinkedHashMap<>();
+        ef.put(ResourceLocation.parse("epicfight:capabilities/weapons/diamond_dagger.json"), JsonParser.parseString(
+                "{\"attributes\":{\"one_hand\":{\"armor_negation\":10.0,\"max_strikes\":0,\"impact\":0.8},"
+                        + "\"two_hand\":{\"armor_negation\":10.0,\"max_strikes\":1,\"impact\":0.8}},\"type\":\"epicfight:dagger\"}").getAsJsonObject());
+        ef.put(ResourceLocation.parse("epicfight:capabilities/weapons/bokken.json"), JsonParser.parseString(
+                "{\"type\":\"epicfight:bokken\"}").getAsJsonObject());
+        ef.put(ResourceLocation.parse("magistuarmory:capabilities/weapons/bronze_pike.json"), JsonParser.parseString(
+                "{\"type\":\"magistuarmory:pike\",\"attributes\":{\"common\":{\"impact\":2.6,\"max_strikes\":2,\"speed_bonus\":-0.2}}}").getAsJsonObject());
+        ef.put(ResourceLocation.parse("minecraft:capabilities/weapons/diamond_sword.json"), JsonParser.parseString(
+                "{\"attributes\":{\"common\":{\"impact\":1.1,\"max_strikes\":1}},\"type\":\"epicfight:sword\"}").getAsJsonObject());
+        cat.add(BalanceService.EPICFIGHT, EpicFightBalance.catalog(ef));
         cat.add(BalanceService.SPAWN_RULES, SpawnBalance.ruleCatalog(rules));
         cat.add(BalanceService.SPAWN_MOBS, SpawnBalance.mobRows(List.of(
                 new SpawnBalance.Spawn("minecraft:zombie", "monster", 95, 4, 4),
