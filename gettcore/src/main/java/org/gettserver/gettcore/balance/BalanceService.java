@@ -41,6 +41,7 @@ public final class BalanceService {
     public static final String SPAWN_RULES = "spawnRules";
     public static final String SPAWN_MOBS = "spawnMobs";
     public static final String EPICFIGHT = "epicfight";
+    public static final String RECIPES = "recipes";
 
     /** Spawn copies changed since this server started: they wait for a restart (biome modifiers load once). */
     private static volatile boolean spawnRestartPending;
@@ -68,7 +69,8 @@ public final class BalanceService {
         Map<String, java.util.Set<ResourceLocation>> files = Map.of(
                 GUNS, originals(rm, GunBalance.FOLDER).keySet(),
                 EPICFIGHT, originals(rm, EpicFightBalance.FOLDER).keySet(),
-                SPAWN_RULES, originals(rm, SpawnBalance.FOLDER).keySet());
+                SPAWN_RULES, originals(rm, SpawnBalance.FOLDER).keySet(),
+                RECIPES, originalFiles(rm, RecipeBalance.FOLDER));
         return BalanceOrphans.find(packDir(server), files,
                 net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE::containsKey);
     }
@@ -102,6 +104,15 @@ public final class BalanceService {
         return out;
     }
 
+    /** Like {@link #originals} but only which files exist (no parsing): for the orphan check of large folders. */
+    static java.util.Set<ResourceLocation> originalFiles(ResourceManager rm, String folder) {
+        java.util.Set<ResourceLocation> out = new java.util.HashSet<>();
+        rm.listResourceStacks(folder, l -> l.getPath().endsWith(".json")).forEach((loc, stack) -> {
+            if (PackFiles.originalIndex(stack.stream().map(Resource::sourcePackId).toList()) >= 0) out.add(loc);
+        });
+        return out;
+    }
+
     /** Adds the two sections to an editor snapshot. On failure the snapshot goes out without them. */
     public static String withSections(String snapshotJson, MinecraftServer server) {
         try {
@@ -109,8 +120,10 @@ public final class BalanceService {
             Map<ResourceLocation, JsonObject> guns = originals(server.getResourceManager(), GunBalance.FOLDER);
             Map<ResourceLocation, JsonObject> mods = originals(server.getResourceManager(), SpawnBalance.FOLDER);
             Map<ResourceLocation, JsonObject> ef = originals(server.getResourceManager(), EpicFightBalance.FOLDER);
+            Map<ResourceLocation, JsonObject> recipes = originals(server.getResourceManager(), RecipeBalance.FOLDER);
             Path pack = packDir(server);
             JsonObject state = new JsonObject();
+            state.add(RECIPES, RecipeBalance.state(recipes, RecipeItems::kindOf, pack));
             state.add(GUNS, GunBalance.state(guns, pack));
             state.add(EPICFIGHT, EpicFightBalance.state(ef, pack));
             state.add(SPAWN_RULES, SpawnBalance.ruleState(mods, pack));
@@ -122,6 +135,7 @@ public final class BalanceService {
             cat.addProperty("spawnRestartPending", spawnRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
             cat.add(EPICFIGHT, EpicFightBalance.catalog(ef));
+            cat.add(RECIPES, RecipeBalance.catalog(RecipeBalance.rows(recipes, RecipeItems::kindOf, pack)));
             cat.add(SPAWN_RULES, SpawnBalance.ruleCatalog(mods));
             List<String> extraMobs = new ArrayList<>(mobState.keySet());
             orphans.forEach(o -> {
@@ -169,6 +183,8 @@ public final class BalanceService {
         if (mobs != null) errs.addAll(SpawnBalance.validateMobs(mobs));
         JsonObject ef = section(desired, EPICFIGHT, errs);
         if (ef != null) errs.addAll(EpicFightBalance.validate(ef));
+        JsonObject recipes = section(desired, RECIPES, errs);
+        if (recipes != null) errs.addAll(RecipeBalance.validate(recipes));
         errs.addAll(BalanceOrphans.validate(desired.get(BalanceOrphans.REMOVE_KEY)));
         return errs;
     }
@@ -206,6 +222,19 @@ public final class BalanceService {
                         + " — /reload 뒤 접속자에게 다시 보내집니다. 손에 든 무기는 다시 들어야 반영될 수 있습니다");
             }
         }
+        boolean recipesChanged = false;
+        JsonObject recipes = section(desired, RECIPES, new ArrayList<>());
+        if (recipes != null) {
+            RecipeBalance.Outcome o = RecipeBalance.reconcile(
+                    originals(server.getResourceManager(), RecipeBalance.FOLDER), RecipeItems::kindOf, pack, recipes);
+            msgs.addAll(o.warnings());
+            recipesChanged = o.changed();
+            if (recipesChanged) {
+                msgs.add("제작법: 막는 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(다시 제작 가능)"
+                        + " — /reload 뒤 막은 제작법은 작업대·대장장이 작업대 등에서 더는 만들어지지 않습니다."
+                        + " 이미 가진 장비와 상점·보상으로 받는 장비는 그대로입니다");
+            }
+        }
         int spawnWritten = 0;
         int spawnDeleted = 0;
         JsonObject rules = section(desired, SPAWN_RULES, new ArrayList<>());
@@ -239,11 +268,11 @@ public final class BalanceService {
         boolean hasData = PackFiles.hasData(pack);
         if (hasData && PackFiles.ensurePack(pack)) msgs.add("데이터팩 gett_balance 를 새로 만들었습니다");
         boolean enable = hasData && !packEnabled(server);
-        boolean reload = gunsChanged || efChanged || enable;
+        boolean reload = gunsChanged || efChanged || recipesChanged || enable;
         if (reload) {
             reload(server);
             msgs.add(enable ? "데이터팩 gett_balance 를 켜고 /reload 를 실행합니다"
-                    : "총·Epic Fight 수치 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
+                    : "총·Epic Fight·제작법 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
         }
         if (!msgs.isEmpty()) GettCore.LOGGER.info("balance save: {}", msgs);
         return new Applied(reload, msgs);

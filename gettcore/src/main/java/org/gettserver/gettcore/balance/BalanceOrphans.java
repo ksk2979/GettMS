@@ -24,14 +24,14 @@ public final class BalanceOrphans {
     public static final String CATALOG_KEY = "orphans";
     public static final String REMOVE_KEY = "removeOrphans";
     static final List<String> KINDS = List.of(BalanceService.GUNS, BalanceService.EPICFIGHT,
-            BalanceService.SPAWN_RULES, BalanceService.SPAWN_MOBS);
+            BalanceService.SPAWN_RULES, BalanceService.SPAWN_MOBS, BalanceService.RECIPES);
 
     public record Orphan(String kind, String id, ResourceLocation file) {}
 
     private BalanceOrphans() {}
 
     /**
-     * @param originalFiles kind (guns / epicfight / spawnRules) -> the files the mods currently provide
+     * @param originalFiles kind (guns / epicfight / spawnRules / recipes) -> the files the mods currently provide
      * @param entityExists  whether a mob id is registered (spawnMobs tweaks for unknown mobs are orphans)
      */
     public static List<Orphan> find(Path pack, Map<String, Set<ResourceLocation>> originalFiles,
@@ -51,6 +51,11 @@ public final class BalanceOrphans {
             if (SpawnBalance.isTweakFile(f) || rules.contains(f)) continue;
             String id = SpawnBalance.ruleIdOf(f);
             if (id != null) out.add(new Orphan(BalanceService.SPAWN_RULES, id, f));
+        }
+        Set<ResourceLocation> recipes = originalFiles.getOrDefault(BalanceService.RECIPES, Set.of());
+        for (ResourceLocation f : PackFiles.listFolder(pack, RecipeBalance.FOLDER)) {
+            String id = RecipeBalance.idOf(f);
+            if (id != null && !recipes.contains(f)) out.add(new Orphan(BalanceService.RECIPES, id, f));
         }
         for (String mob : SpawnBalance.mobState(pack).keySet()) {
             ResourceLocation e = ResourceLocation.tryParse(mob);

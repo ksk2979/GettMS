@@ -29,6 +29,13 @@ class BalanceServiceTest {
         assertEquals(2, BalanceService.validate(JsonParser.parseString(
                 "{\"epicfight\":{\"a:b\":{\"common\":{\"armor_negation\":-1,\"max_strikes\":0.5}}}}").getAsJsonObject()).size());
         assertEquals(1, BalanceService.validate(JsonParser.parseString("{\"epicfight\":[]}").getAsJsonObject()).size());
+        assertEquals(0, BalanceService.validate(JsonParser.parseString(
+                "{\"recipes\":{\"magistuarmory:armet\":true}}").getAsJsonObject()).size());
+        assertEquals(1, BalanceService.validate(JsonParser.parseString(
+                "{\"recipes\":{\"magistuarmory:armet\":\"yes\"}}").getAsJsonObject()).size());
+        assertEquals(1, BalanceService.validate(JsonParser.parseString("{\"recipes\":[]}").getAsJsonObject()).size());
+        assertEquals(1, BalanceService.validate(JsonParser.parseString(
+                "{\"removeOrphans\":[{\"kind\":\"nope\",\"id\":\"a:b\"}]}").getAsJsonObject()).size());
     }
 
     @Test

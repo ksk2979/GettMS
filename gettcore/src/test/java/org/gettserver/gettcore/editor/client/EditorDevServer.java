@@ -179,9 +179,16 @@ public final class EditorDevServer {
                 "{\"attributes\":{\"common\":{\"impact\":1.1,\"max_strikes\":1}},\"type\":\"epicfight:sword\"}").getAsJsonObject());
         cat.add(BalanceService.EPICFIGHT, EpicFightBalance.catalog(ef));
         cat.add(BalanceService.SPAWN_RULES, SpawnBalance.ruleCatalog(rules));
+        cat.add(BalanceService.RECIPES, JsonParser.parseString(
+                "[{\"id\":\"magistuarmory:armet\",\"item\":\"magistuarmory:armet\",\"mod\":\"magistuarmory\",\"kind\":\"armor\",\"type\":\"minecraft:crafting_shaped\"},"
+                        + "{\"id\":\"magistuarmory:bronze_pike\",\"item\":\"magistuarmory:bronze_pike\",\"mod\":\"magistuarmory\",\"kind\":\"weapon\",\"type\":\"minecraft:crafting_shaped\"},"
+                        + "{\"id\":\"magistuarmory:bronze_kiteshield\",\"item\":\"magistuarmory:bronze_kiteshield\",\"mod\":\"magistuarmory\",\"kind\":\"shield\",\"type\":\"minecraft:crafting_shaped\"},"
+                        + "{\"id\":\"cgs:mechanical_crafting/revolver\",\"item\":\"cgs:revolver\",\"mod\":\"cgs\",\"kind\":\"gun\",\"type\":\"create:mechanical_crafting\"},"
+                        + "{\"id\":\"minecraft:netherite_dagger_smithing\",\"item\":\"epicfight:netherite_dagger\",\"mod\":\"epicfight\",\"kind\":\"weapon\",\"type\":\"minecraft:smithing_transform\"}]"));
         cat.add(org.gettserver.gettcore.balance.BalanceOrphans.CATALOG_KEY, JsonParser.parseString(
                 "[{\"kind\":\"guns\",\"id\":\"oldguns:weapons/musket\"},{\"kind\":\"spawnRules\",\"id\":\"gone:spawn_x\"},"
-                        + "{\"kind\":\"spawnMobs\",\"id\":\"gone:mob\"},{\"kind\":\"epicfight\",\"id\":\"gone:blade\"}]"));
+                        + "{\"kind\":\"spawnMobs\",\"id\":\"gone:mob\"},{\"kind\":\"epicfight\",\"id\":\"gone:blade\"},"
+                        + "{\"kind\":\"recipes\",\"id\":\"gone:old_sword\"}]"));
         cat.add(BalanceService.SPAWN_MOBS, SpawnBalance.mobRows(List.of(
                 new SpawnBalance.Spawn("minecraft:zombie", "monster", 95, 4, 4),
                 new SpawnBalance.Spawn("minecraft:zombie", "monster", 19, 4, 4),

@@ -296,14 +296,17 @@
   /**
    * 데이터팩 사본(총·등장·Epic Fight)의 현재 덮어쓰기. 서버 스냅숏에 이 구역이 없으면 null — 그대로 저장하면 서버가 데이터팩을 건드리지 않는다.
    * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율},
-   *   epicfight: {아이템: {스타일: {damage_bonus, speed_bonus, armor_negation, impact, max_strikes}}} }
+   *   epicfight: {아이템: {스타일: {damage_bonus, speed_bonus, armor_negation, impact, max_strikes}}},
+   *   recipes: {제작법 id: true} (막은 모드 장비 제작법) }
    */
   function normalizeDatapack(src) {
     if (!src || typeof src !== 'object') return null;
     const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? JSON.parse(JSON.stringify(v)) : {});
     const removeOrphans = (Array.isArray(src.removeOrphans) ? src.removeOrphans : [])
       .filter((o) => o && typeof o.kind === 'string' && typeof o.id === 'string').map((o) => ({ kind: o.kind, id: o.id }));
-    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), removeOrphans };
+    const recipes = {};
+    for (const [id, v] of Object.entries(obj(src.recipes))) if (v === true) recipes[id] = true;
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, removeOrphans };
   }
 
   function normalizeBossPoints(src) {
@@ -2553,13 +2556,13 @@
 
   const round3 = (v) => Math.round(v * 1000) / 1000;
   const dpShown = (v, unit) => (isNum(v) ? String(round3(v)) + (unit || '') : '—');
-  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
+  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight·제작법 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
 
   /**
    * 원본이 사라진 사본(모드를 지웠거나 업데이트로 파일이 없어짐) — 서버 datapackCatalog.orphans = [{kind, id}].
    * "삭제" 를 누르면 datapack.removeOrphans 에 넣고, 저장할 때 서버가 그 사본 파일을 지운다 (그때도 원본이 없는 것만).
    */
-  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율' };
+  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율', recipes: '제작법' };
   function dpOrphanCard(container, kinds) {
     const cat = S.dpCatalog;
     const dp = S.bundle.datapack;
@@ -3098,6 +3101,95 @@
     },
   };
   registerTab(epicFightTab);
+
+  /* ----- 제작법 탭 (모드 장비 제작 막기: data/<ns>/recipe/<경로>.json 의 사본에 "항상 거짓" 조건 neoforge:false) ----- */
+
+  const RECIPE_KINDS = [['weapon', '무기'], ['armor', '방어구'], ['shield', '방패'], ['gun', '총'], ['other', '기타 장비']];
+  const RECIPE_MOD_NAMES = { magistuarmory: 'Epic Knights', wom: 'Weapons of Miracles', epicfight: 'Epic Fight',
+    cgs: 'Create: Gunsmithing', ntgl: 'NTGL' };
+  const recipeKindName = (k) => (RECIPE_KINDS.find((x) => x[0] === k) || [k, k])[1];
+  const recipeModName = (m) => (RECIPE_MOD_NAMES[m] ? `${RECIPE_MOD_NAMES[m]} (${m})` : m || '(알 수 없음)');
+  const recipeUi = { query: '', onlyBlocked: false, open: {} };
+
+  const recipesTab = {
+    id: 'recipes',
+    title: '제작법',
+    validate() { return []; },
+    render(container) {
+      const card = h('div', { class: 'card' }, h('h2', null, '모드 장비 제작 막기'),
+        h('p', { class: 'muted' }, '모드(Epic Knights·Weapons of Miracles·Epic Fight·Create: Gunsmithing·NTGL 등)가 넣은 무기·방어구·방패·총의 제작법을 막습니다. 바닐라(minecraft) 장비와 탄약·부품·재료는 목록에 없고 그대로 만들 수 있습니다. 결과물이 장비인 제작법이면 종류(작업대·대장장이 작업대·Create 기계 제작·조립 등)와 상관없이 보입니다.'),
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 제작법 파일의 사본(원본 그대로 + 항상 거짓인 불러오기 조건 neoforge:false)을 쓰고 /reload 를 자동으로 실행합니다. 그 뒤 막은 제작법은 서버에 없는 것처럼 되어 만들 수 없습니다. 이미 가진 장비, 상점·보상으로 받는 장비는 그대로입니다. 체크를 풀고 저장 = 사본 삭제(원래대로).'));
+      container.append(card);
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      if (!cat || !dp) { card.append(dpMissing()); return null; }
+      const blocked = dp.recipes;
+      const all = (Array.isArray(cat.recipes) ? cat.recipes : []).slice();
+      const known = new Set(all.map((r) => r.id));
+      for (const id of Object.keys(blocked)) if (!known.has(id)) all.push({ id, item: '', mod: '', kind: 'other', type: '', missing: true });
+      const setBlocked = (id, on) => { if (on) blocked[id] = true; else delete blocked[id]; };
+
+      const body = h('div');
+      const count = h('span', { class: 'muted' });
+      const draw = () => {
+        const q = recipeUi.query.trim().toLowerCase();
+        const match = (r) => (!recipeUi.onlyBlocked || blocked[r.id])
+          && (!q || (itemName(r.item) + ' ' + r.item + ' ' + r.id + ' ' + r.type + ' ' + recipeModName(r.mod)).toLowerCase().includes(q));
+        const list = all.filter(match);
+        const nBlocked = all.filter((r) => blocked[r.id]).length;
+        count.textContent = `${list.length}개 표시 · 전체 ${all.length}개 중 ${nBlocked}개 막음`;
+        const mods = Array.from(new Set(list.map((r) => r.mod))).sort((a, b) => recipeModName(a).localeCompare(recipeModName(b)));
+        body.replaceChildren(...mods.map((mod) => {
+          const modAll = all.filter((r) => r.mod === mod && !r.missing);
+          const modList = list.filter((r) => r.mod === mod);
+          const modBlocked = modAll.filter((r) => blocked[r.id]).length;
+          const isOpen = recipeUi.open[mod] || !!q || recipeUi.onlyBlocked || mods.length === 1;
+          const det = h('details', { class: 'card', style: 'margin:.6rem 0' });
+          det.open = isOpen;
+          det.addEventListener('toggle', () => { recipeUi.open[mod] = det.open; });
+          const bulk = (on) => (e) => {
+            e.preventDefault();
+            for (const r of modAll) setBlocked(r.id, on);
+            changed();
+            draw();
+          };
+          det.append(h('summary', null, h('strong', null, recipeModName(mod)), ' ',
+            h('span', { class: 'muted' }, `— 제작법 ${modAll.length}개, ${modBlocked}개 막음`)));
+          det.append(h('div', { class: 'row', style: 'gap:.4rem;margin:.4rem 0' },
+            modAll.length ? h('button', { class: 'small', onclick: bulk(true) }, '이 모드 장비 제작 모두 막기') : null,
+            modAll.length ? h('button', { class: 'small', onclick: bulk(false) }, '모두 풀기') : null));
+          for (const [kind, kindName] of RECIPE_KINDS) {
+            const rows = modList.filter((r) => (r.kind || 'other') === kind);
+            if (!rows.length) continue;
+            det.append(h('h3', null, `${kindName} (${rows.length})`),
+              h('div', { class: 'scroll-x' }, h('table', null,
+                h('thead', null, h('tr', null, ['제작 막기', '결과 아이템', '제작법 id', '제작 종류'].map((t) => h('th', null, t)))),
+                h('tbody', null, rows.map((r) => h('tr', null,
+                  h('td', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: !!blocked[r.id],
+                    'aria-label': `${r.missing ? r.id : itemName(r.item)} 제작 막기`,
+                    onchange: (e) => { setBlocked(r.id, e.target.checked); changed(); draw(); } }), ' 막기')),
+                  h('td', null, h('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, r.missing ? null : iconEl(r.item, 24),
+                    h('div', null, h('div', null, r.missing ? '(서버에 없음 — 저장하면 무시)' : itemName(r.item)),
+                      r.item ? h('div', { class: 'id' }, r.item) : null))),
+                  h('td', null, h('span', { class: 'id' }, r.id)),
+                  h('td', null, h('span', { class: 'id' }, r.type || '—'))))))));
+          }
+          return det;
+        }));
+        if (!list.length) body.append(h('p', { class: 'muted' }, all.length ? '조건에 맞는 제작법이 없습니다.' : '서버에 모드 장비 제작법이 없습니다.'));
+      };
+
+      const search = h('input', { type: 'search', placeholder: '아이템 이름·id·제작법 검색', 'aria-label': '제작법 검색', value: recipeUi.query, style: 'width:16rem',
+        oninput: (e) => { recipeUi.query = e.target.value; draw(); } });
+      const onlyBlocked = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: recipeUi.onlyBlocked,
+        onchange: (e) => { recipeUi.onlyBlocked = e.target.checked; draw(); } }), ' 막은 것만');
+      card.append(h('div', { class: 'field' }, search, onlyBlocked, count), body);
+      dpOrphanCard(container, ['recipes']);
+      draw();
+      return null;
+    },
+  };
+  registerTab(recipesTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 
