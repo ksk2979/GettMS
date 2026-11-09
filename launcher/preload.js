@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('api', {
   play: () => ipcRenderer.invoke('play'),
   ping: () => ipcRenderer.invoke('ping'),
   openFolder: () => ipcRenderer.invoke('open-folder'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
   on: (ch, cb) => ipcRenderer.on(ch, (_, d) => cb(d))
 });

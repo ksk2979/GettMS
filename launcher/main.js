@@ -6,8 +6,10 @@ const { Auth } = require('msmc');
 const { loadConfig } = require('./core/config');
 const { prepare, launch, quickCheck, saveState } = require('./core/game');
 const { ping } = require('./core/ping');
+const { autoUpdater } = require('electron-updater');
 
 const ROOT = path.join(app.getPath('appData'), 'GettLauncher');
+const UPDATE_URL = 'https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/update/';
 const TOKEN_FILE = path.join(ROOT, 'account.bin');
 let win, config, mcToken, prepared, gameRunning = false;
 
@@ -44,6 +46,29 @@ app.whenReady().then(async () => {
   send('config', { ...config, root: ROOT, version: app.getVersion() });
   const name = await tryRestoreLogin();
   if (name) send('account', name);
+  setupUpdater();
+});
+
+// 런처 자동 업데이트: 켜질 때 확인 → 뒤에서 받음 → 화면에 "재시작해서 업데이트"(누르면 즉시) + 안 누르면 끌 때 설치.
+// 업데이트 정보는 고정 주소(launcher/update/latest.yml)에서 읽는다 — 같은 저장소의 gettcore 릴리스를 런처로 오인하지 않게.
+// 확인 실패는 로그만 남기고 게임 시작에는 영향 없음. 개발 실행(npm start)에서는 건너뜀.
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  try {
+    autoUpdater.setFeedURL({ provider: 'generic', url: config.updateUrl || UPDATE_URL });
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('update-available', info => log(`새 런처 ${info.version} 받는 중...`));
+    autoUpdater.on('update-downloaded', info => send('update-ready', { version: info.version }));
+    autoUpdater.on('error', e => log(`런처 업데이트 확인 실패: ${e && e.message || e}`));
+    autoUpdater.checkForUpdates().catch(e => log(`런처 업데이트 확인 실패: ${e && e.message || e}`));
+  } catch (e) { log(`런처 업데이트 확인 실패: ${e.message}`); }
+}
+
+ipcMain.handle('install-update', async () => {
+  if (gameRunning) throw new Error('게임 실행 중에는 업데이트할 수 없습니다. 게임을 끈 뒤 눌러 주세요');
+  autoUpdater.quitAndInstall(true, true);
+  return true;
 });
 
 const LOGIN_ERRORS = {

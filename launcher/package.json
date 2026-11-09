@@ -1,6 +1,6 @@
 {
   "name": "gett-launcher",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Gett Server 런처: NeoForge 자동 설치, 모드 자동 패치, 서버 자동 접속",
   "main": "main.js",
   "private": true,
@@ -8,10 +8,12 @@
     "start": "electron .",
     "test": "node --test",
     "dist": "electron-builder --win --x64",
-    "lock": "node tools/lock-mods.js"
+    "lock": "node tools/lock-mods.js",
+    "release": "node tools/release.js"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",
+    "electron-updater": "^6.8.11",
     "minecraft-launcher-core": "^3.18.2",
     "msmc": "^5.0.5"
   },
@@ -42,6 +44,10 @@
       "artifactName": "GettLauncher-Setup-${version}.${ext}",
       "shortcutName": "Gett Launcher",
       "createDesktopShortcut": true
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/update/"
     }
   }
 }

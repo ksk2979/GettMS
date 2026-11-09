@@ -16,6 +16,10 @@ api.on('progress', p => {
   $('stepLabel').textContent = p.label;
   $('stepCount').textContent = p.isBytes ? `${(p.done/1048576).toFixed(1)} / ${(p.total/1048576).toFixed(1)} MB` : (p.total > 1 ? `${p.done} / ${p.total}` : '');
 });
+api.on('update-ready', u => { $('updateVer').textContent = u.version; $('updateBar').classList.remove('hidden'); });
+$('updateBtn').onclick = async () => {
+  try { await api.installUpdate(); } catch (e) { $('stepLabel').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
+};
 api.on('game-closed', () => { setBusy(false); $('stepLabel').textContent = '게임 종료됨'; });
 
 function setAccount(name) {
