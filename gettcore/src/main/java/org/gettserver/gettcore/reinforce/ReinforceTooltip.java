@@ -33,7 +33,8 @@ public final class ReinforceTooltip {
         if (target.isEmpty()) return;
         ReinforceConfig cfg = ClientReinforceConfig.get();
         lines.add(1, Component.translatable(ReinforceEffects.tooltipKey(target.get()), level,
-                ReinforceEffects.fmt(ReinforceEffects.tooltipValue(target.get(), level, cfg)))
+                ReinforceEffects.fmt(ReinforceEffects.tooltipValue(target.get(), level, cfg)),
+                ReinforceEffects.fmt(ReinforceRules.armorDefense(level, cfg)))
                 .withStyle(ChatFormatting.GRAY));
         if (target.get() == Target.SHIELD)
             lines.add(2, Component.translatable(ReinforceEffects.SHIELD_NOTE_KEY).withStyle(ChatFormatting.GRAY));

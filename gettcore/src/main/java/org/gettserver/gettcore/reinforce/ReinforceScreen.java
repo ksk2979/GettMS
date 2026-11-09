@@ -137,7 +137,7 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
             case SHIELD -> Component.translatable("gettcore.screen.reinforce.effect.shield",
                     fmt(next * config.shieldSpeedPercentPerLevel()));
             case ARMOR -> Component.translatable("gettcore.screen.reinforce.effect.armor",
-                    fmt(ReinforceRules.armorHealth(next, config)));
+                    fmt(ReinforceRules.armorHealth(next, config)), fmt(ReinforceRules.armorDefense(next, config)));
         };
     }
 

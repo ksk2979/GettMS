@@ -81,7 +81,8 @@ class ReinforceRulesTest {
         assertEquals(0.5, ReinforceRules.meleeFraction(5, D), EPS);
         assertEquals(0.34, ReinforceRules.shieldSpeedFraction(20, D), EPS);
         assertEquals(0.51, ReinforceRules.shieldSpeedFraction(30, D), EPS);
-        assertEquals(15.0, ReinforceRules.armorHealth(10, D), EPS);
+        assertEquals(5.0, ReinforceRules.armorHealth(10, D), EPS);
+        assertEquals(1.5, ReinforceRules.armorDefense(30, D), EPS);
         assertEquals(0.0, ReinforceRules.armorHealth(0, D), EPS);
     }
 

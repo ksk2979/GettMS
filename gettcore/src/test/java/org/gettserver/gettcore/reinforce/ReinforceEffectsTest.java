@@ -55,18 +55,26 @@ class ReinforceEffectsTest {
 
     @Test
     void armorModifierPerSlot() {
-        record Case(EquipmentSlot slot, String id, EquipmentSlotGroup group) {}
+        record Case(EquipmentSlot slot, String name, EquipmentSlotGroup group) {}
         for (Case c : List.of(
-                new Case(EquipmentSlot.HEAD, "gettcore:reinforce_health_head", EquipmentSlotGroup.HEAD),
-                new Case(EquipmentSlot.CHEST, "gettcore:reinforce_health_chest", EquipmentSlotGroup.CHEST),
-                new Case(EquipmentSlot.LEGS, "gettcore:reinforce_health_legs", EquipmentSlotGroup.LEGS),
-                new Case(EquipmentSlot.FEET, "gettcore:reinforce_health_feet", EquipmentSlotGroup.FEET))) {
-            ModifierSpec m = single(ReinforceEffects.modifiers(Target.ARMOR, 10, c.slot(), D));
-            assertEquals(Stat.MAX_HEALTH, m.stat());
-            assertEquals(c.id(), m.id().toString());
-            assertEquals(Operation.ADD_VALUE, m.operation());
-            assertEquals(c.group(), m.group());
-            assertEquals(15.0, m.amount(), EPS);
+                new Case(EquipmentSlot.HEAD, "head", EquipmentSlotGroup.HEAD),
+                new Case(EquipmentSlot.CHEST, "chest", EquipmentSlotGroup.CHEST),
+                new Case(EquipmentSlot.LEGS, "legs", EquipmentSlotGroup.LEGS),
+                new Case(EquipmentSlot.FEET, "feet", EquipmentSlotGroup.FEET))) {
+            List<ModifierSpec> specs = ReinforceEffects.modifiers(Target.ARMOR, 10, c.slot(), D);
+            assertEquals(2, specs.size(), specs.toString());
+            ModifierSpec health = specs.get(0);
+            assertEquals(Stat.MAX_HEALTH, health.stat());
+            assertEquals("gettcore:reinforce_health_" + c.name(), health.id().toString());
+            assertEquals(Operation.ADD_VALUE, health.operation());
+            assertEquals(c.group(), health.group());
+            assertEquals(5.0, health.amount(), EPS);
+            ModifierSpec defense = specs.get(1);
+            assertEquals(Stat.ARMOR, defense.stat());
+            assertEquals("gettcore:reinforce_armor_" + c.name(), defense.id().toString());
+            assertEquals(Operation.ADD_VALUE, defense.operation());
+            assertEquals(c.group(), defense.group());
+            assertEquals(0.5, defense.amount(), EPS);
         }
     }
 
@@ -85,12 +93,12 @@ class ReinforceEffectsTest {
 
     @Test
     void healthCapAcrossFourPieces() {
-        // 기본: 1.5/단계, 상한 60. 네 부위 +10 = 60 → 보정 0(정확히 하트 30칸).
-        assertEquals(0, ReinforceEffects.healthCapAdjust(new int[]{10, 10, 10, 10}, D), EPS);
-        // +20 ×4 = 120 → -60.
-        assertEquals(-60, ReinforceEffects.healthCapAdjust(new int[]{20, 20, 20, 20}, D), EPS);
-        // 20+20+5+0 = 30+30+7.5 = 67.5 → -7.5.
-        assertEquals(-7.5, ReinforceEffects.healthCapAdjust(new int[]{20, 20, 5, 0}, D), EPS);
+        // 기본: 0.5/단계, 상한 60. 네 부위 +30 = 60 → 보정 0(하트 정확히 4줄).
+        assertEquals(0, ReinforceEffects.healthCapAdjust(new int[]{30, 30, 30, 30}, D), EPS);
+        // 50강 표로 올려도 ×4 = 100 → -40.
+        assertEquals(-40, ReinforceEffects.healthCapAdjust(new int[]{50, 50, 50, 50}, D), EPS);
+        // 50+50+30+0 = 25+25+15 = 65 → -5.
+        assertEquals(-5, ReinforceEffects.healthCapAdjust(new int[]{50, 50, 30, 0}, D), EPS);
         assertEquals(0, ReinforceEffects.healthCapAdjust(new int[]{0, 0, 0, 0}, D), EPS);
         // 상한 0 = 상한 없음.
         ReinforceConfig noCap = new ReinforceConfig(D.maxLevel(), D.successPercent(), D.stoneCost(),
@@ -104,8 +112,8 @@ class ReinforceEffectsTest {
         assertEquals(30, ReinforceEffects.tooltipValue(Target.GUN, 3, D), EPS);
         assertEquals(30, ReinforceEffects.tooltipValue(Target.MELEE, 3, D), EPS);
         assertEquals(5.1, ReinforceEffects.tooltipValue(Target.SHIELD, 3, D), EPS);
-        assertEquals(4.5, ReinforceEffects.tooltipValue(Target.ARMOR, 3, D), EPS);
-        assertEquals("4.5", ReinforceEffects.fmt(ReinforceEffects.tooltipValue(Target.ARMOR, 3, D)));
+        assertEquals(1.5, ReinforceEffects.tooltipValue(Target.ARMOR, 3, D), EPS);
+        assertEquals("1.5", ReinforceEffects.fmt(ReinforceEffects.tooltipValue(Target.ARMOR, 3, D)));
         assertEquals("30", ReinforceEffects.fmt(ReinforceEffects.tooltipValue(Target.GUN, 3, D)));
     }
 

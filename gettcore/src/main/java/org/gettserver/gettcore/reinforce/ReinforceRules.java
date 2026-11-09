@@ -118,6 +118,11 @@ public final class ReinforceRules {
         return Math.max(0, level) * config.armorHealthPerLevel();
     }
 
+    /** 방어구 한 부위의 방어(ARMOR 속성) 증가 N × armorDefensePerLevel. */
+    public static double armorDefense(int level, ReinforceConfig config) {
+        return Math.max(0, level) * config.armorDefensePerLevel();
+    }
+
     /** 네 부위 합 {@code sum} 이 상한을 넘는 만큼의 음수 보정(≤ 0). 상한 0 이면 상한 없음 → 0. */
     public static double healthCapAdjust(double sum, ReinforceConfig config) {
         double cap = config.armorHealthMax();

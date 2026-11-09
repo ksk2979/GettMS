@@ -1890,8 +1890,9 @@
     gunDamagePercentPerLevel: 10,
     meleeDamagePercentPerLevel: 10,
     shieldSpeedPercentPerLevel: 1.7,
-    armorHealthPerLevel: 1.5,
+    armorHealthPerLevel: 0.5,
     armorHealthMax: 60,
+    armorDefensePerLevel: 0.05,
     milestones: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
@@ -1904,6 +1905,7 @@
     ['shieldSpeedPercentPerLevel', '방패 이동속도', '%/단계'],
     ['armorHealthPerLevel', '방어구 체력', '/단계 (하트 반 칸 = 1)'],
     ['armorHealthMax', '체력 상한', '(0 = 없음)'],
+    ['armorDefensePerLevel', '방어구 방어', '/단계'],
   ];
 
   /**

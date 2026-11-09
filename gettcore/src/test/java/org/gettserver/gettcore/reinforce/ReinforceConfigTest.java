@@ -49,7 +49,8 @@ class ReinforceConfigTest {
         assertEquals(10, d.meleeDamagePercentPerLevel());
         assertEquals(1.7, d.shieldSpeedPercentPerLevel());
         assertTrue(d.milestones().isEmpty());
-        assertEquals(1.5, d.armorHealthPerLevel());
+        assertEquals(0.5, d.armorHealthPerLevel());
+        assertEquals(0.05, d.armorDefensePerLevel());
         assertEquals(60, d.armorHealthMax());
     }
 

@@ -43,6 +43,7 @@ public final class ReinforceEffects {
     /** 방패 툴팁 둘째 줄(총·원거리 무기와 함께 들면 적용 안 됨) 번역 키. */
     public static final String SHIELD_NOTE_KEY = "gettcore.tooltip.reinforce.shield_note";
     private static final String HEALTH_PREFIX = "reinforce_health_";
+    private static final String DEFENSE_PREFIX = "reinforce_armor_";
     /** 체력 상한 합산 대상 네 부위(머리·몸통·다리·발). */
     static final EquipmentSlot[] ARMOR_SLOTS = {
             EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
@@ -50,7 +51,7 @@ public final class ReinforceEffects {
     private ReinforceEffects() {}
 
     /** 수정자가 붙는 속성(레지스트리 없이 테스트할 수 있게 Holder 대신 enum). */
-    public enum Stat { MAX_HEALTH, ATTACK_DAMAGE, MOVEMENT_SPEED }
+    public enum Stat { MAX_HEALTH, ARMOR, ATTACK_DAMAGE, MOVEMENT_SPEED }
 
     /** 아이템 하나에 붙일 강화 수정자. */
     public record ModifierSpec(Stat stat, ResourceLocation id, double amount, AttributeModifier.Operation operation,
@@ -74,9 +75,11 @@ public final class ReinforceEffects {
             case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
                     ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
                     EquipmentSlotGroup.MAINHAND));
-            case ARMOR -> armorSlot == null ? List.of() : List.of(new ModifierSpec(Stat.MAX_HEALTH,
-                    healthId(armorSlot), ReinforceRules.armorHealth(level, cfg),
-                    AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.bySlot(armorSlot)));
+            case ARMOR -> armorSlot == null ? List.of() : List.of(
+                    new ModifierSpec(Stat.MAX_HEALTH, healthId(armorSlot), ReinforceRules.armorHealth(level, cfg),
+                            AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.bySlot(armorSlot)),
+                    new ModifierSpec(Stat.ARMOR, defenseId(armorSlot), ReinforceRules.armorDefense(level, cfg),
+                            AttributeModifier.Operation.ADD_VALUE, EquipmentSlotGroup.bySlot(armorSlot)));
         };
         return specs.stream().filter(spec -> spec.amount() != 0).toList();
     }
@@ -84,6 +87,11 @@ public final class ReinforceEffects {
     /** 부위별 방어구 체력 수정자 id {@code gettcore:reinforce_health_<slot>}. */
     public static ResourceLocation healthId(EquipmentSlot slot) {
         return id(HEALTH_PREFIX + slot.getName());
+    }
+
+    /** 부위별 방어구 방어 수정자 id {@code gettcore:reinforce_armor_<slot>}. */
+    public static ResourceLocation defenseId(EquipmentSlot slot) {
+        return id(DEFENSE_PREFIX + slot.getName());
     }
 
     /** 네 부위 강화 단계(장착 안 했거나 방어구 아님 = 0) → 체력 상한 보정(≤ 0). */
@@ -103,7 +111,7 @@ public final class ReinforceEffects {
         return "gettcore.tooltip.reinforce." + target.name().toLowerCase(Locale.ROOT);
     }
 
-    /** 툴팁 효과 줄 수치(현재 단계의 합계): 총·근접·방패는 %, 방어구는 체력. */
+    /** 툴팁 효과 줄 수치(현재 단계의 합계): 총·근접·방패는 %, 방어구는 체력(방어는 툴팁 셋째 인자). */
     public static double tooltipValue(Target target, int level, ReinforceConfig cfg) {
         int n = Math.max(0, level);
         return switch (target) {
@@ -231,6 +239,8 @@ public final class ReinforceEffects {
         removeOurs(player, Attributes.ATTACK_DAMAGE, List.of(MELEE_ID));
         removeOurs(player, Attributes.MAX_HEALTH, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::healthId)
                 .toList());
+        removeOurs(player, Attributes.ARMOR, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::defenseId)
+                .toList());
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack stack = player.getItemBySlot(slot);
             int level = ReinforceRules.level(stack);
@@ -260,6 +270,7 @@ public final class ReinforceEffects {
     private static Holder<Attribute> holder(Stat stat) {
         return switch (stat) {
             case MAX_HEALTH -> Attributes.MAX_HEALTH;
+            case ARMOR -> Attributes.ARMOR;
             case ATTACK_DAMAGE -> Attributes.ATTACK_DAMAGE;
             case MOVEMENT_SPEED -> Attributes.MOVEMENT_SPEED;
         };

@@ -21,7 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                               double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
                               double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
-                              List<Milestone> milestones) {
+                              double armorDefensePerLevel, List<Milestone> milestones) {
 
     public static final String FILE = "reinforce.json";
 
@@ -30,7 +30,10 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                     55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0, 15.0, 10.0,
                     10.0, 9.0, 9.0, 8.0, 8.0, 7.0, 7.0, 6.0, 6.0, 5.0),
             Collections.nCopies(30, 1),
-            10, 10, 1.7, 1.5, 60, List.of());
+            10, 10, 1.7, 0.5, 60, 0.05, List.of());
+
+    /** 방어구 부위당 방어(ARMOR 속성) 증가 기본값/단계: 30강 4부위 = +6. */
+    static final double DEFAULT_ARMOR_DEFENSE = 0.05;
 
     /** 최대 단계 상한(sanitize 가 허용하는 maxLevel 의 최댓값). */
     public static final int MAX_LEVEL_LIMIT = 50;
@@ -75,12 +78,21 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         milestones = List.copyOf(milestones);
     }
 
-    /** Without milestones (empty list). */
+    /** Without milestones (empty list), default armor defense. */
     public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                            double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
                            double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax) {
         this(maxLevel, successPercent, stoneCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
                 shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, List.of());
+    }
+
+    /** Default armor defense. */
+    public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
+                           double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
+                           double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
+                           List<Milestone> milestones) {
+        this(maxLevel, successPercent, stoneCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, DEFAULT_ARMOR_DEFENSE, milestones);
     }
 
     public static final Codec<ReinforceConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -98,6 +110,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                     .forGetter(ReinforceConfig::armorHealthPerLevel),
             Codec.DOUBLE.optionalFieldOf("armorHealthMax", DEFAULT.armorHealthMax)
                     .forGetter(ReinforceConfig::armorHealthMax),
+            Codec.DOUBLE.optionalFieldOf("armorDefensePerLevel", DEFAULT_ARMOR_DEFENSE)
+                    .forGetter(ReinforceConfig::armorDefensePerLevel),
             Milestone.CODEC.listOf().optionalFieldOf("milestones", DEFAULT.milestones)
                     .forGetter(ReinforceConfig::milestones)
     ).apply(i, ReinforceConfig::new));
@@ -112,7 +126,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
      * takes the default (30). successPercent/stoneCost longer than maxLevel are cut, shorter ones are padded with their
      * last value (an empty list takes the default list's value at that index, or its last value past its end). Each
      * successPercent is clamped to 0..100 (NaN takes the default at that index), each stoneCost to 1..64. The per-level
-     * percents, armorHealthPerLevel and armorHealthMax must be finite and &gt;= 0, else their default. A milestone
+     * percents, armorHealthPerLevel, armorHealthMax and armorDefensePerLevel must be finite and &gt;= 0, else their default. A milestone
      * whose target is unknown, level is outside 1..maxLevel, amplifier outside 0..9 or effect is not in
      * {@link #effectUsable} (unknown or instant) is dropped with a warning.
      */
@@ -152,6 +166,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                         DEFAULT.shieldSpeedPercentPerLevel, warnings),
                 nonNegative("armorHealthPerLevel", armorHealthPerLevel, DEFAULT.armorHealthPerLevel, warnings),
                 nonNegative("armorHealthMax", armorHealthMax, DEFAULT.armorHealthMax, warnings),
+                nonNegative("armorDefensePerLevel", armorDefensePerLevel, DEFAULT_ARMOR_DEFENSE, warnings),
                 sanitizedMilestones(milestones, max, warnings));
     }
 
