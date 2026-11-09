@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [] },
@@ -129,7 +129,7 @@
   function serialize(bundle) {
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
-      reinforce: bundle.reinforce });
+      reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -262,6 +262,27 @@
     };
   }
 
+  /** HuntingConfig 코덱의 기본값 (서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다). */
+  const HUNT_ZONE_DEFAULTS = { maxAlive: 10, refillSeconds: 10 };
+  const HUNT_ENTRY_DEFAULTS = { health: 20, attack: 3, speed: 0.23, armor: 0, scale: 1, weight: 1, gold: 0, xpMultiplier: 1 };
+
+  function normalizeHunting(src) {
+    const p = src || {};
+    return {
+      zones: (Array.isArray(p.zones) ? p.zones : []).map((z) => Object.assign({}, HUNT_ZONE_DEFAULTS, z, {
+        entries: (Array.isArray(z.entries) ? z.entries : []).map((e) => Object.assign({ name: '', entity: '' }, HUNT_ENTRY_DEFAULTS, e)),
+      })),
+    };
+  }
+
+  /** mobs.json: 종류별로 덮어쓸 값만 (빠진 값 = 그 몬스터의 기본값 그대로). */
+  function normalizeMobs(src) {
+    const p = src || {};
+    const overrides = {};
+    for (const [k, v] of Object.entries(p.overrides && typeof p.overrides === 'object' ? p.overrides : {})) overrides[k] = Object.assign({}, v);
+    return { overrides };
+  }
+
   function normalizeBossPoints(src) {
     return (Array.isArray(src) ? src : []).map((pt) => Object.assign({}, BOSS_POINT_DEFAULTS, pt));
   }
@@ -284,6 +305,8 @@
       pets: normalizePets(src.pets !== undefined ? src.pets : f.pets),
       protect: normalizeProtect(src.protect !== undefined ? src.protect : f.protect),
       reinforce: normalizeReinforce(src.reinforce !== undefined ? src.reinforce : f.reinforce),
+      hunting: normalizeHunting(src.hunting !== undefined ? src.hunting : f.hunting),
+      mobs: normalizeMobs(src.mobs !== undefined ? src.mobs : f.mobs),
     };
     for (const s of Object.values(b.shops)) {
       s.tabs = s.tabs || [];

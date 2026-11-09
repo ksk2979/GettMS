@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import net.minecraft.core.BlockPos;
@@ -15,6 +16,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.editor.EditorBundle;
+import org.gettserver.gettcore.hunting.HuntingConfig;
+import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
@@ -274,5 +277,39 @@ class GettDataSaveBundleTest {
         assertTrue(Files.isRegularFile(latest.resolve("reinforce.json")));
         assertTrue(Files.readString(latest.resolve("reinforce.json")).contains("\"maxLevel\": 30"),
                 "backup holds the old file");
+    }
+
+    @Test
+    void savesHuntingAndMobs(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(HuntingConfig.DEFAULT, raw.hunting());
+        assertEquals(MobStatsConfig.DEFAULT, raw.mobs());
+        // maxAlive out of range on purpose: the save path sanitizes it (warning) before writing.
+        HuntingConfig hunting = new HuntingConfig(List.of(new HuntingConfig.Zone("숲",
+                ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse("minecraft:overworld")),
+                new BlockPos(0, 60, 0), new BlockPos(30, 80, 30), 500, 10, List.of(new HuntingConfig.Entry("큰 좀비",
+                ResourceLocation.parse("minecraft:zombie"), 80, 6, 0.3, 2, 1.4, 2, 30, 1.5)))));
+        MobStatsConfig mobs = new MobStatsConfig(Map.of("minecraft:zombie", new MobStatsConfig.Stats(
+                Optional.of(40.0), Optional.empty(), Optional.empty(), Optional.empty())));
+
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), hunting, mobs), RegistryChecks.ALL_EXIST);
+
+        assertTrue(r.saved(), r.errors().toString());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.startsWith("hunting: ") && w.contains("maxAlive")),
+                r.warnings().toString());
+        assertTrue(r.reload().errors().isEmpty(), r.reload().errors().toString());
+        assertEquals(HuntingConfig.MAX_ALIVE_LIMIT, data.hunting().zones().get(0).maxAlive());
+        assertEquals(mobs, data.mobs());
+        assertEquals(mobs, data.rawBundle().mobs());
+        assertTrue(Files.readString(dir.resolve("hunting.json"), java.nio.charset.StandardCharsets.UTF_8).contains("큰 좀비"));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.isRegularFile(latest.resolve("hunting.json")));
+        assertTrue(Files.isRegularFile(latest.resolve("mobs.json")));
+        assertFalse(Files.readString(latest.resolve("mobs.json")).contains("zombie"), "backup holds the old file");
     }
 }

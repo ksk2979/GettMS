@@ -319,4 +319,67 @@ class EditorValidatorTest {
             org.gettserver.gettcore.reinforce.ReinforceConfig.effectUsable = saved;
         }
     }
+
+    private static EditorBundle huntBundle(org.gettserver.gettcore.hunting.HuntingConfig h,
+                                           org.gettserver.gettcore.mobs.MobStatsConfig m) {
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), h, m);
+    }
+
+    @Test
+    void huntingIdsAndEntitiesAreErrorsRangesAreWarnings() {
+        var h = new org.gettserver.gettcore.hunting.HuntingConfig(List.of(
+                huntZone("숲", List.of(huntEntry("큰 좀비", "minecraft:zombie", 1), huntEntry("유령", "gone:ghost", 1),
+                        huntEntry("큰 좀비", "minecraft:zombie", 1), huntEntry("", "minecraft:zombie", 1))),
+                huntZone("숲", List.of()),
+                huntZone("", List.of())));
+        RegistryChecks checks = new RegistryChecks(rl -> true, rl -> rl.getNamespace().equals("minecraft"));
+        var r = EditorValidator.validate(huntBundle(h, org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT), checks);
+        assertEquals(List.of("hunting.zones.숲.entries.유령: entity gone:ghost is not a registered entity",
+                "hunting.zones.숲.entries.큰 좀비: duplicate name",
+                "hunting.zones.숲.entries[3]: name must not be empty",
+                "hunting.zones.숲: duplicate id",
+                "hunting.zones[2]: id must not be empty"), r.errors());
+
+        var weird = new org.gettserver.gettcore.hunting.HuntingConfig(List.of(new org.gettserver.gettcore.hunting.HuntingConfig.Zone(
+                "숲", net.minecraft.world.level.Level.OVERWORLD, new net.minecraft.core.BlockPos(9, 9, 9),
+                new net.minecraft.core.BlockPos(0, 0, 0), 300, 0, List.of(huntEntry("큰 좀비", "minecraft:zombie", -2)))));
+        var r2 = EditorValidator.validate(huntBundle(weird, org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r2.errors().isEmpty(), r2.errors().toString());
+        assertTrue(r2.warnings().stream().allMatch(w -> w.startsWith("hunting: ")), r2.warnings().toString());
+        assertTrue(any(r2.warnings(), "min/max swapped"), r2.warnings().toString());
+        assertTrue(any(r2.warnings(), "maxAlive"), r2.warnings().toString());
+        assertTrue(any(r2.warnings(), "weight"), r2.warnings().toString());
+        var z = r2.cleaned().hunting().zones().get(0);
+        assertEquals(new net.minecraft.core.BlockPos(0, 0, 0), z.min());
+        assertEquals(100, z.maxAlive());
+        assertEquals(1, z.refillSeconds());
+        assertEquals(0, z.entries().get(0).weight());
+    }
+
+    @Test
+    void mobsUnknownEntityWarnsButIsKept() {
+        var stats = new org.gettserver.gettcore.mobs.MobStatsConfig.Stats(Optional.of(40.0), Optional.empty(),
+                Optional.empty(), Optional.of(-1.0));
+        var m = new org.gettserver.gettcore.mobs.MobStatsConfig(Map.of("minecraft:zombie", stats, "gone:ghost", stats));
+        RegistryChecks checks = new RegistryChecks(rl -> true, rl -> rl.getNamespace().equals("minecraft"));
+        var r = EditorValidator.validate(huntBundle(org.gettserver.gettcore.hunting.HuntingConfig.DEFAULT, m), checks);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(any(r.warnings(), "mobs: gone:ghost is not a registered entity"), r.warnings().toString());
+        assertTrue(any(r.warnings(), "mobs: minecraft:zombie armor -1.0"), r.warnings().toString());
+        assertEquals(2, r.cleaned().mobs().overrides().size());
+        assertEquals(Optional.of(0.0), r.cleaned().mobs().overrides().get("minecraft:zombie").armor());
+    }
+
+    private static org.gettserver.gettcore.hunting.HuntingConfig.Entry huntEntry(String name, String entity, int weight) {
+        return new org.gettserver.gettcore.hunting.HuntingConfig.Entry(name, rl(entity), 50, 5, 0.3, 2, 1, weight, 10, 1);
+    }
+
+    private static org.gettserver.gettcore.hunting.HuntingConfig.Zone huntZone(String id,
+            List<org.gettserver.gettcore.hunting.HuntingConfig.Entry> entries) {
+        return new org.gettserver.gettcore.hunting.HuntingConfig.Zone(id, net.minecraft.world.level.Level.OVERWORLD,
+                new net.minecraft.core.BlockPos(0, 0, 0), new net.minecraft.core.BlockPos(5, 5, 5), 10, 10, entries);
+    }
 }

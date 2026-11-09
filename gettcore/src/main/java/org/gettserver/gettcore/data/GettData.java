@@ -29,6 +29,8 @@ import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.editor.EditorMerge;
 import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
+import org.gettserver.gettcore.hunting.HuntingConfig;
+import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
@@ -46,7 +48,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -81,6 +83,8 @@ public final class GettData {
     private volatile List<BossPoint> bossPoints = List.of();
     private volatile ProtectConfig protect = ProtectConfig.DEFAULT;
     private volatile ReinforceConfig reinforce = ReinforceConfig.DEFAULT;
+    private volatile HuntingConfig hunting = HuntingConfig.DEFAULT;
+    private volatile MobStatsConfig mobs = MobStatsConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -180,6 +184,15 @@ public final class GettData {
         ReinforceConfig newReinforce = Files.isRegularFile(reinforceFile)
                 ? read(reinforceFile, ReinforceConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(reinforce)
                 : ReinforceConfig.DEFAULT;
+        // An unreadable hunting.json / mobs.json keeps the config already loaded (a typo must not open the zones).
+        Path huntingFile = dir.resolve(HuntingConfig.FILE);
+        HuntingConfig newHunting = Files.isRegularFile(huntingFile)
+                ? read(huntingFile, HuntingConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(hunting)
+                : HuntingConfig.DEFAULT;
+        Path mobsFile = dir.resolve(MobStatsConfig.FILE);
+        MobStatsConfig newMobs = Files.isRegularFile(mobsFile)
+                ? read(mobsFile, MobStatsConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(mobs)
+                : MobStatsConfig.DEFAULT;
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -195,6 +208,8 @@ public final class GettData {
         bossPoints = newBossPoints;
         protect = newProtect;
         reinforce = newReinforce;
+        hunting = newHunting;
+        mobs = newMobs;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -346,7 +361,7 @@ public final class GettData {
     /** Everything the editor edits, exactly as in the files (no registry pruning). */
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
-                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce);
+                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -363,7 +378,7 @@ public final class GettData {
 
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
-     * npcs.json, boss_points.json, pets.json, protect.json and reinforce.json (all to .tmp first, then moved), deletes
+     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json and mobs.json (all to .tmp first, then moved), deletes
      * files of ids no longer present and reloads. Boss points, pets, protect and reinforce are replaced as a whole; the ids of boss points that are gone
      * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
@@ -415,6 +430,10 @@ public final class GettData {
                     .getOrThrow(IOException::new));
             writes.put(dir.resolve(ReinforceConfig.FILE), ReinforceConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.reinforce()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(HuntingConfig.FILE), HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.hunting()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(MobStatsConfig.FILE), MobStatsConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.mobs()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -531,7 +550,7 @@ public final class GettData {
             }
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
-                ReinforceConfig.FILE)) {
+                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -610,6 +629,25 @@ public final class GettData {
     /** Equipment reinforce numbers from reinforce.json (sanitized). */
     public ReinforceConfig reinforce() {
         return reinforce;
+    }
+
+    /** Hunting zones from hunting.json (sanitized). */
+    public HuntingConfig hunting() {
+        return hunting;
+    }
+
+    /** Writes hunting.json as pretty JSON and replaces the in-memory config (no reload). */
+    public synchronized void saveHunting(HuntingConfig config) throws IOException {
+        Path dir = configDir;
+        if (dir == null) throw new IOException("data not loaded");
+        JsonElement json = HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow(IOException::new);
+        writeJson(dir.resolve(HuntingConfig.FILE), json);
+        hunting = config;
+    }
+
+    /** Per entity type base stat overrides from mobs.json (sanitized). */
+    public MobStatsConfig mobs() {
+        return mobs;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */

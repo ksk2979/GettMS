@@ -13,6 +13,8 @@ import java.util.Map;
 import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.NpcMapping;
 import org.gettserver.gettcore.data.ShopDefinition;
+import org.gettserver.gettcore.hunting.HuntingConfig;
+import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
@@ -35,6 +37,8 @@ public final class EditorJson {
         root.add("pets", PetConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.pets()).getOrThrow());
         root.add("protect", ProtectConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.protect()).getOrThrow());
         root.add("reinforce", ReinforceConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.reinforce()).getOrThrow());
+        root.add("hunting", HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.hunting()).getOrThrow());
+        root.add("mobs", MobStatsConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.mobs()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -70,7 +74,9 @@ public final class EditorJson {
                 decodeSection(root, "boss_points", BossPoint.CODEC.listOf()),
                 decodeSection(root, "pets", PetConfig.CODEC),
                 decodeSection(root, "protect", ProtectConfig.CODEC),
-                decodeSection(root, "reinforce", ReinforceConfig.CODEC));
+                decodeSection(root, "reinforce", ReinforceConfig.CODEC),
+                decodeSection(root, "hunting", HuntingConfig.CODEC),
+                decodeSection(root, "mobs", MobStatsConfig.CODEC));
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

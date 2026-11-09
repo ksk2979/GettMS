@@ -404,4 +404,42 @@ class GettDataTest {
         assertEquals(3, again.reinforce().successPercent().size());
         assertTrue(warn.warnings().stream().anyMatch(w -> w.contains("reinforce.json")), warn.warnings().toString());
     }
+
+    @Test
+    void huntingAndMobsInstallDefaultSaveAndKeepPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("hunting.json")));
+        assertTrue(Files.isRegularFile(dir.resolve("mobs.json")));
+        assertEquals(org.gettserver.gettcore.hunting.HuntingConfig.DEFAULT, data.hunting());
+        assertEquals(org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT, data.mobs());
+
+        var zone = new org.gettserver.gettcore.hunting.HuntingConfig.Zone("숲", net.minecraft.world.level.Level.OVERWORLD,
+                new net.minecraft.core.BlockPos(0, 60, 0), new net.minecraft.core.BlockPos(20, 90, 20), 5, 7,
+                java.util.List.of(new org.gettserver.gettcore.hunting.HuntingConfig.Entry("큰 좀비",
+                        net.minecraft.resources.ResourceLocation.parse("minecraft:zombie"), 80, 6, 0.3, 2, 1.4, 2, 30, 1.5)));
+        var hunting = new org.gettserver.gettcore.hunting.HuntingConfig(java.util.List.of(zone));
+        data.saveHunting(hunting);
+        assertEquals(hunting, data.hunting());
+        Files.writeString(dir.resolve("mobs.json"), "{\"overrides\":{\"minecraft:zombie\":{\"health\":40}}}");
+        GettData again = new GettData();
+        again.load(dir);
+        assertEquals(hunting, again.hunting());
+        assertEquals(java.util.Optional.of(40.0), again.mobs().overrides().get("minecraft:zombie").health());
+
+        Files.writeString(dir.resolve("hunting.json"), "{\"zones\":[{\"id\":1}]}");
+        Files.writeString(dir.resolve("mobs.json"), "{\"overrides\":3}");
+        GettData.LoadReport bad = again.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("hunting.json")), bad.errors().toString());
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("mobs.json")), bad.errors().toString());
+        assertEquals(hunting, again.hunting());
+        assertEquals(java.util.Optional.of(40.0), again.mobs().overrides().get("minecraft:zombie").health());
+
+        Files.writeString(dir.resolve("hunting.json"), "{\"zones\":[{\"id\":\"a\",\"dimension\":\"minecraft:overworld\","
+                + "\"min\":[0,0,0],\"max\":[1,1,1],\"maxAlive\":-4}]}");
+        GettData.LoadReport warn = again.load(dir);
+        assertEquals(0, again.hunting().zones().get(0).maxAlive());
+        assertTrue(warn.warnings().stream().anyMatch(w -> w.contains("hunting.json")), warn.warnings().toString());
+    }
 }

@@ -14,6 +14,8 @@ import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
+import org.gettserver.gettcore.hunting.HuntingConfig;
+import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.PetSpecies;
 import org.gettserver.gettcore.pet.boss.BossPoint;
@@ -96,8 +98,56 @@ public final class EditorValidator {
         String rp = ReinforceConfig.FILE + ": ";
         for (String w : reinforceWarnings) warnings.add(w.startsWith(rp) ? "reinforce: " + w.substring(rp.length()) : w);
 
+        validateHunting(b.hunting(), checks, errors);
+        List<String> huntingWarnings = new ArrayList<>();
+        HuntingConfig hunting = b.hunting().sanitized(huntingWarnings);
+        addPrefixed(huntingWarnings, HuntingConfig.FILE, "hunting", warnings);
+        b.mobs().overrides().keySet().forEach(key -> {
+            ResourceLocation id = ResourceLocation.tryParse(key);
+            if (id != null && !checks.entityExists().test(id)) {
+                warnings.add("mobs: " + key + " is not a registered entity");
+            }
+        });
+        List<String> mobWarnings = new ArrayList<>();
+        MobStatsConfig mobs = b.mobs().sanitized(mobWarnings);
+        addPrefixed(mobWarnings, MobStatsConfig.FILE, "mobs", warnings);
+
         return new Result(errors, warnings,
-                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce));
+                new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
+                        hunting, mobs));
+    }
+
+    /** Adds {@code from}'s warnings to {@code out}, "{@code file}: ..." rewritten to "{@code section}: ...". */
+    private static void addPrefixed(List<String> from, String file, String section, List<String> out) {
+        String prefix = file + ": ";
+        for (String w : from) out.add(w.startsWith(prefix) ? section + ": " + w.substring(prefix.length()) : w);
+    }
+
+    /** Zone ids and entry names non-empty and unique, entries' entities registered (errors). */
+    private static void validateHunting(HuntingConfig c, RegistryChecks checks, List<String> errors) {
+        Set<String> seen = new HashSet<>();
+        for (int n = 0; n < c.zones().size(); n++) {
+            HuntingConfig.Zone z = c.zones().get(n);
+            if (z.id().isBlank()) {
+                errors.add("hunting.zones[" + n + "]: id must not be empty");
+                continue;
+            }
+            String p = "hunting.zones." + z.id();
+            if (!seen.add(z.id())) errors.add(p + ": duplicate id");
+            Set<String> names = new HashSet<>();
+            for (int i = 0; i < z.entries().size(); i++) {
+                HuntingConfig.Entry e = z.entries().get(i);
+                if (e.name().isBlank()) {
+                    errors.add(p + ".entries[" + i + "]: name must not be empty");
+                    continue;
+                }
+                String ep = p + ".entries." + e.name();
+                if (!names.add(e.name())) errors.add(ep + ": duplicate name");
+                if (!checks.entityExists().test(e.entity())) {
+                    errors.add(ep + ": entity " + e.entity() + " is not a registered entity");
+                }
+            }
+        }
     }
 
     /** Region ids non-empty and unique (errors); min/max swapped per axis where needed (warning). */
