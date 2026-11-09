@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
     private static final String FULL =
-            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{}}";
+            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{},\"upgrade\":{}}";
 
     @Test
     void roundTrip() {
@@ -137,7 +137,7 @@ class EditorJsonTest {
 
     @Test
     void badBossPointNamesPath() {
-        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{}}";
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{},\"upgrade\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
@@ -153,7 +153,7 @@ class EditorJsonTest {
     @Test
     void missingSectionIsAnError() {
         // Full-replace save: a missing section must not be read as "delete everything in it".
-        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect", "reinforce", "hunting", "mobs", "equipment")) {
+        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect", "reinforce", "hunting", "mobs", "equipment", "upgrade")) {
             String json = FULL.replace("\"" + section + "\":" + (section.equals("boss_points") ? "[]" : "{}"), "\"x\":{}");
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
                     section);
@@ -228,5 +228,25 @@ class EditorJsonTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> EditorJson.decode(FULL.replace(",\"equipment\":{}", "")));
         assertTrue(e.getMessage().startsWith("equipment: missing section"), e.getMessage());
+    }
+
+    @Test
+    void upgradeShape() {
+        var up = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("magistuarmory:iron_pike",
+                        "magistuarmory:diamond_pike", "minecraft:diamond", 3, 0)));
+        EditorBundle base = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of());
+        EditorBundle b = new EditorBundle(base.shops(), base.dialogs(), base.npcs(), base.quests(), base.bossPoints(),
+                base.pets(), base.protect(), base.reinforce(), base.hunting(), base.mobs(), base.equipment(), up);
+        String json = EditorJson.encode(b, null);
+        assertEquals(b, EditorJson.decode(json));
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        // The web page reads/writes these field names directly.
+        assertEquals(com.google.gson.JsonParser.parseString("[{\"from\":\"magistuarmory:iron_pike\","
+                        + "\"to\":\"magistuarmory:diamond_pike\",\"material\":\"minecraft:diamond\",\"count\":3,\"gold\":0}]"),
+                root.getAsJsonObject("upgrade").getAsJsonArray("steps"));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> EditorJson.decode(FULL.replace(",\"upgrade\":{}", "")));
+        assertTrue(e.getMessage().startsWith("upgrade: missing section"), e.getMessage());
     }
 }

@@ -465,4 +465,27 @@ class GettDataTest {
         assertEquals(java.util.Optional.of(9.0),
                 data.equipment().items().get("minecraft:diamond_sword").attackDamage());
     }
+
+    @Test
+    void upgradeInstallsDefaultLoadsAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().stream().noneMatch(w -> w.contains("upgrade.json")), r.warnings().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("upgrade.json")));
+        assertEquals(116, data.upgrade().steps().size());
+
+        Files.writeString(dir.resolve("upgrade.json"), "{\"steps\":[{\"from\":\"a:x\",\"to\":\"a:y\","
+                + "\"material\":\"minecraft:diamond\",\"count\":0},{\"from\":\"a:x\",\"to\":\"a:z\",\"material\":\"m:m\"}]}");
+        GettData.LoadReport warn = data.load(dir);
+        assertEquals(1, data.upgrade().steps().size());
+        assertEquals(1, data.upgrade().steps().get(0).count());
+        assertEquals(2, warn.warnings().stream().filter(w -> w.contains("upgrade.json")).count(),
+                warn.warnings().toString());
+
+        Files.writeString(dir.resolve("upgrade.json"), "{\"steps\":3}");
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("upgrade.json")), bad.errors().toString());
+        assertEquals("a:y", data.upgrade().steps().get(0).to());
+    }
 }

@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment, upgrade } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment·upgrade만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
@@ -131,7 +131,7 @@
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
       reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
-      datapack: bundle.datapack });
+      upgrade: bundle.upgrade, datapack: bundle.datapack });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -286,6 +286,14 @@
   }
 
   /** equipment.json: 아이템별로 덮어쓸 툴팁 값만 (빠진 값 = 그 아이템의 원래 값). */
+  /** upgrade.json: 업그레이드 단계 목록 [{from, to, material, count, gold}] (빠진 count = 1, gold = 0). */
+  function normalizeUpgrade(src) {
+    const steps = (src && Array.isArray(src.steps) ? src.steps : []).filter((s) => s && typeof s === 'object')
+      .map((s) => ({ from: String(s.from || ''), to: String(s.to || ''), material: String(s.material || ''),
+        count: s.count === undefined ? 1 : s.count, gold: s.gold === undefined ? 0 : s.gold }));
+    return { steps };
+  }
+
   function normalizeEquipment(src) {
     const p = src || {};
     const items = {};
@@ -334,6 +342,7 @@
       hunting: normalizeHunting(src.hunting !== undefined ? src.hunting : f.hunting),
       mobs: normalizeMobs(src.mobs !== undefined ? src.mobs : f.mobs),
       equipment: normalizeEquipment(src.equipment !== undefined ? src.equipment : f.equipment),
+      upgrade: normalizeUpgrade(src.upgrade !== undefined ? src.upgrade : f.upgrade),
       datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {

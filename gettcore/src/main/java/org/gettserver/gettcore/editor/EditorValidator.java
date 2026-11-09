@@ -28,6 +28,7 @@ import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.gettserver.gettcore.quest.QuestTrigger;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.upgrade.UpgradeConfig;
 
 /** Server-side gate for every editor save. Errors block the save; warnings are reported and cleaned away. */
 public final class EditorValidator {
@@ -126,9 +127,20 @@ public final class EditorValidator {
         EquipmentConfig equipment = b.equipment().sanitized(equipmentWarnings);
         addPrefixed(equipmentWarnings, EquipmentConfig.FILE, "equipment", warnings);
 
+        // Bad ids, count/gold, duplicate from and cycles block the save; an unregistered item only warns (kept so a
+        // removed mod's chains come back with it; the server skips such a step at use time).
+        for (String e : b.upgrade().errors()) errors.add("upgrade." + e);
+        b.upgrade().itemIds().stream().sorted().forEach(key -> {
+            ResourceLocation id = ResourceLocation.tryParse(key);
+            if (id != null && !checks.itemExists().test(id)) {
+                warnings.add("upgrade: " + key + " is not a registered item");
+            }
+        });
+        UpgradeConfig upgrade = b.upgrade().sanitized(new ArrayList<>());
+
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs, equipment));
+                        hunting, mobs, equipment, upgrade));
     }
 
     /** Adds {@code from}'s warnings to {@code out}, "{@code file}: ..." rewritten to "{@code section}: ...". */

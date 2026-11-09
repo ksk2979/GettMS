@@ -403,6 +403,35 @@ class EditorValidatorTest {
                 "equipment.items.minecraft:diamond_sword knockbackResistance 1.5 must be 0..1"), r.errors());
     }
 
+    @Test
+    void upgradeErrorsBlockAndUnknownItemsWarn() {
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true);
+        var ok = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("minecraft:iron_sword", "gone:blade",
+                        "minecraft:diamond", 3, 0)));
+        var good = EditorValidator.validate(withUpgrade(b, ok), checks);
+        assertTrue(good.errors().isEmpty(), good.errors().toString());
+        assertEquals(List.of("upgrade: gone:blade is not a registered item"), good.warnings());
+        assertEquals(ok, good.cleaned().upgrade(), "unknown ids are kept (mod may come back)");
+
+        var bad = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("minecraft:iron_sword",
+                        "minecraft:diamond_sword", "minecraft:diamond", 0, 0),
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("minecraft:iron_sword",
+                        "minecraft:golden_sword", "minecraft:diamond", 1, 0)));
+        var r = EditorValidator.validate(withUpgrade(b, bad), checks);
+        assertEquals(2, r.errors().size(), r.errors().toString());
+        assertTrue(r.errors().get(0).startsWith("upgrade.steps[0] minecraft:iron_sword: count 0"), r.errors().toString());
+        assertTrue(r.errors().get(1).startsWith("upgrade.steps[1] minecraft:iron_sword: another step"),
+                r.errors().toString());
+    }
+
+    private static EditorBundle withUpgrade(EditorBundle b, org.gettserver.gettcore.upgrade.UpgradeConfig u) {
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), u);
+    }
+
     private static EditorBundle withEquipment(EditorBundle b, org.gettserver.gettcore.equipment.EquipmentConfig e) {
         return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
                 b.reinforce(), b.hunting(), b.mobs(), e);

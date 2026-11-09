@@ -142,7 +142,7 @@ public final class EditorDevServer {
                     new org.gettserver.gettcore.protect.ProtectConfig.Flags(false, false, false))));
         }
         return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect,
-                b.reinforce(), b.hunting(), b.mobs(), b.equipment());
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade());
     }
 
     /** Snapshot + the balance sections with a few real-looking mod files (trimmed). */

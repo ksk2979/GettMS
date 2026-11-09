@@ -335,4 +335,37 @@ class GettDataSaveBundleTest {
         assertTrue(Files.isRegularFile(latest.resolve("equipment.json")));
         assertFalse(Files.readString(latest.resolve("equipment.json")).contains("diamond_sword"), "backup holds the old file");
     }
+
+    @Test
+    void savesUpgradeWithBackup(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(116, raw.upgrade().steps().size(), "bundled default is installed");
+        var upgrade = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("minecraft:iron_sword",
+                        "minecraft:diamond_sword", "minecraft:diamond", 2, 50)));
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(),
+                raw.equipment(), upgrade), RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(upgrade, data.upgrade());
+        assertEquals(upgrade, data.rawBundle().upgrade());
+        assertTrue(Files.readString(dir.resolve("upgrade.json")).contains("iron_sword"));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.readString(latest.resolve("upgrade.json")).contains("magistuarmory"), "backup holds the old file");
+
+        var cyclic = new org.gettserver.gettcore.upgrade.UpgradeConfig(List.of(
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("a:x", "a:y", "minecraft:diamond", 1, 0),
+                new org.gettserver.gettcore.upgrade.UpgradeConfig.Step("a:y", "a:x", "minecraft:diamond", 1, 0)));
+        GettData.SaveResult bad = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(),
+                raw.quests(), raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(),
+                raw.equipment(), cyclic), RegistryChecks.ALL_EXIST);
+        assertFalse(bad.saved());
+        assertTrue(bad.errors().stream().anyMatch(e -> e.startsWith("upgrade.steps[1]") && e.contains("cycle")),
+                bad.errors().toString());
+        assertEquals(upgrade, data.upgrade());
+    }
 }

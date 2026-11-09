@@ -32,9 +32,11 @@ public record UpgradeConfig(List<Step> steps) {
                 Codec.STRING.fieldOf("from").forGetter(Step::from),
                 Codec.STRING.fieldOf("to").forGetter(Step::to),
                 Codec.STRING.fieldOf("material").forGetter(Step::material),
-                Codec.INT.optionalFieldOf("count", 1).forGetter(Step::count),
-                Codec.LONG.optionalFieldOf("gold", 0L).forGetter(Step::gold)
-        ).apply(i, Step::new));
+                // Optional on read (count 1, gold 0) but always written, so a hand-edited file shows both.
+                Codec.INT.optionalFieldOf("count").forGetter(s -> Optional.of(s.count())),
+                Codec.LONG.optionalFieldOf("gold").forGetter(s -> Optional.of(s.gold()))
+        ).apply(i, (from, to, material, count, gold) -> new Step(from, to, material, count.orElse(1),
+                gold.orElse(0L))));
     }
 
     public static final Codec<UpgradeConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
