@@ -24,6 +24,8 @@ class BalanceServiceTest {
         assertEquals(1, BalanceService.validate(JsonParser.parseString("{\"guns\":3}").getAsJsonObject()).size());
         assertEquals(1, BalanceService.validate(JsonParser.parseString(
                 "{\"guns\":{\"a:weapons/x\":{\"rate\":0}}}").getAsJsonObject()).size());
+        assertEquals(3, BalanceService.validate(JsonParser.parseString(
+                "{\"spawnRules\":{\"a:b\":{\"disabled\":1}},\"spawnMobs\":{\"a:b\":-1},\"guns\":[]}").getAsJsonObject()).size());
     }
 
     @Test

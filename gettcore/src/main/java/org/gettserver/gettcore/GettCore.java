@@ -112,6 +112,7 @@ public class GettCore {
         DATA_COMPONENTS.register(modBus);
         PetRegistry.register(modBus);
         org.gettserver.gettcore.pet.command.CommandArgumentTypes.register(modBus);
+        org.gettserver.gettcore.balance.ScaleSpawnsModifier.register(modBus);
         modBus.addListener(GettNetwork::register);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();

@@ -16,6 +16,13 @@ import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.MobSpawnSettings;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import org.gettserver.gettcore.GettCore;
 
 /**
@@ -25,14 +32,25 @@ import org.gettserver.gettcore.GettCore;
  * <p>Snapshot sections: {@code datapack} (editable overrides, sent back on save) and {@code datapackCatalog}
  * (read-only original values). A save without a {@code datapack} section leaves the pack untouched.
  */
+@EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class BalanceService {
     public static final String STATE = "datapack";
     public static final String CATALOG = "datapackCatalog";
     public static final String GUNS = "guns";
+    public static final String SPAWN_RULES = "spawnRules";
+    public static final String SPAWN_MOBS = "spawnMobs";
+
+    /** Spawn copies changed since this server started: they wait for a restart (biome modifiers load once). */
+    private static volatile boolean spawnRestartPending;
 
     public record Applied(boolean reloaded, List<String> messages) {}
 
     private BalanceService() {}
+
+    @SubscribeEvent
+    public static void onServerStarting(ServerStartingEvent event) {
+        spawnRestartPending = false;
+    }
 
     public static Path packDir(MinecraftServer server) {
         return server.getWorldPath(LevelResource.DATAPACK_DIR).resolve(PackFiles.PACK_NAME);
@@ -68,12 +86,19 @@ public final class BalanceService {
         try {
             JsonObject root = JsonParser.parseString(snapshotJson).getAsJsonObject();
             Map<ResourceLocation, JsonObject> guns = originals(server.getResourceManager(), GunBalance.FOLDER);
+            Map<ResourceLocation, JsonObject> mods = originals(server.getResourceManager(), SpawnBalance.FOLDER);
             Path pack = packDir(server);
             JsonObject state = new JsonObject();
             state.add(GUNS, GunBalance.state(guns, pack));
+            state.add(SPAWN_RULES, SpawnBalance.ruleState(mods, pack));
+            JsonObject mobState = SpawnBalance.mobState(pack);
+            state.add(SPAWN_MOBS, mobState);
             JsonObject cat = new JsonObject();
             cat.addProperty("packEnabled", packEnabled(server));
+            cat.addProperty("spawnRestartPending", spawnRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
+            cat.add(SPAWN_RULES, SpawnBalance.ruleCatalog(mods));
+            cat.add(SPAWN_MOBS, SpawnBalance.mobRows(liveSpawns(server), new ArrayList<>(mobState.keySet())));
             return addSections(root, state, cat);
         } catch (RuntimeException e) {
             GettCore.LOGGER.error("balance: editor sections could not be built", e);
@@ -103,6 +128,10 @@ public final class BalanceService {
         List<String> errs = new ArrayList<>();
         JsonObject guns = section(desired, GUNS, errs);
         if (guns != null) errs.addAll(GunBalance.validate(guns));
+        JsonObject rules = section(desired, SPAWN_RULES, errs);
+        if (rules != null) errs.addAll(SpawnBalance.validateRules(rules));
+        JsonObject mobs = section(desired, SPAWN_MOBS, errs);
+        if (mobs != null) errs.addAll(SpawnBalance.validateMobs(mobs));
         return errs;
     }
 
@@ -119,6 +148,27 @@ public final class BalanceService {
             msgs.addAll(o.warnings());
             gunsChanged = o.changed();
             if (gunsChanged) msgs.add("총 수치: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)");
+        }
+        int spawnWritten = 0;
+        int spawnDeleted = 0;
+        JsonObject rules = section(desired, SPAWN_RULES, new ArrayList<>());
+        if (rules != null) {
+            SpawnBalance.Outcome o = SpawnBalance.reconcileRules(
+                    originals(server.getResourceManager(), SpawnBalance.FOLDER), pack, rules);
+            msgs.addAll(o.warnings());
+            spawnWritten += o.written();
+            spawnDeleted += o.deleted();
+        }
+        JsonObject mobs = section(desired, SPAWN_MOBS, new ArrayList<>());
+        if (mobs != null) {
+            SpawnBalance.Outcome o = SpawnBalance.reconcileMobs(pack, mobs);
+            spawnWritten += o.written();
+            spawnDeleted += o.deleted();
+        }
+        if (spawnWritten + spawnDeleted > 0) {
+            spawnRestartPending = true;
+            msgs.add("등장 설정: 파일 " + spawnWritten + "개 저장, " + spawnDeleted
+                    + "개 삭제 — 서버를 재시작해야 적용됩니다 (지금 세계의 등장은 그대로)");
         }
         boolean enable = !packEnabled(server);
         boolean reload = gunsChanged || enable;
@@ -141,6 +191,21 @@ public final class BalanceService {
             GettCore.LOGGER.error("balance: /reload after editor save failed", e);
             return null;
         });
+    }
+
+    /** Every biome's current natural spawn list (after all biome modifiers, ours included). */
+    private static List<SpawnBalance.Spawn> liveSpawns(MinecraftServer server) {
+        List<SpawnBalance.Spawn> out = new ArrayList<>();
+        for (Biome biome : server.registryAccess().registryOrThrow(Registries.BIOME)) {
+            MobSpawnSettings settings = biome.getMobSettings();
+            for (MobCategory c : MobCategory.values()) {
+                for (MobSpawnSettings.SpawnerData d : settings.getMobs(c).unwrap()) {
+                    out.add(new SpawnBalance.Spawn(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE
+                            .getKey(d.type).toString(), c.getName(), d.getWeight().asInt(), d.minCount, d.maxCount));
+                }
+            }
+        }
+        return out;
     }
 
     private static JsonObject section(JsonObject desired, String key, List<String> errs) {
