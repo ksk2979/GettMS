@@ -6,8 +6,10 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const run = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
-const out = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' });
+// 셸을 거치지 않는다: Windows 셸은 띄어쓰기가 있는 인자(릴리스 제목·노트)를 쪼갠다. gh 는 gh.exe 라 셸 없이 실행되고,
+// electron-builder 는 npx(.cmd) 대신 node 로 cli.js 를 직접 실행한다.
+const run = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, stdio: 'inherit' });
+const out = (cmd, args) => execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
 
 const REPO = 'ksk2979/GettMS';
 
@@ -18,7 +20,7 @@ function main() {
   const dist = path.join(ROOT, 'dist');
 
   console.log(`== 빌드 ${version}`);
-  run('npx', ['electron-builder', '--win', '--x64']);
+  run(process.execPath, [require.resolve('electron-builder/cli.js'), '--win', '--x64']);
   const files = [exe, `${exe}.blockmap`].map(f => path.join(dist, f));
   for (const f of files.concat(path.join(dist, 'latest.yml'))) {
     if (!fs.existsSync(f)) throw new Error(`빌드 결과 없음: ${f}`);

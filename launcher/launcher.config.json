@@ -1,5 +1,5 @@
 {
-  "_설명": "이 파일을 GitHub 에서 고치면 모든 런처가 다음 실행 때 자동 반영. 값은 Modrinth 주소의 마지막 이름(슬러그). 필수 의존성은 자동. mods=양쪽 필수, clientOnlyMods=플레이어만, serverOnlyMods=서버만.",
+  "_설명": "모드 목록(mods·clientOnlyMods·serverOnlyMods·customMods)을 고치면 반드시 launcher 폴더에서 npm run lock 을 실행해 고정 목록(lock)을 다시 만든 뒤 올릴 것(안 하면 서버 동기화가 멈추고 1.2 런처는 옛 방식으로 받음). 그 밖의 값은 GitHub 에서 고치면 모든 런처가 다음 실행 때 자동 반영. 값은 Modrinth 주소의 마지막 이름(슬러그). 필수 의존성은 자동. mods=양쪽 필수, clientOnlyMods=플레이어만, serverOnlyMods=서버만.",
   "serverName": "Gett Server",
   "subtitle": "생활형 모드 서버",
   "serverAddress": "",

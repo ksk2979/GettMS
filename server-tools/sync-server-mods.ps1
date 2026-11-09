@@ -3,6 +3,9 @@
 # 하는 일: 설정에 모드 고정 목록(lock)이 있으면 그 목록의 서버용 항목(both+server)을 그대로 받고, 없으면 예전처럼 mods 목록 +
 #          필수 의존성을 Modrinth 에서 1.21.1 NeoForge 최신 빌드로 받는다(sha512 검증). 목록 밖 jar 는 _removed 폴더로 옮긴다.
 
+# 시험용: -ConfigPath 로 로컬 설정 파일을, -CheckOnly 로 받기 전 단계(목록 계산·검사)까지만.
+param([string]$ConfigPath, [switch]$CheckOnly)
+
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $ConfigUrl = 'https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/launcher.config.json'
@@ -12,7 +15,8 @@ $RemovedDir = Join-Path $PSScriptRoot '_removed'
 New-Item -ItemType Directory -Force $ModsDir | Out-Null
 
 Write-Host "설정 읽는 중: $ConfigUrl"
-$cfg = Invoke-RestMethod -Uri "${ConfigUrl}?t=$([int](Get-Date -UFormat %s))" -Headers $Headers
+if ($ConfigPath) { $cfg = Get-Content -Raw -Encoding UTF8 $ConfigPath | ConvertFrom-Json }
+else { $cfg = Invoke-RestMethod -Uri "${ConfigUrl}?t=$([int](Get-Date -UFormat %s))" -Headers $Headers }
 $mc = $cfg.minecraftVersion
 $serverOnly = @($cfg.serverOnlyMods | Where-Object { $_ })
 $serverList = @($cfg.mods) + $serverOnly
@@ -26,6 +30,22 @@ if ($useLock) {
     if ($e.side -eq 'both' -or $e.side -eq 'server') {
       $want[$e.file] = @{ url = $e.url; sha512 = $e.sha512; slug = $e.slug; version = 'lock' }
     }
+  }
+  # 고정 목록이 설정과 맞는지: 설정의 모드가 전부 lock 에 있고, 직접 URL 모드(gettcore 등)의 파일·해시가 같아야 한다.
+  # (GitHub 에서 모드 이름이나 customMods 만 고치고 'npm run lock' 을 안 하면 서버만 옛 목록을 받아 클라와 어긋난다.)
+  $bySlug = @{}
+  foreach ($e in $cfg.lock) { $bySlug[$e.slug] = $e }
+  $problems = @()
+  foreach ($s in @($cfg.mods) + @($cfg.clientOnlyMods) + @($cfg.serverOnlyMods)) {
+    if ($s -and -not $bySlug.ContainsKey($s)) { $problems += "고정 목록에 없는 모드: $s" }
+  }
+  foreach ($c in @($cfg.customMods | Where-Object { $_ })) {
+    $e = $bySlug[$c.name]
+    if (-not $e -or $e.file -ne $c.file -or $e.sha512.ToLower() -ne $c.sha512.ToLower()) { $problems += "고정 목록이 낡은 직접 URL 모드: $($c.name) ($($c.file))" }
+  }
+  if ($problems.Count -gt 0) {
+    $problems | ForEach-Object { Write-Host "  $_" }
+    throw "모드 고정 목록(lock)이 설정과 맞지 않습니다. 개발 PC 에서 launcher 폴더의 'npm run lock' 을 실행해 다시 올린 뒤 실행하세요."
   }
 }
 $queue = [System.Collections.Generic.Queue[string]]::new()
@@ -57,6 +77,8 @@ if (-not $useLock) { $customServer = @($cfg.customMods | Where-Object { $_ -and 
 foreach ($c in $customServer) {
   $want[$c.file] = @{ url = $c.url; sha512 = $c.sha512; slug = $c.name; version = 'custom' }
 }
+
+if ($CheckOnly) { Write-Host "검사만: 받을 목록 $($want.Count)개"; return }
 
 $downloaded = 0; $removed = 0
 foreach ($name in $want.Keys) {
