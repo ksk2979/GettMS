@@ -32,13 +32,17 @@ import org.gettserver.gettcore.network.EditorSaveChunkPayload;
  * Client side of the web editor: assembles snapshots/results from the server, runs the local HTTP server,
  * opens the browser and sends saves back. Client only; referenced from the client-bound payload handler.
  *
- * <p>The HTTP server is stopped on logout, after 30 minutes without requests, and on game shutdown. A new
+ * <p>The HTTP server is stopped on logout, on game shutdown, and when the page goes away: the page sends a heartbeat
+ * every ~15 s and a close beacon on pagehide ({@link EditorSession}: ~5 s after the last tab closed, or 60 s without a
+ * heartbeat — 30 min for a background tab). Only when the page still had unsaved changes is the player told in chat.
+ * A page that never sent a heartbeat (older cached page) falls back to 30 minutes without requests, silently. A new
  * snapshot while it runs only replaces the data, so an open browser tab keeps working.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class EditorClient {
     static final Duration IDLE_LIMIT = Duration.ofMinutes(30);
-    static final int IDLE_CHECK_TICKS = 20 * 60;
+    /** Session check interval: once a second, so a closed page ends the editor within a few seconds. */
+    static final int IDLE_CHECK_TICKS = 20;
     static final Duration ICON_WAIT = Duration.ofSeconds(5);
     /** Just past the HTTP save timeout, so a retry after a 504 is not refused as "still waiting". */
     static final Duration SAVE_EXPIRY = EditorHttpServer.DEFAULT_SAVE_TIMEOUT.plusSeconds(1);
@@ -171,14 +175,22 @@ public final class EditorClient {
         IconRenderer.processQueue();
         if (++tickCounter < IDLE_CHECK_TICKS) return;
         tickCounter = 0;
-        boolean idle;
+        Optional<EditorSession.End> end = Optional.empty();
+        boolean idle = false;
         synchronized (LOCK) {
-            idle = server != null && server.idleFor(IDLE_LIMIT);
+            if (server != null) {
+                EditorSession session = server.session();
+                if (session.seen()) end = session.check(System.nanoTime());
+                else idle = server.idleFor(IDLE_LIMIT);
+            }
         }
-        if (idle) {
-            stopServer("idle");
-            Minecraft.getInstance().gui.getChat().addMessage(Component.translatable("gettcore.msg.editor_idle_closed")
-                    .withStyle(ChatFormatting.GRAY));
+        if (idle) stopServer("idle, no page heartbeat");
+        if (end.isPresent()) {
+            stopServer(end.get().reason() + (end.get().unsaved() ? ", unsaved changes" : ""));
+            if (end.get().unsaved()) {
+                Minecraft.getInstance().gui.getChat().addMessage(
+                        Component.translatable("gettcore.msg.editor_closed_unsaved").withStyle(ChatFormatting.GRAY));
+            }
         }
     }
 

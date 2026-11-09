@@ -135,6 +135,7 @@
   "gettcore.msg.editor_server_failed": "Could not start the local editor server. Check the game log.",
   "gettcore.msg.editor_closed": "The editor was closed.",
   "gettcore.msg.editor_idle_closed": "The editor was closed after 30 minutes of inactivity. Reopen it with /gett 편집",
+  "gettcore.msg.editor_closed_unsaved": "The editor page closed with unsaved changes, so the editor was ended (those changes were not saved). Reopen it with /gett 편집",
   "gettcore.quest.welcome": "A main quest is waiting! Follow the tracker at the top right and right-click the village chief to talk.",
   "gettcore.quest.completed": "[Main] Quest complete: %s",
   "gettcore.quest.gold_failed": "The %s gold reward could not be paid. Please tell an admin.",

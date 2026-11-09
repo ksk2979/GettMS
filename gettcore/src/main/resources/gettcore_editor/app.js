@@ -3228,6 +3228,31 @@
     if (S.bundle && isDirty()) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  /*
+   * 게임에 "이 창이 아직 열려 있다" 알리기: 15초마다 생존 신호(저장 안 된 변경 여부 포함), 닫힐 때 닫힘 신호.
+   * 게임은 닫힘 신호 몇 초 뒤(새로고침이면 새 페이지가 곧 신호를 보내 이어짐), 또는 신호가 60초 끊기면(백그라운드 탭은 30분)
+   * 편집기를 끝내고, 저장 안 된 변경이 있었을 때만 채팅으로 알린다.
+   */
+  const PAGE_ID = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  const pageState = () => JSON.stringify({ page: PAGE_ID, dirty: !!(S.bundle && isDirty()), hidden: document.visibilityState === 'hidden' });
+  function heartbeat() {
+    if (!TOKEN) return;
+    api('/api/heartbeat', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: pageState(), keepalive: true }).catch(() => {});
+  }
+  let closeSent = false;
+  function sendClose() {
+    if (!TOKEN || closeSent) return;
+    closeSent = true;
+    // sendBeacon 은 헤더를 못 붙이므로 토큰은 페이지 주소처럼 ?t= 로 보낸다.
+    try { if (navigator.sendBeacon && navigator.sendBeacon('/api/close' + TOKEN_Q, pageState())) return; } catch (e) { /* 아래로 */ }
+    try { fetch('/api/close' + TOKEN_Q, { method: 'POST', body: pageState(), keepalive: true }); } catch (e) { /* 무시 */ }
+  }
+  setInterval(heartbeat, 15000);
+  heartbeat();
+  document.addEventListener('visibilitychange', heartbeat);
+  window.addEventListener('pagehide', sendClose);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) { closeSent = false; heartbeat(); } });
+
   async function boot() {
     if (!TOKEN) { app.textContent = '접근 토큰이 없습니다. 게임에서 /gett 편집 으로 열어 주세요.'; return; }
     try {

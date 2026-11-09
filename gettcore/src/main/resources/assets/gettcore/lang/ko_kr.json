@@ -135,6 +135,7 @@
   "gettcore.msg.editor_server_failed": "편집기 로컬 서버를 시작하지 못했습니다. 게임 로그를 확인하세요.",
   "gettcore.msg.editor_closed": "편집기가 닫혔습니다.",
   "gettcore.msg.editor_idle_closed": "편집기를 30분 동안 쓰지 않아 닫았습니다. 다시 열려면 /gett 편집",
+  "gettcore.msg.editor_closed_unsaved": "편집기 창이 저장하지 않은 변경이 있는 채로 닫혀 편집기를 끝냈습니다 (그 변경은 서버에 저장되지 않았습니다). 다시 열려면 /gett 편집",
   "gettcore.quest.welcome": "메인 퀘스트가 기다리고 있습니다! 화면 오른쪽 위 안내를 따라 마을 이장에게 우클릭으로 말을 걸어 보세요.",
   "gettcore.quest.completed": "[메인] 퀘스트 완료: %s",
   "gettcore.quest.gold_failed": "보상 골드 %s을(를) 지급하지 못했습니다. 관리자에게 알려 주세요.",

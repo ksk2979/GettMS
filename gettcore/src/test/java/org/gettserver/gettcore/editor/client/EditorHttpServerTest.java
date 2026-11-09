@@ -137,6 +137,35 @@ class EditorHttpServerTest {
         assertEquals("{\"a\":1}", lastSaveBody);
     }
 
+    HttpResponse<String> postTo(String pathAndQuery, String headerToken, String body) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base() + pathAndQuery))
+                .header("Content-Type", "text/plain;charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString(body));
+        if (headerToken != null) b.header("X-Gett-Token", headerToken);
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
+    void heartbeatAndCloseBeaconFeedTheSession() throws Exception {
+        assertFalse(server.session().seen());
+        assertEquals(204, postTo("/api/heartbeat", server.token(), "{\"page\":\"p1\",\"dirty\":true}").statusCode());
+        assertTrue(server.session().seen());
+        // sendBeacon cannot set headers: the token comes in the query, like the page URL.
+        assertEquals(204, postTo("/api/close?t=" + server.token(), null, "{\"page\":\"p1\",\"dirty\":true}").statusCode());
+        var end = server.session().check(System.nanoTime() + EditorSession.CLOSE_GRACE.toNanos());
+        assertTrue(end.isPresent() && end.get().unsaved());
+    }
+
+    @Test
+    void heartbeatNeedsTokenPostAndAValidBody() throws Exception {
+        assertEquals(403, postTo("/api/heartbeat", null, "{\"page\":\"p1\"}").statusCode());
+        assertEquals(403, postTo("/api/close?t=wrong", null, "{\"page\":\"p1\"}").statusCode());
+        assertEquals(405, get("/api/heartbeat", server.token()).statusCode());
+        assertEquals(400, postTo("/api/heartbeat", server.token(), "{\"page\":\"a b\"}").statusCode());
+        assertEquals(400, postTo("/api/heartbeat", server.token(), "x".repeat(5000)).statusCode());
+        assertFalse(server.session().seen());
+    }
+
     @Test
     void saveRequiresToken() throws Exception {
         var r = http.send(HttpRequest.newBuilder(URI.create(base() + "/api/save"))

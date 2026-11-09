@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 public final class EditorHttpServer {
     static final int MAX_SAVE_BYTES = 16 * 1024 * 1024;
     static final Duration DEFAULT_SAVE_TIMEOUT = Duration.ofSeconds(10);
+    static final int MAX_BEACON_BYTES = 1024;
 
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private static final Pattern FILE = Pattern.compile("[A-Za-z0-9._-]+");
@@ -45,6 +46,7 @@ public final class EditorHttpServer {
     private final ExecutorService pool;
     private final String token;
     private volatile long lastAuthorizedNanos = System.nanoTime();
+    private final EditorSession session = new EditorSession();
 
     private EditorHttpServer(EditorBackend backend, Duration saveTimeout) throws IOException {
         this.backend = backend;
@@ -77,6 +79,9 @@ public final class EditorHttpServer {
     public int port() { return http.getAddress().getPort(); }
 
     public String token() { return token; }
+
+    /** Open pages, fed by {@code /api/heartbeat} and the {@code /api/close} beacon. */
+    public EditorSession session() { return session; }
 
     public String url() { return "http://127.0.0.1:" + port() + "/?t=" + token; }
 
@@ -135,7 +140,10 @@ public final class EditorHttpServer {
 
     private void route(HttpExchange ex, String method, String path) throws IOException {
         boolean get = method.equals("GET");
-        if (path.equals("/api/save")) {
+        if (path.equals("/api/heartbeat") || path.equals("/api/close")) {
+            if (!method.equals("POST")) { send(ex, 405, "text/plain; charset=utf-8", new byte[0]); return; }
+            pageReport(ex, path.equals("/api/close"));
+        } else if (path.equals("/api/save")) {
             if (!method.equals("POST")) { send(ex, 405, "text/plain; charset=utf-8", new byte[0]); return; }
             save(ex);
         } else if (!get) {
@@ -226,6 +234,24 @@ public final class EditorHttpServer {
             Thread.currentThread().interrupt();
             sendApi(ex, 500, "{\"error\":\"interrupted\"}");
         }
+    }
+
+    /**
+     * Heartbeat (fetch, token header) or close beacon (navigator.sendBeacon: no custom headers, so the token comes in
+     * the query like the page URL; body sent as text/plain). Same host + token check as every request.
+     */
+    private void pageReport(HttpExchange ex, boolean close) throws IOException {
+        byte[] body = ex.getRequestBody().readNBytes(MAX_BEACON_BYTES + 1);
+        Optional<EditorSession.Report> r = body.length > MAX_BEACON_BYTES ? Optional.empty()
+                : EditorSession.parse(new String(body, StandardCharsets.UTF_8));
+        if (r.isEmpty()) {
+            send(ex, 400, "text/plain; charset=utf-8", new byte[0]);
+            return;
+        }
+        long now = System.nanoTime();
+        if (close) session.close(r.get().page(), r.get().dirty(), now);
+        else session.heartbeat(r.get().page(), r.get().dirty(), r.get().hidden(), now);
+        send(ex, 204, "text/plain; charset=utf-8", new byte[0]);
     }
 
     private static boolean badSegment(String seg) {
