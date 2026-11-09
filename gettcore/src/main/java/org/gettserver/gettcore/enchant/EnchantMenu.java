@@ -16,24 +16,21 @@ import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.gettserver.gettcore.GettCore;
 
-/** 마법부여 메뉴: 도구 1칸 + 부여석 1칸 + 플레이어 인벤토리. 부여 판정은 서버의 {@link EnchantService#apply}. */
+/** 마법부여 메뉴: 도구 1칸 + 플레이어 인벤토리. 부여석·골드는 인벤토리/잔액에서 자동으로 센다. 판정은 서버의 {@link EnchantService#apply}. */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class EnchantMenu extends AbstractContainerMenu {
     public static final int TOOL_SLOT = 0;
-    public static final int STONE_SLOT = 1;
-    public static final int TOOL_X = 36;
-    public static final int TOOL_Y = 40;
-    public static final int STONE_X = 100;
-    public static final int STONE_Y = 40;
+    public static final int TOOL_X = 65;
+    public static final int TOOL_Y = 28;
     /** 플레이어 인벤토리 위치(상점보다 작은 화면). */
     public static final int INV_X = 150;
     public static final int INV_Y = 62;
 
-    private static final int INV_START = 2;
+    private static final int INV_START = 1;
     private static final int HOTBAR_START = INV_START + 27;
     private static final int INV_END = HOTBAR_START + 9;
 
-    private final Container container = new SimpleContainer(2);
+    private final Container container = new SimpleContainer(1);
 
     /** Client constructor (menu type factory); the buffer carries nothing. */
     public EnchantMenu(int id, Inventory inv, RegistryFriendlyByteBuf buf) {
@@ -53,12 +50,6 @@ public class EnchantMenu extends AbstractContainerMenu {
                 return 1;
             }
         });
-        addSlot(new Slot(container, STONE_SLOT, STONE_X, STONE_Y) {
-            @Override
-            public boolean mayPlace(ItemStack stack) {
-                return stack.is(GettCore.ENCHANT_STONE.get());
-            }
-        });
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 addSlot(new Slot(inv, col + row * 9 + 9, INV_X + col * 18, INV_Y + row * 18));
@@ -73,13 +64,14 @@ public class EnchantMenu extends AbstractContainerMenu {
         return container.getItem(TOOL_SLOT);
     }
 
-    public ItemStack stone() {
-        return container.getItem(STONE_SLOT);
+    /** 마법부여석 판정(인벤토리 자동 인식용). */
+    public static boolean isStone(ItemStack stack) {
+        return stack.is(GettCore.ENCHANT_STONE.get());
     }
 
-    /** 도구 칸에 지원 도구, 부여석 칸에 부여석이 1개 이상. */
-    public boolean canApply() {
-        return SpecialEnchants.toolOf(tool()).isPresent() && stone().is(GettCore.ENCHANT_STONE.get());
+    /** 도구 칸에 지원 도구, 부여석 1개 이상, 골드 ≥ 비용. 개수·잔액·비용은 호출 측의 것. */
+    public boolean canApply(int stones, long gold, long goldCost) {
+        return EnchantService.canApply(SpecialEnchants.toolOf(tool()).isPresent(), stones, gold, goldCost);
     }
 
     @Override
@@ -134,8 +126,6 @@ public class EnchantMenu extends AbstractContainerMenu {
         boolean moved;
         if (index < INV_START) {
             moved = moveItemStackTo(stack, INV_START, INV_END, true);
-        } else if (stack.is(GettCore.ENCHANT_STONE.get())) {
-            moved = moveItemStackTo(stack, STONE_SLOT, STONE_SLOT + 1, false);
         } else if (SpecialEnchants.toolOf(stack).isPresent()) {
             moved = moveItemStackTo(stack, TOOL_SLOT, TOOL_SLOT + 1, false);
         } else if (index < HOTBAR_START) {

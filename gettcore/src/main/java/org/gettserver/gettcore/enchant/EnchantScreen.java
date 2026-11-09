@@ -1,5 +1,9 @@
 package org.gettserver.gettcore.enchant;
 
+import org.gettserver.gettcore.economy.ClientBalance;
+import org.gettserver.gettcore.economy.Gold;
+import org.gettserver.gettcore.economy.StoneCounter;
+import org.gettserver.gettcore.reinforce.ClientReinforceConfig;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -35,6 +39,11 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final float IDLE_ALPHA = 0.6f;
     private static final int EFFECT_TICKS = 20;
     private static final int APPLY_COOLDOWN = 20;
+    private static final int TEXT = 0xFF4A3B24;
+    private static final int SHORT_TEXT = 0xFFB03030;
+    /** Width of the left (slot) area; the cost lines are centred in it. */
+    private static final int LEFT_W = EnchantMenu.INV_X - 4;
+    private static final int COST_Y = 74;
 
     private Button applyButton;
     private float angle;
@@ -72,8 +81,17 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
         updateApplyButton();
     }
 
+    private int heldStones() {
+        return minecraft == null || minecraft.player == null ? 0
+                : StoneCounter.count(StoneCounter.slots(minecraft.player.getInventory()), EnchantMenu::isStone);
+    }
+
+    private static long goldCost() {
+        return Math.max(0, ClientReinforceConfig.get().enchantGoldCost());
+    }
+
     private void updateApplyButton() {
-        applyButton.active = cooldown == 0 && menu.canApply();
+        applyButton.active = cooldown == 0 && menu.canApply(heldStones(), ClientBalance.get(), goldCost());
     }
 
     @Override
@@ -104,7 +122,7 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
         g.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, BORDER);
         g.fill(leftPos + 1, topPos + 1, leftPos + imageWidth - 1, topPos + imageHeight - 1, PANEL);
-        if (!menu.stone().isEmpty()) renderStoneGlow(g);
+        if (heldStones() > 0 && !menu.tool().isEmpty()) renderToolGlow(g);
         for (Slot slot : menu.slots) {
             int x = leftPos + slot.x;
             int y = topPos + slot.y;
@@ -114,13 +132,30 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
         renderCircle(g, partialTick);
     }
 
-    /** Three translucent white rings around the stone slot; overlaps make it brighter toward the slot. */
-    private void renderStoneGlow(GuiGraphics g) {
-        int x = leftPos + EnchantMenu.STONE_X;
-        int y = topPos + EnchantMenu.STONE_Y;
+    /** Three translucent white rings around the tool slot (ready to enchant); overlaps brighten toward the slot. */
+    private void renderToolGlow(GuiGraphics g) {
+        int x = leftPos + EnchantMenu.TOOL_X;
+        int y = topPos + EnchantMenu.TOOL_Y;
         for (int r = 7; r >= 3; r -= 2) {
             g.fill(x - r, y - r, x + 16 + r, y + 16 + r, 0x40FFFFFF);
         }
+    }
+
+    @Override
+    protected void renderLabels(GuiGraphics g, int mouseX, int mouseY) {
+        super.renderLabels(g, mouseX, mouseY);
+        if (menu.tool().isEmpty()) return;
+        int held = heldStones();
+        centred(g, Component.translatable("gettcore.screen.cost.enchant_stone", 1, held), COST_Y,
+                held >= 1 ? TEXT : SHORT_TEXT);
+        long gold = goldCost();
+        long balance = ClientBalance.get();
+        centred(g, Component.translatable("gettcore.screen.cost.gold", Gold.format(gold), Gold.format(balance)),
+                COST_Y + 11, balance >= gold ? TEXT : SHORT_TEXT);
+    }
+
+    private void centred(GuiGraphics g, Component text, int y, int color) {
+        g.drawString(font, text, (LEFT_W - font.width(text)) / 2, y, color, false);
     }
 
     private void renderCircle(GuiGraphics g, float partialTick) {
