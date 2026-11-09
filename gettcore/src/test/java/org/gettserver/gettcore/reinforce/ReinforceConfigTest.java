@@ -256,7 +256,7 @@ class ReinforceConfigTest {
         assertEquals(130L, d.goldCost().get(1));
         for (int n = 0; n < 30; n++) assertEquals(goldFormula(n), d.goldCost().get(n), "goldCost[" + n + "]");
         assertEquals(1000L, d.enchantGoldCost());
-        assertEquals(new ReinforceConfig.Elytra(32, 50000, 1, 15, 30), ReinforceConfig.Elytra.DEFAULT);
+        assertEquals(new ReinforceConfig.Elytra(32, 50000, 2, 15, 50), ReinforceConfig.Elytra.DEFAULT);
         assertEquals(ReinforceConfig.Elytra.DEFAULT, d.elytra());
     }
 
@@ -293,7 +293,7 @@ class ReinforceConfigTest {
         assertEquals(7L, s.elytra().firstGoldCost());
         assertEquals(2.0, s.elytra().speedPercentPerLevel());
         assertEquals(10, s.elytra().fireworkBoostLevel());
-        assertEquals(30.0, s.elytra().fireworkBoostPercent());
+        assertEquals(50.0, s.elytra().fireworkBoostPercent());
         assertEquals(1000L, s.enchantGoldCost());
         assertEquals(3, warnings.size(), warnings.toString());
     }

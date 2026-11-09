@@ -13,9 +13,9 @@
   "elytra": {
     "firstStoneCost": 32,
     "firstGoldCost": 50000,
-    "speedPercentPerLevel": 1,
+    "speedPercentPerLevel": 2,
     "fireworkBoostLevel": 15,
-    "fireworkBoostPercent": 30
+    "fireworkBoostPercent": 50
   },
   "milestones": []
 }

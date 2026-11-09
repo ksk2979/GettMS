@@ -1904,7 +1904,7 @@
     armorDefensePerLevel: 0.05,
     goldCost: defaultGold(30),
     enchantGoldCost: 1000,
-    elytra: { firstStoneCost: 32, firstGoldCost: 50000, speedPercentPerLevel: 1, fireworkBoostLevel: 15, fireworkBoostPercent: 30 },
+    elytra: { firstStoneCost: 32, firstGoldCost: 50000, speedPercentPerLevel: 2, fireworkBoostLevel: 15, fireworkBoostPercent: 50 },
     milestones: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */

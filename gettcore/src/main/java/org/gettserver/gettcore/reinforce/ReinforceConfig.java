@@ -57,7 +57,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
      */
     public record Elytra(int firstStoneCost, long firstGoldCost, double speedPercentPerLevel, int fireworkBoostLevel,
                          double fireworkBoostPercent) {
-        public static final Elytra DEFAULT = new Elytra(32, 50_000, 1, 15, 30);
+        public static final Elytra DEFAULT = new Elytra(32, 50_000, 2, 15, 50);
 
         public static final Codec<Elytra> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Codec.INT.optionalFieldOf("firstStoneCost", DEFAULT.firstStoneCost).forGetter(Elytra::firstStoneCost),

@@ -118,9 +118,9 @@ class ReinforceRulesTest {
     void elytraEffects() {
         assertEquals(0.0, ReinforceRules.elytraSpeedPercent(0, D), EPS);
         assertEquals(0.0, ReinforceRules.elytraSpeedPercent(1, D), EPS);
-        assertEquals(1.0, ReinforceRules.elytraSpeedPercent(2, D), EPS);
-        assertEquals(29.0, ReinforceRules.elytraSpeedPercent(30, D), EPS);
+        assertEquals(2.0, ReinforceRules.elytraSpeedPercent(2, D), EPS);
+        assertEquals(58.0, ReinforceRules.elytraSpeedPercent(30, D), EPS);
         assertEquals(0.0, ReinforceRules.elytraFireworkPercent(14, D), EPS);
-        assertEquals(30.0, ReinforceRules.elytraFireworkPercent(15, D), EPS);
+        assertEquals(50.0, ReinforceRules.elytraFireworkPercent(15, D), EPS);
     }
 }
