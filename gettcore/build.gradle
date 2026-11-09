@@ -149,6 +149,13 @@ dependencies {
     localRuntime "maven.modrinth:curios:yohfFbgD"
     localRuntime "maven.modrinth:elytra-slot:RX6A02W1"
     localRuntime "maven.modrinth:caelus:KsfI4QsR"
+    // 개발 실행용: Epic Knights(갑옷·무기) + 의존성 Cloth Config·Architectury — 강화·인챈트 호환 확인용
+    localRuntime "maven.modrinth:epic-knights-shields-armor-and-weapons:Pzhaw0LB"
+    localRuntime "maven.modrinth:cloth-config:izKINKFg"
+    localRuntime "maven.modrinth:architectury-api:1IiqEQGl"
+    // 개발 실행용(시험): Epic Fight + Weapons of Miracles — 총·강화·인챈트·펫과의 충돌 확인
+    localRuntime "maven.modrinth:epic-fight:8HHhJt6i"
+    localRuntime "maven.modrinth:weapons-of-miracles:9A6sb3T8"
     // 개발 실행용: Easy NPC 설정 화면 모듈 (배포 시엔 런처가 번들로 받음)
     localRuntime "maven.modrinth:easy-npc-config-ui:5k9n62gb"
     // 개발 실행용: 한글 IME 채팅 입력 (배포 시 clientOnlyMods 로 받음)
