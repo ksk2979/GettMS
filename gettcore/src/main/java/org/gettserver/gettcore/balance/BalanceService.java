@@ -130,11 +130,16 @@ public final class BalanceService {
     }
 
     public static List<String> validate(JsonObject desired) {
+        return validate(desired, Map.of());
+    }
+
+    /** {@code spawnOriginals}: the mods' biome modifier files, so spawn rule edits are checked merged with them. */
+    public static List<String> validate(JsonObject desired, Map<ResourceLocation, JsonObject> spawnOriginals) {
         List<String> errs = new ArrayList<>();
         JsonObject guns = section(desired, GUNS, errs);
         if (guns != null) errs.addAll(GunBalance.validate(guns));
         JsonObject rules = section(desired, SPAWN_RULES, errs);
-        if (rules != null) errs.addAll(SpawnBalance.validateRules(rules));
+        if (rules != null) errs.addAll(SpawnBalance.validateRules(spawnOriginals, rules));
         JsonObject mobs = section(desired, SPAWN_MOBS, errs);
         if (mobs != null) errs.addAll(SpawnBalance.validateMobs(mobs));
         JsonObject ef = section(desired, EPICFIGHT, errs);

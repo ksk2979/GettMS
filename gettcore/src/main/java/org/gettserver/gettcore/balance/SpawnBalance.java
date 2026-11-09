@@ -100,6 +100,41 @@ public final class SpawnBalance {
         return out;
     }
 
+    /**
+     * {@link #validateRules(JsonObject)} plus the merged result: the edits are applied to the server's original and
+     * every resulting spawner must still have minCount ≤ maxCount and counts / weight in range (vanilla's SpawnerData
+     * codec rejects min > max, which would stop the world from loading).
+     */
+    public static List<String> validateRules(Map<ResourceLocation, JsonObject> originals, JsonObject desired) {
+        List<String> errs = validateRules(desired);
+        if (!errs.isEmpty()) return errs;
+        Map<ResourceLocation, JsonObject> rules = rules(originals);
+        for (Map.Entry<String, JsonElement> e : desired.entrySet()) {
+            ResourceLocation f = ruleFileOf(e.getKey());
+            JsonObject orig = f == null ? null : rules.get(f);
+            if (orig == null) continue;   // unknown rule: skipped with a warning on save
+            JsonObject copy = applyRule(orig, e.getValue().getAsJsonObject());
+            if (copy == null || NONE.equals(copy.get("type").getAsString())) continue;
+            int i = 0;
+            for (JsonObject s : spawners(copy)) {
+                i++;
+                Double w = GunBalance.num(s, "weight");
+                Double min = GunBalance.num(s, "minCount");
+                Double max = GunBalance.num(s, "maxCount");
+                if (w != null && (w < 1 || w > WEIGHT_MAX)) {
+                    errs.add("등장 규칙 " + e.getKey() + " › " + i + "번 가중치: 1~" + WEIGHT_MAX + " 사이여야 합니다");
+                }
+                if (min != null && max != null && min > max) {
+                    errs.add("등장 규칙 " + e.getKey() + " › " + i + "번: 최소 수가 최대 수보다 큽니다 (최소 "
+                            + min.intValue() + ", 최대 " + max.intValue() + ")");
+                } else if ((min != null && (min < 1 || min > COUNT_MAX)) || (max != null && (max < 1 || max > COUNT_MAX))) {
+                    errs.add("등장 규칙 " + e.getKey() + " › " + i + "번: 무리 수는 1~" + COUNT_MAX + " 사이여야 합니다");
+                }
+            }
+        }
+        return errs;
+    }
+
     public static List<String> validateRules(JsonObject desired) {
         List<String> errs = new ArrayList<>();
         for (Map.Entry<String, JsonElement> e : desired.entrySet()) {

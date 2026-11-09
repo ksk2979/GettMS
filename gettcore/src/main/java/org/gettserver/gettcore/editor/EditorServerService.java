@@ -84,7 +84,9 @@ public final class EditorServerService {
             EditorBundle bundle = EditorJson.decode(text);
             // Balance data pack (guns / spawns / Epic Fight): checked before anything is written, applied after the bundle saved.
             JsonObject balance = BalanceService.desiredOf(text);
-            List<String> balanceErrors = balance == null ? List.of() : BalanceService.validate(balance);
+            List<String> balanceErrors = balance == null ? List.of()
+                    : BalanceService.validate(balance, BalanceService.originals(server.getResourceManager(),
+                            org.gettserver.gettcore.balance.SpawnBalance.FOLDER));
             if (!balanceErrors.isEmpty()) {
                 sendResult(player, false, balanceErrors, List.of(), false);
                 return;

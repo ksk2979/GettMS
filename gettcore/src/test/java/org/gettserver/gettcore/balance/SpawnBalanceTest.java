@@ -115,6 +115,21 @@ class SpawnBalanceTest {
     }
 
     @Test
+    void validateRulesChecksTheMergedResultAgainstTheOriginal() {
+        // x:pair spawner 2 is min 2 / max 4 in the original: only maxCount=1 sent -> merged min 2 > max 1.
+        List<String> errs = SpawnBalance.validateRules(originals(), json(
+                "{\"x:pair\":{\"spawners\":[null,{\"maxCount\":1}]}}"));
+        assertEquals(1, errs.size(), errs.toString());
+        assertTrue(errs.get(0).contains("최소 수가 최대 수보다"), errs.toString());
+        errs = SpawnBalance.validateRules(originals(), json("{\"wom:spawn_hollow\":{\"spawners\":[{\"minCount\":5}]}}"));
+        assertEquals(1, errs.size(), "original max 1 < new min 5: " + errs);
+        assertEquals(List.of(), SpawnBalance.validateRules(originals(), json(
+                "{\"x:pair\":{\"spawners\":[null,{\"maxCount\":2}]},\"gone:rule\":{\"disabled\":true}}")));
+        assertEquals(List.of(), SpawnBalance.validateRules(originals(), json(
+                "{\"wom:spawn_hollow\":{\"disabled\":true,\"spawners\":[{\"minCount\":5}]}}")), "off: counts unused");
+    }
+
+    @Test
     void mobMultiplierFilesAreOursAndOneMeansNoFile() throws Exception {
         SpawnBalance.Outcome o = SpawnBalance.reconcileMobs(pack, json("{\"minecraft:zombie\":0,\"wom:hollow\":0.5,\"minecraft:cow\":1}"));
         assertEquals(2, o.written());
