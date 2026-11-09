@@ -17,14 +17,14 @@ import net.minecraft.world.level.Level;
  * The only class that references WorldEdit. Callers must check {@code ModList.get().isLoaded("worldedit")} before
  * touching it, so a server without WorldEdit never loads this class.
  */
-final class WorldEditBridge {
+public final class WorldEditBridge {
     /** A complete WorldEdit selection (min/max inclusive). */
-    record Selection(ResourceKey<Level> dimension, BlockPos min, BlockPos max) {}
+    public record Selection(ResourceKey<Level> dimension, BlockPos min, BlockPos max) {}
 
     private WorldEditBridge() {}
 
     /** The player's current WorldEdit selection, or empty if nothing (or only one corner) is selected. */
-    static Optional<Selection> selection(ServerPlayer player) {
+    public static Optional<Selection> selection(ServerPlayer player) {
         LocalSession session = WorldEdit.getInstance().getSessionManager().get(NeoForgeAdapter.adaptPlayer(player));
         World world = session.getSelectionWorld();
         if (world == null) return Optional.empty();
