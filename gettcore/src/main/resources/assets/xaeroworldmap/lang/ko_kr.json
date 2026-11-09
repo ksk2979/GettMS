@@ -323,5 +323,6 @@
   "gui.xaero_pac_add_claiming_anchor": "클레임 기준점 추가",
   "gui.xaero_pac_remove_claiming_anchor": "클레임 기준점 제거",
   "gui.xaero_pac_remove_claiming_anchor_confirm_line1": "다음 클레임 기준점과 그 범위에만 있는 모든 클레임을 제거할까요?",
-  "gui.xaero_pac_remove_claiming_anchor_confirm_line2": "되돌릴 수 없습니다! 기준 청크: %1$s"
+  "gui.xaero_pac_remove_claiming_anchor_confirm_line2": "되돌릴 수 없습니다! 기준 청크: %1$s",
+  "gui.xaero_block_colours": "블록 색상"
 }

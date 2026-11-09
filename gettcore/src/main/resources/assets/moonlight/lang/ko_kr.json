@@ -263,5 +263,6 @@
   "moonlight.configuration.test_category.test_schema_advanced": "테스트 고급 스키마",
   "moonlight.configuration.test_category.test_schema_advanced.description": "스키마 폼: long, 16진수 색상, 패턴, 선택 항목, 범위 제한 목록, 쌍, 디스패치, either, 디스패치 맵, 재귀, 원시",
   "moonlight.configuration.test_category.test_schema_map": "테스트 스키마 맵",
-  "moonlight.configuration.test_category.test_schema_map.description": "스키마 맵"
+  "moonlight.configuration.test_category.test_schema_map.description": "스키마 맵",
+  "gui.moonlight.config.general": "일반"
 }
