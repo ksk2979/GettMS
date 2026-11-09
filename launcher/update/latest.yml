@@ -1,0 +1,8 @@
+version: 1.2.0
+files:
+  - url: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.2.0.exe
+    sha512: yudtC4fqLbCl7f3bQ+TPAZfIU+VtV2bbRcPy5+8JQiMrAC9OX8BWt48+kU6BEqRpGbgnIcNZ4/2Yc8CzEBXl8w==
+    size: 122047393
+path: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.2.0.exe
+sha512: yudtC4fqLbCl7f3bQ+TPAZfIU+VtV2bbRcPy5+8JQiMrAC9OX8BWt48+kU6BEqRpGbgnIcNZ4/2Yc8CzEBXl8w==
+releaseDate: '2026-11-09T06:49:20.769Z'
