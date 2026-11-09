@@ -152,6 +152,10 @@ public final class EditorDevServer {
                 "{\"general\":{\"rate\":10,\"maxAmmo\":6,\"equipTime\":0,\"reloadTime\":60,\"recoilAngle\":-7.0,\"spread\":1.0},"
                         + "\"ammoData\":{\"cgs:round_revolver\":{\"projectile\":{\"damage\":8.0}},"
                         + "\"cgs:round_revolver_piercing\":{\"projectile\":{\"damage\":12.0}}}}").getAsJsonObject());
+        guns.put(ResourceLocation.parse("cgs:weapons/nailgun.json"), JsonParser.parseString(
+                "{\"general\":{\"loadingType\":\"ntgl:per_cartridge\",\"rate\":2,\"maxAmmo\":40,\"reloadStart\":15,"
+                        + "\"reloadTime\":15,\"reloadEnd\":20,\"reloadAmount\":10,\"spread\":3.0},"
+                        + "\"ammoData\":{\"cgs:nail\":{\"projectile\":{\"damage\":3.0}}}}").getAsJsonObject());
         guns.put(ResourceLocation.parse("ntgl:weapons/guns/shotgun.json"), JsonParser.parseString(
                 "{\"general\":{\"rate\":15,\"maxAmmo\":5,\"reloadTime\":10,\"recoilAngle\":-15.0,\"spread\":10.0},"
                         + "\"ammoData\":{\"ntgl:shotshell\":{\"projectile\":{\"damage\":1.0}}}}").getAsJsonObject());

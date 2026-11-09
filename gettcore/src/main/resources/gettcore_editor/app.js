@@ -2550,6 +2550,8 @@
   // [키, 제목, 최소, 최대, 정수?, 단위] — 서버 GunBalance.FIELDS 와 같은 범위. 시간은 초(20틱 = 1초, 가장 가까운 틱으로 반올림).
   const GUN_FIELDS = [
     ['reloadTime', '장전 시간', 0, 600, false, '초'],
+    ['reloadStart', '장전 시작', 0, 600, false, '초'],
+    ['reloadEnd', '장전 끝', 0, 600, false, '초'],
     ['rate', '연사 간격', 0.05, 60, false, '초'],
     ['maxAmmo', '탄창', 1, 100000, true, '발'],
     ['spread', '퍼짐', 0, 180, false, '°'],
@@ -2557,6 +2559,15 @@
     ['equipTime', '꺼내는 시간', 0, 60, false, '초'],
   ];
   const GUN_DAMAGE_MAX = 100000;
+  // 장전 칸에 따로 그리는 항목 (나머지 GUN_FIELDS 는 한 칸씩).
+  const GUN_RELOAD_KEYS = ['reloadStart', 'reloadTime', 'reloadEnd'];
+  // NTGL LoadingType: 탄창식 = reloadTime 한 번에 전부, 한 발씩 = 장전 시작 → (reloadTime 마다 reloadAmount 발) → 장전 끝.
+  const gunPerCartridge = (g) => g.loading === 'per_cartridge';
+  function gunFieldLabel(g, key) {
+    if (key === 'reloadTime') return gunPerCartridge(g) ? '한 발당 장전' : '장전 시간';
+    const f = GUN_FIELDS.find((x) => x[0] === key);
+    return f ? f[1] : key;
+  }
 
   function gunRule(key, v) {
     if (v === undefined) return '';
@@ -2596,8 +2607,9 @@
     render(container) {
       const card = h('div', { class: 'card' }, h('h2', null, '총 수치'),
         h('p', { class: 'muted' }, 'Create: Gunsmithing·NTGL 총의 무기 파일(data/<모드>/weapons/…) 값을 바꿉니다. 칸에 숫자를 넣으면 바뀌고, 빈 칸은 모드의 원래 값입니다. 시간은 초 단위입니다 (1초 = 20틱, 가장 가까운 틱으로 반올림 — 예: 장전 2.5초 = 50틱).'),
-        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 총 파일의 사본(모드 원본 그대로 + 바꾼 값만)을 쓰고 /reload 를 자동으로 실행합니다. 서버 판정(피해 등)은 /reload 가 끝나면 바로, 접속자 화면은 NTGL 이 총 설정을 다시 보내 주므로 보통 바로 바뀝니다 — 손에 든 총이 그대로면 다시 들거나 재접속해 확인하세요. "원래대로" = 사본 삭제.'),
-        h('p', { class: 'muted' }, '원본 파일에 없는 항목(예: 꺼내는 시간이 없는 총)은 바꿀 수 없어 "—" 로 보입니다. 탄별 피해는 그 총에 넣는 탄(ammoData) 하나하나의 발사체 피해입니다.'));
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 총 파일의 사본(모드 원본 그대로 + 바꾼 값만)을 쓰고 /reload 를 자동으로 실행합니다. /reload 가 끝나면 NTGL 이 접속자 모두에게 총 설정을 다시 보내고 매 틱 그 값을 읽으므로, 서버 판정과 장전 애니메이션이 함께 바로 바뀝니다 — 손에 든 총을 다시 들거나 재접속할 필요는 없습니다 (그때 진행 중이던 장전 한 단계만 예전 시간으로 끝남). "원래대로" = 사본 삭제.'),
+        h('p', { class: 'muted' }, '장전 방식은 총 파일의 loadingType 으로 정해집니다 (NTGL 과 같은 규칙, 없으면 탄창식). 탄창식은 "장전 시간" 한 번에 탄창 전부를 채웁니다. 한 발씩 장전하는 총은 "장전 시작" → "한 발당 장전" × 채울 발 수 → "장전 끝" 순서이므로, 전체 장전 시간 = 시작 + 한 발당 × 발 수 + 끝 입니다. 장전 시작·끝이 파일에 없으면 NTGL 기본값 0초로 보이고, 바꾸면 사본에 새로 넣습니다.'),
+        h('p', { class: 'muted' }, '일부 부착물은 모드 코드가 장전 방식·시간·탄창을 고정 값으로 바꿔 버려 여기 값이 무시됩니다 (총 이름 아래 ⚠ 참고 — 예: 리볼버에 탄띠를 달면 한 발씩·한 발당 1초·12발). 원본 파일에 없는 다른 항목(예: 꺼내는 시간이 없는 총)은 바꿀 수 없어 "—" 로 보입니다. 탄별 피해는 그 총에 넣는 탄(ammoData) 하나하나의 발사체 피해입니다.'));
       container.append(card);
       const cat = S.dpCatalog;
       const dp = S.bundle.datapack;
@@ -2623,11 +2635,15 @@
           && (!q || (itemName(g.item) + ' ' + g.id + ' ' + g.item).toLowerCase().includes(q)));
         count.textContent = `${list.length}개`;
         tbody.replaceChildren(...list.map((g) => {
-          const cells = GUN_FIELDS.map(([key, label, , , , unit]) => {
+          // 한 항목의 입력 칸 (+ 원래 값). 원본에 없고 기본값도 없으면 null.
+          const field = (key) => {
+            const f = GUN_FIELDS.find((x) => x[0] === key);
+            const unit = f[5];
+            const label = gunFieldLabel(g, key);
             const base = g[key];
             const o = guns[g.id];
             const cur = o ? o[key] : undefined;
-            if (!isNum(base) && cur === undefined) return h('td', null, h('span', { class: 'muted' }, '—'));
+            if (!isNum(base) && cur === undefined) return null;
             const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:5rem', 'aria-label': `${itemName(g.item)} ${label}`,
               placeholder: dpShown(base), value: shownNum(cur),
               oninput: (e) => {
@@ -2638,8 +2654,20 @@
                 cleanup(g.id);
                 changed();
               } }), () => gunRule(key, guns[g.id] ? guns[g.id][key] : undefined));
-            return h('td', null, inp, h('span', { class: 'muted' }, unit), h('div', { class: 'id' }, `원래 ${dpShown(base, unit)}`));
-          });
+            const dflt = (g.defaulted || []).includes(key) ? ' (파일에 없음 = 기본값)' : '';
+            return [inp, h('span', { class: 'muted' }, unit), h('div', { class: 'id' }, `원래 ${dpShown(base, unit)}${dflt}`)];
+          };
+          const dash = () => h('span', { class: 'muted' }, '—');
+          const per = gunPerCartridge(g);
+          // 장전 칸: 탄창식은 장전 시간만, 한 발씩은 시작·한 발당·끝 (탄창식인데 시작·끝을 이미 바꿔 둔 경우엔 지울 수 있게 보임).
+          const reloadKeys = GUN_RELOAD_KEYS.filter((k) => per || k === 'reloadTime' || (guns[g.id] && guns[g.id][k] !== undefined));
+          const reloadCell = h('td', null,
+            g.missing ? null : h('div', { class: 'id', style: 'margin-bottom:.2rem' }, per ? '한 발씩 장전' : '탄창식 (한 번에 전부)'),
+            ...reloadKeys.map((k) => {
+              const parts = field(k);
+              return h('div', { style: 'margin-bottom:.25rem' }, h('div', { class: 'muted' }, gunFieldLabel(g, k)), ...(parts || [dash()]));
+            }));
+          const cells = GUN_FIELDS.filter(([key]) => !GUN_RELOAD_KEYS.includes(key)).map(([key]) => h('td', null, ...(field(key) || [dash()])));
           const ammoCell = h('td', null, ...(g.ammo || []).map((a) => {
             const o = guns[g.id];
             const cur = o && o.damage ? o.damage[a.id] : undefined;
@@ -2659,8 +2687,9 @@
           }));
           return h('tr', null,
             h('td', null, h('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, g.missing ? null : iconEl(g.item, 24),
-              h('div', null, h('div', null, g.missing ? '(서버에 없음 — 저장하면 무시)' : itemName(g.item)), h('div', { class: 'id' }, g.id)))),
-            ...cells, ammoCell,
+              h('div', null, h('div', null, g.missing ? '(서버에 없음 — 저장하면 무시)' : itemName(g.item)), h('div', { class: 'id' }, g.id),
+                ...(g.notes || []).map((n) => h('div', { class: 'id', style: 'max-width:22rem;white-space:normal' }, '⚠ ' + n))))),
+            reloadCell, ...cells, ammoCell,
             h('td', null, guns[g.id] ? h('button', { class: 'small', 'aria-label': `${g.id} 원래대로`, onclick: () => {
               delete guns[g.id]; changed(); draw();
             } }, '원래대로') : null));
@@ -2681,7 +2710,8 @@
         !(cat.guns || []).length ? h('p', { class: 'muted' }, '서버에 총 무기 파일이 없습니다 (NTGL·Create: Gunsmithing 이 설치돼 있는지 확인).') : null,
         h('div', { class: 'field' }, search, modSel, onlyChanged, count),
         h('div', { class: 'scroll-x' }, h('table', null,
-          h('thead', null, h('tr', null, ['총'].concat(GUN_FIELDS.map((f) => f[1]), ['탄별 피해', '']).map((t) => h('th', null, t)))), tbody)));
+          h('thead', null, h('tr', null, ['총', '장전'].concat(GUN_FIELDS.filter((f) => !GUN_RELOAD_KEYS.includes(f[0])).map((f) => f[1]),
+            ['탄별 피해', '']).map((t) => h('th', null, t)))), tbody)));
       draw();
       return () => rowChecks.paint();
     },

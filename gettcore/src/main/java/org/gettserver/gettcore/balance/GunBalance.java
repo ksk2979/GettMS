@@ -20,17 +20,46 @@ public final class GunBalance {
     public static final String FOLDER = "weapons";
     public static final String DAMAGE = "damage";
 
-    /** One editable number in {@code general}. ticks: shown in seconds, stored as whole ticks. */
-    public record Field(String key, boolean ticks, boolean integer, double min, double max) {}
+    /**
+     * One editable number in {@code general}. ticks: shown in seconds, stored as whole ticks. dflt: NTGL's value when
+     * the file leaves the field out (raw units) — such a field is shown with that value and can be set in the copy;
+     * null = a field missing in the file is not editable.
+     */
+    public record Field(String key, boolean ticks, boolean integer, double min, double max, Double dflt) {}
 
+    /**
+     * NTGL General: reloadTime is the whole reload for MAGAZINE loading and one cycle (reloadAmount cartridges) for
+     * PER_CARTRIDGE; reloadStart / reloadEnd (default 0) run before the first / after the last cycle and only for
+     * PER_CARTRIDGE (ReloadTracker).
+     */
     public static final List<Field> FIELDS = List.of(
-            new Field("reloadTime", true, true, 0, 600),
-            new Field("rate", true, true, 0.05, 60),
-            new Field("maxAmmo", false, true, 1, 100000),
-            new Field("spread", false, false, 0, 180),
-            new Field("recoilAngle", false, false, -180, 180),
-            new Field("equipTime", true, true, 0, 60));
+            new Field("reloadTime", true, true, 0, 600, null),
+            new Field("reloadStart", true, true, 0, 600, 0.0),
+            new Field("reloadEnd", true, true, 0, 600, 0.0),
+            new Field("rate", true, true, 0.05, 60, null),
+            new Field("maxAmmo", false, true, 1, 100000, null),
+            new Field("spread", false, false, 0, 180, null),
+            new Field("recoilAngle", false, false, -180, 180, null),
+            new Field("equipTime", true, true, 0, 60, null));
     public static final double DAMAGE_MAX = 100000;
+
+    /** {@code general.loadingType}: NTGL LoadingType ids. */
+    public static final String MAGAZINE = "magazine";
+    public static final String PER_CARTRIDGE = "per_cartridge";
+    private static final ResourceLocation PER_CARTRIDGE_ID = ResourceLocation.fromNamespaceAndPath("ntgl", PER_CARTRIDGE);
+
+    /**
+     * Create: Gunsmithing 1.4.9 attachments whose code (AttachmentMods) replaces loading numbers with fixed values,
+     * so the file's values do not apply while they are attached. Shown next to the gun in the editor.
+     */
+    static final Map<String, List<String>> ATTACHMENT_NOTES = Map.of(
+            "cgs:weapons/revolver", List.of("탄띠(cgs:round_belt)를 달면 Create: Gunsmithing 코드가 한 발씩 장전·한 발당 1초·최대 12발로"
+                    + " 고정합니다 — 그 상태에선 여기 장전 시간·탄창 값이 무시됩니다 (장전 시작·끝은 적용)"),
+            "cgs:weapons/flintlock", List.of("회전 약실(cgs:flintlock_chambers)을 달면 한 발씩·장전 시작 0.5초·한 발당 0.9초·"
+                    + "연사 간격 0.8초·최대 8발로 고정됩니다 (여기 값 무시)"),
+            "cgs:weapons/shotgun", List.of("펌프(cgs:shotgun_pump)를 달면 한 발씩·시작 0.4초·한 발당 0.6초·끝 1초·최대 10발로 고정,"
+                    + " 드럼(cgs:shotgun_drum)을 달면 장전 4초·최대 8발로 고정됩니다 (여기 값 무시)"),
+            "cgs:weapons/launcher", List.of("자동 장전기(cgs:launcher_auto)를 달면 장전 5초·최대 30발로 고정됩니다 (여기 값 무시)"));
 
     public record Outcome(int written, int deleted, List<String> warnings) {
         public boolean changed() {
@@ -72,10 +101,20 @@ public final class GunBalance {
             row.addProperty("mod", file.getNamespace());
             row.addProperty("item", file.getNamespace() + ":" + base);
             JsonObject g = obj(orig, "general");
+            row.addProperty("loading", loadingType(g));
+            JsonArray defaulted = new JsonArray();
             for (Field f : FIELDS) {
                 Double v = num(g, f.key());
+                if (v == null && f.dflt() != null) {
+                    v = f.dflt();
+                    defaulted.add(f.key());
+                }
                 if (v != null) row.addProperty(f.key(), toEditor(f, v));
             }
+            row.add("defaulted", defaulted);
+            JsonArray notes = new JsonArray();
+            ATTACHMENT_NOTES.getOrDefault(idOf(file), List.of()).forEach(notes::add);
+            row.add("notes", notes);
             JsonArray ammo = new JsonArray();
             ammoDamage(orig).forEach((id, dmg) -> {
                 JsonObject a = new JsonObject();
@@ -193,9 +232,12 @@ public final class GunBalance {
             Field f = field(v.getKey());
             Double n = number(v.getValue());
             if (f == null || n == null) continue;
-            if (g == null || num(g, f.key()) == null) {
+            if (g == null || (num(g, f.key()) == null && f.dflt() == null)) {
                 warnings.add("총 " + id + ": " + f.key() + " 값이 원본에 없어 건너뜀");
                 continue;
+            }
+            if (num(g, f.key()) == null && sameValue(f, f.dflt(), f.ticks() ? PackFiles.secondsToTicks(n) : n)) {
+                continue;   // NTGL default for a field the file leaves out: nothing to write
             }
             if (f.ticks()) g.addProperty(f.key(), PackFiles.secondsToTicks(n));
             else if (f.integer()) g.addProperty(f.key(), (long) Math.rint(n));
@@ -211,13 +253,10 @@ public final class GunBalance {
         JsonObject cg = obj(copy, "general");
         if (og != null && cg != null) {
             for (Field f : FIELDS) {
-                Double a = num(og, f.key());
-                Double b = num(cg, f.key());
+                Double a = orDefault(f, num(og, f.key()));
+                Double b = orDefault(f, num(cg, f.key()));
                 if (a == null || b == null) continue;
-                if (f.ticks() ? PackFiles.secondsToTicks(toEditor(f, a)) != PackFiles.secondsToTicks(toEditor(f, b))
-                        : Math.abs(a - b) > 1e-9) {
-                    out.addProperty(f.key(), toEditor(f, b));
-                }
+                if (!sameValue(f, a, b)) out.addProperty(f.key(), toEditor(f, b));
             }
         }
         Map<String, Double> od = ammoDamage(orig);
@@ -248,6 +287,27 @@ public final class GunBalance {
         JsonObject data = obj(o, "ammoData");
         JsonObject a = data == null ? null : obj(data, ammo);
         return a == null ? null : obj(a, "projectile");
+    }
+
+    /**
+     * NTGL's loading type for a {@code general} object, as {@code JsonDeserializers.LOADING_TYPE} →
+     * {@code LoadingType.getType(String)} reads it: the string is parsed as a resource location and anything that is
+     * not a registered type (missing, unparsable, "per_cartridge" without the ntgl namespace) is MAGAZINE.
+     */
+    public static String loadingType(JsonObject general) {
+        JsonElement e = general == null ? null : general.get("loadingType");
+        if (e == null || !e.isJsonPrimitive() || !e.getAsJsonPrimitive().isString()) return MAGAZINE;
+        return PER_CARTRIDGE_ID.equals(ResourceLocation.tryParse(e.getAsString())) ? PER_CARTRIDGE : MAGAZINE;
+    }
+
+    private static Double orDefault(Field f, Double raw) {
+        return raw != null ? raw : f.dflt();
+    }
+
+    /** Raw values equal as the game sees them (tick fields compared as whole ticks). */
+    private static boolean sameValue(Field f, double a, double b) {
+        return f.ticks() ? PackFiles.secondsToTicks(toEditor(f, a)) == PackFiles.secondsToTicks(toEditor(f, b))
+                : Math.abs(a - b) <= 1e-9;
     }
 
     private static double toEditor(Field f, double raw) {

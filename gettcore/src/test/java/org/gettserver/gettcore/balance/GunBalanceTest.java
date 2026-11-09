@@ -31,9 +31,15 @@ class GunBalanceTest {
             {"general":{"action":"ntgl:gun","rate":15,"maxAmmo":5,"reloadTime":10,"recoilAngle":-15.0,"spread":10.0},
              "ammoData":{"ntgl:shotshell":{"projectile":{"damage":1.0}}}}""";
     static final String NOT_A_GUN = "{\"capabilities\":[]}";
+    // Trimmed from the real cgs:weapons/nailgun.json: NTGL per-cartridge loading (start → per cycle → end).
+    static final String NAILGUN = """
+            {"general":{"action":"ntgl:gun","loadingType":"ntgl:per_cartridge","rate":2,"maxAmmo":40,
+              "reloadStart":15,"reloadTime":15,"reloadEnd":20,"reloadAmount":10,"spread":3.0},
+             "ammoData":{"cgs:nail":{"projectile":{"damage":3.0}}}}""";
 
     static final ResourceLocation REV = ResourceLocation.parse("cgs:weapons/revolver.json");
     static final ResourceLocation SHOT = ResourceLocation.parse("ntgl:weapons/guns/shotgun.json");
+    static final ResourceLocation NAIL = ResourceLocation.parse("cgs:weapons/nailgun.json");
 
     static JsonObject json(String s) {
         return JsonParser.parseString(s).getAsJsonObject();
@@ -44,6 +50,7 @@ class GunBalanceTest {
         m.put(SHOT, json(SHOTGUN));
         m.put(REV, json(REVOLVER));
         m.put(ResourceLocation.parse("cgs:weapons/odd.json"), json(NOT_A_GUN));
+        m.put(NAIL, json(NAILGUN));
         return m;
     }
 
@@ -57,8 +64,8 @@ class GunBalanceTest {
     @Test
     void catalogShowsOriginalValuesInEditorUnits() {
         JsonArray cat = GunBalance.catalog(originals());
-        assertEquals(2, cat.size(), "non-gun file left out");
-        JsonObject rev = cat.get(0).getAsJsonObject();   // sorted by id: cgs before ntgl
+        assertEquals(3, cat.size(), "non-gun file left out");
+        JsonObject rev = cat.get(1).getAsJsonObject();   // sorted by id: cgs:…/nailgun, cgs:…/revolver, ntgl:…
         assertEquals("cgs:weapons/revolver", rev.get("id").getAsString());
         assertEquals("cgs", rev.get("mod").getAsString());
         assertEquals("cgs:revolver", rev.get("item").getAsString());
@@ -71,7 +78,7 @@ class GunBalanceTest {
         assertEquals(2, ammo.size());
         assertEquals("cgs:round_revolver", ammo.get(0).getAsJsonObject().get("id").getAsString());
         assertEquals(8.0, ammo.get(0).getAsJsonObject().get("damage").getAsDouble(), 1e-9);
-        JsonObject shot = cat.get(1).getAsJsonObject();
+        JsonObject shot = cat.get(2).getAsJsonObject();
         assertEquals("ntgl:shotgun", shot.get("item").getAsString());
         assertFalse(shot.has("equipTime"), "missing in the mod file: not editable");
     }
@@ -148,5 +155,89 @@ class GunBalanceTest {
         assertEquals(5, errs.size(), errs.toString());
         assertEquals(1, GunBalance.validate(json("{\"a:weapons/x\":5}")).size());
         assertEquals(1, GunBalance.validate(json("{\"a:weapons/x\":{\"what\":1}}")).size());
+    }
+
+    // ----- 장전 방식 (NTGL General.loadingType → LoadingType.getType: 등록된 id 가 아니면 탄창식) -----
+
+    @Test
+    void loadingTypeIsReadLikeNtgl() {
+        assertEquals(GunBalance.PER_CARTRIDGE, GunBalance.loadingType(json("{\"loadingType\":\"ntgl:per_cartridge\"}")));
+        assertEquals(GunBalance.MAGAZINE, GunBalance.loadingType(json("{}")), "missing: NTGL default MAGAZINE");
+        assertEquals(GunBalance.MAGAZINE, GunBalance.loadingType(json("{\"loadingType\":\"magazine\"}")));
+        assertEquals(GunBalance.MAGAZINE, GunBalance.loadingType(json("{\"loadingType\":\"per_cartridge\"}")),
+                "no namespace = minecraft:per_cartridge, not registered -> MAGAZINE (as in NTGL)");
+        assertEquals(GunBalance.MAGAZINE, GunBalance.loadingType(json("{\"loadingType\":\"Not An Id\"}")));
+        assertEquals(GunBalance.MAGAZINE, GunBalance.loadingType(null));
+    }
+
+    @Test
+    void catalogShowsLoadingTypeAndStartEndWithNtglDefaults() {
+        JsonArray cat = GunBalance.catalog(originals());
+        JsonObject nail = cat.get(0).getAsJsonObject();
+        assertEquals("cgs:weapons/nailgun", nail.get("id").getAsString());
+        assertEquals("per_cartridge", nail.get("loading").getAsString());
+        assertEquals(0.75, nail.get("reloadStart").getAsDouble(), 1e-9);
+        assertEquals(0.75, nail.get("reloadTime").getAsDouble(), 1e-9);
+        assertEquals(1.0, nail.get("reloadEnd").getAsDouble(), 1e-9);
+        assertEquals(0, nail.getAsJsonArray("defaulted").size());
+
+        JsonObject rev = cat.get(1).getAsJsonObject();
+        assertEquals("magazine", rev.get("loading").getAsString());
+        assertEquals(0.0, rev.get("reloadStart").getAsDouble(), 1e-9, "missing in the file: NTGL default 0");
+        assertEquals(0.0, rev.get("reloadEnd").getAsDouble(), 1e-9);
+        JsonArray defaulted = rev.getAsJsonArray("defaulted");
+        assertTrue(defaulted.contains(new com.google.gson.JsonPrimitive("reloadStart")));
+        assertTrue(defaulted.contains(new com.google.gson.JsonPrimitive("reloadEnd")));
+        assertFalse(cat.get(2).getAsJsonObject().has("equipTime"), "fields without an NTGL default stay non-editable");
+    }
+
+    @Test
+    void perCartridgeTimesAreWrittenAndOtherFieldsKept() throws Exception {
+        GunBalance.reconcile(originals(), pack, json(
+                "{\"cgs:weapons/nailgun\":{\"reloadStart\":0.5,\"reloadTime\":0.25,\"reloadEnd\":0}}"));
+        JsonObject copy = PackFiles.read(pack, NAIL).orElseThrow();
+        JsonObject expected = json(NAILGUN);
+        JsonObject g = expected.getAsJsonObject("general");
+        g.addProperty("reloadStart", 10);
+        g.addProperty("reloadTime", 5);
+        g.addProperty("reloadEnd", 0);
+        assertEquals(expected, copy, "loadingType, reloadAmount, ammo untouched");
+        assertEquals(json("{\"cgs:weapons/nailgun\":{\"reloadStart\":0.5,\"reloadTime\":0.25,\"reloadEnd\":0.0}}"),
+                GunBalance.state(originals(), pack));
+    }
+
+    @Test
+    void startEndMissingInTheOriginalCanBeSetAndGoBackToNoCopy() throws Exception {
+        GunBalance.Outcome out = GunBalance.reconcile(originals(), pack, json(
+                "{\"cgs:weapons/revolver\":{\"reloadStart\":0.5,\"reloadEnd\":1}}"));
+        assertEquals(1, out.written());
+        assertEquals(List.of(), out.warnings());
+        JsonObject g = PackFiles.read(pack, REV).orElseThrow().getAsJsonObject("general");
+        assertEquals(10, g.get("reloadStart").getAsInt());
+        assertEquals(20, g.get("reloadEnd").getAsInt());
+        assertEquals(json("{\"cgs:weapons/revolver\":{\"reloadStart\":0.5,\"reloadEnd\":1.0}}"),
+                GunBalance.state(originals(), pack));
+
+        out = GunBalance.reconcile(originals(), pack, json("{\"cgs:weapons/revolver\":{\"reloadStart\":0,\"reloadEnd\":0}}"));
+        assertEquals(1, out.deleted(), "0 = the NTGL default for a missing field: same as the original, no copy");
+        assertTrue(PackFiles.read(pack, REV).isEmpty());
+
+        GunBalance.reconcile(originals(), pack, json("{\"cgs:weapons/revolver\":{\"reloadStart\":0,\"rate\":1}}"));
+        assertFalse(PackFiles.read(pack, REV).orElseThrow().getAsJsonObject("general").has("reloadStart"),
+                "a default value is not written into the copy");
+    }
+
+    @Test
+    void validateChecksStartAndEnd() {
+        assertEquals(List.of(), GunBalance.validate(json("{\"a:weapons/x\":{\"reloadStart\":0,\"reloadEnd\":600}}")));
+        assertEquals(2, GunBalance.validate(json("{\"a:weapons/x\":{\"reloadStart\":-0.1,\"reloadEnd\":601}}")).size());
+    }
+
+    @Test
+    void knownAttachmentOverridesAreNotedInTheCatalog() {
+        JsonObject rev = GunBalance.catalog(originals()).get(1).getAsJsonObject();
+        String notes = rev.getAsJsonArray("notes").toString();
+        assertTrue(notes.contains("cgs:round_belt"), notes);
+        assertEquals(0, GunBalance.catalog(originals()).get(2).getAsJsonObject().getAsJsonArray("notes").size());
     }
 }

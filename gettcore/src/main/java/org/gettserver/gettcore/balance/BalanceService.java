@@ -153,7 +153,15 @@ public final class BalanceService {
                     originals(server.getResourceManager(), GunBalance.FOLDER), pack, guns);
             msgs.addAll(o.warnings());
             gunsChanged = o.changed();
-            if (gunsChanged) msgs.add("총 수치: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)");
+            // NTGL re-sends every weapon config to all players on the datapack sync that ends /reload
+            // (NetworkManagerHandler.onDatapackSync -> S2CMessageUpdateWeapons -> IWeapon.setConfig), and reads it
+            // live every tick (no per-stack cache for normal guns), so a held gun changes without re-equipping.
+            if (gunsChanged) {
+                msgs.add("총 수치: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)"
+                        + " — /reload 가 끝나면 NTGL 이 접속자에게 총 설정을 다시 보내 손에 든 총도 바로 바뀝니다"
+                        + " (다시 들기·재접속 불필요, 이미 진행 중인 장전 한 번은 예전 시간으로 끝남)."
+                        + " 단 부착물이 장전 방식·시간을 고정하는 총(예: 리볼버 탄띠)은 그 값이 우선합니다");
+            }
         }
         boolean efChanged = false;
         JsonObject ef = section(desired, EPICFIGHT, new ArrayList<>());
