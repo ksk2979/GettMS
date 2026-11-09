@@ -2,7 +2,9 @@
 // 필수 의존성까지 따라가며 받고, 목록에 없는 jar는 제거.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { fetchJson, download } = require('./net');
+const { planLock, forSide } = require('./lock');
 
 const API = 'https://api.modrinth.com/v2';
 
@@ -65,4 +67,41 @@ async function syncMods(slugs, mc, root, log, progress, customMods) {
   return [...want.values()].map(w => w.filename).concat(custom.map(c => c.filename));
 }
 
-module.exports = { syncMods, planCustom, resolve };
+// mods 폴더의 jar → { 파일이름: 크기 }.
+function jarSizes(dir) {
+  const out = {};
+  if (!fs.existsSync(dir)) return out;
+  for (const f of fs.readdirSync(dir)) {
+    if (f.endsWith('.jar')) out[f] = fs.statSync(path.join(dir, f)).size;
+  }
+  return out;
+}
+
+function sha512Of(file) {
+  return crypto.createHash('sha512').update(fs.readFileSync(file)).digest('hex');
+}
+
+// lock 기준 동기화: 없거나 크기가 다른 파일만 받고(해시 검증), lock 밖 jar 는 지운다. verify 면 있는 파일도 해시를 계산해
+// 다르면 다시 받는다(파일 검사).
+async function syncLockedMods(lock, root, log, progress, { verify = false } = {}) {
+  const dir = path.join(root, 'mods');
+  fs.mkdirSync(dir, { recursive: true });
+  const plan = planLock(lock, 'client', jarSizes(dir));
+  const todo = [...plan.download];
+  if (verify) {
+    log('파일 검사: 모든 모드 해시 확인 중...');
+    const queued = new Set(todo.map(e => e.file));
+    for (const e of forSide(lock, 'client')) {
+      if (queued.has(e.file)) continue;
+      if (sha512Of(path.join(dir, e.file)) !== e.sha512.toLowerCase()) { log(`손상됨: ${e.file}`); todo.push(e); }
+    }
+  }
+  for (const e of todo) {
+    log(`받는 중: ${e.slug} (${e.file})`);
+    await download(e.url, path.join(dir, e.file), { algo: 'sha512', hex: e.sha512 }, progress);
+  }
+  for (const f of plan.remove) { fs.rmSync(path.join(dir, f)); log(`제거: ${f}`); }
+  log(`모드 확인 완료 (고정 목록): 총 ${forSide(lock, 'client').length}개, 새로 받음 ${todo.length}, 제거 ${plan.remove.length}`);
+}
+
+module.exports = { syncMods, planCustom, resolve, syncLockedMods, jarSizes };

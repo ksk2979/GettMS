@@ -43,6 +43,6 @@ async function guard(fn) {
 $('loginBtn').onclick = () => guard(async () => { setAccount(await api.login()); setBusy(false); });
 $('logoutBtn').onclick = async () => { await api.logout(); setAccount(null); };
 $('playBtn').onclick = () => guard(async () => { await api.play(); $('fill').style.width = '100%'; $('stepLabel').textContent = '게임 실행 중'; $('stepCount').textContent = ''; });
-$('patchLink').onclick = e => { e.preventDefault(); guard(async () => { await api.prepare(); $('fill').style.width = '100%'; $('stepLabel').textContent = '패치 완료'; $('stepCount').textContent = ''; setBusy(false); }); };
+$('patchLink').onclick = e => { e.preventDefault(); guard(async () => { await api.prepare(); $('fill').style.width = '100%'; $('stepLabel').textContent = '파일 검사 완료'; $('stepCount').textContent = ''; setBusy(false); }); };
 $('folderLink').onclick = e => { e.preventDefault(); api.openFolder(); };
 $('logLink').onclick = e => { e.preventDefault(); $('log').classList.toggle('hidden'); };

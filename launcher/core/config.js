@@ -56,17 +56,34 @@ function sanitize(remote, log) {
   return out;
 }
 
-async function loadConfig(log) {
-  const local = JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
+function merge(local, remote, log, source) {
+  const merged = { ...local, ...sanitize(remote, log), source };
+  if (merged.memoryMinMB > merged.memoryMaxMB) merged.memoryMinMB = Math.min(2048, merged.memoryMaxMB);
+  return merged;
+}
+
+// 원격 설정 → (실패 시) 마지막으로 받은 원격 사본 → 내장 설정. 원격을 받으면 사본으로 저장해 오프라인·GitHub 장애 때도
+// 이미 받아 둔 사람은 같은 설정으로 바로 켤 수 있다.
+async function loadConfig(log, { localFile = LOCAL, cacheFile = null, fetch = fetchJson } = {}) {
+  const local = JSON.parse(fs.readFileSync(localFile, 'utf8'));
   if (!local.remoteConfigUrl) return { ...local, source: 'local' };
   try {
     const sep = local.remoteConfigUrl.includes('?') ? '&' : '?';
-    const remote = await fetchJson(local.remoteConfigUrl + sep + 't=' + Date.now());
-    const merged = { ...local, ...sanitize(remote, log), source: 'remote' };
-    if (merged.memoryMinMB > merged.memoryMaxMB) merged.memoryMinMB = Math.min(2048, merged.memoryMaxMB);
+    const remote = await fetch(local.remoteConfigUrl + sep + 't=' + Date.now());
+    if (cacheFile) {
+      try { fs.mkdirSync(path.dirname(cacheFile), { recursive: true }); fs.writeFileSync(cacheFile, JSON.stringify(remote)); }
+      catch (e) { log(`설정 사본 저장 실패 (${e.message})`); }
+    }
     log('원격 설정 적용');
-    return merged;
+    return merge(local, remote, log, 'remote');
   } catch (e) {
+    if (cacheFile && fs.existsSync(cacheFile)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        log(`원격 설정을 읽지 못해 마지막으로 받은 설정 사용 (${e.message})`);
+        return merge(local, cached, log, 'cache');
+      } catch {}
+    }
     log(`원격 설정을 읽지 못해 내장 설정 사용 (${e.message})`);
     return { ...local, source: 'local-fallback' };
   }

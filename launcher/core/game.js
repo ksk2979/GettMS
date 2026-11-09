@@ -4,7 +4,8 @@ const path = require('path');
 const { Client } = require('minecraft-launcher-core');
 const { ensureJava } = require('./java');
 const { ensureNeoForge } = require('./neoforge');
-const { syncMods } = require('./mods');
+const { syncMods, syncLockedMods, jarSizes } = require('./mods');
+const { activeLock, canFastStart, fingerprint } = require('./lock');
 const { vanillaJson, ensureLibraries, ensureAssets, readJson } = require('./vanilla');
 const { seedDefaultFiles } = require('./defaults');
 const { seedOptions } = require('./options');
@@ -24,7 +25,8 @@ function neoforgeJvmArgs(root, id) {
 }
 
 // report(step, done, total, isBytes) 로 진행 상황을 알린다.
-async function prepare(config, root, log, report) {
+// full = 파일 검사(모든 모드 해시 확인).
+async function prepare(config, root, log, report, { full = false } = {}) {
   const bytes = step => (done, total) => report(step, done, total, true);
 
   report('java', 0, 1);
@@ -42,7 +44,9 @@ async function prepare(config, root, log, report) {
   if (nLibs || nAssets) log(`게임 파일 받음: 라이브러리 ${nLibs}개, 에셋 ${nAssets}개`);
 
   report('mods', 0, 1);
-  await syncMods([...config.mods, ...(config.clientOnlyMods || [])], config.minecraftVersion, root, log, bytes('mods'), config.customMods);
+  const lock = activeLock(config);
+  if (lock) await syncLockedMods(lock, root, log, bytes('mods'), { verify: full });
+  else await syncMods([...config.mods, ...(config.clientOnlyMods || [])], config.minecraftVersion, root, log, bytes('mods'), config.customMods);
   report('mods', 1, 1);
 
   const defaults = config.defaultFiles || [];
@@ -71,4 +75,27 @@ function launch(config, root, auth, { javaExe, versionId }, log) {
   return launcher.launch(opts);
 }
 
-module.exports = { prepare, launch };
+const STATE = '.gett-state.json';
+
+function readState(root) {
+  try { return JSON.parse(fs.readFileSync(path.join(root, STATE), 'utf8')); } catch { return null; }
+}
+
+// 준비가 끝난 뒤 기록: 다음 실행에서 지문이 같으면 준비를 건너뛴다.
+function saveState(config, root, prepared) {
+  try {
+    fs.writeFileSync(path.join(root, STATE), JSON.stringify({ fingerprint: fingerprint(config), ...prepared }));
+  } catch {}
+}
+
+// 바로 시작할 수 있으면 지난번 준비 결과({ javaExe, versionId }), 아니면 null.
+function quickCheck(config, root) {
+  const state = readState(root);
+  const haveRuntime = !!state && typeof state.javaExe === 'string' && typeof state.versionId === 'string'
+    && fs.existsSync(state.javaExe)
+    && fs.existsSync(path.join(root, 'versions', state.versionId, `${state.versionId}.json`));
+  const ok = canFastStart({ state, cfg: config, existing: jarSizes(path.join(root, 'mods')), haveRuntime });
+  return ok ? { javaExe: state.javaExe, versionId: state.versionId } : null;
+}
+
+module.exports = { prepare, launch, quickCheck, saveState };

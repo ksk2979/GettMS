@@ -1,10 +1,10 @@
-// Electron 메인. 로그인(토큰 암호화 저장), 패치, 실행, 서버 핑.
+// Electron 메인. 로그인(토큰 암호화 저장), 바로 시작/파일 검사, 실행, 서버 핑.
 const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Auth } = require('msmc');
 const { loadConfig } = require('./core/config');
-const { prepare, launch } = require('./core/game');
+const { prepare, launch, quickCheck, saveState } = require('./core/game');
 const { ping } = require('./core/ping');
 
 const ROOT = path.join(app.getPath('appData'), 'GettLauncher');
@@ -40,7 +40,7 @@ app.whenReady().then(async () => {
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
   await win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  config = await loadConfig(log);
+  config = await loadConfig(log, { cacheFile: path.join(ROOT, 'config-cache.json') });
   send('config', { ...config, root: ROOT, version: app.getVersion() });
   const name = await tryRestoreLogin();
   if (name) send('account', name);
@@ -64,15 +64,25 @@ ipcMain.handle('login', async () => {
 
 ipcMain.handle('logout', async () => { mcToken = null; fs.rmSync(TOKEN_FILE, { force: true }); return true; });
 
+// 파일 검사: 모든 준비 단계 + 모든 모드 해시 확인.
 ipcMain.handle('prepare', async () => {
-  prepared = await prepare(config, ROOT, log, report);
+  prepared = await prepare(config, ROOT, log, report, { full: true });
+  saveState(config, ROOT, prepared);
   return true;
 });
 
 ipcMain.handle('play', async () => {
   if (!mcToken) throw new Error('먼저 로그인하세요');
   if (gameRunning) throw new Error('게임이 이미 실행 중입니다');
-  prepared = await prepare(config, ROOT, log, report);
+  const ready = quickCheck(config, ROOT);
+  if (ready) {
+    log('변경 없음 — 바로 시작');
+    report('mods', 1, 1);
+    prepared = ready;
+  } else {
+    prepared = await prepare(config, ROOT, log, report);
+    saveState(config, ROOT, prepared);
+  }
   log('게임 시작');
   gameRunning = true;
   const proc = await launch(config, ROOT, mcToken.mclc(), prepared, log);
