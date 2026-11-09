@@ -20,8 +20,9 @@ import org.gettserver.gettcore.GettCore;
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public class EnchantMenu extends AbstractContainerMenu {
     public static final int TOOL_SLOT = 0;
-    public static final int TOOL_X = 8;
-    public static final int TOOL_Y = 18;
+    /** 도구 칸: 왼쪽 영역(폭 INV_X - 4) 가운데, 마법진이 그 둘레를 돈다. */
+    public static final int TOOL_X = (150 - 4) / 2 - 8; // (INV_X - 4) / 2 - 8
+    public static final int TOOL_Y = 22;
     /** 플레이어 인벤토리 위치(상점보다 작은 화면). */
     public static final int INV_X = 150;
     public static final int INV_Y = 62;

@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.client;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -14,9 +15,16 @@ public final class GuiText {
 
     private GuiText() {}
 
-    /** Left-aligned big line at (x, y), shrunk to fit {@code maxWidth}. */
+    private static double guiScale() {
+        return Minecraft.getInstance().getWindow().getGuiScale();
+    }
+
+    /** Left-aligned big line at (x, y), shrunk to fit {@code maxWidth}; scale snapped to whole screen pixels. */
     public static void big(GuiGraphics g, Font font, Component text, int x, int y, int maxWidth, int color) {
-        float scale = Math.min(BIG, maxWidth / (float) Math.max(1, font.width(text)));
+        double gs = guiScale();
+        float scale = TextScale.snap(BIG, gs);
+        float width = Math.max(1, font.width(text));
+        if (width * scale > maxWidth) scale = Math.min(scale, TextScale.snapDown(maxWidth / width, gs));
         g.pose().pushPose();
         g.pose().translate(x, y, 0);
         g.pose().scale(scale, scale, 1);
@@ -26,11 +34,12 @@ public final class GuiText {
 
     /** Small line whose right edge is at {@code right}; an optional item icon (half size) sits just left of it. */
     public static void smallRight(GuiGraphics g, Font font, ItemStack icon, Component text, int right, int y, int color) {
-        float w = font.width(text) * SMALL;
+        float small = TextScale.snap(SMALL, guiScale());
+        float w = font.width(text) * small;
         float x = right - w;
         g.pose().pushPose();
         g.pose().translate(x, y, 0);
-        g.pose().scale(SMALL, SMALL, 1);
+        g.pose().scale(small, small, 1);
         g.drawString(font, text, 0, 0, color, false);
         g.pose().popPose();
         if (!icon.isEmpty()) {

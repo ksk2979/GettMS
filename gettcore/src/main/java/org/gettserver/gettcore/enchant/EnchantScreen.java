@@ -31,7 +31,7 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final int PANEL = 0xFFF4E8CC;
     private static final int BORDER = 0xFF4A3B24;
     private static final ResourceLocation CIRCLE = GettCore.id("textures/effect/magic_circle.png");
-    private static final int CIRCLE_SIZE = 32;
+    private static final int CIRCLE_SIZE = 40;
     private static final int CIRCLE_TEX = 512;
     /** Circle top-left, chosen so its center is the tool slot's center (TOOL_X+8, TOOL_Y+8). */
     private static final int CIRCLE_X = EnchantMenu.TOOL_X + 8 - CIRCLE_SIZE / 2;
@@ -46,7 +46,7 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     /** Width of the left (slot) area; the cost lines are centred in it. */
     private static final int LEFT_W = EnchantMenu.INV_X - 4;
     private static final int TEXT_X = 10;
-    private static final int LINE_Y = 40;
+    private static final int LINE_Y = 52;
     private static final int COST_Y = 80;
     private static final int COST_RIGHT = LEFT_W - 6;
 
