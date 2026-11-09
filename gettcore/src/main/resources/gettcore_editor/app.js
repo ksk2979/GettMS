@@ -115,7 +115,7 @@
     bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
-    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [] },
+    catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [] },
     catalogOk: false,
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
@@ -2145,6 +2145,257 @@
     },
   };
   registerTab(reinforceTab);
+
+  /* ----- 사냥터 탭 ----- */
+
+  // 서버 HuntingConfig.sanitized / EditorValidator 와 같은 범위.
+  const HUNT_LIMITS = {
+    health: [1, 1024], attack: [0, 2048], speed: [0, 1024], armor: [0, 30], scale: [0.0625, 16],
+    weight: [0, 10000], xpMultiplier: [0, 100], maxAlive: [0, 100], refillSeconds: [1, 3600],
+  };
+  const HUNT_INT = new Set(['weight', 'maxAlive', 'refillSeconds']);
+  const HUNT_COLS = [
+    ['health', '체력'], ['attack', '공격력'], ['speed', '이동 속도'], ['armor', '방어'], ['scale', '크기'],
+    ['weight', '가중치'], ['gold', '골드'], ['xpMultiplier', '경험치 배율'],
+  ];
+  const AXES = ['x', 'y', 'z'];
+
+  /** 몬스터 카탈로그 (등록된 살아 있는 엔티티와 기본 속성값). id -> {id, name, mod, category, health, attack, speed, armor} */
+  function mobIndex() {
+    const m = new Map();
+    for (const e of (S.catalog.mobs || [])) m.set(e.id, e);
+    return m;
+  }
+
+  const huntRules = {
+    num(key, v) {
+      if (key === 'gold') return isInt(v) && v >= 0 ? '' : '0 이상의 정수여야 합니다';
+      const [lo, hi] = HUNT_LIMITS[key];
+      if (HUNT_INT.has(key) ? !isInt(v) : !isNum(v)) return HUNT_INT.has(key) ? '정수여야 합니다' : '숫자여야 합니다';
+      return v >= lo && v <= hi ? '' : `${lo}~${hi} 사이여야 합니다`;
+    },
+    coord(v) { return isInt(v) ? '' : '정수여야 합니다'; },
+    zoneId(list, i) {
+      const id = list[i].id;
+      if (!id || !String(id).trim()) return 'id가 비어 있습니다';
+      return list.some((z, j) => j !== i && z.id === id) ? '같은 id가 있습니다' : '';
+    },
+    name(z, i) {
+      const n = z.entries[i].name;
+      if (!n || !String(n).trim()) return '이름이 비어 있습니다';
+      return z.entries.some((e, j) => j !== i && e.name === n) ? '같은 이름이 있습니다' : '';
+    },
+    entity(e) {
+      if (!e.entity || !ITEM_ID.test(e.entity)) return '몬스터를 고르세요';
+      const known = S.catalog.mobs || [];
+      if (known.length && !known.some((m) => m.id === e.entity)) return `몬스터 목록에 없는 id 입니다: ${e.entity}`;
+      return '';
+    },
+  };
+
+  function validateHunting(bundle) {
+    const out = [];
+    const zones = (bundle.hunting && bundle.hunting.zones) || [];
+    zones.forEach((z, i) => {
+      const w = `사냥터 ${z.id || '#' + (i + 1)}`;
+      const add = (m, where) => { if (m) out.push(`${w}${where ? ' › ' + where : ''}: ${m}`); };
+      add(huntRules.zoneId(zones, i));
+      for (const k of ['min', 'max']) AXES.forEach((a, n) => add(huntRules.coord(Array.isArray(z[k]) ? z[k][n] : NaN), `${k === 'min' ? '최소' : '최대'} ${a}`));
+      add(huntRules.num('maxAlive', z.maxAlive), '최대 수');
+      add(huntRules.num('refillSeconds', z.refillSeconds), '채우는 간격');
+      z.entries.forEach((e, j) => {
+        const ew = `몬스터 ${e.name || '#' + (j + 1)}`;
+        add(huntRules.name(z, j), ew + ' 이름');
+        add(huntRules.entity(e), ew + ' 종류');
+        for (const [key, label] of HUNT_COLS) add(huntRules.num(key, e[key]), `${ew} ${label}`);
+      });
+    });
+    return out;
+  }
+
+  const huntingTab = {
+    id: 'hunting',
+    title: '사냥터',
+    validate: validateHunting,
+    render(container) {
+      const checks = makeChecks();
+      const zones = S.bundle.hunting.zones;
+      const mobs = mobIndex();
+      const mobList = (S.catalog.mobs || []).slice().sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+      const mobLabel = (id) => { const m = mobs.get(id); return m && m.name && m.name !== id ? `${m.name} (${id})` : id; };
+      const numIn = (obj, key, label, opts) => checks.add(h('input', Object.assign({ type: 'number', step: HUNT_INT.has(key) || key === 'gold' ? 1 : 'any',
+        'aria-label': label, style: 'width:5.5rem', value: shownNum(obj[key]),
+        oninput: (e) => { obj[key] = numOf(e); changed(); } }, opts || {})), () => huntRules.num(key, obj[key]));
+      const coordIn = (arr, n, label) => checks.add(h('input', { type: 'number', step: 1, 'aria-label': label, style: 'width:5.5rem',
+        value: shownNum(arr[n]), oninput: (e) => { arr[n] = numOf(e); changed(); } }), () => huntRules.coord(arr[n]));
+      const fillFromBase = (e) => {
+        const m = mobs.get(e.entity);
+        if (!m) return;
+        for (const k of ['health', 'attack', 'speed', 'armor']) if (isNum(m[k])) e[k] = m[k];
+      };
+
+      const zoneCard = (z, i) => {
+        if (!Array.isArray(z.min)) z.min = [0, 0, 0];
+        if (!Array.isArray(z.max)) z.max = [0, 0, 0];
+        const where = `사냥터 ${z.id}`;
+        const rows = z.entries.map((e, j) => {
+          const ew = `${where} 몬스터 ${j + 1}`;
+          const nameIn = checks.add(h('input', { type: 'text', value: e.name, 'aria-label': `${ew} 이름`, style: 'width:8rem',
+            oninput: (ev) => { e.name = ev.target.value; changed(); } }), () => huntRules.name(z, j));
+          let entIn;
+          if (mobList.length) {
+            const opts = mobList.map((m) => h('option', { value: m.id }, mobLabel(m.id)));
+            if (!mobs.has(e.entity)) opts.unshift(h('option', { value: e.entity }, e.entity ? `(목록에 없음) ${e.entity}` : '(고르세요)'));
+            entIn = h('select', { 'aria-label': `${ew} 종류`, style: 'max-width:14rem', onchange: (ev) => { e.entity = ev.target.value; changed(); } }, opts);
+            entIn.value = e.entity;
+          } else {
+            entIn = h('input', { type: 'text', 'aria-label': `${ew} 종류`, placeholder: 'minecraft:zombie', style: 'width:12rem',
+              value: e.entity, oninput: (ev) => { e.entity = ev.target.value.trim(); changed(); } });
+          }
+          checks.add(entIn, () => huntRules.entity(e));
+          return h('tr', null,
+            h('td', null, nameIn),
+            h('td', null, entIn, ' ', h('button', { class: 'small', title: '이 몬스터의 기본 체력·공격력·이동 속도·방어를 넣습니다', 'aria-label': `${ew} 기본값 넣기`,
+              onclick: () => { fillFromBase(e); changed(); renderTabContent(); } }, '기본값')),
+            ...HUNT_COLS.map(([key, label]) => h('td', null, numIn(e, key, `${ew} ${label}`))),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': `${ew} 삭제`, onclick: () => {
+              z.entries.splice(j, 1); changed(); renderTabContent();
+            } }, '삭제')));
+        });
+        const idCell = checks.add(h('strong', null, z.id || '(빈 id)'), () => huntRules.zoneId(zones, i));
+        return h('div', { class: 'card' },
+          h('h2', null, idCell, ' ', h('span', { class: 'id' }, z.dimension), ' ',
+            h('button', { class: 'danger small', 'aria-label': `${where} 삭제`, onclick: () => {
+              if (!confirm(`사냥터 '${z.id}'을(를) 삭제할까요?\n저장하면 이 사냥터의 몬스터는 사라지고, 범위 안에 다시 일반 몬스터가 나옵니다.`)) return;
+              zones.splice(i, 1); changed(); renderTabContent();
+            } }, '사냥터 삭제')),
+          h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, '최소'), ...AXES.map((a, n) => coordIn(z.min, n, `${where} 최소 ${a}`))),
+          h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, '최대'), ...AXES.map((a, n) => coordIn(z.max, n, `${where} 최대 ${a}`))),
+          h('div', { class: 'field' }, h('label', { style: 'min-width:5rem' }, '최대 수'), numIn(z, 'maxAlive', `${where} 최대 수`, { min: 0, max: 100 }),
+            h('span', { class: 'muted' }, '마리 동시에'),
+            h('label', { style: 'min-width:5rem; margin-left:1rem' }, '채우는 간격'), numIn(z, 'refillSeconds', `${where} 채우는 간격`, { min: 1, max: 3600 }),
+            h('span', { class: 'muted' }, '초마다 한 마리')),
+          z.entries.length ? h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['이름', '몬스터'].concat(HUNT_COLS.map((c) => c[1]), ['']).map((t) => h('th', null, t)))),
+            h('tbody', null, rows))) : h('p', { class: 'muted' }, '몬스터가 없습니다. 몬스터가 없으면 이 사냥터에는 아무것도 나오지 않습니다.'),
+          h('button', { class: 'small', onclick: () => {
+            let n = z.entries.length + 1;
+            while (z.entries.some((e) => e.name === `새 몬스터 ${n}`)) n++;
+            const e = Object.assign({ name: `새 몬스터 ${n}`, entity: mobs.has('minecraft:zombie') || !mobList.length ? 'minecraft:zombie' : mobList[0].id }, HUNT_ENTRY_DEFAULTS);
+            fillFromBase(e);
+            z.entries.push(e); changed(); renderTabContent();
+          } }, '+ 몬스터 추가'));
+      };
+
+      container.append(h('div', { class: 'stack' },
+        h('div', { class: 'card' }, h('h2', null, '사냥터'),
+          h('p', { class: 'muted' }, '사냥터 추가는 게임 안에서 WorldEdit 으로 선택 후 /사냥터 추가 <이름>. 사냥터 안에서는 일반 몬스터·동물이 자연히 나오지 않고, 아래 몬스터만 나옵니다.'),
+          h('p', { class: 'muted' }, '플레이어가 사냥터(+32블록) 근처에 있을 때만 채우는 간격마다 한 마리씩, 최대 수까지 채웁니다. 능력치는 기본값 배율이 아니라 적은 숫자 그대로입니다 (가중치가 클수록 자주 나옴, 0 = 안 나옴).'),
+          h('p', { class: 'muted' }, '바꾼 값은 새로 나오는 몬스터부터 적용됩니다 (이미 나온 몬스터는 그대로). 시험은 /사냥터 소환 <사냥터> <몬스터 이름> — 때리면 채팅에 피해가 표시됩니다.'),
+          S.catalogOk && !mobList.length ? h('p', { class: 'muted' }, '몬스터 목록을 불러오지 못했습니다. 엔티티 id 를 직접 입력하세요.') : null,
+          zones.length ? null : h('p', { class: 'muted' }, '사냥터가 없습니다.')),
+        ...zones.map(zoneCard)));
+      return () => checks.paint();
+    },
+  };
+  registerTab(huntingTab);
+
+  /* ----- 몬스터 탭 ----- */
+
+  const MOB_STATS = [['health', '체력', 1, 1024], ['attack', '공격력', 0, 2048], ['speed', '이동 속도', 0, 1024], ['armor', '방어', 0, 30]];
+  const MOB_CATEGORY_LABEL = { monster: '적대', creature: '동물', ambient: '주변', axolotls: '아홀로틀', underground_water_creature: '지하 물', water_creature: '물', water_ambient: '물고기', misc: '기타' };
+
+  function mobRule(key, v) {
+    if (v === undefined) return '';
+    const s = MOB_STATS.find((x) => x[0] === key);
+    if (!isNum(v)) return '숫자여야 합니다 (비우면 기본값)';
+    return v >= s[2] && v <= s[3] ? '' : `${s[2]}~${s[3]} 사이여야 합니다`;
+  }
+
+  function validateMobs(bundle) {
+    const out = [];
+    for (const [id, o] of Object.entries((bundle.mobs && bundle.mobs.overrides) || {})) {
+      for (const [key, label] of MOB_STATS) {
+        const m = mobRule(key, o[key]);
+        if (m) out.push(`몬스터 ${id} › ${label}: ${m}`);
+      }
+    }
+    return out;
+  }
+
+  const mobsUi = { query: '', category: 'monster', onlyChanged: false };
+
+  const mobsTab = {
+    id: 'mobs',
+    title: '몬스터',
+    validate: validateMobs,
+    render(container) {
+      let rowChecks = makeChecks();
+      const overrides = S.bundle.mobs.overrides;
+      const catalog = (S.catalog.mobs || []).slice();
+      const known = new Set(catalog.map((m) => m.id));
+      for (const id of Object.keys(overrides)) if (!known.has(id)) catalog.push({ id, name: '', mod: '', category: '', missing: true });
+      catalog.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+      const shown = (v) => (isNum(v) ? String(Math.round(v * 1000) / 1000) : '없음');
+
+      const tbody = h('tbody');
+      const count = h('span', { class: 'muted' });
+      const draw = () => {
+        rowChecks = makeChecks();
+        const q = mobsUi.query.trim().toLowerCase();
+        const list = catalog.filter((m) => (!mobsUi.onlyChanged || overrides[m.id])
+          && (!mobsUi.category || m.missing || m.category === mobsUi.category)
+          && (!q || ((m.name || '') + ' ' + m.id + ' ' + (m.mod || '')).toLowerCase().includes(q)));
+        count.textContent = `${list.length}종`;
+        tbody.replaceChildren(...list.map((m) => {
+          const cells = MOB_STATS.map(([key, label]) => {
+            const base = m[key];
+            const o = overrides[m.id];
+            const cur = o ? o[key] : undefined;
+            const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:5.5rem', 'aria-label': `${m.name || m.id} ${label}`,
+              placeholder: shown(base), value: shownNum(cur), disabled: !m.missing && !isNum(base) && cur === undefined,
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const row = overrides[m.id] || (overrides[m.id] = {});
+                if (raw === '') delete row[key]; else row[key] = Number(raw);
+                if (!Object.keys(row).length) delete overrides[m.id];
+                changed();
+              } }), () => mobRule(key, overrides[m.id] ? overrides[m.id][key] : undefined));
+            return h('td', null, inp, h('div', { class: 'id' }, `기본 ${shown(base)}`));
+          });
+          return h('tr', null,
+            h('td', null, h('div', null, m.missing ? '(목록에 없음)' : (m.name || m.id)), h('div', { class: 'id' }, m.id + (m.mod ? ' · ' + m.mod : ''))),
+            h('td', null, h('span', { class: 'muted' }, MOB_CATEGORY_LABEL[m.category] || m.category || '')),
+            ...cells,
+            h('td', null, overrides[m.id] ? h('button', { class: 'small', 'aria-label': `${m.id} 기본값으로`, onclick: () => {
+              delete overrides[m.id]; changed(); draw();
+            } }, '기본값으로') : null));
+        }));
+        rowChecks.paint();
+      };
+
+      const cats = Array.from(new Set((S.catalog.mobs || []).map((m) => m.category).filter(Boolean))).sort();
+      const catSel = h('select', { 'aria-label': '분류', onchange: (e) => { mobsUi.category = e.target.value; draw(); } },
+        h('option', { value: '' }, '전체'), ...cats.map((c) => h('option', { value: c }, MOB_CATEGORY_LABEL[c] || c)));
+      catSel.value = cats.includes(mobsUi.category) ? mobsUi.category : '';
+      mobsUi.category = catSel.value;
+      const search = h('input', { type: 'search', placeholder: '이름·id·모드 검색', 'aria-label': '몬스터 검색', value: mobsUi.query, style: 'width:16rem',
+        oninput: (e) => { mobsUi.query = e.target.value; draw(); } });
+      const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: mobsUi.onlyChanged,
+        onchange: (e) => { mobsUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+
+      container.append(h('div', { class: 'card' }, h('h2', null, '몬스터 기본 능력치'),
+        h('p', { class: 'muted' }, '칸에 숫자를 넣으면 그 몬스터 종류의 기본값을 바꿉니다 (빈 칸 = 원래 기본값). 저장하면 새로 나오는 몬스터부터 적용되고, 이미 나와 있는 몬스터는 그대로입니다.'),
+        h('p', { class: 'muted' }, '보스는 바꾼 값 위에 보스 배율이 곱해집니다. Gett 펫과 사냥터 몬스터에는 적용되지 않습니다 (사냥터 몬스터는 사냥터 탭의 숫자를 씀). 이동 속도는 속성값(좀비 0.23)입니다.'),
+        S.catalogOk && !(S.catalog.mobs || []).length ? h('p', { class: 'muted' }, '몬스터 목록을 불러오지 못했습니다. 바꾼 항목만 보입니다.') : null,
+        h('div', { class: 'field' }, search, catSel, onlyChanged, count),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['몬스터', '분류'].concat(MOB_STATS.map((s) => s[1]), ['']).map((t) => h('th', null, t)))), tbody))));
+      draw();
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(mobsTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

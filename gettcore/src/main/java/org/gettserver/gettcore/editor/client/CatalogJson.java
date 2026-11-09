@@ -11,17 +11,25 @@ import org.gettserver.gettcore.pet.PetSpecies;
 public final class CatalogJson {
     public record Entry(String id, String name, String mod) {}
 
+    /**
+     * A living entity type with its default attribute base values (mobs tab, hunting entity picker). A null value =
+     * the type has no such attribute (e.g. a creeper has no attack damage). {@code category} is its MobCategory name.
+     */
+    public record MobStat(String id, String name, String mod, String category, Double health, Double attack,
+                          Double speed, Double armor) {}
+
     private CatalogJson() {}
 
     /**
      * {@code {"items":[{"id","name","mod"}],"entities":[...],"itemTags":[...],"entityTags":[...],
-     * "bossTypes":[...],"petKinds":[...],"mobEffects":[{"id","name","mod"}]}}. {@code bossTypes} are the boss entity
+     * "bossTypes":[...],"petKinds":[...],"mobEffects":[{"id","name","mod"}],
+     * "mobs":[{"id","name","mod","category","health","attack","speed","armor"}]}}. {@code bossTypes} are the boss entity
      * ids (names come from {@code entities}); {@code petKinds} are the pets.json species kinds; {@code mobEffects} are
-     * the potion effects (reinforce milestones). Entries are sorted by id and tags/boss types alphabetically so the
+     * the potion effects (reinforce milestones); {@code mobs} the living entity types with default stats. Entries are sorted by id and tags/boss types alphabetically so the
      * output is stable.
      */
     public static String build(List<Entry> items, List<Entry> entities, List<String> itemTags, List<String> entityTags,
-                               List<String> bossTypes, List<Entry> mobEffects) {
+                               List<String> bossTypes, List<Entry> mobEffects, List<MobStat> mobs) {
         JsonObject root = new JsonObject();
         root.add("items", entries(items));
         root.add("entities", entries(entities));
@@ -32,6 +40,21 @@ public final class CatalogJson {
         for (PetSpecies.Kind k : PetSpecies.Kind.values()) kinds.add(k.name().toLowerCase(Locale.ROOT));
         root.add("petKinds", kinds);
         root.add("mobEffects", entries(mobEffects));
+        JsonArray m = new JsonArray();
+        mobs.stream().sorted(Comparator.comparing(MobStat::id)).forEach(e -> {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", e.id());
+            o.addProperty("name", e.name());
+            o.addProperty("mod", e.mod());
+            o.addProperty("category", e.category());
+            // A missing attribute is left out (not null).
+            if (e.health() != null) o.addProperty("health", e.health());
+            if (e.attack() != null) o.addProperty("attack", e.attack());
+            if (e.speed() != null) o.addProperty("speed", e.speed());
+            if (e.armor() != null) o.addProperty("armor", e.armor());
+            m.add(o);
+        });
+        root.add("mobs", m);
         return root.toString();
     }
 

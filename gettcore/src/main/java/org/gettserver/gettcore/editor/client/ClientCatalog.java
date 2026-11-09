@@ -8,7 +8,13 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.core.Holder;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attribute;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.fml.ModList;
@@ -69,9 +75,19 @@ public final class ClientCatalog {
             items.add(new CatalogJson.Entry(id.toString(), item.getDescription().getString(), modName(id)));
         }
         List<CatalogJson.Entry> entities = new ArrayList<>();
+        List<CatalogJson.MobStat> mobs = new ArrayList<>();
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
             ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-            entities.add(new CatalogJson.Entry(id.toString(), type.getDescription().getString(), modName(id)));
+            String name = type.getDescription().getString();
+            entities.add(new CatalogJson.Entry(id.toString(), name, modName(id)));
+            if (type != EntityType.PLAYER && DefaultAttributes.hasSupplier(type)) {
+                @SuppressWarnings("unchecked")
+                AttributeSupplier attrs = DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) type);
+                mobs.add(new CatalogJson.MobStat(id.toString(), name, modName(id),
+                        type.getCategory().getName(), base(attrs, Attributes.MAX_HEALTH),
+                        base(attrs, Attributes.ATTACK_DAMAGE), base(attrs, Attributes.MOVEMENT_SPEED),
+                        base(attrs, Attributes.ARMOR)));
+            }
         }
         List<String> bossTypes = PetRegistry.BOSS_TYPES.stream().map(h -> h.getId().toString()).toList();
         List<CatalogJson.Entry> effects = new ArrayList<>();
@@ -81,7 +97,11 @@ public final class ClientCatalog {
             effects.add(new CatalogJson.Entry(id.toString(), effect.getDisplayName().getString(), modName(id)));
         }
         return CatalogJson.build(items, entities, tags(BuiltInRegistries.ITEM), tags(BuiltInRegistries.ENTITY_TYPE),
-                bossTypes, effects);
+                bossTypes, effects, mobs);
+    }
+
+    private static Double base(AttributeSupplier attrs, Holder<Attribute> attribute) {
+        return attrs.hasAttribute(attribute) ? attrs.getBaseValue(attribute) : null;
     }
 
     private static List<String> tags(Registry<?> registry) {

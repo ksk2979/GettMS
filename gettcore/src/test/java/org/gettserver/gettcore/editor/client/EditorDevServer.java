@@ -169,7 +169,13 @@ public final class EditorDevServer {
                 List.of(new CatalogJson.Entry("minecraft:speed", "신속", "Minecraft"),
                         new CatalogJson.Entry("minecraft:strength", "힘", "Minecraft"),
                         new CatalogJson.Entry("minecraft:resistance", "저항", "Minecraft"),
-                        new CatalogJson.Entry("minecraft:regeneration", "재생", "Minecraft")));
+                        new CatalogJson.Entry("minecraft:regeneration", "재생", "Minecraft")),
+                List.of(new CatalogJson.MobStat("minecraft:zombie", "좀비", "Minecraft", "monster", 20.0, 3.0, 0.23, 2.0),
+                        new CatalogJson.MobStat("minecraft:skeleton", "스켈레톤", "Minecraft", "monster", 20.0, 2.0, 0.25, 0.0),
+                        new CatalogJson.MobStat("minecraft:creeper", "크리퍼", "Minecraft", "monster", 20.0, null, 0.25, 0.0),
+                        new CatalogJson.MobStat("minecraft:cow", "소", "Minecraft", "creature", 10.0, null, 0.2, 0.0),
+                        new CatalogJson.MobStat("naturalist:lion", "사자", "Naturalist", "creature", 30.0, 6.0, 0.3, 0.0),
+                        new CatalogJson.MobStat("gettcore:boss_lion", "보스 사자", "Gett Core", "creature", 30.0, 6.0, 0.3, 0.0)));
     }
 
     private static void copyTree(Path from, Path to) throws IOException {
