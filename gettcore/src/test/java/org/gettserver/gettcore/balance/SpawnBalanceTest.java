@@ -145,6 +145,19 @@ class SpawnBalanceTest {
     }
 
     @Test
+    void mobIdsWithUnsafePathSegmentsAreRejected() throws Exception {
+        for (String bad : new String[] {"a:../../x", "a:b/../../c", "a:./b", "a:b//c", "a:/b", "a:b/", "..:b"}) {
+            assertEquals(1, SpawnBalance.validateMobs(json("{\"" + bad + "\":0}")).size(), bad);
+            assertNull(SpawnBalance.tweakFileOf(ResourceLocation.tryParse(bad)), bad);
+        }
+        SpawnBalance.Outcome o = SpawnBalance.reconcileMobs(pack, json("{\"a:../../../x\":0,\"a:b/c\":2}"));
+        assertEquals(1, o.written(), "only the safe id");
+        assertTrue(PackFiles.read(pack, ResourceLocation.parse("gettcore:x.json")).isEmpty());
+        assertFalse(java.nio.file.Files.exists(pack.resolve("data/gettcore/neoforge/x.json")));
+        assertEquals(json("{\"a:b/c\":2.0}"), SpawnBalance.mobState(pack));
+    }
+
+    @Test
     void validateMobs() {
         assertEquals(List.of(), SpawnBalance.validateMobs(json("{\"minecraft:zombie\":0,\"a:b\":100}")));
         assertEquals(3, SpawnBalance.validateMobs(json("{\"minecraft:zombie\":-1,\"a:b\":101,\"Bad Id\":1}")).size());

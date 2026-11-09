@@ -252,7 +252,23 @@ public final class SpawnBalance {
 
     /* ----- per-mob multiplier ----- */
 
+    /**
+     * Whether an entity id can name a tweak file: no empty, "." or ".." path segment (the id becomes folders under
+     * our spawn_tweak dir, so "a:../../x" would write outside it) and no "." / ".." namespace.
+     */
+    public static boolean safeEntityId(ResourceLocation entity) {
+        if (entity == null) return false;
+        String ns = entity.getNamespace();
+        if (ns.isEmpty() || ns.equals(".") || ns.equals("..")) return false;
+        for (String seg : entity.getPath().split("/", -1)) {
+            if (seg.isEmpty() || seg.equals(".") || seg.equals("..")) return false;
+        }
+        return true;
+    }
+
+    /** Our tweak file for a mob, or null when the id is not {@link #safeEntityId safe}. */
     public static ResourceLocation tweakFileOf(ResourceLocation entity) {
+        if (!safeEntityId(entity)) return null;
         return ResourceLocation.fromNamespaceAndPath(TWEAK_NS,
                 TWEAK_DIR + "/" + entity.getNamespace() + "/" + entity.getPath() + ".json");
     }
@@ -273,7 +289,7 @@ public final class SpawnBalance {
     public static List<String> validateMobs(JsonObject desired) {
         List<String> errs = new ArrayList<>();
         for (Map.Entry<String, JsonElement> e : desired.entrySet()) {
-            if (ResourceLocation.tryParse(e.getKey()) == null) {
+            if (!safeEntityId(ResourceLocation.tryParse(e.getKey()))) {
                 errs.add("몹 등장 배율 " + e.getKey() + ": 올바른 몹 id 가 아닙니다");
                 continue;
             }
@@ -293,7 +309,7 @@ public final class SpawnBalance {
         for (Map.Entry<String, JsonElement> e : desired.entrySet()) {
             ResourceLocation entity = ResourceLocation.tryParse(e.getKey());
             Double m = GunBalance.number(e.getValue());
-            if (entity == null || m == null || Math.abs(m - 1.0) < 1e-9) continue;
+            if (!safeEntityId(entity) || m == null || Math.abs(m - 1.0) < 1e-9) continue;
             ResourceLocation f = tweakFileOf(entity);
             keep.add(f);
             JsonObject o = new JsonObject();
