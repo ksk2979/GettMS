@@ -87,6 +87,15 @@ public final class HuntingRules {
         return alive < maxAlive && playersNear && secondsSinceLast >= intervalSeconds;
     }
 
+    /**
+     * A variant loaded from disk (chunk load, restart) stays unless its zone is gone or, for a zone variant, the zone
+     * already has {@code maxAlive} loaded (it was replaced while unloaded). Test spawns are not counted.
+     */
+    public static boolean keepOnLoad(boolean zoneExists, boolean test, int aliveInZone, int maxAlive) {
+        if (!zoneExists) return false;
+        return test || aliveInZone < maxAlive;
+    }
+
     /** One decimal, no trailing ".0", never negative (damage line: {@code 피해 12.5 · 남은 체력 87.5/100}). */
     public static String number(double v) {
         double r = Math.round(Math.max(0, v) * 10) / 10.0;

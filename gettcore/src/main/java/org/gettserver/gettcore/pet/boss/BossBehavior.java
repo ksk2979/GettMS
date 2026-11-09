@@ -35,6 +35,8 @@ import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.economy.EconomyData;
 import org.gettserver.gettcore.economy.Gold;
 import org.gettserver.gettcore.economy.Ledger;
+import org.gettserver.gettcore.mobs.MobStatsRules;
+import org.gettserver.gettcore.mobs.MobStatsService;
 import org.gettserver.gettcore.pet.PetSpecies;
 
 /** Shared boss logic. The boss classes cannot share a superclass (each extends its Naturalist original). */
@@ -64,8 +66,10 @@ public final class BossBehavior {
     /**
      * Once per boss (guarded by its {@code Applied} flag): MAX_HEALTH x healthMult at full health, ATTACK_DAMAGE
      * x attackMult, scale = sizeScale. The multiplied base values are saved with the entity's attributes.
+     * mobs.json's override for the boss type comes first (once, flagged), so the multiplier applies on top of it.
      */
     public static void apply(Mob boss, PetSpecies s) {
+        MobStatsService.applyOnce(boss);
         multiplyBase(boss, Attributes.MAX_HEALTH, s.healthMult());
         boss.setHealth(boss.getMaxHealth());
         multiplyBase(boss, Attributes.ATTACK_DAMAGE, s.attackMult());
@@ -75,7 +79,7 @@ public final class BossBehavior {
 
     private static void multiplyBase(Mob boss, Holder<Attribute> attribute, double mult) {
         AttributeInstance instance = boss.getAttribute(attribute);
-        if (instance != null && mult > 0) instance.setBaseValue(instance.getBaseValue() * mult);
+        if (instance != null && mult > 0) instance.setBaseValue(MobStatsRules.bossBase(instance.getBaseValue(), mult));
     }
 
     /**
