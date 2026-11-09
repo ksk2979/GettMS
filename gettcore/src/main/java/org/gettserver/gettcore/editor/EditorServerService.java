@@ -3,6 +3,7 @@ package org.gettserver.gettcore.editor;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import java.io.IOException;
 import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,6 +23,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.balance.BalanceService;
 import org.gettserver.gettcore.data.DataEvents;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.data.RegistryChecks;
@@ -46,7 +48,7 @@ public final class EditorServerService {
             return false;
         }
         try {
-            String json = EditorJson.encode(GettData.get().rawBundle(), refs(player.server));
+            String json = snapshotJson(player.server);
             send(player, EditorDataPayload.Kind.SNAPSHOT, json);
             return true;
         } catch (RuntimeException e) {
@@ -80,6 +82,13 @@ public final class EditorServerService {
         List<String> warnings = List.of();
         try {
             EditorBundle bundle = EditorJson.decode(text);
+            // Balance data pack (guns / spawns): checked before anything is written, applied after the bundle saved.
+            JsonObject balance = BalanceService.desiredOf(text);
+            List<String> balanceErrors = balance == null ? List.of() : BalanceService.validate(balance);
+            if (!balanceErrors.isEmpty()) {
+                sendResult(player, false, balanceErrors, List.of(), false);
+                return;
+            }
             GettData.SaveResult r = GettData.get().saveBundle(bundle, RegistryChecks.live());
             saved = r.saved();
             errors = r.errors();
@@ -97,6 +106,16 @@ public final class EditorServerService {
                 GettData.runReloadHooks();
                 DataEvents.syncConfig(server);
                 QuestService.refreshAll(server);
+                if (balance != null) {
+                    List<String> w = new ArrayList<>(warnings);
+                    try {
+                        w.addAll(BalanceService.apply(server, balance).messages());
+                    } catch (IOException | RuntimeException e) {
+                        GettCore.LOGGER.error("balance data pack save failed", e);
+                        w.add("총·등장 데이터팩을 쓰지 못했습니다: " + e.getMessage());
+                    }
+                    warnings = w;
+                }
             }
         } catch (IllegalArgumentException e) {
             GettCore.LOGGER.warn("editor save from {} invalid: {}", player.getGameProfile().getName(), e.getMessage());
@@ -122,7 +141,7 @@ public final class EditorServerService {
         try {
             if (withSnapshot) {
                 res.add("snapshot", JsonParser.parseString(
-                        EditorJson.encode(GettData.get().rawBundle(), refs(player.server))));
+                        snapshotJson(player.server)));
             }
             res.add("warnings", strings(warn));
             text = res.toString();
@@ -150,6 +169,11 @@ public final class EditorServerService {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         ASSEMBLERS.remove(event.getEntity().getUUID());
+    }
+
+    /** Bundle + refs + the balance data pack sections (see BalanceService). */
+    static String snapshotJson(MinecraftServer server) {
+        return BalanceService.withSections(EditorJson.encode(GettData.get().rawBundle(), refs(server)), server);
     }
 
     static EditorRefs refs(MinecraftServer server) {
