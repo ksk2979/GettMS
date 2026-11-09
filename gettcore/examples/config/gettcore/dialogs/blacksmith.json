@@ -13,6 +13,12 @@
           }
         },
         {
+          "label": "업그레이드",
+          "action": {
+            "type": "open_upgrade"
+          }
+        },
+        {
           "label": "나가기",
           "action": {
             "type": "close"

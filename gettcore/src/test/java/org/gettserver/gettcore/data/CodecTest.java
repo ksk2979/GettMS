@@ -49,6 +49,15 @@ class CodecTest {
     }
 
     @Test
+    void openUpgradeActionRoundTrips() {
+        ChoiceAction a = ChoiceAction.CODEC.parse(JsonOps.INSTANCE,
+                JsonParser.parseString("{\"type\":\"open_upgrade\"}")).getOrThrow();
+        assertEquals(ChoiceAction.Type.OPEN_UPGRADE, a.type());
+        JsonElement out = ChoiceAction.CODEC.encodeStart(JsonOps.INSTANCE, a).getOrThrow();
+        assertEquals("open_upgrade", out.getAsJsonObject().get("type").getAsString());
+    }
+
+    @Test
     void openReinforceActionRoundTrips() {
         ChoiceAction a = ChoiceAction.CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("{\"type\":\"open_reinforce\"}")).getOrThrow();

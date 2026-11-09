@@ -54,10 +54,12 @@ class GettDataTest {
         DialogDefinition smith = data.dialog("blacksmith").orElseThrow();
         assertEquals("대장장이", smith.name());
         var choices = smith.nodes().get(smith.start()).choices();
-        assertEquals(2, choices.size());
+        assertEquals(3, choices.size());
         assertEquals("강화하기", choices.get(0).label());
         assertEquals(ChoiceAction.Type.OPEN_REINFORCE, choices.get(0).action().type());
-        assertEquals(ChoiceAction.Type.CLOSE, choices.get(1).action().type());
+        assertEquals("업그레이드", choices.get(1).label());
+        assertEquals(ChoiceAction.Type.OPEN_UPGRADE, choices.get(1).action().type());
+        assertEquals(ChoiceAction.Type.CLOSE, choices.get(2).action().type());
     }
 
     @Test

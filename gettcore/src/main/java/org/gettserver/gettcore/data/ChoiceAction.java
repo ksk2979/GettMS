@@ -8,7 +8,8 @@ import net.minecraft.util.StringRepresentable;
 public record ChoiceAction(Type type, Optional<String> target) {
     public enum Type implements StringRepresentable {
         NEXT("next"), OPEN_SHOP_BUY("open_shop_buy"), OPEN_SHOP_SELL("open_shop_sell"), CLOSE("close"),
-        OPEN_ENCHANT("open_enchant"), QUEST("quest"), OPEN_REINFORCE("open_reinforce");
+        OPEN_ENCHANT("open_enchant"), QUEST("quest"), OPEN_REINFORCE("open_reinforce"),
+        OPEN_UPGRADE("open_upgrade");
 
         private final String serialized;
 

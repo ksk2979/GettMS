@@ -95,6 +95,10 @@ public final class DialogSession {
                 close(player);
                 ReinforceService.open(player);
             }
+            case OPEN_UPGRADE -> {
+                close(player);
+                org.gettserver.gettcore.upgrade.UpgradeService.open(player);
+            }
             case QUEST -> openQuest(player, session, action.target().orElse(QuestService.MAIN_LINE));
         }
     }
