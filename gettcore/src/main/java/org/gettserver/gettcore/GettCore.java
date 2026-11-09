@@ -119,6 +119,14 @@ public class GettCore {
                 LOGGER.warn("gettcore: NTGL 연동 비활성 (호환되지 않는 NTGL 버전?): {}", e.toString());
             }
         }
+        // Curios(등 칸 겉날개) 도 선택 의존성: CuriosBridge 는 이 분기 안에서만 참조.
+        if (ModList.get().isLoaded("curios")) {
+            try {
+                org.gettserver.gettcore.reinforce.CuriosBridge.install();
+            } catch (LinkageError e) {
+                LOGGER.warn("gettcore: Curios 연동 비활성 (호환되지 않는 Curios 버전?): {}", e.toString());
+            }
+        }
         PetService.registerReloadHook();
     }
 

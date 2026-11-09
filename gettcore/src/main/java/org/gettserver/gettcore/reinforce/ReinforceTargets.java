@@ -1,7 +1,10 @@
 package org.gettserver.gettcore.reinforce;
 
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -12,7 +15,22 @@ public final class ReinforceTargets {
     /** NTGL 무기 판정. 브리지(R3)가 NTGL 이 있을 때 채운다. */
     public static volatile Predicate<ItemStack> ntglWeapon = s -> false;
 
+    /** Curios 칸의 겉날개 조회. Curios 가 있을 때 {@code CuriosBridge} 가 채운다(없으면 항상 빈 스택). */
+    public static volatile Function<LivingEntity, ItemStack> curiosElytra = e -> ItemStack.EMPTY;
+
     private ReinforceTargets() {}
+
+    /** 강화 대상 겉날개인지. */
+    public static boolean isElytra(ItemStack stack) {
+        return target(stack).orElse(null) == ReinforceRules.Target.ELYTRA;
+    }
+
+    /** 착용한 겉날개: 흉갑 칸이 겉날개면 그것, 아니면 Curios 칸(등)의 겉날개, 없으면 빈 스택. */
+    public static ItemStack wornElytra(LivingEntity entity) {
+        ItemStack chest = entity.getItemBySlot(EquipmentSlot.CHEST);
+        if (isElytra(chest)) return chest;
+        return curiosElytra.apply(entity);
+    }
 
     public static Optional<ReinforceRules.Target> target(ItemStack stack) {
         return ReinforceRules.target(stack, ntglWeapon);
