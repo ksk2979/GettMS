@@ -111,6 +111,11 @@ public final class ReinforceEffects {
         return "gettcore.tooltip.reinforce." + target.name().toLowerCase(Locale.ROOT);
     }
 
+    /** 강화 화면의 겉날개 효과 줄 번역 키: 1강(내구도 무한)은 따로, 2강부터 비행 속도·폭죽. */
+    public static String elytraScreenKey(int next) {
+        return next <= 1 ? "gettcore.screen.reinforce.effect.elytra_first" : "gettcore.screen.reinforce.effect.elytra";
+    }
+
     /** 툴팁 셋째 인자: 방어구는 방어, 겉날개는 폭죽 부스트 %, 나머지는 쓰지 않음. */
     public static double tooltipExtra(Target target, int level, ReinforceConfig cfg) {
         return switch (target) {

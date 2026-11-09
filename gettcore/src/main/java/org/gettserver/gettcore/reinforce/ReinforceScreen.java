@@ -156,7 +156,7 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
                     fmt(next * config.shieldSpeedPercentPerLevel()));
             case ARMOR -> Component.translatable("gettcore.screen.reinforce.effect.armor",
                     fmt(ReinforceRules.armorHealth(next, config)), fmt(ReinforceRules.armorDefense(next, config)));
-            case ELYTRA -> Component.translatable("gettcore.screen.reinforce.effect.elytra",
+            case ELYTRA -> Component.translatable(ReinforceEffects.elytraScreenKey(next),
                     fmt(ReinforceRules.elytraSpeedPercent(next, config)),
                     fmt(ReinforceRules.elytraFireworkPercent(next, config)));
         };

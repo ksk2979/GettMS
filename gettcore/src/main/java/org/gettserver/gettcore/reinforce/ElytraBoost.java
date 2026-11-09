@@ -20,13 +20,15 @@ public final class ElytraBoost {
     }
 
     /**
-     * 폭죽 로켓 한 틱의 추가 가속: 바닐라 가속 {@code look*0.1 + (look*1.5 - v)*0.5} (FireworkRocketEntity#tick) 의
-     * percent%. {@code look}·{@code v} 는 {x, y, z}.
+     * 폭죽 로켓 한 틱의 추가 가속. 바닐라 가속 {@code look*0.1 + (look*1.5 - v)*0.5 = look*0.85 - v*0.5}
+     * (FireworkRocketEntity#tick) 는 목표 속도로 끌어당기는 식이라, 같은 식을 키우면 최고 속도는 그대로다. 그래서 목표 쪽 항
+     * {@code look*0.85} 만 percent% 더해 로켓 비행의 최고 속도 자체가 (1 + percent/100) 배가 되게 한다. {@code v} 는 쓰지
+     * 않지만 호출부 대칭을 위해 받는다. {@code look}·{@code v} 는 {x, y, z}.
      */
     public static double[] fireworkExtra(double[] look, double[] v, double percent) {
         double k = Math.max(0, percent) / 100;
         double[] out = new double[3];
-        for (int i = 0; i < 3; i++) out[i] = (look[i] * 0.1 + (look[i] * 1.5 - v[i]) * 0.5) * k;
+        for (int i = 0; i < 3; i++) out[i] = look[i] * 0.85 * k;
         return out;
     }
 }

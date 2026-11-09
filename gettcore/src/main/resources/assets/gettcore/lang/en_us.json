@@ -57,6 +57,7 @@
   "gettcore.screen.reinforce.effect.gun": "Weapon damage +%s%%",
   "gettcore.screen.reinforce.effect.melee": "Attack damage +%s%%",
   "gettcore.screen.reinforce.effect.shield": "Movement speed +%s%%",
+  "gettcore.screen.reinforce.effect.elytra_first": "Unbreakable",
   "gettcore.screen.reinforce.effect.elytra": "Flight +%s%% · firework +%s%%",
   "gettcore.screen.reinforce.effect.armor": "Max health +%s, Armor +%s",
   "gettcore.screen.reinforce.odds": "Success %s%%",
