@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { fetchJson } = require('./net');
+const { validLock } = require('./lock');
 
 const LOCAL = path.join(__dirname, '..', 'launcher.config.json');
 
@@ -39,7 +40,10 @@ const RULES = {
     && typeof c.sha512 === 'string' && /^[0-9a-fA-F]{128}$/.test(c.sha512)
     && ['both', 'client', 'server'].includes(c.side)),
   defaultFiles: v => Array.isArray(v) && v.length <= 100 && v.every(validDefaultFile),
-  news: v => Array.isArray(v) && v.length <= 20
+  news: v => Array.isArray(v) && v.length <= 20,
+  lock: v => validLock(v),
+  lockSource: v => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v),
+  updateUrl: v => typeof v === 'string' && v.startsWith('https://raw.githubusercontent.com/ksk2979/GettMS/') && !/\.\.|%2e/i.test(v)
 };
 
 function sanitize(remote, log) {

@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "dist": "electron-builder --win --x64"
+    "dist": "electron-builder --win --x64",
+    "lock": "node tools/lock-mods.js"
   },
   "dependencies": {
     "adm-zip": "^0.6.1",

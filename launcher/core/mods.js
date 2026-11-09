@@ -19,7 +19,7 @@ async function resolve(slugs, mc, log) {
     if (!vs.length) throw new Error(`모드 "${slug}"의 ${mc} NeoForge 빌드가 없음`);
     const v = vs.find(x => x.version_type === 'release') || vs[0];
     const file = v.files.find(f => f.primary) || v.files[0];
-    want.set(slug, { filename: file.filename, url: file.url, sha512: file.hashes.sha512, version: v.version_number });
+    want.set(slug, { filename: file.filename, url: file.url, sha512: file.hashes.sha512, size: file.size, version: v.version_number });
     for (const d of v.dependencies || []) {
       if (d.dependency_type !== 'required' || !d.project_id) continue;
       const p = await fetchJson(`${API}/project/${d.project_id}`);
@@ -65,4 +65,4 @@ async function syncMods(slugs, mc, root, log, progress, customMods) {
   return [...want.values()].map(w => w.filename).concat(custom.map(c => c.filename));
 }
 
-module.exports = { syncMods, planCustom };
+module.exports = { syncMods, planCustom, resolve };
