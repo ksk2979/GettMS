@@ -89,6 +89,17 @@ public final class PackFiles {
         return true;
     }
 
+    /** Whether the pack holds any file under {@code data/} (a copy of ours or anything else). */
+    public static boolean hasData(Path pack) {
+        Path data = pack.resolve("data");
+        if (!Files.isDirectory(data)) return false;
+        try (Stream<Path> s = Files.walk(data)) {
+            return s.anyMatch(Files::isRegularFile);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** All .json files under {@code data/<namespace>/<folder>/}, as resource locations, sorted. */
     public static List<ResourceLocation> listUnder(Path pack, String namespace, String folder) {
         Path root = pack.resolve("data").resolve(namespace);

@@ -78,6 +78,18 @@ class PackFilesTest {
     }
 
     @Test
+    void hasDataOnlyWhenACopyExists() throws Exception {
+        assertFalse(PackFiles.hasData(pack()), "no folder");
+        PackFiles.ensurePack(pack());
+        assertFalse(PackFiles.hasData(pack()), "pack.mcmeta only");
+        ResourceLocation loc = ResourceLocation.parse("cgs:weapons/revolver.json");
+        PackFiles.write(pack(), loc, json("{}"));
+        assertTrue(PackFiles.hasData(pack()));
+        PackFiles.delete(pack(), loc);
+        assertFalse(PackFiles.hasData(pack()));
+    }
+
+    @Test
     void rejectsPathsThatEscapeThePack() {
         assertThrows(IllegalArgumentException.class,
                 () -> PackFiles.file(pack(), ResourceLocation.fromNamespaceAndPath("cgs", "../../evil.json")));

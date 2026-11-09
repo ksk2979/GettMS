@@ -139,7 +139,6 @@ public final class BalanceService {
     public static Applied apply(MinecraftServer server, JsonObject desired) throws IOException {
         List<String> msgs = new ArrayList<>();
         Path pack = packDir(server);
-        if (PackFiles.ensurePack(pack)) msgs.add("데이터팩 gett_balance 를 새로 만들었습니다");
         boolean gunsChanged = false;
         JsonObject guns = section(desired, GUNS, new ArrayList<>());
         if (guns != null) {
@@ -170,14 +169,18 @@ public final class BalanceService {
             msgs.add("등장 설정: 파일 " + spawnWritten + "개 저장, " + spawnDeleted
                     + "개 삭제 — 서버를 재시작해야 적용됩니다 (지금 세계의 등장은 그대로)");
         }
-        boolean enable = !packEnabled(server);
+        // The pack is only created / switched on once it holds a copy: saving the editor with nothing changed here
+        // must not add an empty data pack or trigger a /reload.
+        boolean hasData = PackFiles.hasData(pack);
+        if (hasData && PackFiles.ensurePack(pack)) msgs.add("데이터팩 gett_balance 를 새로 만들었습니다");
+        boolean enable = hasData && !packEnabled(server);
         boolean reload = gunsChanged || enable;
         if (reload) {
             reload(server);
             msgs.add(enable ? "데이터팩 gett_balance 를 켜고 /reload 를 실행합니다"
                     : "총 수치 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
         }
-        GettCore.LOGGER.info("balance save: {}", msgs);
+        if (!msgs.isEmpty()) GettCore.LOGGER.info("balance save: {}", msgs);
         return new Applied(reload, msgs);
     }
 
