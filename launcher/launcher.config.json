@@ -118,6 +118,14 @@
       "side": "both"
     },
     {
+      "slug": "architectury-api",
+      "file": "architectury-13.0.11-neoforge.jar",
+      "url": "https://cdn.modrinth.com/data/lhGA9TYQ/versions/1IiqEQGl/architectury-13.0.11-neoforge.jar",
+      "sha512": "d9f7c3bb8162577dfb461ffdf04bd6a3563c7586934a0e2a744c14421beffb8286f0d88d4c758317003f20f99fe8072a39b9d675af061e036970d36db36027f0",
+      "size": 584734,
+      "side": "both"
+    },
+    {
       "slug": "bookshelf-lib",
       "file": "bookshelf-neoforge-1.21.1-21.1.81.jar",
       "url": "https://cdn.modrinth.com/data/uy4Cnpcm/versions/1sdJl7J1/bookshelf-neoforge-1.21.1-21.1.81.jar",
@@ -163,6 +171,14 @@
       "url": "https://cdn.modrinth.com/data/7KCNsGPM/versions/AmBZCjMo/create-gunsmithing-1.21.1-1.4.9.jar",
       "sha512": "599e072de61ee1c0dc70da087b493948cb58752c50b511a130dde7c5e13fd88c9816de0aa06e08e56b0d020a9d3975d07a39c151756176e38c27ecea46ffbd28",
       "size": 1819221,
+      "side": "both"
+    },
+    {
+      "slug": "cloth-config",
+      "file": "cloth-config-15.0.140-neoforge.jar",
+      "url": "https://cdn.modrinth.com/data/9s6osm5g/versions/izKINKFg/cloth-config-15.0.140-neoforge.jar",
+      "sha512": "aaf9b010955b8cd294e5a92f069985b18729fd5e2cf22d351f1dff9680f15488688803ec41e77e941cbde130ceb535014ca4c868047d80ab69c2d508e216654d",
+      "size": 1163890,
       "side": "both"
     },
     {
@@ -236,6 +252,14 @@
       "sha512": "93e83dd690b91d610be29451b34836c9daa7e08bd952f88ffa07c62d8774bbaac2ff0c6768d2cbf1b14f47d0b86f98cef9fd341e0d29bd37207eaf4aa2abea63",
       "size": 1510075,
       "side": "client"
+    },
+    {
+      "slug": "epic-knights-shields-armor-and-weapons",
+      "file": "epic-knights-1.21.1-neoforge-10.17.jar",
+      "url": "https://cdn.modrinth.com/data/L6jvzao4/versions/Pzhaw0LB/epic-knights-1.21.1-neoforge-10.17.jar",
+      "sha512": "919f421c39b0d23ea0b80fcc87e1ce07ae5fbbf060919c7c7456eb0f00aa8487130e9a2512a8d160f6a694bd3b7616b11df494cae44e09e98f69d0fa5fc645fe",
+      "size": 2818926,
+      "side": "both"
     },
     {
       "slug": "expanded-delight",
@@ -502,5 +526,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "432aa749bd1f476b61067823fd7d6807ca24807dbe579aeda2cdb03224ad4d02"
+  "lockSource": "8b453af43379e8e6c6855858a4ea91c62df8dd1fbdd046e3f6a85bd87da8edbe"
 }

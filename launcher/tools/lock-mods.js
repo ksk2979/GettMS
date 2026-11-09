@@ -7,10 +7,34 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { resolve } = require('../core/mods');
-const { download } = require('../core/net');
+const { download, fetchJson } = require('../core/net');
 const { lockSourceOf, validLock } = require('../core/lock');
 
 const FILE = path.join(__dirname, '..', 'launcher.config.json');
+
+const RELEASE_URL = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/download\/([^/]+)\/([^/]+)$/;
+
+// 이 저장소 릴리스 파일의 크기(GitHub API). 해당 없으면 null.
+async function releaseAssetSize(url) {
+  const m = RELEASE_URL.exec(url);
+  if (!m) return null;
+  const [, owner, repo, tag, name] = m;
+  const rel = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${encodeURIComponent(tag)}`);
+  const asset = (rel.assets || []).find(a => a.name === decodeURIComponent(name));
+  if (!asset) throw new Error(`릴리스 ${tag} 에 ${name} 이 없음`);
+  return asset.size;
+}
+
+async function downloadSize(c) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gett-lock-'));
+  try {
+    const dest = path.join(tmpDir, c.file);
+    await download(c.url, dest, { algo: 'sha512', hex: c.sha512 });
+    return fs.statSync(dest).size;
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
 
 async function main() {
   const update = process.argv.includes('--update');
@@ -40,17 +64,12 @@ async function main() {
     if (!keep) log(`고정: ${e.slug} ${e.file}`);
   }
 
-  // customMods: 받아서 해시 확인 + 크기 측정.
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gett-lock-'));
-  try {
-    for (const c of cfg.customMods || []) {
-      const dest = path.join(tmpDir, c.file);
-      await download(c.url, dest, { algo: 'sha512', hex: c.sha512 });
-      lock.push({ slug: c.name, file: c.file, url: c.url, sha512: c.sha512.toLowerCase(), size: fs.statSync(dest).size, side: c.side });
-      log(`직접 URL: ${c.file}`);
-    }
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+  // customMods: 해시는 설정 값(릴리스 때 확인함)을 쓰고, 크기는 이 저장소 릴리스면 GitHub API 로 조회한다
+  // (github.com 다운로드 주소가 504 일 때도 API 는 응답함). 그 밖의 주소는 받아서 해시 확인 + 크기 측정.
+  for (const c of cfg.customMods || []) {
+    const size = (await releaseAssetSize(c.url)) ?? (await downloadSize(c));
+    lock.push({ slug: c.name, file: c.file, url: c.url, sha512: c.sha512.toLowerCase(), size, side: c.side });
+    log(`직접 URL: ${c.file} (${size} bytes)`);
   }
 
   lock.sort((a, b) => a.slug.localeCompare(b.slug));
