@@ -51,10 +51,13 @@ public final class HuntingService {
     private static final Map<String, Long> LAST_REFILL = new HashMap<>();
     /** Zone/entry pairs whose entity could not be spawned, warned once each until the next restart. */
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
+    /** Variants that joined before GettData was loaded; checked on the first tick after (see {@link PendingJoins}). */
+    private static final PendingJoins PENDING = new PendingJoins();
 
     private HuntingService() {}
 
     public static void clear() {
+        PENDING.clear();
         TRACKED.clear();
         LAST_REFILL.clear();
     }
@@ -70,8 +73,25 @@ public final class HuntingService {
         return true;
     }
 
+    /** A variant joined before the data was loaded: decided later by {@link #joinPending}. */
+    static void deferJoin(Entity entity, boolean loadedFromDisk) {
+        PENDING.add(entity.getUUID(), entity.level().dimension(), loadedFromDisk);
+    }
+
     static void onLeave(Entity entity) {
+        PENDING.remove(entity.getUUID());
         TRACKED.remove(entity.getUUID());
+    }
+
+    /** Runs the deferred joins through {@link #onJoin} now that the zones are known; rejected ones are discarded. */
+    private static void joinPending(MinecraftServer server) {
+        for (PendingJoins.Pending p : PENDING.drain()) {
+            ServerLevel level = server.getLevel(p.dimension());
+            Entity e = level == null ? null : level.getEntity(p.id());
+            if (e == null || !e.isAlive() || TRACKED.containsKey(p.id())) continue;
+            Optional<VariantTag> tag = VariantTag.read(e.getPersistentData());
+            if (tag.isPresent() && !onJoin(e, tag.get(), p.loadedFromDisk())) e.discard();
+        }
     }
 
     /** Loaded zone variants of {@code zone} (test spawns not counted). */
@@ -83,6 +103,7 @@ public final class HuntingService {
 
     public static void tick(MinecraftServer server) {
         HuntingConfig cfg = GettData.get().hunting();
+        joinPending(server);
         sweep(server, cfg);
         long now = server.overworld().getGameTime();
         LAST_REFILL.keySet().removeIf(id -> cfg.zone(id).isEmpty());

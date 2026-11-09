@@ -63,11 +63,16 @@ public final class HuntingEvents {
 
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
-        if (event.getLevel().isClientSide() || !GettData.get().loaded()) return;
+        if (event.getLevel().isClientSide()) return;
         Entity entity = event.getEntity();
         if (!(entity instanceof Mob)) return;
         Optional<VariantTag> tag = VariantTag.read(entity.getPersistentData());
         if (tag.isEmpty()) return;
+        if (!GettData.get().loaded()) {
+            // Spawn chunks load before the data: track it once the zones are known (first hunting tick).
+            HuntingService.deferJoin(entity, event.loadedFromDisk());
+            return;
+        }
         if (!HuntingService.onJoin(entity, tag.get(), event.loadedFromDisk())) {
             event.setCanceled(true);
             entity.discard();
