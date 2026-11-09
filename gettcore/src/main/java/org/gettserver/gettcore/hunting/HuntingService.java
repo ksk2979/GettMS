@@ -1,6 +1,5 @@
 package org.gettserver.gettcore.hunting;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
@@ -101,13 +101,22 @@ public final class HuntingService {
         return n;
     }
 
+    /**
+     * Every server tick: tracking upkeep every {@value #CHECK_INTERVAL_TICKS} ticks; each zone's refill check once per
+     * {@value #CHECK_INTERVAL_TICKS} ticks on its own tick ({@link HuntingRules#dueThisTick}), so zones are spread out.
+     */
     public static void tick(MinecraftServer server) {
         HuntingConfig cfg = GettData.get().hunting();
-        joinPending(server);
-        sweep(server, cfg);
+        int tick = server.getTickCount();
+        if (tick % CHECK_INTERVAL_TICKS == 0) {
+            joinPending(server);
+            sweep(server, cfg);
+            LAST_REFILL.keySet().removeIf(id -> cfg.zone(id).isEmpty());
+        }
         long now = server.overworld().getGameTime();
-        LAST_REFILL.keySet().removeIf(id -> cfg.zone(id).isEmpty());
-        for (Zone z : cfg.zones()) refill(server, z, now);
+        for (Zone z : cfg.zones()) {
+            if (HuntingRules.dueThisTick(z.id(), tick, CHECK_INTERVAL_TICKS)) refill(server, z, now);
+        }
     }
 
     /** Drops tracked entries that are gone; discards variants of removed zones and zone variants that strayed. */
@@ -221,31 +230,41 @@ public final class HuntingService {
         return true;
     }
 
+    /** Random start heights per column, plus the surface (see {@link HuntingRules#spawnYCandidates}). */
+    static final int Y_SAMPLES = 6;
+    /** Blocks walked down from each start height looking for a floor. */
+    static final int FLOOR_STEPS = 8;
+
     /**
-     * A position inside the zone a mob can stand on: a random column in a loaded chunk, then a random y in it whose
-     * block below has a sturdy top, with room for the mob and no liquid; {@value #SPAWN_ATTEMPTS} attempts.
+     * A position inside the zone a mob can stand on: a random column in a loaded chunk, then a few start heights in
+     * it (surface from the heightmap first, then random ones) each walked down a few blocks to a sturdy floor with room
+     * for the mob and no liquid; {@value #SPAWN_ATTEMPTS} attempts. Bounded work per attempt (at most
+     * (Y_SAMPLES + 1) x FLOOR_STEPS checks) instead of every height of the zone.
      */
     static Optional<BlockPos> pickSpawnPos(ServerLevel level, Zone z, Mob mob, RandomSource r) {
         BlockPos min = z.min();
         BlockPos max = z.max();
+        int lo = Math.max(min.getY(), level.getMinBuildHeight() + 1);
+        int hi = Math.min(max.getY(), level.getMaxBuildHeight() - 1);
         for (int n = 0; n < SPAWN_ATTEMPTS; n++) {
             int x = min.getX() + r.nextInt(max.getX() - min.getX() + 1);
             int zz = min.getZ() + r.nextInt(max.getZ() - min.getZ() + 1);
             if (!level.hasChunk(SectionPos.blockToSectionCoord(x), SectionPos.blockToSectionCoord(zz))) continue;
-            int lo = Math.max(min.getY(), level.getMinBuildHeight() + 1);
-            int hi = Math.min(max.getY(), level.getMaxBuildHeight() - 1);
-            List<Integer> ys = new ArrayList<>();
-            for (int y = lo; y <= hi; y++) {
-                BlockPos pos = new BlockPos(x, y, zz);
-                BlockPos below = pos.below();
-                if (!level.getBlockState(below).isFaceSturdy(level, below, net.minecraft.core.Direction.UP)) continue;
-                if (!level.getFluidState(pos).isEmpty()) continue;
-                AABB box = mob.getType().getSpawnAABB(x + 0.5, y, zz + 0.5);
-                if (!level.noCollision(box)) continue;
-                ys.add(y);
+            int surface = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, zz);
+            for (int start : HuntingRules.spawnYCandidates(lo, hi, surface, r::nextInt, Y_SAMPLES)) {
+                OptionalInt y = HuntingRules.findFloor(start, lo, yy -> standable(level, mob, x, yy, zz), FLOOR_STEPS);
+                if (y.isPresent()) return Optional.of(new BlockPos(x, y.getAsInt(), zz));
             }
-            if (!ys.isEmpty()) return Optional.of(new BlockPos(x, ys.get(r.nextInt(ys.size())), zz));
         }
         return Optional.empty();
+    }
+
+    private static boolean standable(ServerLevel level, Mob mob, int x, int y, int zz) {
+        BlockPos pos = new BlockPos(x, y, zz);
+        BlockPos below = pos.below();
+        if (!level.getBlockState(below).isFaceSturdy(level, below, net.minecraft.core.Direction.UP)) return false;
+        if (!level.getFluidState(pos).isEmpty()) return false;
+        AABB box = mob.getType().getSpawnAABB(x + 0.5, y, zz + 0.5);
+        return level.noCollision(box);
     }
 }

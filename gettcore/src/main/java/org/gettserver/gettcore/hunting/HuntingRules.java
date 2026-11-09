@@ -102,4 +102,36 @@ public final class HuntingRules {
         if (r == Math.rint(r)) return Long.toString((long) r);
         return String.format(Locale.ROOT, "%.1f", r);
     }
+
+    /**
+     * Whether a zone's refill check runs on this tick: each zone gets its own tick within every {@code interval}
+     * (from its id), so many zones do not all scan for spawn spots on the same tick.
+     */
+    public static boolean dueThisTick(String zoneId, long tick, int interval) {
+        return Math.floorMod(tick + zoneId.hashCode(), (long) interval) == 0;
+    }
+
+    /**
+     * Start heights to look for a floor in one column of a zone spanning {@code lo..hi}: the surface height (first
+     * free block above the heightmap) when it is inside, then {@code samples} random heights (for caves / indoor
+     * zones). {@code nextInt} is {@code bound -> [0, bound)}. Empty when lo > hi.
+     */
+    public static int[] spawnYCandidates(int lo, int hi, int surfaceY, java.util.function.IntUnaryOperator nextInt,
+                                         int samples) {
+        if (lo > hi) return new int[0];
+        boolean surface = surfaceY >= lo && surfaceY <= hi;
+        int[] out = new int[samples + (surface ? 1 : 0)];
+        int i = 0;
+        if (surface) out[i++] = surfaceY;
+        while (i < out.length) out[i++] = lo + nextInt.applyAsInt(hi - lo + 1);
+        return out;
+    }
+
+    /** From {@code start} down, at most {@code maxSteps} heights and not below {@code lo}: the first one {@code ok}. */
+    public static OptionalInt findFloor(int start, int lo, java.util.function.IntPredicate ok, int maxSteps) {
+        for (int y = start, n = 0; y >= lo && n < maxSteps; y--, n++) {
+            if (ok.test(y)) return OptionalInt.of(y);
+        }
+        return OptionalInt.empty();
+    }
 }

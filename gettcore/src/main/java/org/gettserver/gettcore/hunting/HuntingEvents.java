@@ -86,9 +86,7 @@ public final class HuntingEvents {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        if (event.getServer().getTickCount() % HuntingService.CHECK_INTERVAL_TICKS == 0 && GettData.get().loaded()) {
-            HuntingService.tick(event.getServer());
-        }
+        if (GettData.get().loaded()) HuntingService.tick(event.getServer());
     }
 
     @SubscribeEvent

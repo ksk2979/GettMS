@@ -94,4 +94,44 @@ class HuntingRulesTest {
         assertEquals("0.3", HuntingRules.number(0.333));
         assertEquals("0", HuntingRules.number(-2));
     }
+
+    @Test
+    void zonesAreSpreadOverTheIntervalOncePerWindow() {
+        for (String id : List.of("a", "b", "zone_with_long_name", "숲")) {
+            int due = 0;
+            for (long t = 1000; t < 1020; t++) if (HuntingRules.dueThisTick(id, t, 20)) due++;
+            assertEquals(1, due, id);
+        }
+        int[] perTick = new int[20];
+        for (int i = 0; i < 40; i++) {
+            for (int t = 0; t < 20; t++) if (HuntingRules.dueThisTick("zone" + i, t, 20)) perTick[t]++;
+        }
+        for (int n : perTick) assertTrue(n < 40, "not all zones on one tick");
+    }
+
+    @Test
+    void spawnYCandidatesAreFewAndInsideTheZone() {
+        java.util.Random r = new java.util.Random(1);
+        int[] ys = HuntingRules.spawnYCandidates(60, 80, 70, r::nextInt, 6);
+        assertEquals(7, ys.length);
+        assertEquals(70, ys[0], "surface first");
+        for (int y : ys) assertTrue(y >= 60 && y <= 80, String.valueOf(y));
+        ys = HuntingRules.spawnYCandidates(-64, 319, 400, r::nextInt, 6);
+        assertEquals(6, ys.length, "surface outside the zone: random ys only");
+        assertEquals(0, HuntingRules.spawnYCandidates(80, 60, 70, r::nextInt, 6).length);
+    }
+
+    @Test
+    void findFloorWalksDownABoundedNumberOfBlocks() {
+        int[] calls = {0};
+        java.util.function.IntPredicate floorAt65 = y -> {
+            calls[0]++;
+            return y == 65;
+        };
+        assertEquals(java.util.OptionalInt.of(65), HuntingRules.findFloor(68, 60, floorAt65, 6));
+        calls[0] = 0;
+        assertTrue(HuntingRules.findFloor(75, 60, floorAt65, 6).isEmpty());
+        assertEquals(6, calls[0], "at most maxSteps checks");
+        assertTrue(HuntingRules.findFloor(62, 61, y -> y == 60, 6).isEmpty(), "not below the zone");
+    }
 }
