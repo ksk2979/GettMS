@@ -13,6 +13,7 @@ import java.util.Map;
 import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.NpcMapping;
 import org.gettserver.gettcore.data.ShopDefinition;
+import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
 import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
@@ -39,6 +40,7 @@ public final class EditorJson {
         root.add("reinforce", ReinforceConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.reinforce()).getOrThrow());
         root.add("hunting", HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.hunting()).getOrThrow());
         root.add("mobs", MobStatsConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.mobs()).getOrThrow());
+        root.add("equipment", EquipmentConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.equipment()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -76,7 +78,8 @@ public final class EditorJson {
                 decodeSection(root, "protect", ProtectConfig.CODEC),
                 decodeSection(root, "reinforce", ReinforceConfig.CODEC),
                 decodeSection(root, "hunting", HuntingConfig.CODEC),
-                decodeSection(root, "mobs", MobStatsConfig.CODEC));
+                decodeSection(root, "mobs", MobStatsConfig.CODEC),
+                decodeSection(root, "equipment", EquipmentConfig.CODEC));
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

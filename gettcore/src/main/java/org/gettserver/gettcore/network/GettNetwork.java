@@ -26,6 +26,7 @@ import org.gettserver.gettcore.pet.client.ObtainScreen;
 import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.reinforce.ClientReinforceConfig;
+import org.gettserver.gettcore.equipment.ClientEquipmentConfig;
 import org.gettserver.gettcore.reinforce.ReinforceScreen;
 import org.gettserver.gettcore.reinforce.ReinforceService;
 import org.gettserver.gettcore.quest.client.ClientQuestState;
@@ -49,6 +50,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientPetConfig.set(payload.config()));
         registrar.playToClient(ReinforceConfigSyncPayload.TYPE, ReinforceConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientReinforceConfig.set(payload.config()));
+        registrar.playToClient(EquipmentConfigSyncPayload.TYPE, EquipmentConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientEquipmentConfig.set(payload.config()));
         registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,

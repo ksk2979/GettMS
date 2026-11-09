@@ -442,4 +442,27 @@ class GettDataTest {
         assertEquals(0, again.hunting().zones().get(0).maxAlive());
         assertTrue(warn.warnings().stream().anyMatch(w -> w.contains("hunting.json")), warn.warnings().toString());
     }
+
+    @Test
+    void equipmentInstallsDefaultLoadsAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("equipment.json")));
+        assertEquals(org.gettserver.gettcore.equipment.EquipmentConfig.DEFAULT, data.equipment());
+
+        Files.writeString(dir.resolve("equipment.json"),
+                "{\"items\":{\"minecraft:diamond_sword\":{\"attackDamage\":9,\"knockbackResistance\":3}}}");
+        GettData.LoadReport warn = data.load(dir);
+        var sword = data.equipment().items().get("minecraft:diamond_sword");
+        assertEquals(java.util.Optional.of(9.0), sword.attackDamage());
+        assertEquals(java.util.Optional.of(1.0), sword.knockbackResistance());
+        assertTrue(warn.warnings().stream().anyMatch(w -> w.contains("equipment.json")), warn.warnings().toString());
+
+        Files.writeString(dir.resolve("equipment.json"), "{\"items\":3}");
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("equipment.json")), bad.errors().toString());
+        assertEquals(java.util.Optional.of(9.0),
+                data.equipment().items().get("minecraft:diamond_sword").attackDamage());
+    }
 }

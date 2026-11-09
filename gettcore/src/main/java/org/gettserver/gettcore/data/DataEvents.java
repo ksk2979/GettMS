@@ -11,6 +11,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.ConfigSyncPayload;
 import org.gettserver.gettcore.network.EnchantConfigSyncPayload;
+import org.gettserver.gettcore.network.EquipmentConfigSyncPayload;
 import org.gettserver.gettcore.network.PetConfigSyncPayload;
 import org.gettserver.gettcore.network.ReinforceConfigSyncPayload;
 import org.gettserver.gettcore.network.NpcMappingSyncPayload;
@@ -34,6 +35,7 @@ public final class DataEvents {
         PacketDistributor.sendToAllPlayers(new EnchantConfigSyncPayload(GettData.get().enchant()));
         PacketDistributor.sendToAllPlayers(new PetConfigSyncPayload(GettData.get().pets()));
         PacketDistributor.sendToAllPlayers(new ReinforceConfigSyncPayload(GettData.get().reinforce()));
+        PacketDistributor.sendToAllPlayers(new EquipmentConfigSyncPayload(GettData.get().equipment()));
     }
 
     public static void syncConfig(ServerPlayer player) {
@@ -42,6 +44,7 @@ public final class DataEvents {
         PacketDistributor.sendToPlayer(player, new EnchantConfigSyncPayload(GettData.get().enchant()));
         PacketDistributor.sendToPlayer(player, new PetConfigSyncPayload(GettData.get().pets()));
         PacketDistributor.sendToPlayer(player, new ReinforceConfigSyncPayload(GettData.get().reinforce()));
+        PacketDistributor.sendToPlayer(player, new EquipmentConfigSyncPayload(GettData.get().equipment()));
     }
 
     @SubscribeEvent

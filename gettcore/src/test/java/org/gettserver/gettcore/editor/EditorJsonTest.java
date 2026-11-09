@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
     private static final String FULL =
-            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{}}";
+            "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{}}";
 
     @Test
     void roundTrip() {
@@ -137,7 +137,7 @@ class EditorJsonTest {
 
     @Test
     void badBossPointNamesPath() {
-        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{}}";
+        String json = "{\"shops\":{},\"dialogs\":{},\"npcs\":{},\"quests\":{},\"boss_points\":[{\"id\":\"x\"}],\"pets\":{},\"protect\":{},\"reinforce\":{},\"hunting\":{},\"mobs\":{},\"equipment\":{}}";
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json));
         assertTrue(e.getMessage().startsWith("boss_points"), e.getMessage());
     }
@@ -153,7 +153,7 @@ class EditorJsonTest {
     @Test
     void missingSectionIsAnError() {
         // Full-replace save: a missing section must not be read as "delete everything in it".
-        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect", "reinforce", "hunting", "mobs")) {
+        for (String section : List.of("shops", "dialogs", "npcs", "quests", "boss_points", "pets", "protect", "reinforce", "hunting", "mobs", "equipment")) {
             String json = FULL.replace("\"" + section + "\":" + (section.equals("boss_points") ? "[]" : "{}"), "\"x\":{}");
             IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> EditorJson.decode(json),
                     section);
@@ -207,5 +207,26 @@ class EditorJsonTest {
         }
         assertEquals("{\"minecraft:zombie\":{\"health\":40.0,\"speed\":0.3}}",
                 root.getAsJsonObject("mobs").getAsJsonObject("overrides").toString());
+    }
+
+    @Test
+    void equipmentShape() {
+        var eq = new org.gettserver.gettcore.equipment.EquipmentConfig(Map.of("minecraft:diamond_sword",
+                new org.gettserver.gettcore.equipment.EquipmentConfig.Values(java.util.Optional.of(9.0),
+                        java.util.Optional.of(1.2), java.util.Optional.empty(), java.util.Optional.empty(),
+                        java.util.Optional.of(0.1))));
+        EditorBundle base = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of());
+        EditorBundle b = new EditorBundle(base.shops(), base.dialogs(), base.npcs(), base.quests(), base.bossPoints(),
+                base.pets(), base.protect(), base.reinforce(), base.hunting(), base.mobs(), eq);
+        String json = EditorJson.encode(b, null);
+        assertEquals(b, EditorJson.decode(json));
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        // The web page reads/writes these field names directly.
+        assertEquals(com.google.gson.JsonParser.parseString(
+                "{\"minecraft:diamond_sword\":{\"attackDamage\":9.0,\"attackSpeed\":1.2,\"knockbackResistance\":0.1}}"),
+                root.getAsJsonObject("equipment").getAsJsonObject("items"));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> EditorJson.decode(FULL.replace(",\"equipment\":{}", "")));
+        assertTrue(e.getMessage().startsWith("equipment: missing section"), e.getMessage());
     }
 }

@@ -312,4 +312,27 @@ class GettDataSaveBundleTest {
         assertTrue(Files.isRegularFile(latest.resolve("mobs.json")));
         assertFalse(Files.readString(latest.resolve("mobs.json")).contains("zombie"), "backup holds the old file");
     }
+
+    @Test
+    void savesEquipmentWithBackup(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(org.gettserver.gettcore.equipment.EquipmentConfig.DEFAULT, raw.equipment());
+        var equipment = new org.gettserver.gettcore.equipment.EquipmentConfig(Map.of("minecraft:diamond_sword",
+                new org.gettserver.gettcore.equipment.EquipmentConfig.Values(Optional.of(9.0), Optional.of(1.2),
+                        Optional.empty(), Optional.empty(), Optional.empty())));
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(), equipment),
+                RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(equipment, data.equipment());
+        assertEquals(equipment, data.rawBundle().equipment());
+        assertTrue(Files.readString(dir.resolve("equipment.json")).contains("diamond_sword"));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.isRegularFile(latest.resolve("equipment.json")));
+        assertFalse(Files.readString(latest.resolve("equipment.json")).contains("diamond_sword"), "backup holds the old file");
+    }
 }

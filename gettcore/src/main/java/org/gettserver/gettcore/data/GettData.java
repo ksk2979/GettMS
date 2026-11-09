@@ -29,6 +29,7 @@ import org.gettserver.gettcore.editor.EditorBundle;
 import org.gettserver.gettcore.editor.EditorMerge;
 import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
+import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
 import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
@@ -48,7 +49,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "equipment.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -85,6 +86,7 @@ public final class GettData {
     private volatile ReinforceConfig reinforce = ReinforceConfig.DEFAULT;
     private volatile HuntingConfig hunting = HuntingConfig.DEFAULT;
     private volatile MobStatsConfig mobs = MobStatsConfig.DEFAULT;
+    private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -193,6 +195,10 @@ public final class GettData {
         MobStatsConfig newMobs = Files.isRegularFile(mobsFile)
                 ? read(mobsFile, MobStatsConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(mobs)
                 : MobStatsConfig.DEFAULT;
+        Path equipmentFile = dir.resolve(EquipmentConfig.FILE);
+        EquipmentConfig newEquipment = Files.isRegularFile(equipmentFile)
+                ? read(equipmentFile, EquipmentConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(equipment)
+                : EquipmentConfig.DEFAULT;
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -210,6 +216,7 @@ public final class GettData {
         reinforce = newReinforce;
         hunting = newHunting;
         mobs = newMobs;
+        equipment = newEquipment;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -361,7 +368,8 @@ public final class GettData {
     /** Everything the editor edits, exactly as in the files (no registry pruning). */
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
-                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs);
+                new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs,
+                equipment);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -378,7 +386,7 @@ public final class GettData {
 
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
-     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json and mobs.json (all to .tmp first, then moved), deletes
+     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json, mobs.json and equipment.json (all to .tmp first, then moved), deletes
      * files of ids no longer present and reloads. Boss points, pets, protect and reinforce are replaced as a whole; the ids of boss points that are gone
      * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
@@ -434,6 +442,8 @@ public final class GettData {
                     b.hunting()).getOrThrow(IOException::new));
             writes.put(dir.resolve(MobStatsConfig.FILE), MobStatsConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.mobs()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(EquipmentConfig.FILE), EquipmentConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.equipment()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -550,7 +560,7 @@ public final class GettData {
             }
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
-                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE)) {
+                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, EquipmentConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -648,6 +658,11 @@ public final class GettData {
     /** Per entity type base stat overrides from mobs.json (sanitized). */
     public MobStatsConfig mobs() {
         return mobs;
+    }
+
+    /** Per item attribute overrides from equipment.json (sanitized). */
+    public EquipmentConfig equipment() {
+        return equipment;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */

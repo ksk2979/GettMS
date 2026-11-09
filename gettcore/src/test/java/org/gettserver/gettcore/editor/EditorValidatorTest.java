@@ -382,4 +382,29 @@ class EditorValidatorTest {
         return new org.gettserver.gettcore.hunting.HuntingConfig.Zone(id, net.minecraft.world.level.Level.OVERWORLD,
                 new net.minecraft.core.BlockPos(0, 0, 0), new net.minecraft.core.BlockPos(5, 5, 5), 10, 10, entries);
     }
+
+    @Test
+    void equipmentUnknownItemWarnsAndOutOfRangeIsAnError() {
+        var ok = new org.gettserver.gettcore.equipment.EquipmentConfig.Values(Optional.of(9.0), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.empty());
+        var bad = new org.gettserver.gettcore.equipment.EquipmentConfig.Values(Optional.of(-1.0), Optional.empty(),
+                Optional.empty(), Optional.empty(), Optional.of(1.5));
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true);
+        var good = EditorValidator.validate(withEquipment(b, new org.gettserver.gettcore.equipment.EquipmentConfig(
+                Map.of("minecraft:diamond_sword", ok, "gone:blade", ok))), checks);
+        assertTrue(good.errors().isEmpty(), good.errors().toString());
+        assertEquals(List.of("equipment: gone:blade is not a registered item"), good.warnings());
+        assertEquals(2, good.cleaned().equipment().items().size(), "unknown ids are kept (mod may come back)");
+
+        var r = EditorValidator.validate(withEquipment(b, new org.gettserver.gettcore.equipment.EquipmentConfig(
+                Map.of("minecraft:diamond_sword", bad))), checks);
+        assertEquals(List.of("equipment.items.minecraft:diamond_sword attackDamage -1.0 must be 0..2048",
+                "equipment.items.minecraft:diamond_sword knockbackResistance 1.5 must be 0..1"), r.errors());
+    }
+
+    private static EditorBundle withEquipment(EditorBundle b, org.gettserver.gettcore.equipment.EquipmentConfig e) {
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), b.hunting(), b.mobs(), e);
+    }
 }

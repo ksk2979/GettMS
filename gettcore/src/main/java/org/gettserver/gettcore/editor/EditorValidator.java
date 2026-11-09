@@ -14,6 +14,7 @@ import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
+import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
 import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
@@ -112,9 +113,22 @@ public final class EditorValidator {
         MobStatsConfig mobs = b.mobs().sanitized(mobWarnings);
         addPrefixed(mobWarnings, MobStatsConfig.FILE, "mobs", warnings);
 
+        // Out-of-range values are errors here (the load path clamps them); an unknown item only warns (kept so a
+        // removed mod's overrides come back with it).
+        for (String e : b.equipment().rangeErrors()) errors.add("equipment.items." + e);
+        b.equipment().items().keySet().forEach(key -> {
+            ResourceLocation id = ResourceLocation.tryParse(key);
+            if (id != null && !checks.itemExists().test(id)) {
+                warnings.add("equipment: " + key + " is not a registered item");
+            }
+        });
+        List<String> equipmentWarnings = new ArrayList<>();
+        EquipmentConfig equipment = b.equipment().sanitized(equipmentWarnings);
+        addPrefixed(equipmentWarnings, EquipmentConfig.FILE, "equipment", warnings);
+
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs));
+                        hunting, mobs, equipment));
     }
 
     /** Adds {@code from}'s warnings to {@code out}, "{@code file}: ..." rewritten to "{@code section}: ...". */
