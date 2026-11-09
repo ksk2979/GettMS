@@ -27,6 +27,8 @@ public final class SpawnBalance {
     public static final String FOLDER = "neoforge/biome_modifier";
     public static final String ADD_SPAWNS = "neoforge:add_spawns";
     public static final String NONE = "neoforge:none";
+    /** Type our edited rule copies are written with: {@link SafeAddSpawnsModifier} (never blocks world loading). */
+    public static final String SAFE_ADD_SPAWNS = "gettcore:add_spawns";
     public static final String TWEAK_NS = "gettcore";
     public static final String TWEAK_DIR = FOLDER + "/spawn_tweak";
     public static final String TWEAK_TYPE = "gettcore:scale_spawns";
@@ -219,7 +221,9 @@ public final class SpawnBalance {
                 }
             }
         }
-        return ruleDiff(orig, copy) == null ? null : copy;
+        if (ruleDiff(orig, copy) == null) return null;
+        copy.addProperty("type", SAFE_ADD_SPAWNS);
+        return copy;
     }
 
     /** {@code {"disabled":true}}, {@code {"spawners":[...]}} (full list from the copy), or null when equal. */
@@ -248,6 +252,28 @@ public final class SpawnBalance {
         JsonObject o = new JsonObject();
         o.add("spawners", list);
         return o;
+    }
+
+    /** Whether a file in the biome modifier folder is one of our per-mob tweak files (not a rule copy). */
+    static boolean isTweakFile(ResourceLocation f) {
+        return f.getNamespace().equals(TWEAK_NS) && f.getPath().startsWith(TWEAK_DIR + "/");
+    }
+
+    /**
+     * Rewrites rule copies still in the old {@code neoforge:add_spawns} form (written before
+     * {@link #SAFE_ADD_SPAWNS}) to the tolerant type, same content otherwise — same spawns, but a later removal of
+     * the mod can no longer stop the world from loading. Returns how many files changed.
+     */
+    public static int migrateLegacyRuleCopies(Path pack) throws IOException {
+        int n = 0;
+        for (ResourceLocation f : PackFiles.listFolder(pack, FOLDER)) {
+            if (isTweakFile(f)) continue;
+            JsonObject o = PackFiles.read(pack, f).orElse(null);
+            if (o == null || !isSpawnRule(o)) continue;
+            o.addProperty("type", SAFE_ADD_SPAWNS);
+            if (PackFiles.write(pack, f, o)) n++;
+        }
+        return n;
     }
 
     /* ----- per-mob multiplier ----- */

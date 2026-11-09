@@ -179,6 +179,9 @@ public final class EditorDevServer {
                 "{\"attributes\":{\"common\":{\"impact\":1.1,\"max_strikes\":1}},\"type\":\"epicfight:sword\"}").getAsJsonObject());
         cat.add(BalanceService.EPICFIGHT, EpicFightBalance.catalog(ef));
         cat.add(BalanceService.SPAWN_RULES, SpawnBalance.ruleCatalog(rules));
+        cat.add(org.gettserver.gettcore.balance.BalanceOrphans.CATALOG_KEY, JsonParser.parseString(
+                "[{\"kind\":\"guns\",\"id\":\"oldguns:weapons/musket\"},{\"kind\":\"spawnRules\",\"id\":\"gone:spawn_x\"},"
+                        + "{\"kind\":\"spawnMobs\",\"id\":\"gone:mob\"},{\"kind\":\"epicfight\",\"id\":\"gone:blade\"}]"));
         cat.add(BalanceService.SPAWN_MOBS, SpawnBalance.mobRows(List.of(
                 new SpawnBalance.Spawn("minecraft:zombie", "monster", 95, 4, 4),
                 new SpawnBalance.Spawn("minecraft:zombie", "monster", 19, 4, 4),

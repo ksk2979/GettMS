@@ -301,7 +301,9 @@
   function normalizeDatapack(src) {
     if (!src || typeof src !== 'object') return null;
     const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? JSON.parse(JSON.stringify(v)) : {});
-    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight) };
+    const removeOrphans = (Array.isArray(src.removeOrphans) ? src.removeOrphans : [])
+      .filter((o) => o && typeof o.kind === 'string' && typeof o.id === 'string').map((o) => ({ kind: o.kind, id: o.id }));
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), removeOrphans };
   }
 
   function normalizeBossPoints(src) {
@@ -2547,6 +2549,47 @@
   const dpShown = (v, unit) => (isNum(v) ? String(round3(v)) + (unit || '') : '—');
   const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
 
+  /**
+   * 원본이 사라진 사본(모드를 지웠거나 업데이트로 파일이 없어짐) — 서버 datapackCatalog.orphans = [{kind, id}].
+   * "삭제" 를 누르면 datapack.removeOrphans 에 넣고, 저장할 때 서버가 그 사본 파일을 지운다 (그때도 원본이 없는 것만).
+   */
+  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율' };
+  function dpOrphanCard(container, kinds) {
+    const cat = S.dpCatalog;
+    const dp = S.bundle.datapack;
+    if (!cat || !dp || !Array.isArray(cat.orphans)) return;
+    const list = cat.orphans.filter((o) => o && kinds.includes(o.kind));
+    if (!list.length) return;
+    const same = (a, b) => a.kind === b.kind && a.id === b.id;
+    const tbody = h('tbody');
+    const draw = () => {
+      tbody.replaceChildren(...list.map((o) => {
+        const marked = dp.removeOrphans.some((r) => same(r, o));
+        return h('tr', null,
+          h('td', null, DP_ORPHAN_KIND[o.kind] || o.kind),
+          h('td', null, h('span', { class: 'id' }, o.id)),
+          h('td', null, marked ? h('span', { class: 'muted' }, '저장하면 삭제') : h('span', { class: 'muted' }, '원본 없음')),
+          h('td', null, h('button', { class: 'small', 'aria-label': `${o.id} ${marked ? '삭제 취소' : '삭제'}`, onclick: () => {
+            if (marked) {
+              dp.removeOrphans = dp.removeOrphans.filter((r) => !same(r, o));
+              if (o.kind === 'spawnMobs' && o.prev !== undefined) { dp.spawnMobs[o.id] = o.prev; delete o.prev; }
+            } else {
+              dp.removeOrphans.push({ kind: o.kind, id: o.id });
+              // 몹 배율은 spawnMobs 에 남아 있으면 저장 때 다시 쓰이므로 함께 뺀다.
+              if (o.kind === 'spawnMobs' && dp.spawnMobs[o.id] !== undefined) { o.prev = dp.spawnMobs[o.id]; delete dp.spawnMobs[o.id]; }
+            }
+            changed();
+            draw();
+          } }, marked ? '삭제 취소' : '원본 없음 · 삭제')));
+      }));
+    };
+    container.append(h('div', { class: 'card' }, h('h2', null, '원본 없는 사본'),
+      h('p', { class: 'muted' }, '데이터팩 gett_balance 에 있지만 서버에 원본 파일이 없는 사본입니다 (모드를 지웠거나 업데이트로 파일이 바뀜). 효과가 없으니 지워도 됩니다. "삭제" 를 누르고 저장하면 파일이 지워집니다.'),
+      h('div', { class: 'scroll-x' }, h('table', null,
+        h('thead', null, h('tr', null, ['종류', 'id', '상태', ''].map((t) => h('th', null, t)))), tbody))));
+    draw();
+  }
+
   // [키, 제목, 최소, 최대, 정수?, 단위] — 서버 GunBalance.FIELDS 와 같은 범위. 시간은 초(20틱 = 1초, 가장 가까운 틱으로 반올림).
   const GUN_FIELDS = [
     ['reloadTime', '장전 시간', 0, 600, false, '초'],
@@ -2712,6 +2755,7 @@
         h('div', { class: 'scroll-x' }, h('table', null,
           h('thead', null, h('tr', null, ['총', '장전'].concat(GUN_FIELDS.filter((f) => !GUN_RELOAD_KEYS.includes(f[0])).map((f) => f[1]),
             ['탄별 피해', '']).map((t) => h('th', null, t)))), tbody)));
+      dpOrphanCard(container, ['guns']);
       draw();
       return () => rowChecks.paint();
     },
@@ -2838,7 +2882,9 @@
       const mobs = dp.spawnMobs;
       const mobCat = (cat.spawnMobs || []).slice();
       const knownMobs = new Set(mobCat.map((m) => m.entity));
-      for (const id of Object.keys(mobs)) if (!knownMobs.has(id)) mobCat.push({ entity: id, category: '', biomes: 0 });
+      // 서버에 없는 몹의 배율(원본 없음)은 아래 "원본 없는 사본" 칸에만 보인다.
+      const orphanMobs = new Set((Array.isArray(cat.orphans) ? cat.orphans : []).filter((o) => o && o.kind === 'spawnMobs').map((o) => o.id));
+      for (const id of Object.keys(mobs)) if (!knownMobs.has(id) && !orphanMobs.has(id)) mobCat.push({ entity: id, category: '', biomes: 0 });
       mobCat.sort((a, b) => entityName(a.entity).localeCompare(entityName(b.entity)));
       const mobBody = h('tbody');
       const mobCount = h('span', { class: 'muted' });
@@ -2898,6 +2944,7 @@
           h('div', { class: 'field' }, search, catSel, onlyChanged, mobCount),
           h('div', { class: 'scroll-x' }, h('table', null,
             h('thead', null, h('tr', null, ['몹', '분류', '지금 (생물군계 수 · 가중치 · 무리)', '배율', '', ''].map((t) => h('th', null, t)))), mobBody))));
+      dpOrphanCard(container, ['spawnRules', 'spawnMobs']);
       draw();
       return () => { ruleChecks.paint(); mobChecks.paint(); };
     },
@@ -3039,6 +3086,7 @@
         h('div', { class: 'field' }, search, modSel, typeSel, onlyChanged, count),
         h('div', { class: 'scroll-x' }, h('table', null,
           h('thead', null, h('tr', null, ['무기', '종류'].concat(EF_FIELDS.map((f) => f[1]), ['']).map((t) => h('th', null, t)))), tbody)));
+      dpOrphanCard(container, ['epicfight']);
       draw();
       return () => rowChecks.paint();
     },

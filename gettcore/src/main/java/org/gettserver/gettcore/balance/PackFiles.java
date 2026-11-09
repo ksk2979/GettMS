@@ -119,6 +119,20 @@ public final class PackFiles {
         return out;
     }
 
+    /** {@link #listUnder} for every namespace in the pack. */
+    public static List<ResourceLocation> listFolder(Path pack, String folder) {
+        Path data = pack.resolve("data");
+        if (!Files.isDirectory(data)) return List.of();
+        List<ResourceLocation> out = new ArrayList<>();
+        try (Stream<Path> s = Files.list(data)) {
+            s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).sorted()
+                    .forEach(ns -> out.addAll(listUnder(pack, ns, folder)));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return out;
+    }
+
     /**
      * Index (into a resource stack, lowest priority first) of the file the mod itself provides: the topmost one that
      * is not from our pack. -1 when only our pack has it.

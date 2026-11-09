@@ -21,7 +21,8 @@ import org.gettserver.gettcore.GettCore;
 
 /**
  * {@code gettcore:scale_spawns}: multiplies one mob's natural spawn weight in every biome (0 = removed). Runs in the
- * MODIFY phase, after every mod's add/remove, so it also covers spawns other mods added. Unknown entity = no-op.
+ * MODIFY phase, after every mod's add/remove, so it also covers spawns other mods added. Unknown entity = no-op
+ * (logged once): the entity is decoded as a plain id, so a removed mod never breaks loading.
  */
 public record ScaleSpawnsModifier(ResourceLocation entity, double multiplier) implements BiomeModifier {
     public static final MapCodec<ScaleSpawnsModifier> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -29,11 +30,14 @@ public record ScaleSpawnsModifier(ResourceLocation entity, double multiplier) im
             Codec.DOUBLE.fieldOf("multiplier").forGetter(ScaleSpawnsModifier::multiplier)
     ).apply(i, ScaleSpawnsModifier::new));
 
+    private static final java.util.Set<ResourceLocation> WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static final DeferredRegister<MapCodec<? extends BiomeModifier>> SERIALIZERS =
             DeferredRegister.create(NeoForgeRegistries.Keys.BIOME_MODIFIER_SERIALIZERS, GettCore.MOD_ID);
 
     static {
         SERIALIZERS.register("scale_spawns", () -> CODEC);
+        SERIALIZERS.register("add_spawns", () -> SafeAddSpawnsModifier.CODEC);
     }
 
     public static void register(IEventBus modBus) {
@@ -44,7 +48,13 @@ public record ScaleSpawnsModifier(ResourceLocation entity, double multiplier) im
     public void modify(Holder<Biome> biome, Phase phase, ModifiableBiomeInfo.BiomeInfo.Builder builder) {
         if (phase != Phase.MODIFY) return;
         EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(entity).orElse(null);
-        if (type == null) return;
+        if (type == null) {
+            if (WARNED.add(entity)) {
+                GettCore.LOGGER.warn("gett_balance spawn tweak for unknown entity {} ignored (mod removed?)"
+                        + " — remove it in the editor: 등장 tab, '원본 없음'", entity);
+            }
+            return;
+        }
         MobSpawnSettingsBuilder spawns = builder.getMobSpawnSettings();
         for (MobCategory category : MobCategory.values()) {
             List<SpawnerData> list = spawns.getSpawner(category);

@@ -52,6 +52,25 @@ public final class BalanceService {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
         spawnRestartPending = false;
+        // Old spawn rule copies (plain neoforge:add_spawns) loaded fine this time; rewrite them to our tolerant type
+        // now, so a later removal of their mod cannot stop the world from loading (same spawns, no restart needed).
+        try {
+            int n = SpawnBalance.migrateLegacyRuleCopies(packDir(event.getServer()));
+            if (n > 0) GettCore.LOGGER.info("balance: {} spawn rule copies switched to {}", n, SpawnBalance.SAFE_ADD_SPAWNS);
+        } catch (IOException | RuntimeException e) {
+            GettCore.LOGGER.warn("balance: could not migrate spawn rule copies", e);
+        }
+    }
+
+    /** Copies whose original is gone (see {@link BalanceOrphans}). */
+    static List<BalanceOrphans.Orphan> orphans(MinecraftServer server) {
+        ResourceManager rm = server.getResourceManager();
+        Map<String, java.util.Set<ResourceLocation>> files = Map.of(
+                GUNS, originals(rm, GunBalance.FOLDER).keySet(),
+                EPICFIGHT, originals(rm, EpicFightBalance.FOLDER).keySet(),
+                SPAWN_RULES, originals(rm, SpawnBalance.FOLDER).keySet());
+        return BalanceOrphans.find(packDir(server), files,
+                net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE::containsKey);
     }
 
     public static Path packDir(MinecraftServer server) {
@@ -97,13 +116,19 @@ public final class BalanceService {
             state.add(SPAWN_RULES, SpawnBalance.ruleState(mods, pack));
             JsonObject mobState = SpawnBalance.mobState(pack);
             state.add(SPAWN_MOBS, mobState);
+            List<BalanceOrphans.Orphan> orphans = orphans(server);
             JsonObject cat = new JsonObject();
             cat.addProperty("packEnabled", packEnabled(server));
             cat.addProperty("spawnRestartPending", spawnRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
             cat.add(EPICFIGHT, EpicFightBalance.catalog(ef));
             cat.add(SPAWN_RULES, SpawnBalance.ruleCatalog(mods));
-            cat.add(SPAWN_MOBS, SpawnBalance.mobRows(liveSpawns(server), new ArrayList<>(mobState.keySet())));
+            List<String> extraMobs = new ArrayList<>(mobState.keySet());
+            orphans.forEach(o -> {
+                if (o.kind().equals(SPAWN_MOBS)) extraMobs.remove(o.id());   // shown as an orphan row instead
+            });
+            cat.add(SPAWN_MOBS, SpawnBalance.mobRows(liveSpawns(server), extraMobs));
+            cat.add(BalanceOrphans.CATALOG_KEY, BalanceOrphans.toJson(orphans));
             return addSections(root, state, cat);
         } catch (RuntimeException e) {
             GettCore.LOGGER.error("balance: editor sections could not be built", e);
@@ -144,6 +169,7 @@ public final class BalanceService {
         if (mobs != null) errs.addAll(SpawnBalance.validateMobs(mobs));
         JsonObject ef = section(desired, EPICFIGHT, errs);
         if (ef != null) errs.addAll(EpicFightBalance.validate(ef));
+        errs.addAll(BalanceOrphans.validate(desired.get(BalanceOrphans.REMOVE_KEY)));
         return errs;
     }
 
@@ -196,6 +222,13 @@ public final class BalanceService {
             spawnWritten += o.written();
             spawnDeleted += o.deleted();
         }
+        // Orphan copies last, so a mob tweak still listed in spawnMobs is removed too when asked.
+        JsonElement remove = desired.get(BalanceOrphans.REMOVE_KEY);
+        if (remove != null && remove.isJsonArray() && remove.getAsJsonArray().size() > 0) {
+            int n = BalanceOrphans.remove(pack, orphans(server), remove.getAsJsonArray());
+            if (n > 0) msgs.add("원본 없는 사본 " + n + "개를 삭제했습니다");
+        }
+        if (rules != null || mobs != null) SpawnBalance.migrateLegacyRuleCopies(pack);
         if (spawnWritten + spawnDeleted > 0) {
             spawnRestartPending = true;
             msgs.add("등장 설정: 파일 " + spawnWritten + "개 저장, " + spawnDeleted
