@@ -117,6 +117,7 @@
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
     catalogOk: false,
+    dpCatalog: null,    // 서버가 준 총·등장 원래 값 (스냅숏의 datapackCatalog, 저장하지 않음)
     tab: 'shops',
     ui: { shopId: null, tabFilter: '', npcName: null, dialogId: null, questLine: null, quest: null, questId: null },
     result: null,       // 마지막 저장 결과 {kind, title, errors[], warnings[]}
@@ -129,7 +130,8 @@
   function serialize(bundle) {
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
-      reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment });
+      reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
+      datapack: bundle.datapack });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -291,6 +293,16 @@
     return { items };
   }
 
+  /**
+   * 데이터팩 사본(총·등장)의 현재 덮어쓰기. 서버 스냅숏에 이 구역이 없으면 null — 그대로 저장하면 서버가 데이터팩을 건드리지 않는다.
+   * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율} }
+   */
+  function normalizeDatapack(src) {
+    if (!src || typeof src !== 'object') return null;
+    const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? JSON.parse(JSON.stringify(v)) : {});
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs) };
+  }
+
   function normalizeBossPoints(src) {
     return (Array.isArray(src) ? src : []).map((pt) => Object.assign({}, BOSS_POINT_DEFAULTS, pt));
   }
@@ -316,6 +328,7 @@
       hunting: normalizeHunting(src.hunting !== undefined ? src.hunting : f.hunting),
       mobs: normalizeMobs(src.mobs !== undefined ? src.mobs : f.mobs),
       equipment: normalizeEquipment(src.equipment !== undefined ? src.equipment : f.equipment),
+      datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {
       s.tabs = s.tabs || [];
@@ -328,6 +341,7 @@
 
   function install(snap) {
     S.refs = Object.assign({ advancements: [], missingItems: [], missingEntities: [] }, snap.refs || {});
+    S.dpCatalog = snap.datapackCatalog && typeof snap.datapackCatalog === 'object' ? snap.datapackCatalog : null;
     S.bundle = bundleFrom(snap);
     S.baseline = serialize(S.bundle);
     savedQuestIds = new Set();   // 서버에 저장된 적 있는 퀘스트 (id를 더는 못 바꾼다)
@@ -2525,6 +2539,339 @@
     },
   };
   registerTab(equipmentTab);
+
+  /* ----- 총 탭 · 등장 탭 (서버 월드의 데이터팩 gett_balance 에 모드 원본 파일의 사본을 씀) ----- */
+
+  const round3 = (v) => Math.round(v * 1000) / 1000;
+  const dpShown = (v, unit) => (isNum(v) ? String(round3(v)) + (unit || '') : '—');
+  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
+
+  // [키, 제목, 최소, 최대, 정수?, 단위] — 서버 GunBalance.FIELDS 와 같은 범위. 시간은 초(20틱 = 1초, 가장 가까운 틱으로 반올림).
+  const GUN_FIELDS = [
+    ['reloadTime', '장전 시간', 0, 600, false, '초'],
+    ['rate', '연사 간격', 0.05, 60, false, '초'],
+    ['maxAmmo', '탄창', 1, 100000, true, '발'],
+    ['spread', '퍼짐', 0, 180, false, '°'],
+    ['recoilAngle', '반동', -180, 180, false, '°'],
+    ['equipTime', '꺼내는 시간', 0, 60, false, '초'],
+  ];
+  const GUN_DAMAGE_MAX = 100000;
+
+  function gunRule(key, v) {
+    if (v === undefined) return '';
+    const f = GUN_FIELDS.find((x) => x[0] === key);
+    if (!f) return '모르는 항목입니다';
+    if (!isNum(v)) return '숫자여야 합니다 (비우면 원래 값)';
+    if (f[4] && !Number.isInteger(v)) return '정수여야 합니다';
+    return v >= f[2] && v <= f[3] ? '' : `${f[2]}~${f[3]} 사이여야 합니다`;
+  }
+  function gunDamageRule(v) {
+    if (v === undefined) return '';
+    return isNum(v) && v >= 0 && v <= GUN_DAMAGE_MAX ? '' : `0~${GUN_DAMAGE_MAX} 사이 숫자여야 합니다`;
+  }
+
+  function validateGuns(bundle) {
+    const out = [];
+    const guns = (bundle.datapack && bundle.datapack.guns) || {};
+    for (const [id, o] of Object.entries(guns)) {
+      for (const [key, label] of GUN_FIELDS) {
+        const m = gunRule(key, o[key]);
+        if (m) out.push(`총 ${id} › ${label}: ${m}`);
+      }
+      for (const [ammo, v] of Object.entries(o.damage || {})) {
+        const m = gunDamageRule(v);
+        if (m) out.push(`총 ${id} › ${ammo} 피해: ${m}`);
+      }
+    }
+    return out;
+  }
+
+  const gunsUi = { query: '', mod: '', onlyChanged: false };
+
+  const gunsTab = {
+    id: 'guns',
+    title: '총',
+    validate: validateGuns,
+    render(container) {
+      const card = h('div', { class: 'card' }, h('h2', null, '총 수치'),
+        h('p', { class: 'muted' }, 'Create: Gunsmithing·NTGL 총의 무기 파일(data/<모드>/weapons/…) 값을 바꿉니다. 칸에 숫자를 넣으면 바뀌고, 빈 칸은 모드의 원래 값입니다. 시간은 초 단위입니다 (1초 = 20틱, 가장 가까운 틱으로 반올림 — 예: 장전 2.5초 = 50틱).'),
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 총 파일의 사본(모드 원본 그대로 + 바꾼 값만)을 쓰고 /reload 를 자동으로 실행합니다. 서버 판정(피해 등)은 /reload 가 끝나면 바로, 접속자 화면은 NTGL 이 총 설정을 다시 보내 주므로 보통 바로 바뀝니다 — 손에 든 총이 그대로면 다시 들거나 재접속해 확인하세요. "원래대로" = 사본 삭제.'),
+        h('p', { class: 'muted' }, '원본 파일에 없는 항목(예: 꺼내는 시간이 없는 총)은 바꿀 수 없어 "—" 로 보입니다. 탄별 피해는 그 총에 넣는 탄(ammoData) 하나하나의 발사체 피해입니다.'));
+      container.append(card);
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      if (!cat || !dp) { card.append(dpMissing()); return null; }
+      let rowChecks = makeChecks();
+      const guns = dp.guns;
+      const catalog = (cat.guns || []).slice();
+      const known = new Set(catalog.map((g) => g.id));
+      for (const id of Object.keys(guns)) if (!known.has(id)) catalog.push({ id, mod: '', item: '', ammo: [], missing: true });
+
+      const cleanup = (id) => {
+        const row = guns[id];
+        if (row && row.damage && !Object.keys(row.damage).length) delete row.damage;
+        if (row && !Object.keys(row).length) delete guns[id];
+      };
+      const tbody = h('tbody');
+      const count = h('span', { class: 'muted' });
+      const draw = () => {
+        rowChecks = makeChecks();
+        const q = gunsUi.query.trim().toLowerCase();
+        const list = catalog.filter((g) => (!gunsUi.onlyChanged || guns[g.id])
+          && (!gunsUi.mod || g.mod === gunsUi.mod)
+          && (!q || (itemName(g.item) + ' ' + g.id + ' ' + g.item).toLowerCase().includes(q)));
+        count.textContent = `${list.length}개`;
+        tbody.replaceChildren(...list.map((g) => {
+          const cells = GUN_FIELDS.map(([key, label, , , , unit]) => {
+            const base = g[key];
+            const o = guns[g.id];
+            const cur = o ? o[key] : undefined;
+            if (!isNum(base) && cur === undefined) return h('td', null, h('span', { class: 'muted' }, '—'));
+            const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:5rem', 'aria-label': `${itemName(g.item)} ${label}`,
+              placeholder: dpShown(base), value: shownNum(cur),
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const row = guns[g.id] || (guns[g.id] = {});
+                const v = Number(raw);
+                if (raw === '' || (isNum(base) && Math.abs(v - base) < 1e-9)) delete row[key]; else row[key] = v;
+                cleanup(g.id);
+                changed();
+              } }), () => gunRule(key, guns[g.id] ? guns[g.id][key] : undefined));
+            return h('td', null, inp, h('span', { class: 'muted' }, unit), h('div', { class: 'id' }, `원래 ${dpShown(base, unit)}`));
+          });
+          const ammoCell = h('td', null, ...(g.ammo || []).map((a) => {
+            const o = guns[g.id];
+            const cur = o && o.damage ? o.damage[a.id] : undefined;
+            const inp = rowChecks.add(h('input', { type: 'number', step: 'any', style: 'width:4.5rem', 'aria-label': `${itemName(g.item)} ${itemName(a.id)} 피해`,
+              placeholder: dpShown(a.damage), value: shownNum(cur),
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const row = guns[g.id] || (guns[g.id] = {});
+                const dmg = row.damage || (row.damage = {});
+                const v = Number(raw);
+                if (raw === '' || Math.abs(v - a.damage) < 1e-9) delete dmg[a.id]; else dmg[a.id] = v;
+                cleanup(g.id);
+                changed();
+              } }), () => gunDamageRule(guns[g.id] && guns[g.id].damage ? guns[g.id].damage[a.id] : undefined));
+            return h('div', { class: 'row', style: 'gap:.35rem;align-items:center;margin-bottom:.2rem' },
+              iconEl(a.id, 20), inp, h('span', { class: 'id', title: a.id }, `${itemName(a.id)} · 원래 ${dpShown(a.damage)}`));
+          }));
+          return h('tr', null,
+            h('td', null, h('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, g.missing ? null : iconEl(g.item, 24),
+              h('div', null, h('div', null, g.missing ? '(서버에 없음 — 저장하면 무시)' : itemName(g.item)), h('div', { class: 'id' }, g.id)))),
+            ...cells, ammoCell,
+            h('td', null, guns[g.id] ? h('button', { class: 'small', 'aria-label': `${g.id} 원래대로`, onclick: () => {
+              delete guns[g.id]; changed(); draw();
+            } }, '원래대로') : null));
+        }));
+        rowChecks.paint();
+      };
+
+      const mods = Array.from(new Set((cat.guns || []).map((g) => g.mod).filter(Boolean))).sort();
+      const modSel = h('select', { 'aria-label': '모드', onchange: (e) => { gunsUi.mod = e.target.value; draw(); } },
+        h('option', { value: '' }, '모든 모드'), ...mods.map((m) => h('option', { value: m }, m)));
+      modSel.value = mods.includes(gunsUi.mod) ? gunsUi.mod : '';
+      gunsUi.mod = modSel.value;
+      const search = h('input', { type: 'search', placeholder: '이름·id 검색', 'aria-label': '총 검색', value: gunsUi.query, style: 'width:16rem',
+        oninput: (e) => { gunsUi.query = e.target.value; draw(); } });
+      const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: gunsUi.onlyChanged,
+        onchange: (e) => { gunsUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+      card.append(
+        !(cat.guns || []).length ? h('p', { class: 'muted' }, '서버에 총 무기 파일이 없습니다 (NTGL·Create: Gunsmithing 이 설치돼 있는지 확인).') : null,
+        h('div', { class: 'field' }, search, modSel, onlyChanged, count),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['총'].concat(GUN_FIELDS.map((f) => f[1]), ['탄별 피해', '']).map((t) => h('th', null, t)))), tbody)));
+      draw();
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(gunsTab);
+
+  /* ----- 등장 탭 ----- */
+
+  const SPAWN_WEIGHT_MAX = 1000;
+  const SPAWN_COUNT_MAX = 64;
+  const SPAWN_MULT_MAX = 100;
+  const SPAWN_KEYS = [['weight', '가중치', SPAWN_WEIGHT_MAX], ['minCount', '최소', SPAWN_COUNT_MAX], ['maxCount', '최대', SPAWN_COUNT_MAX]];
+
+  function spawnIntRule(v, max) {
+    if (v === undefined || v === null) return '';
+    return Number.isInteger(v) && v >= 1 && v <= max ? '' : `1~${max} 사이 정수여야 합니다`;
+  }
+  function spawnMultRule(v) {
+    if (v === undefined) return '';
+    return isNum(v) && v >= 0 && v <= SPAWN_MULT_MAX ? '' : `0~${SPAWN_MULT_MAX} 사이 숫자여야 합니다 (0 = 끄기)`;
+  }
+
+  function validateSpawns(bundle) {
+    const out = [];
+    const dp = bundle.datapack;
+    if (!dp) return out;
+    for (const [id, o] of Object.entries(dp.spawnRules || {})) {
+      (o.spawners || []).forEach((s, i) => {
+        if (!s) return;
+        for (const [key, label, max] of SPAWN_KEYS) {
+          const m = spawnIntRule(s[key], max);
+          if (m) out.push(`등장 규칙 ${id} › ${i + 1}번 ${label}: ${m}`);
+        }
+        if (Number.isInteger(s.minCount) && Number.isInteger(s.maxCount) && s.minCount > s.maxCount) out.push(`등장 규칙 ${id} › ${i + 1}번: 최소 수가 최대 수보다 큽니다`);
+      });
+    }
+    for (const [id, v] of Object.entries(dp.spawnMobs || {})) {
+      const m = spawnMultRule(v);
+      if (m) out.push(`몹 등장 배율 ${id}: ${m}`);
+    }
+    return out;
+  }
+
+  const spawnUi = { query: '', category: 'monster', onlyChanged: false };
+
+  const spawnsTab = {
+    id: 'spawns',
+    title: '등장',
+    validate: validateSpawns,
+    render(container) {
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      const head = h('div', { class: 'card' }, h('h2', null, '몬스터 등장'),
+        h('p', { class: 'banner warn' }, '등장 설정은 서버를 재시작해야 적용됩니다. 저장하면 데이터팩 gett_balance 에 파일만 써 두고, 지금 켜져 있는 세계의 등장은 재시작 전까지 그대로입니다 (/reload 로도 바뀌지 않음).'),
+        cat && cat.spawnRestartPending ? h('p', { class: 'banner bad' }, '이번 서버 실행 중에 저장한 등장 변경이 있습니다 — 아직 적용되지 않았습니다. 서버를 재시작하세요.') : null);
+      container.append(head);
+      if (!cat || !dp) { head.append(dpMissing()); return null; }
+      let ruleChecks = makeChecks();
+      let mobChecks = makeChecks();
+
+      /* (a) 모드가 추가한 등장 규칙 */
+      const rules = dp.spawnRules;
+      const ruleCat = (cat.spawnRules || []).slice();
+      const knownRules = new Set(ruleCat.map((r) => r.id));
+      for (const id of Object.keys(rules)) if (!knownRules.has(id)) ruleCat.push({ id, mod: '', biomes: '', spawners: [], missing: true });
+      const origSpawners = (r) => (r.spawners || []).map((s) => ({ weight: s.weight, minCount: s.minCount, maxCount: s.maxCount }));
+      const sameAsOrig = (r, list) => (list || []).every((s, i) => !s || SPAWN_KEYS.every(([k]) => !r.spawners[i] || s[k] === r.spawners[i][k]));
+      const tidyRule = (r) => {
+        const st = rules[r.id];
+        if (!st) return;
+        if (!st.disabled) delete st.disabled;
+        if (st.spawners && sameAsOrig(r, st.spawners)) delete st.spawners;
+        if (!Object.keys(st).length) delete rules[r.id];
+      };
+      const ruleBody = h('tbody');
+      const drawRules = () => {
+        ruleChecks = makeChecks();
+        ruleBody.replaceChildren(...ruleCat.map((r) => {
+          const st = rules[r.id];
+          const off = !!(st && st.disabled);
+          const lines = (r.spawners || []).map((s, i) => {
+            const inputs = SPAWN_KEYS.map(([key, label, max]) => {
+              const cur = st && st.spawners && st.spawners[i] ? st.spawners[i][key] : undefined;
+              const shownVal = cur !== undefined && cur !== s[key] ? cur : '';
+              return h('label', { class: 'muted', style: 'margin-right:.4rem' }, label + ' ',
+                ruleChecks.add(h('input', { type: 'number', step: '1', style: 'width:4.2rem', disabled: off, 'aria-label': `${r.id} ${entityName(s.type)} ${label}`,
+                  placeholder: dpShown(s[key]), value: shownVal,
+                  oninput: (e) => {
+                    const raw = e.target.value.trim();
+                    const cur2 = rules[r.id] || (rules[r.id] = {});
+                    const list = cur2.spawners || (cur2.spawners = origSpawners(r));
+                    list[i][key] = raw === '' ? s[key] : Number(raw);
+                    tidyRule(r);
+                    changed();
+                  } }), () => {
+                  const x = rules[r.id] && rules[r.id].spawners && rules[r.id].spawners[i];
+                  if (!x) return '';
+                  const m = spawnIntRule(x[key], max);
+                  if (m) return m;
+                  return key !== 'weight' && Number.isInteger(x.minCount) && Number.isInteger(x.maxCount) && x.minCount > x.maxCount ? '최소 수가 최대 수보다 큽니다' : '';
+                }));
+            });
+            return h('div', { style: 'margin-bottom:.25rem' }, h('strong', null, entityName(s.type)), h('span', { class: 'id' }, ` ${s.type} · 원래 가중치 ${dpShown(s.weight)}, ${dpShown(s.minCount)}~${dpShown(s.maxCount)}마리`), h('div', null, ...inputs));
+          });
+          return h('tr', null,
+            h('td', null, h('div', null, r.missing ? '(서버에 없음 — 저장하면 무시)' : r.id), h('div', { class: 'id' }, r.mod)),
+            h('td', null, h('span', { class: 'muted' }, r.biomes || '')),
+            h('td', null, ...lines),
+            h('td', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: off, 'aria-label': `${r.id} 끄기`,
+              onchange: (e) => {
+                const cur2 = rules[r.id] || (rules[r.id] = {});
+                cur2.disabled = e.target.checked;
+                tidyRule(r);
+                changed(); drawRules();
+              } }), ' 끄기')),
+            h('td', null, st ? h('button', { class: 'small', 'aria-label': `${r.id} 원래대로`, onclick: () => {
+              delete rules[r.id]; changed(); drawRules();
+            } }, '원래대로') : null));
+        }));
+        ruleChecks.paint();
+      };
+
+      /* (b) 몹별 자연 등장 (모든 생물군계) */
+      const mobs = dp.spawnMobs;
+      const mobCat = (cat.spawnMobs || []).slice();
+      const knownMobs = new Set(mobCat.map((m) => m.entity));
+      for (const id of Object.keys(mobs)) if (!knownMobs.has(id)) mobCat.push({ entity: id, category: '', biomes: 0 });
+      mobCat.sort((a, b) => entityName(a.entity).localeCompare(entityName(b.entity)));
+      const mobBody = h('tbody');
+      const mobCount = h('span', { class: 'muted' });
+      const drawMobs = () => {
+        mobChecks = makeChecks();
+        const q = spawnUi.query.trim().toLowerCase();
+        const list = mobCat.filter((m) => (!spawnUi.onlyChanged || mobs[m.entity] !== undefined)
+          && (!spawnUi.category || !m.category || m.category === spawnUi.category)
+          && (!q || (entityName(m.entity) + ' ' + m.entity).toLowerCase().includes(q)));
+        mobCount.textContent = `${list.length}종`;
+        mobBody.replaceChildren(...list.map((m) => {
+          const cur = mobs[m.entity];
+          const off = cur === 0;
+          const inp = mobChecks.add(h('input', { type: 'number', step: 'any', style: 'width:4.5rem', disabled: off, 'aria-label': `${entityName(m.entity)} 등장 배율`,
+            placeholder: '1', value: off ? '' : shownNum(cur),
+            oninput: (e) => {
+              const raw = e.target.value.trim();
+              const v = Number(raw);
+              if (raw === '' || v === 1) delete mobs[m.entity]; else mobs[m.entity] = v;
+              changed();
+            } }), () => spawnMultRule(mobs[m.entity]));
+          const now = m.biomes ? `${m.biomes}곳 · 가중치 ${m.minWeight === m.maxWeight ? m.minWeight : m.minWeight + '~' + m.maxWeight} · ${m.minCount === m.maxCount ? m.minCount : m.minCount + '~' + m.maxCount}마리` : '지금은 자연 등장 없음';
+          return h('tr', null,
+            h('td', null, h('div', null, entityName(m.entity)), h('div', { class: 'id' }, m.entity)),
+            h('td', null, h('span', { class: 'muted' }, MOB_CATEGORY_LABEL[m.category] || m.category || '')),
+            h('td', null, h('span', { class: 'muted' }, now)),
+            h('td', null, inp, h('span', { class: 'muted' }, ' 배')),
+            h('td', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: off, 'aria-label': `${m.entity} 끄기`,
+              onchange: (e) => { if (e.target.checked) mobs[m.entity] = 0; else delete mobs[m.entity]; changed(); drawMobs(); } }), ' 끄기')),
+            h('td', null, cur !== undefined ? h('button', { class: 'small', 'aria-label': `${m.entity} 원래대로`, onclick: () => {
+              delete mobs[m.entity]; changed(); drawMobs();
+            } }, '원래대로') : null));
+        }));
+        mobChecks.paint();
+      };
+      const draw = () => { drawRules(); drawMobs(); };
+
+      const cats = Array.from(new Set(mobCat.map((m) => m.category).filter(Boolean))).sort();
+      const catSel = h('select', { 'aria-label': '분류', onchange: (e) => { spawnUi.category = e.target.value; draw(); } },
+        h('option', { value: '' }, '전체'), ...cats.map((c) => h('option', { value: c }, MOB_CATEGORY_LABEL[c] || c)));
+      catSel.value = cats.includes(spawnUi.category) ? spawnUi.category : '';
+      spawnUi.category = catSel.value;
+      const search = h('input', { type: 'search', placeholder: '몹 이름·id 검색', 'aria-label': '몹 검색', value: spawnUi.query, style: 'width:16rem',
+        oninput: (e) => { spawnUi.query = e.target.value; draw(); } });
+      const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: spawnUi.onlyChanged,
+        onchange: (e) => { spawnUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+
+      container.append(
+        h('div', { class: 'card' }, h('h2', null, '모드가 추가한 등장 규칙'),
+          h('p', { class: 'muted' }, '모드의 등장 규칙 파일(data/<모드>/neoforge/biome_modifier/…, neoforge:add_spawns) 입니다. 가중치·무리 수(최소~최대)를 바꾸거나 규칙을 끌 수 있습니다 (빈 칸 = 원래 값). 저장하면 그 파일의 사본을 데이터팩에 쓰고, "끄기"는 사본의 종류를 neoforge:none 으로 바꿉니다. "원래대로" = 사본 삭제.'),
+          ruleCat.length ? h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['규칙', '생물군계', '몹 · 가중치 · 무리 수', '', ''].map((t) => h('th', null, t)))), ruleBody))
+            : h('p', { class: 'muted' }, '모드가 추가한 등장 규칙이 없습니다.')),
+        h('div', { class: 'card' }, h('h2', null, '몹별 자연 등장 (모든 생물군계)'),
+          h('p', { class: 'muted' }, '몹 하나의 자연 등장 가중치를 모든 생물군계에서 몇 배로 할지 정합니다 (빈 칸 = 1배, 0 = 끄기). 바닐라 등장과 모드가 추가한 등장 모두에 곱해지고, 가중치는 반올림해 최소 1 입니다. 무리 수는 바꾸지 않습니다.'),
+          h('p', { class: 'muted' }, '"지금" 칸은 서버가 마지막으로 시작할 때 적용된 값입니다 (그때의 배율·끄기 포함). 사냥터 범위 안은 이 설정과 관계없이 자연 등장이 막혀 있습니다.'),
+          h('div', { class: 'field' }, search, catSel, onlyChanged, mobCount),
+          h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['몹', '분류', '지금 (생물군계 수 · 가중치 · 무리)', '배율', '', ''].map((t) => h('th', null, t)))), mobBody))));
+      draw();
+      return () => { ruleChecks.paint(); mobChecks.paint(); };
+    },
+  };
+  registerTab(spawnsTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

@@ -106,7 +106,7 @@ public final class BalanceService {
         }
     }
 
-    static String addSections(JsonObject root, JsonObject state, JsonObject catalog) {
+    public static String addSections(JsonObject root, JsonObject state, JsonObject catalog) {
         root.add(STATE, state);
         root.add(CATALOG, catalog);
         return root.toString();

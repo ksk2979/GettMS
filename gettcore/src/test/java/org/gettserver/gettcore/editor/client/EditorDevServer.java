@@ -18,6 +18,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import org.gettserver.gettcore.balance.BalanceService;
+import org.gettserver.gettcore.balance.GunBalance;
+import org.gettserver.gettcore.balance.SpawnBalance;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.data.RegistryChecks;
 import org.gettserver.gettcore.data.ShopDefinition;
@@ -35,6 +38,8 @@ import org.gettserver.gettcore.pet.boss.BossPoint;
 public final class EditorDevServer {
     private static EditorBundle current;
     private static EditorRefs refs;
+    /** Balance data pack overrides (guns / spawns), kept in memory only. */
+    private static JsonObject datapack = new JsonObject();
 
     private EditorDevServer() {}
 
@@ -63,7 +68,7 @@ public final class EditorDevServer {
         String catalog = catalog();
         EditorBackend backend = new EditorBackend() {
             @Override public String snapshotJson() {
-                synchronized (EditorDevServer.class) { return EditorJson.encode(current, refs); }
+                synchronized (EditorDevServer.class) { return withBalance(EditorJson.encode(current, refs)); }
             }
             @Override public String catalogJson() { return catalog; }
             @Override public Optional<byte[]> iconPng(String namespace, String path) { return Optional.empty(); }
@@ -85,10 +90,16 @@ public final class EditorDevServer {
             EditorBundle decoded = EditorJson.decode(bundleJson);
             EditorValidator.Result r = EditorValidator.validate(decoded, RegistryChecks.ALL_EXIST);
             r.errors().forEach(errors::add);
+            JsonObject balance = BalanceService.desiredOf(bundleJson);
+            if (balance != null) BalanceService.validate(balance).forEach(errors::add);
             r.warnings().forEach(warnings::add);
-            if (r.errors().isEmpty()) {
+            if (errors.isEmpty()) {
                 current = r.cleaned();
-                snapshot = EditorJson.encode(current, refs);
+                if (balance != null) {
+                    datapack = balance;
+                    warnings.add("(dev) 총·등장은 메모리에만 저장 — 실제 서버는 데이터팩 사본을 씀");
+                }
+                snapshot = withBalance(EditorJson.encode(current, refs));
             }
             System.out.println("save: " + bundleJson.length() + " bytes, errors=" + r.errors()
                     + " warnings=" + r.warnings());
@@ -131,6 +142,35 @@ public final class EditorDevServer {
         }
         return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect,
                 b.reinforce(), b.hunting(), b.mobs(), b.equipment());
+    }
+
+    /** Snapshot + the balance sections with a few real-looking mod files (trimmed). */
+    private static String withBalance(String snapshotJson) {
+        java.util.Map<ResourceLocation, JsonObject> guns = new LinkedHashMap<>();
+        guns.put(ResourceLocation.parse("cgs:weapons/revolver.json"), JsonParser.parseString(
+                "{\"general\":{\"rate\":10,\"maxAmmo\":6,\"equipTime\":0,\"reloadTime\":60,\"recoilAngle\":-7.0,\"spread\":1.0},"
+                        + "\"ammoData\":{\"cgs:round_revolver\":{\"projectile\":{\"damage\":8.0}},"
+                        + "\"cgs:round_revolver_piercing\":{\"projectile\":{\"damage\":12.0}}}}").getAsJsonObject());
+        guns.put(ResourceLocation.parse("ntgl:weapons/guns/shotgun.json"), JsonParser.parseString(
+                "{\"general\":{\"rate\":15,\"maxAmmo\":5,\"reloadTime\":10,\"recoilAngle\":-15.0,\"spread\":10.0},"
+                        + "\"ammoData\":{\"ntgl:shotshell\":{\"projectile\":{\"damage\":1.0}}}}").getAsJsonObject());
+        java.util.Map<ResourceLocation, JsonObject> rules = new LinkedHashMap<>();
+        rules.put(ResourceLocation.parse("wom:neoforge/biome_modifier/spawn_hollow.json"), JsonParser.parseString(
+                "{\"type\":\"neoforge:add_spawns\",\"biomes\":\"#minecraft:is_overworld\","
+                        + "\"spawners\":{\"type\":\"wom:hollow\",\"weight\":60,\"minCount\":1,\"maxCount\":1}}").getAsJsonObject());
+        JsonObject cat = new JsonObject();
+        cat.addProperty("packEnabled", true);
+        cat.addProperty("spawnRestartPending", datapack.size() > 0);
+        cat.add(BalanceService.GUNS, GunBalance.catalog(guns));
+        cat.add(BalanceService.SPAWN_RULES, SpawnBalance.ruleCatalog(rules));
+        cat.add(BalanceService.SPAWN_MOBS, SpawnBalance.mobRows(List.of(
+                new SpawnBalance.Spawn("minecraft:zombie", "monster", 95, 4, 4),
+                new SpawnBalance.Spawn("minecraft:zombie", "monster", 19, 4, 4),
+                new SpawnBalance.Spawn("minecraft:skeleton", "monster", 80, 4, 4),
+                new SpawnBalance.Spawn("wom:hollow", "monster", 60, 1, 1),
+                new SpawnBalance.Spawn("minecraft:cow", "creature", 8, 4, 4)), List.of()));
+        return BalanceService.addSections(JsonParser.parseString(snapshotJson).getAsJsonObject(),
+                datapack.deepCopy(), cat);
     }
 
     private static String catalog() {
