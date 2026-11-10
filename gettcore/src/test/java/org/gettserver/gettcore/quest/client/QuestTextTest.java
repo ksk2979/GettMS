@@ -65,6 +65,21 @@ class QuestTextTest {
     }
 
     @Test
+    void monsterKillLabel() throws Exception {
+        TranslatableContents c = tr(QuestText.objectiveLabel(obj("kill", "@monster", "", 0, 10, false),
+                Component.literal("@monster")));
+        assertEquals("gettcore.quest.obj.kill_monster", c.getKey());
+        assertArrayEquals(new Object[] {10}, c.getArgs());
+        try (var in = QuestTextTest.class.getResourceAsStream("/assets/gettcore/lang/ko_kr.json")) {
+            assertNotNull(in);
+            var json = com.google.gson.JsonParser.parseReader(
+                    new java.io.InputStreamReader(in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+            String format = json.get(c.getKey()).getAsString();
+            assertEquals("몬스터 10마리 처치", String.format(format, c.getArgs()));
+        }
+    }
+
+    @Test
     void particleFollowsFinalConsonant() {
         assertEquals("과", QuestText.waGwa("이장"));
         assertEquals("와", QuestText.waGwa("대장장이"));

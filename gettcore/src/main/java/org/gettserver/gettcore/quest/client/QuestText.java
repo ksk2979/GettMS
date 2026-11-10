@@ -31,7 +31,9 @@ public final class QuestText {
         if (!o.label().isBlank()) return Component.literal(o.label());
         return switch (o.type()) {
             case "collect" -> Component.translatable("gettcore.quest.obj.collect", targetName, o.required());
-            case "kill" -> Component.translatable("gettcore.quest.obj.kill", targetName, o.required());
+            case "kill" -> "@monster".equals(o.target())
+                    ? Component.translatable("gettcore.quest.obj.kill_monster", o.required())
+                    : Component.translatable("gettcore.quest.obj.kill", targetName, o.required());
             case "advancement" -> Component.translatable("gettcore.quest.obj.advancement", targetName);
             case "talk" -> Component.translatable("gettcore.quest.obj.talk", targetName,
                     waGwa(targetName.getString()));

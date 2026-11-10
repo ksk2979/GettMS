@@ -2,11 +2,15 @@ package org.gettserver.gettcore.quest.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
@@ -21,7 +25,9 @@ import org.gettserver.gettcore.network.QuestSyncPayload.ObjState;
 
 /**
  * One quest: title, description, objectives and rewards. OFFER shows 수락, REPORT 보상 받기 (each sends one
- * {@link QuestActionPayload} and closes), VIEW only 닫기. Opened from a {@link QuestDetailPayload}. Client only.
+ * {@link QuestActionPayload} and closes), VIEW only 닫기. Opened from a {@link QuestDetailPayload}. "Pick one" reward
+ * choices are shown under the rewards: view only in OFFER/VIEW; in REPORT one must be clicked (highlighted) before
+ * 보상 받기 is enabled, and its index is sent. Client only.
  */
 public class QuestScreen extends Screen {
     static final int BOX_BG = 0xE0101018;
@@ -31,8 +37,10 @@ public class QuestScreen extends Screen {
     private static final int FOOTER_H = 30;
     private static final int ICON = 18;
     private static final int LINE_H = 10;
+    /** Pitch of one choice slot (18 px box + 2 px gap). */
+    private static final int SLOT = 20;
 
-    private sealed interface Row permits TextRow, GoldRow, ItemsRow, Gap {}
+    private sealed interface Row permits TextRow, GoldRow, ItemsRow, ChoicesRow, Gap {}
 
     private record TextRow(FormattedCharSequence text, int color) implements Row {}
 
@@ -40,12 +48,21 @@ public class QuestScreen extends Screen {
 
     private record ItemsRow(List<ItemStack> stacks) implements Row {}
 
+    private record ChoicesRow(List<ItemStack> stacks) implements Row {}
+
     private record Gap(int height) implements Row {}
+
+    /** Top-left of one visible choice slot, rebuilt every frame. */
+    private record Hit(int index, int x, int y) {}
 
     private final QuestDetailPayload data;
     private final Screen parent;
     private final List<Row> rows = new ArrayList<>();
+    private final List<Hit> choiceHits = new ArrayList<>();
     private boolean sent;
+    /** Picked choice index (REPORT only), -1 = none yet. */
+    private int chosen = -1;
+    private Button primary;
     private int panelX;
     private int panelY;
     private int panelW;
@@ -95,22 +112,53 @@ public class QuestScreen extends Screen {
             QuestActionPayload.Action action = data.mode() == Mode.OFFER
                     ? QuestActionPayload.Action.ACCEPT : QuestActionPayload.Action.REPORT;
             String key = data.mode() == Mode.OFFER ? "gettcore.quest.screen.accept" : "gettcore.quest.screen.report";
-            Button primary = Button.builder(Component.translatable(key), b -> act(b, action))
+            primary = Button.builder(Component.translatable(key), b -> act(b, action))
                     .bounds(panelX + panelW / 2 - btnW - 4, btnY, btnW, 20).build();
-            primary.active = !sent;
+            updatePrimary();
             addRenderableWidget(primary);
             close.setX(panelX + panelW / 2 + 4);
         }
         addRenderableWidget(close);
     }
 
+    /** A report of a quest with reward choices: one must be picked first. */
+    private boolean mustChoose() {
+        return data.mode() == Mode.REPORT && !data.choices().isEmpty();
+    }
+
+    private void updatePrimary() {
+        if (primary == null) return;
+        primary.active = !sent && (!mustChoose() || chosen >= 0);
+        primary.setTooltip(mustChoose() && chosen < 0
+                ? Tooltip.create(Component.translatable("gettcore.quest.screen.choose_hint")) : null);
+    }
+
     /** Sends the answer once (a double click would otherwise get a false "expired" error), then closes. */
     private void act(Button button, QuestActionPayload.Action action) {
         if (sent) return;
+        boolean report = action == QuestActionPayload.Action.REPORT;
+        if (report && mustChoose() && chosen < 0) return;
         sent = true;
         button.active = false;
-        PacketDistributor.sendToServer(new QuestActionPayload(data.lineId(), data.questId(), action, -1));
+        int choice = report && mustChoose() ? chosen : -1;
+        PacketDistributor.sendToServer(new QuestActionPayload(data.lineId(), data.questId(), action, choice));
         onClose();
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int top = panelY + HEADER_H;
+        if (button == 0 && mustChoose() && !sent && mouseY >= top && mouseY < top + bodyH) {
+            for (Hit h : choiceHits) {
+                if (mouseX >= h.x() && mouseX < h.x() + ICON && mouseY >= h.y() && mouseY < h.y() + ICON) {
+                    chosen = h.index();
+                    updatePrimary();
+                    minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                    return true;
+                }
+            }
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
@@ -157,8 +205,14 @@ public class QuestScreen extends Screen {
                     textW);
             any = true;
         }
-        if (!any) text(Component.translatable("gettcore.quest.screen.no_rewards").withStyle(ChatFormatting.GRAY),
-                textW);
+        if (!any && data.choices().isEmpty()) {
+            text(Component.translatable("gettcore.quest.screen.no_rewards").withStyle(ChatFormatting.GRAY), textW);
+        }
+        if (!data.choices().isEmpty()) {
+            rows.add(new Gap(4));
+            text(Component.translatable("gettcore.quest.screen.choose").withStyle(ChatFormatting.GOLD), textW);
+            rows.add(new ChoicesRow(data.choices()));
+        }
     }
 
     private void heading(String key, int textW) {
@@ -173,11 +227,16 @@ public class QuestScreen extends Screen {
         return Math.max(1, textW / ICON);
     }
 
+    private static int slotsPerLine(int textW) {
+        return Math.max(1, (textW + 2) / SLOT);
+    }
+
     private static int height(Row r, int textW) {
         return switch (r) {
             case TextRow t -> LINE_H;
             case GoldRow gr -> LINE_H + 1;
             case ItemsRow ir -> ((ir.stacks().size() + perLine(textW) - 1) / perLine(textW)) * ICON;
+            case ChoicesRow cr -> ((cr.stacks().size() + slotsPerLine(textW) - 1) / slotsPerLine(textW)) * SLOT;
             case Gap gap -> gap.height();
         };
     }
@@ -211,6 +270,8 @@ public class QuestScreen extends Screen {
         int top = panelY + HEADER_H;
         int textW = panelW - 16;
         ItemStack hovered = ItemStack.EMPTY;
+        ItemStack hoveredChoice = ItemStack.EMPTY;
+        choiceHits.clear();
         g.enableScissor(panelX, top, panelX + panelW, top + bodyH);
         int y = top - scroll;
         for (Row r : rows) {
@@ -236,6 +297,23 @@ public class QuestScreen extends Screen {
                             }
                         }
                     }
+                    case ChoicesRow cr -> {
+                        int per = slotsPerLine(textW);
+                        for (int i = 0; i < cr.stacks().size(); i++) {
+                            ItemStack s = cr.stacks().get(i);
+                            int sx = x + (i % per) * SLOT;
+                            int sy = y + (i / per) * SLOT;
+                            boolean over = mouseX >= sx && mouseX < sx + ICON && mouseY >= sy && mouseY < sy + ICON
+                                    && mouseY >= top && mouseY < top + bodyH;
+                            drawSlot(g, sx, sy, i == chosen, over && mustChoose() && !sent);
+                            if (!s.isEmpty()) {
+                                g.renderItem(s, sx + 1, sy + 1);
+                                g.renderItemDecorations(font, s, sx + 1, sy + 1);
+                            }
+                            if (sy + ICON > top && sy < top + bodyH) choiceHits.add(new Hit(i, sx, sy));
+                            if (over) hoveredChoice = s;
+                        }
+                    }
                     case Gap gap -> { }
                 }
             }
@@ -249,6 +327,26 @@ public class QuestScreen extends Screen {
             g.fill(panelX + panelW - 4, barY, panelX + panelW - 2, barY + barH, 0xA0A0A0C0);
         }
         if (!hovered.isEmpty()) g.renderTooltip(font, hovered, mouseX, mouseY);
+        if (!hoveredChoice.isEmpty()) {
+            // 툴팁: "아이템 이름 ×개수" + 기본 설명 줄.
+            List<Component> tip = new ArrayList<>(getTooltipFromItem(minecraft, hoveredChoice));
+            if (!tip.isEmpty()) {
+                tip.set(0, tip.get(0).copy().append(Component.literal(" ×" + hoveredChoice.getCount())
+                        .withStyle(ChatFormatting.GRAY)));
+            }
+            g.renderTooltip(font, tip, Optional.empty(), mouseX, mouseY);
+        }
+    }
+
+    /** Choice slot: dark box with a gray border; 2 px yellow border when picked, light fill on hover. */
+    private static void drawSlot(GuiGraphics g, int x, int y, boolean picked, boolean hover) {
+        g.fill(x, y, x + ICON, y + ICON, hover ? 0x60FFFFFF : 0x60000000);
+        int c = picked ? 0xFFFFFF55 : 0xFF606070;
+        int t = picked ? 2 : 1;
+        g.fill(x, y, x + ICON, y + t, c);
+        g.fill(x, y + ICON - t, x + ICON, y + ICON, c);
+        g.fill(x, y, x + t, y + ICON, c);
+        g.fill(x + ICON - t, y, x + ICON, y + ICON, c);
     }
 
     static void box(GuiGraphics g, int x1, int y1, int x2, int y2) {
