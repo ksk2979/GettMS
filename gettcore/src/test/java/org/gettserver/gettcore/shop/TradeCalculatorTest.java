@@ -33,6 +33,18 @@ class TradeCalculatorTest {
     }
 
     @Test
+    void matchesAcceptsCustomDataOnly() {
+        // Naturalist bug-net catches (ant, butterfly...) carry the caught entity in custom_data.
+        ItemStack s = new ItemStack(Items.CARROT);
+        net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+        tag.putString("EntityTag", "x");
+        s.set(DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(tag));
+        assertTrue(TradeCalculator.matches(s, CARROT));
+        s.set(DataComponents.CUSTOM_NAME, Component.literal("x"));
+        assertFalse(TradeCalculator.matches(s, CARROT));
+    }
+
+    @Test
     void countSellableSumsStacks() {
         List<ItemStack> inv = List.of(new ItemStack(Items.CARROT, 64), new ItemStack(Items.DIAMOND, 3),
                 new ItemStack(Items.CARROT, 10), ItemStack.EMPTY);

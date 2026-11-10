@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.shop;
 
 import java.util.List;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
@@ -10,10 +11,14 @@ import net.minecraft.world.item.ItemStack;
 public final class TradeCalculator {
     private TradeCalculator() {}
 
+    /**
+     * Plain stacks only (renamed, damaged, enchanted... are refused), except that a {@code custom_data} change is
+     * allowed: mods park per-stack bookkeeping there, e.g. Naturalist bug-net catches hold the caught entity.
+     */
     public static boolean matches(ItemStack stack, ResourceLocation itemId) {
         return !stack.isEmpty()
                 && BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(itemId)
-                && stack.getComponentsPatch().isEmpty();
+                && stack.getComponentsPatch().forget(t -> t == DataComponents.CUSTOM_DATA).isEmpty();
     }
 
     public static int countSellable(List<ItemStack> inv, ResourceLocation itemId) {
