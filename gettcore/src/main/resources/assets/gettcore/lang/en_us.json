@@ -327,5 +327,8 @@
   "caramelChat v%s": "",
   "block.gettcore.sturdy_anvil": "Sturdy Anvil",
   "gettcore.container.invsee": "%s's Inventory",
-  "gettcore.container.endersee": "%s's Ender Chest"
+  "gettcore.container.endersee": "%s's Ender Chest",
+  "gettcore.spectate.on": "Spectate on — other players cannot see you. /spectate to turn off",
+  "gettcore.spectate.off": "Spectate off — you are visible again.",
+  "gettcore.spectate.still_on": "You are hidden in spectate mode. /spectate to turn off"
 }
