@@ -16,17 +16,19 @@ import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.QuestSyncPayload;
 
 /**
- * Client copy of the latest main-line quest sync, plus the tracker HUD on/off switch (K) and its position (Ctrl+-).
- * Both are kept in {@code config/gettcore-client.properties} so they survive restarts. Client only.
+ * Client copy of the latest quest sync, plus the tracker HUD on/off switch (K), its position and height (Ctrl+-).
+ * All are kept in {@code config/gettcore-client.properties} so they survive restarts. Client only.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class ClientQuestState {
     private static final String FILE = "gettcore-client.properties";
     private static final String HUD_KEY = "questHud";
+    private static final String MAX_LINES_KEY = "hud.maxLines";
 
     private static volatile QuestSyncPayload sync = QuestSyncPayload.empty();
     private static Boolean hudVisible;
     private static HudPosition hudPosition;
+    private static Integer maxLines;
 
     private ClientQuestState() {}
 
@@ -62,6 +64,18 @@ public final class ClientQuestState {
         save(pos::write);
     }
 
+    /** Tracker HUD height in text rows ({@code hud.maxLines}, {@link HudScroll#MIN_LINES}..{@link HudScroll#MAX_LINES}). */
+    public static int maxLines() {
+        if (maxLines == null) loadAll();
+        return maxLines;
+    }
+
+    /** Clamps, uses and saves the HUD height, keeping the other keys of the file. */
+    public static void saveMaxLines(int lines) {
+        maxLines = HudScroll.clampLines(lines);
+        save(props -> props.setProperty(MAX_LINES_KEY, Integer.toString(maxLines)));
+    }
+
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         sync = QuestSyncPayload.empty();
@@ -85,6 +99,16 @@ public final class ClientQuestState {
         }
         if (hudVisible == null) hudVisible = !"false".equalsIgnoreCase(props.getProperty(HUD_KEY, "true").trim());
         if (hudPosition == null) hudPosition = HudPosition.read(props);
+        if (maxLines == null) maxLines = readMaxLines(props.getProperty(MAX_LINES_KEY));
+    }
+
+    private static int readMaxLines(String value) {
+        if (value == null) return HudScroll.DEFAULT_LINES;
+        try {
+            return HudScroll.clampLines(Integer.parseInt(value.trim()));
+        } catch (NumberFormatException e) {
+            return HudScroll.DEFAULT_LINES;
+        }
     }
 
     /** Re-reads the file, applies {@code change} and writes it back so other keys survive. */

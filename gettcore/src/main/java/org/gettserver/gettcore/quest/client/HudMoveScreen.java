@@ -9,7 +9,9 @@ import org.lwjgl.glfw.GLFW;
 /**
  * Ctrl+-: move the quest tracker HUD. The box is drawn where it sits (real quest, or a sample when there is none);
  * drag it or nudge it with the arrow keys. 저장 writes the position and closes, 초기화 puts it back to the default
- * (not saved yet), 취소/Esc closes without saving. Nothing changes the live position until 저장. Client only.
+ * (not saved yet), 취소/Esc closes without saving. Nothing changes the live position until 저장. Above them,
+ * {@code [-] 높이 N줄 [+]} changes the box height ({@code hud.maxLines}); that is saved at once and the preview box
+ * shows the full height. Client only.
  */
 public final class HudMoveScreen extends Screen {
     private static final int DIM = 0x60000000;
@@ -17,9 +19,13 @@ public final class HudMoveScreen extends Screen {
     private static final int BUTTON_W = 70;
     private static final int BUTTON_H = 20;
     private static final int GAP = 4;
+    private static final int SMALL_W = 20;
+    private static final int LABEL_W = 90;
 
     private HudPosition pos;
     private QuestHud.Layout box;
+    private int maxLines;
+    private Button heightLabel;
     private boolean dragging;
     private double dragMouseX;
     private double dragMouseY;
@@ -29,6 +35,7 @@ public final class HudMoveScreen extends Screen {
     public HudMoveScreen() {
         super(Component.translatable("gettcore.quest.hud.move_title"));
         this.pos = ClientQuestState.hudPosition();
+        this.maxLines = ClientQuestState.maxLines();
     }
 
     @Override
@@ -38,7 +45,7 @@ public final class HudMoveScreen extends Screen {
 
     @Override
     protected void init() {
-        box = QuestHud.layout(font, QuestHud.linesOrSample());
+        box = QuestHud.previewLayout(font, maxLines);
         int total = 3 * BUTTON_W + 2 * GAP;
         int x = (width - total) / 2;
         int y = height - BUTTON_H - 8;
@@ -50,12 +57,35 @@ public final class HudMoveScreen extends Screen {
                 b -> pos = HudPosition.DEFAULT).bounds(x + BUTTON_W + GAP, y, BUTTON_W, BUTTON_H).build());
         addRenderableWidget(Button.builder(Component.translatable("gettcore.quest.hud.move_cancel"), b -> onClose())
                 .bounds(x + 2 * (BUTTON_W + GAP), y, BUTTON_W, BUTTON_H).build());
+
+        int hTotal = 2 * SMALL_W + LABEL_W + 2 * GAP;
+        int hx = (width - hTotal) / 2;
+        int hy = y - BUTTON_H - GAP;
+        addRenderableWidget(Button.builder(Component.literal("-"), b -> changeHeight(-1))
+                .bounds(hx, hy, SMALL_W, BUTTON_H).build());
+        heightLabel = addRenderableWidget(Button.builder(heightText(), b -> {})
+                .bounds(hx + SMALL_W + GAP, hy, LABEL_W, BUTTON_H).build());
+        heightLabel.active = false;
+        addRenderableWidget(Button.builder(Component.literal("+"), b -> changeHeight(1))
+                .bounds(hx + SMALL_W + LABEL_W + 2 * GAP, hy, SMALL_W, BUTTON_H).build());
+    }
+
+    private Component heightText() {
+        return Component.translatable("gettcore.quest.hud.move_height", maxLines);
+    }
+
+    /** Steps the height by {@code delta} rows, saves it at once and refreshes the preview. */
+    private void changeHeight(int delta) {
+        maxLines = HudScroll.clampLines(maxLines + delta);
+        ClientQuestState.saveMaxLines(maxLines);
+        heightLabel.setMessage(heightText());
+        box = QuestHud.previewLayout(font, maxLines);
     }
 
     @Override
     public void tick() {
         // Keep the real lines in step with sync updates arriving while the screen is open.
-        if (!dragging) box = QuestHud.layout(font, QuestHud.linesOrSample());
+        if (!dragging) box = QuestHud.previewLayout(font, maxLines);
     }
 
     private int boxLeft() {
