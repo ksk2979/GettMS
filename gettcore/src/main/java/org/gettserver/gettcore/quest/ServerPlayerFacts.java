@@ -2,6 +2,7 @@ package org.gettserver.gettcore.quest;
 
 import java.util.Optional;
 import java.util.function.Predicate;
+import org.gettserver.gettcore.pet.entity.GettPet;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -10,7 +11,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /** {@link PlayerFacts} read live from a server player (whole inventory incl. armor/offhand, advancements). */
@@ -84,10 +87,14 @@ public final class ServerPlayerFacts implements PlayerFacts {
     public static Predicate<String> killMatcher(Entity victim) {
         EntityType<?> type = victim.getType();
         ResourceLocation key = EntityType.getKey(type);
-        return target -> ItemTargets.parse(target).map(t -> {
+        return target -> "@monster".equals(target) ? isHostileMonster(victim) : ItemTargets.parse(target).map(t -> {
             ResourceLocation rl = ResourceLocation.tryParse(t.id());
             if (rl == null) return false;
             return t.tag() ? type.is(TagKey.create(Registries.ENTITY_TYPE, rl)) : rl.equals(key);
         }).orElse(false);
+    }
+
+    private static boolean isHostileMonster(Entity v) {
+        return v instanceof Enemy && !(v instanceof GettPet) && !(v instanceof Player);
     }
 }
