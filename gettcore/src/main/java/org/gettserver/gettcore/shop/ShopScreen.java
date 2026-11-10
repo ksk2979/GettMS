@@ -28,6 +28,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private static final int TAB_Y = 6;
     private static final int TAB_W = 24;
     private static final int TAB_H = 22;
+    private static final int ARROW_W = (TabStrip.SLOTS - TabStrip.OVERFLOW_SLOTS) * TAB_W / 2;
     private static final int LIST_X = 8;
     private static final int LIST_Y = 32;
     private static final int LIST_W = 160;
@@ -42,6 +43,8 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private record Row(ShopEntry entry, int owned) {}
 
     private int selectedTab;
+    /** 탭 줄에서 맨 왼쪽에 보이는 탭 번호 (탭이 7개를 넘을 때만 의미 있음). */
+    private int tabOffset;
     private int scroll;
     private boolean draggingBar;
     private QuantityPopup popup;
@@ -220,13 +223,18 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         }
         ShopDefinition def = definition();
         if (def != null) {
-            for (int i = 0; i < def.tabs().size(); i++) {
+            int total = def.tabs().size();
+            tabOffset = TabStrip.clampOffset(tabOffset, total);
+            for (int i = 0; i < total; i++) {
+                int x = tabX(i, total);
+                if (x < 0) continue;
                 ShopTab tab = def.tabs().get(i);
-                int x = leftPos + LIST_X + i * TAB_W;
                 int y = topPos + TAB_Y;
                 g.fill(x, y, x + TAB_W - 2, y + TAB_H, i == selectedTab ? 0xFFFFF6DC : 0xFFD9C9A0);
                 g.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(tab.icon())), x + 3, y + 3);
             }
+            if (canScrollTabs(total, -1)) renderTabArrow(g, arrowX(-1), "◁");
+            if (canScrollTabs(total, 1)) renderTabArrow(g, arrowX(1), "▷");
         }
         List<Row> rows = rows();
         scroll = Math.max(0, Math.min(scroll, Math.max(0, rows.size() - VISIBLE_ROWS)));
@@ -247,6 +255,35 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             g.drawCenteredString(font, label, bx + BTN_W / 2, by + 4, enabled ? 0xFFFFFFFF : 0xFFDDDDDD);
         }
         renderScrollbar(g, rows.size());
+    }
+
+    /** 보이는 탭이면 화면 x, 아니면 -1. 넘칠 때는 왼쪽 화살표 자리만큼 밀린다. */
+    private int tabX(int i, int total) {
+        int visible = TabStrip.visibleCount(total);
+        if (i < tabOffset || i >= tabOffset + visible) return -1;
+        int start = leftPos + LIST_X + (TabStrip.overflows(total) ? ARROW_W : 0);
+        return start + (i - tabOffset) * TAB_W;
+    }
+
+    /** dir -1 = ◁ (줄 왼쪽 끝), 1 = ▷ (줄 오른쪽 끝). */
+    private int arrowX(int dir) {
+        return dir < 0 ? leftPos + LIST_X : leftPos + LIST_X + TabStrip.SLOTS * TAB_W - ARROW_W;
+    }
+
+    private boolean canScrollTabs(int total, int dir) {
+        if (!TabStrip.overflows(total)) return false;
+        return dir < 0 ? tabOffset > 0 : tabOffset + TabStrip.visibleCount(total) < total;
+    }
+
+    private void renderTabArrow(GuiGraphics g, int x, String arrow) {
+        int y = topPos + TAB_Y;
+        g.fill(x, y, x + ARROW_W - 2, y + TAB_H, 0xFFD9C9A0);
+        g.drawCenteredString(font, arrow, x + (ARROW_W - 2) / 2, y + (TAB_H - 8) / 2, 0xFF3B2F1C);
+    }
+
+    private boolean overTabRow(double mouseX, double mouseY) {
+        return mouseX >= leftPos + LIST_X && mouseX < leftPos + LIST_X + TabStrip.SLOTS * TAB_W
+                && mouseY >= topPos + TAB_Y && mouseY < topPos + TAB_Y + TAB_H;
     }
 
     /** 목록 오른쪽의 드래그 가능한 스크롤바. 행이 화면보다 적으면 트랙만 흐리게 그린다. */
@@ -334,10 +371,11 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (popup == null) renderTooltip(g, mouseX, mouseY);
         ShopDefinition def = definition();
         if (def != null && popup == null) {
-            for (int i = 0; i < def.tabs().size(); i++) {
-                int x = leftPos + LIST_X + i * TAB_W;
+            int total = def.tabs().size();
+            for (int i = 0; i < total; i++) {
+                int x = tabX(i, total);
                 int y = topPos + TAB_Y;
-                if (mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
+                if (x >= 0 && mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
                     g.renderTooltip(font, Component.literal(def.tabs().get(i).name()), mouseX, mouseY);
                 }
             }
@@ -385,11 +423,21 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (popup != null) return popup.mouseClicked(mouseX, mouseY, button);
         ShopDefinition def = definition();
         if (def != null && button == 0) {
-            for (int i = 0; i < def.tabs().size(); i++) {
-                int x = leftPos + LIST_X + i * TAB_W;
-                int y = topPos + TAB_Y;
-                if (mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
+            int total = def.tabs().size();
+            int y = topPos + TAB_Y;
+            for (int dir : new int[] {-1, 1}) {
+                int ax = arrowX(dir);
+                if (canScrollTabs(total, dir) && mouseX >= ax && mouseX < ax + ARROW_W - 2
+                        && mouseY >= y && mouseY < y + TAB_H) {
+                    tabOffset = TabStrip.clampOffset(tabOffset + dir, total);
+                    return true;
+                }
+            }
+            for (int i = 0; i < total; i++) {
+                int x = tabX(i, total);
+                if (x >= 0 && mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
                     selectedTab = i;
+                    tabOffset = TabStrip.ensureVisible(tabOffset, i, total);
                     scroll = 0;
                     return true;
                 }
@@ -419,6 +467,12 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (popup != null) return true;
+        ShopDefinition def = definition();
+        if (def != null && overTabRow(mouseX, mouseY)) {
+            int total = def.tabs().size();
+            if (scrollY != 0) tabOffset = TabStrip.clampOffset(tabOffset - (int) Math.signum(scrollY), total);
+            return true;
+        }
         if (mouseX >= leftPos + LIST_X && mouseX < leftPos + LIST_X + LIST_W
                 && mouseY >= topPos + LIST_Y && mouseY < topPos + LIST_Y + VISIBLE_ROWS * ROW_H) {
             scroll = Math.max(0, scroll - (int) Math.signum(scrollY));
