@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "min": 10,
+  "max": 1000,
+  "healthRate": 0.5,
+  "attackRate": 1.0,
+  "armorRate": 1.0,
+  "overrides": {
+    "minecraft:enderman": 40,
+    "wom:hollow": 80
+  }
+}

@@ -31,6 +31,7 @@ import org.gettserver.gettcore.editor.EditorValidator;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
+import org.gettserver.gettcore.fieldgold.FieldGoldConfig;
 import org.gettserver.gettcore.mobs.MobStatsConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
@@ -50,7 +51,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "equipment.json", "upgrade.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "equipment.json", "upgrade.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -87,6 +88,7 @@ public final class GettData {
     private volatile ReinforceConfig reinforce = ReinforceConfig.DEFAULT;
     private volatile HuntingConfig hunting = HuntingConfig.DEFAULT;
     private volatile MobStatsConfig mobs = MobStatsConfig.DEFAULT;
+    private volatile FieldGoldConfig fieldGold = FieldGoldConfig.DEFAULT;
     private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile UpgradeConfig upgrade = UpgradeConfig.DEFAULT;
     private volatile Path configDir;
@@ -197,6 +199,11 @@ public final class GettData {
         MobStatsConfig newMobs = Files.isRegularFile(mobsFile)
                 ? read(mobsFile, MobStatsConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(mobs)
                 : MobStatsConfig.DEFAULT;
+        // An unreadable field_gold.json keeps the config already loaded.
+        Path fieldGoldFile = dir.resolve(FieldGoldConfig.FILE);
+        FieldGoldConfig newFieldGold = Files.isRegularFile(fieldGoldFile)
+                ? read(fieldGoldFile, FieldGoldConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(fieldGold)
+                : FieldGoldConfig.DEFAULT;
         Path equipmentFile = dir.resolve(EquipmentConfig.FILE);
         EquipmentConfig newEquipment = Files.isRegularFile(equipmentFile)
                 ? read(equipmentFile, EquipmentConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(equipment)
@@ -222,6 +229,7 @@ public final class GettData {
         reinforce = newReinforce;
         hunting = newHunting;
         mobs = newMobs;
+        fieldGold = newFieldGold;
         equipment = newEquipment;
         upgrade = newUpgrade;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
@@ -662,6 +670,11 @@ public final class GettData {
         JsonElement json = HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow(IOException::new);
         writeJson(dir.resolve(HuntingConfig.FILE), json);
         hunting = config;
+    }
+
+    /** Field monster kill gold from field_gold.json (sanitized). */
+    public FieldGoldConfig fieldGold() {
+        return fieldGold;
     }
 
     /** Per entity type base stat overrides from mobs.json (sanitized). */

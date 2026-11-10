@@ -21,7 +21,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import org.gettserver.gettcore.GettCore;
 
-/** 귀환석 시전 중인 플레이어 발밑에 회전하는 마법진 텍스처를 그린다. */
+/** 귀환서 시전 중인 플레이어 발밑에 회전하는 마법진 텍스처를 그린다. */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class MagicCircleRenderer {
     private static final ResourceLocation TEXTURE = GettCore.id("textures/effect/magic_circle.png");
