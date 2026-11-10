@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -31,7 +32,9 @@ import org.gettserver.gettcore.network.QuestSyncPayload;
 
 /**
  * Server side of the quest system: judges progress with {@link QuestEngine}, applies rewards, talks to the client.
- * Only the {@value #MAIN_LINE} line is auto-advanced and synced to the HUD (spec §5.2). Server thread only.
+ * Judged lines (spec §5.2): the {@value #MAIN_LINE} line plus every sub line the player started or unlocked
+ * ({@link QuestLines#judged}); other non-sub lines are only opened through explicit dialog actions, as before.
+ * Server thread only.
  */
 public final class QuestService {
     public static final String MAIN_LINE = "main";
@@ -52,6 +55,17 @@ public final class QuestService {
         return GettData.get().questLine(MAIN_LINE);
     }
 
+    private static Function<String, QuestProgress> progressOf(QuestData data, UUID player) {
+        return id -> data.progress(player, id);
+    }
+
+    /** Lines judged for this player, in {@link QuestLines#judged} order (main first, then sub lines by id). */
+    private static List<QuestLine> judgedLines(QuestData data, UUID player) {
+        return QuestLines.judged(GettData.get().allQuestLines(), progressOf(data, player)).stream()
+                .filter(l -> l.isSub() || MAIN_LINE.equals(l.id()))
+                .toList();
+    }
+
     // ---- judging ----
 
     /** Applies automatic transitions, handles their events and sends a sync if anything the HUD shows changed. */
@@ -60,14 +74,14 @@ public final class QuestService {
             sync(player);
             return;
         }
-        Optional<QuestLine> line = mainLine();
-        if (line.isPresent()) {
-            QuestData data = QuestData.get(player.server);
-            QuestProgress progress = data.progress(player.getUUID(), MAIN_LINE);
-            List<QuestEvent> events = QuestEngine.advance(line.get(), progress, new ServerPlayerFacts(player));
+        QuestData data = QuestData.get(player.server);
+        ServerPlayerFacts facts = new ServerPlayerFacts(player);
+        for (QuestLine line : judgedLines(data, player.getUUID())) {
+            QuestProgress progress = data.progress(player.getUUID(), line.id());
+            List<QuestEvent> events = QuestEngine.advance(line, progress, facts);
             if (!events.isEmpty()) {
                 data.setDirty();
-                handle(player, events, false);
+                handle(player, line, events, "", 0);
             }
         }
         sync(player);
@@ -112,13 +126,11 @@ public final class QuestService {
         }
     }
 
-    /** A player killed {@code victim}: counts kill objectives of the accepted main quest. */
+    /** {@code player} gets credit for killing {@code victim}: counts kill objectives of every judged line. */
     public static void onKill(ServerPlayer player, Entity victim) {
-        Optional<QuestLine> line = mainLine();
-        if (line.isEmpty()) return;
         QuestData data = QuestData.get(player.server);
-        QuestProgress progress = data.progress(player.getUUID(), MAIN_LINE);
-        if (QuestEngine.onKill(line.get(), progress, ServerPlayerFacts.killMatcher(victim))) {
+        UUID id = player.getUUID();
+        if (QuestLines.applyKill(judgedLines(data, id), progressOf(data, id), ServerPlayerFacts.killMatcher(victim))) {
             data.setDirty();
             requestRefresh(player);
         }
@@ -127,10 +139,9 @@ public final class QuestService {
     /** Called when a dialog with an NPC opens, before choices are built: records talk objectives and refreshes. */
     public static void onDialogOpen(ServerPlayer player, String npcName) {
         try {
-            Optional<QuestLine> line = mainLine();
-            if (line.isPresent()) {
-                QuestData data = QuestData.get(player.server);
-                if (QuestEngine.onTalk(line.get(), data.progress(player.getUUID(), MAIN_LINE), npcName)) {
+            QuestData data = QuestData.get(player.server);
+            for (QuestLine line : judgedLines(data, player.getUUID())) {
+                if (QuestEngine.onTalk(line, data.progress(player.getUUID(), line.id()), npcName)) {
                     data.setDirty();
                 }
             }
@@ -141,17 +152,24 @@ public final class QuestService {
         }
     }
 
-    /** Label of the main quest choice to put on top of this NPC's start node, if the current quest needs this NPC. */
-    public static Optional<String> injectedChoice(ServerPlayer player, String npcName) {
+    /**
+     * Quest choices to put on top of this NPC's start node, one per judged line whose current quest this NPC starts
+     * (not accepted yet) or takes the report of (objectives done). Main first, then sub lines.
+     */
+    public static List<QuestDialogs.Injected> injectedChoices(ServerPlayer player, String npcName) {
         try {
-            Optional<QuestLine> line = mainLine();
-            if (line.isEmpty()) return Optional.empty();
-            QuestProgress progress = QuestData.get(player.server).progress(player.getUUID(), MAIN_LINE);
-            return QuestDialogs.injectedLabel(
-                    QuestEngine.status(line.get(), progress, new ServerPlayerFacts(player)), npcName);
+            QuestData data = QuestData.get(player.server);
+            ServerPlayerFacts facts = new ServerPlayerFacts(player);
+            List<QuestDialogs.Injected> out = new ArrayList<>();
+            for (QuestLine line : judgedLines(data, player.getUUID())) {
+                QuestStatus status = QuestEngine.status(line, data.progress(player.getUUID(), line.id()), facts);
+                QuestDialogs.injectedLabel(status, npcName, line.isSub())
+                        .ifPresent(label -> out.add(new QuestDialogs.Injected(line.id(), label)));
+            }
+            return out;
         } catch (RuntimeException e) {
             GettCore.LOGGER.error("gettcore: quest choice check failed for {}", player.getGameProfile().getName(), e);
-            return Optional.empty();
+            return List.of();
         }
     }
 
@@ -174,7 +192,13 @@ public final class QuestService {
             player.sendSystemMessage(Component.translatable("gettcore.quest.no_line", lineId));
             return;
         }
-        QuestProgress progress = QuestData.get(player.server).progress(player.getUUID(), lineId);
+        QuestData data = QuestData.get(player.server);
+        QuestProgress progress = data.progress(player.getUUID(), lineId);
+        if (line.get().isSub() && !QuestLines.started(progress)
+                && !QuestLines.requirementMet(line.get(), progressOf(data, player.getUUID()))) {
+            player.sendSystemMessage(Component.translatable("gettcore.quest.not_ready").withStyle(ChatFormatting.RED));
+            return;
+        }
         QuestStatus status = QuestEngine.status(line.get(), progress, new ServerPlayerFacts(player));
         Optional<Mode> mode = QuestDialogs.detailMode(status, npcName);
         if (mode.isEmpty()) {
@@ -188,16 +212,18 @@ public final class QuestService {
             PENDING.put(player.getUUID(), new Pending(entityId, npcName, lineId, q.id(),
                     System.currentTimeMillis() + ACTION_WINDOW_MS));
         }
-        PacketDistributor.sendToPlayer(player, detail(q, QuestViews.objStates(status.objectives()), mode.get()));
+        PacketDistributor.sendToPlayer(player, detail(lineId, q, QuestViews.objStates(status.objectives()),
+                mode.get()));
     }
 
-    /** Read-only screen of any main-line quest (quest list): live rows for the current one, else done/locked rows. */
-    private static void sendView(ServerPlayer player, String questId) {
-        Optional<QuestLine> line = mainLine();
+    /** Read-only screen of any quest of a line the player sees (quest list): live rows for the current one. */
+    private static void sendView(ServerPlayer player, String lineId, String questId) {
+        Optional<QuestLine> line = GettData.get().questLine(lineId);
         if (line.isEmpty()) return;
         Quest q = line.get().quests().stream().filter(x -> x.id().equals(questId)).findFirst().orElse(null);
         if (q == null) return;
-        QuestProgress progress = QuestData.get(player.server).progress(player.getUUID(), MAIN_LINE);
+        QuestProgress progress = QuestData.get(player.server).progress(player.getUUID(), lineId);
+        if (line.get().isSub() && !QuestLines.started(progress)) return; // not on the player's list yet
         QuestStatus status = QuestEngine.status(line.get(), progress, new ServerPlayerFacts(player));
         List<QuestSyncPayload.ObjState> rows;
         if (status.quest().map(c -> c.id().equals(questId)).orElse(false)) {
@@ -205,30 +231,36 @@ public final class QuestService {
         } else {
             rows = QuestViews.staticStates(q, progress.completed().contains(questId));
         }
-        PacketDistributor.sendToPlayer(player, detail(q, rows, Mode.VIEW));
+        PacketDistributor.sendToPlayer(player, detail(lineId, q, rows, Mode.VIEW));
     }
 
-    private static QuestDetailPayload detail(Quest q, List<QuestSyncPayload.ObjState> rows, Mode mode) {
-        List<ItemStack> items = new ArrayList<>();
-        for (ItemReward r : q.rewards().items()) {
+    private static QuestDetailPayload detail(String lineId, Quest q, List<QuestSyncPayload.ObjState> rows,
+                                             Mode mode) {
+        return new QuestDetailPayload(lineId, q.id(), q.title(), q.description(), q.completeText(), rows,
+                q.rewards().gold(), stacks(q.rewards().items()), stacks(q.choices()), q.rewards().xp(), mode);
+    }
+
+    private static List<ItemStack> stacks(List<ItemReward> rewards) {
+        List<ItemStack> out = new ArrayList<>();
+        for (ItemReward r : rewards) {
             Item item = BuiltInRegistries.ITEM.get(r.item());
-            if (item != Items.AIR) items.add(new ItemStack(item, r.count()));
+            if (item != Items.AIR) out.add(new ItemStack(item, r.count()));
         }
-        return new QuestDetailPayload(q.id(), q.title(), q.description(), q.completeText(), rows, q.rewards().gold(),
-                List.copyOf(items), q.rewards().xp(), mode);
+        return List.copyOf(out);
     }
 
     /** Accept/report button of a quest screen, or a VIEW request from the quest list. */
     public static void onAction(ServerPlayer player, QuestActionPayload payload) {
         if (payload.action() == QuestActionPayload.Action.VIEW) {
-            sendView(player, payload.questId());
+            sendView(player, payload.lineId(), payload.questId());
             return;
         }
         if (!player.isAlive()) return;
         UUID uuid = player.getUUID();
         Pending pend = PENDING.get(uuid);
-        if (pend == null && alreadyCompleted(player, payload.questId())) return; // e.g. a double click on report
-        if (pend == null || System.currentTimeMillis() > pend.expiresAt() || !pend.questId().equals(payload.questId())) {
+        if (pend == null && alreadyCompleted(player, payload.lineId(), payload.questId())) return; // double click
+        if (pend == null || System.currentTimeMillis() > pend.expiresAt() || !pend.questId().equals(payload.questId())
+                || !pend.lineId().equals(payload.lineId())) {
             PENDING.remove(uuid);
             player.sendSystemMessage(Component.translatable("gettcore.quest.expired").withStyle(ChatFormatting.RED));
             return;
@@ -238,18 +270,29 @@ public final class QuestService {
             player.sendSystemMessage(Component.translatable("gettcore.quest.too_far").withStyle(ChatFormatting.RED));
             return;
         }
-        PENDING.remove(uuid);
         Optional<QuestLine> line = GettData.get().questLine(pend.lineId());
-        if (line.isEmpty()) return;
+        if (line.isEmpty()) {
+            PENDING.remove(uuid);
+            return;
+        }
         QuestData data = QuestData.get(player.server);
         QuestProgress progress = data.progress(uuid, pend.lineId());
         ServerPlayerFacts facts = new ServerPlayerFacts(player);
+        // Re-judged now: e.g. another line's report may have taken the items this report needs (spec §5.2).
         QuestStatus status = QuestEngine.status(line.get(), progress, facts);
-        QuestStatus.Phase expected = payload.action() == QuestActionPayload.Action.ACCEPT
-                ? QuestStatus.Phase.WAIT_START : QuestStatus.Phase.READY_TO_REPORT;
+        boolean report = payload.action() == QuestActionPayload.Action.REPORT;
+        QuestStatus.Phase expected = report ? QuestStatus.Phase.READY_TO_REPORT : QuestStatus.Phase.WAIT_START;
         boolean sameQuest = status.quest().map(q -> q.id().equals(payload.questId())).orElse(false);
+        boolean ready = sameQuest && status.phase() == expected;
+        if (ready && report && !QuestDialogs.validChoice(status.quest().get(), payload.choice())) {
+            // Keep PENDING so the player can pick a reward and press again.
+            player.sendSystemMessage(Component.translatable("gettcore.quest.choose_reward")
+                    .withStyle(ChatFormatting.YELLOW));
+            return;
+        }
+        PENDING.remove(uuid);
         List<QuestEvent> events = new ArrayList<>();
-        if (sameQuest && status.phase() == expected) {
+        if (ready) {
             events.addAll(QuestEngine.interact(line.get(), progress, facts, pend.npcName()));
             // Same visit counts as talking to this NPC (e.g. the first quest: start at 이장 + talk to 이장).
             if (QuestEngine.onTalk(line.get(), progress, pend.npcName())) {
@@ -257,45 +300,65 @@ public final class QuestService {
             }
         }
         if (events.isEmpty()) {
-            player.sendSystemMessage(Component.translatable("gettcore.quest.not_ready").withStyle(ChatFormatting.RED));
+            boolean itemsGone = report && sameQuest && status.phase() == QuestStatus.Phase.ACTIVE;
+            player.sendSystemMessage(Component.translatable(itemsGone ? "gettcore.quest.items_missing"
+                    : "gettcore.quest.not_ready").withStyle(ChatFormatting.RED));
         } else {
             data.setDirty();
-            handle(player, events, true);
+            handle(player, line.get(), events, report ? payload.questId() : "", payload.choice());
         }
-        if (MAIN_LINE.equals(pend.lineId())) sync(player);
+        sync(player);
     }
 
-    private static boolean alreadyCompleted(ServerPlayer player, String questId) {
+    private static boolean alreadyCompleted(ServerPlayer player, String lineId, String questId) {
+        if (GettData.get().questLine(lineId).isEmpty()) return false;
+        return QuestData.get(player.server).progress(player.getUUID(), lineId).completed().contains(questId);
+    }
+
+    /** Shows or hides a sub line on the player's HUD (saved; progress continues). Ignored for unknown/main lines. */
+    public static void setHidden(ServerPlayer player, String lineId, boolean hidden) {
+        Optional<QuestLine> line = GettData.get().questLine(lineId);
+        if (line.isEmpty() || !line.get().isSub()) return;
         QuestData data = QuestData.get(player.server);
-        for (QuestLine l : GettData.get().allQuestLines()) {
-            if (l.quests().stream().anyMatch(q -> q.id().equals(questId))
-                    && data.progress(player.getUUID(), l.id()).completed().contains(questId)) {
-                return true;
-            }
-        }
-        return false;
+        QuestPrefs prefs = data.prefs(player.getUUID());
+        boolean changed = hidden ? prefs.hidden().add(lineId) : prefs.hidden().remove(lineId);
+        if (changed) data.setDirty();
+        sync(player);
     }
 
     // ---- events, rewards ----
 
     /**
-     * Notifies and rewards. {@code consume}: remove consume=true collect items of npc-complete quests (only on a real
-     * report, never for auto completion or admin completion).
+     * Notifies and rewards the events of one line. {@code reportedQuestId}: the quest the player just reported at its
+     * NPC ("" for none) — only that one consumes its consume=true collect items and gets reward {@code choice}; every
+     * other completion (auto, admin) gets choice 0.
      */
-    private static void handle(ServerPlayer player, List<QuestEvent> events, boolean consume) {
+    private static void handle(ServerPlayer player, QuestLine line, List<QuestEvent> events, String reportedQuestId,
+                               int choice) {
         for (QuestEvent e : events) {
             Quest q = e.quest();
             switch (e.kind()) {
-                case ACCEPTED -> PacketDistributor.sendToPlayer(player,
-                        new QuestNotifyPayload(QuestNotifyPayload.Kind.ACCEPTED, q.title(), 0));
+                case ACCEPTED -> {
+                    if (line.isSub()) {
+                        QuestData data = QuestData.get(player.server);
+                        data.prefs(player.getUUID()).noteStarted(line.id());
+                        data.setDirty();
+                    }
+                    PacketDistributor.sendToPlayer(player,
+                            new QuestNotifyPayload(QuestNotifyPayload.Kind.ACCEPTED, q.title(), 0));
+                }
                 case COMPLETED -> {
-                    if (consume && q.complete().type() == QuestTrigger.Type.NPC) consumeItems(player, q);
-                    long paid = giveRewards(player, q);
+                    boolean reported = q.id().equals(reportedQuestId);
+                    if (reported && q.complete().type() == QuestTrigger.Type.NPC) consumeItems(player, q);
+                    long paid = giveRewards(player, q, reported ? choice : 0);
                     PacketDistributor.sendToPlayer(player,
                             new QuestNotifyPayload(QuestNotifyPayload.Kind.COMPLETED, q.title(), paid));
-                    player.sendSystemMessage(Component.translatable("gettcore.quest.completed", q.title())
+                    player.sendSystemMessage(Component.translatable(
+                                    line.isSub() ? "gettcore.quest.completed_sub" : "gettcore.quest.completed",
+                                    q.title())
                             .withStyle(ChatFormatting.GOLD));
-                    GettCore.LOGGER.info("gettcore: {} completed quest {}", player.getGameProfile().getName(), q.id());
+                    GettCore.LOGGER.info("gettcore: {} completed quest {} of {}", player.getGameProfile().getName(),
+                            q.id(), line.id());
                 }
             }
         }
@@ -311,8 +374,11 @@ public final class QuestService {
         }
     }
 
-    /** Returns the gold actually deposited (0 when the deposit failed; the player is told in chat). */
-    private static long giveRewards(ServerPlayer player, Quest q) {
+    /**
+     * Gives the fixed rewards plus {@code q.choices().get(choice)} when {@code choice} is in range. Returns the gold
+     * actually deposited (0 when the deposit failed; the player is told in chat).
+     */
+    private static long giveRewards(ServerPlayer player, Quest q, int choice) {
         Rewards r = q.rewards();
         long paid = 0;
         if (r.gold() > 0) {
@@ -328,22 +394,8 @@ public final class QuestService {
             }
         }
         boolean dropped = false;
-        for (ItemReward ir : r.items()) {
-            Item item = BuiltInRegistries.ITEM.get(ir.item());
-            if (item == Items.AIR) continue;
-            int max = new ItemStack(item).getMaxStackSize();
-            int left = ir.count();
-            while (left > 0) {
-                int n = Math.min(left, max);
-                left -= n;
-                ItemStack stack = new ItemStack(item, n);
-                player.getInventory().add(stack);
-                if (!stack.isEmpty()) {
-                    player.drop(stack, false);
-                    dropped = true;
-                }
-            }
-        }
+        for (ItemReward ir : r.items()) dropped |= giveItem(player, ir);
+        if (choice >= 0 && choice < q.choices().size()) dropped |= giveItem(player, q.choices().get(choice));
         if (dropped) {
             player.sendSystemMessage(Component.translatable("gettcore.quest.reward_dropped")
                     .withStyle(ChatFormatting.YELLOW));
@@ -352,52 +404,95 @@ public final class QuestService {
         return paid;
     }
 
+    /** Adds the stacks to the inventory, dropping what does not fit. True when something was dropped. */
+    private static boolean giveItem(ServerPlayer player, ItemReward ir) {
+        Item item = BuiltInRegistries.ITEM.get(ir.item());
+        if (item == Items.AIR) return false;
+        boolean dropped = false;
+        int max = new ItemStack(item).getMaxStackSize();
+        int left = ir.count();
+        while (left > 0) {
+            int n = Math.min(left, max);
+            left -= n;
+            ItemStack stack = new ItemStack(item, n);
+            player.getInventory().add(stack);
+            if (!stack.isEmpty()) {
+                player.drop(stack, false);
+                dropped = true;
+            }
+        }
+        return dropped;
+    }
+
     // ---- sync ----
 
-    /** Sends the HUD payload when it differs from the last one sent to this player. */
+    /**
+     * Sends the HUD payload when it differs from the last one sent to this player: the main line, then the started sub
+     * lines in first-started order ({@link QuestPrefs#ordered}).
+     */
     public static void sync(ServerPlayer player) {
-        QuestSyncPayload payload = mainLine().map(line -> {
-            QuestProgress progress = QuestData.get(player.server).progress(player.getUUID(), MAIN_LINE);
-            return QuestViews.sync(line, progress,
-                    QuestEngine.status(line, progress, new ServerPlayerFacts(player)));
-        }).orElseGet(QuestSyncPayload::empty);
-        if (payload.equals(LAST_SENT.get(player.getUUID()))) return;
-        LAST_SENT.put(player.getUUID(), payload);
+        QuestData data = QuestData.get(player.server);
+        UUID id = player.getUUID();
+        ServerPlayerFacts facts = new ServerPlayerFacts(player);
+        List<QuestSyncPayload.LineView> views = new ArrayList<>();
+        mainLine().ifPresent(line -> views.add(view(line, data.progress(id, MAIN_LINE), facts, false)));
+        Map<String, QuestLine> started = new HashMap<>();
+        for (QuestLine l : GettData.get().allQuestLines()) {
+            if (l.isSub() && QuestLines.started(data.progress(id, l.id()))) started.put(l.id(), l);
+        }
+        QuestPrefs prefs = data.prefs(id);
+        for (String lineId : prefs.ordered(started.keySet())) {
+            views.add(view(started.get(lineId), data.progress(id, lineId), facts, prefs.hidden().contains(lineId)));
+        }
+        QuestSyncPayload payload = new QuestSyncPayload(List.copyOf(views));
+        if (payload.equals(LAST_SENT.get(id))) return;
+        LAST_SENT.put(id, payload);
         PacketDistributor.sendToPlayer(player, payload);
+    }
+
+    private static QuestSyncPayload.LineView view(QuestLine line, QuestProgress progress, PlayerFacts facts,
+                                                  boolean hidden) {
+        return QuestViews.lineView(line, progress, QuestEngine.status(line, progress, facts), hidden);
     }
 
     // ---- admin ----
 
-    /** Deletes all quest progress of the player and re-judges from the start. */
-    public static void adminReset(ServerPlayer player) {
-        QuestData.get(player.server).reset(player.getUUID());
+    /** Deletes the quest progress of the player — every line (and prefs) when {@code lineId} is empty — and re-judges. */
+    public static void adminReset(ServerPlayer player, Optional<String> lineId) {
+        QuestData data = QuestData.get(player.server);
+        lineId.ifPresentOrElse(l -> data.resetLine(player.getUUID(), l), () -> data.reset(player.getUUID()));
         PENDING.remove(player.getUUID());
         refresh(player);
     }
 
-    /** Completes the current main quest with rewards (accepted or not). Returns it, or empty when the line is done. */
-    public static Optional<Quest> adminComplete(ServerPlayer player) {
-        Optional<QuestLine> line = mainLine();
+    /**
+     * Completes the current quest of {@code lineId} with rewards (accepted or not; first reward choice when it has
+     * choices). Returns it, or empty when the line is unknown or done.
+     */
+    public static Optional<Quest> adminComplete(ServerPlayer player, String lineId) {
+        Optional<QuestLine> line = GettData.get().questLine(lineId);
         if (line.isEmpty()) return Optional.empty();
         QuestData data = QuestData.get(player.server);
-        QuestProgress progress = data.progress(player.getUUID(), MAIN_LINE);
+        QuestProgress progress = data.progress(player.getUUID(), lineId);
         ServerPlayerFacts facts = new ServerPlayerFacts(player);
         Optional<Quest> cur = QuestEngine.current(line.get(), progress);
         if (cur.isEmpty()) return Optional.empty();
         List<QuestEvent> events = QuestEngine.forceComplete(line.get(), progress, facts);
         data.setDirty();
         PENDING.remove(player.getUUID());
-        handle(player, events, false);
+        handle(player, line.get(), events, "", 0);
+        if (line.get().isSub()) data.prefs(player.getUUID()).noteStarted(lineId);
         sync(player);
         return cur;
     }
 
-    /** Marks every main quest before {@code questId} completed (no rewards). False when the id is unknown. */
-    public static boolean adminGoto(ServerPlayer player, String questId) {
-        Optional<QuestLine> line = mainLine();
+    /** Marks every quest of {@code lineId} before {@code questId} completed (no rewards). False when unknown. */
+    public static boolean adminGoto(ServerPlayer player, String lineId, String questId) {
+        Optional<QuestLine> line = GettData.get().questLine(lineId);
         if (line.isEmpty()) return false;
         QuestData data = QuestData.get(player.server);
-        if (!QuestEngine.jumpTo(line.get(), data.progress(player.getUUID(), MAIN_LINE), questId)) return false;
+        if (!QuestEngine.jumpTo(line.get(), data.progress(player.getUUID(), lineId), questId)) return false;
+        if (line.get().isSub()) data.prefs(player.getUUID()).noteStarted(lineId);
         data.setDirty();
         PENDING.remove(player.getUUID());
         refresh(player);

@@ -11,11 +11,12 @@ import org.gettserver.gettcore.GettCore;
 /**
  * Server to client: open the quest screen for one quest. OFFER shows an accept button, REPORT a "보상 받기" button
  * (both answered with {@link QuestActionPayload}), VIEW is read-only. The dialog screen is closed just before this is
- * sent. {@code items} are reward stacks (count may exceed the max stack size).
+ * sent. {@code lineId} is the quest's line (sent back in the action). {@code items} are reward stacks always given
+ * (count may exceed the max stack size); {@code choices} are the "pick one" reward stacks (empty when none).
  */
-public record QuestDetailPayload(String questId, String title, String description, String completeText,
-                                 List<QuestSyncPayload.ObjState> objectives, long gold, List<ItemStack> items, int xp,
-                                 Mode mode) implements CustomPacketPayload {
+public record QuestDetailPayload(String lineId, String questId, String title, String description, String completeText,
+                                 List<QuestSyncPayload.ObjState> objectives, long gold, List<ItemStack> items,
+                                 List<ItemStack> choices, int xp, Mode mode) implements CustomPacketPayload {
     public enum Mode { OFFER, REPORT, VIEW }
 
     public static final Type<QuestDetailPayload> TYPE = new Type<>(GettCore.id("quest_detail"));
@@ -25,6 +26,7 @@ public record QuestDetailPayload(String questId, String title, String descriptio
             StreamCodec.of((buf, p) -> p.write(buf), QuestDetailPayload::read);
 
     private void write(RegistryFriendlyByteBuf buf) {
+        buf.writeUtf(lineId);
         buf.writeUtf(questId);
         buf.writeUtf(title);
         buf.writeUtf(description);
@@ -32,14 +34,15 @@ public record QuestDetailPayload(String questId, String title, String descriptio
         buf.writeCollection(objectives, QuestSyncPayload::writeObj);
         buf.writeVarLong(gold);
         ITEMS.encode(buf, items);
+        ITEMS.encode(buf, choices);
         buf.writeVarInt(xp);
         buf.writeEnum(mode);
     }
 
     private static QuestDetailPayload read(RegistryFriendlyByteBuf buf) {
-        return new QuestDetailPayload(buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readUtf(),
-                buf.readList(QuestSyncPayload::readObj), buf.readVarLong(), ITEMS.decode(buf), buf.readVarInt(),
-                buf.readEnum(Mode.class));
+        return new QuestDetailPayload(buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readUtf(), buf.readUtf(),
+                buf.readList(QuestSyncPayload::readObj), buf.readVarLong(), ITEMS.decode(buf), ITEMS.decode(buf),
+                buf.readVarInt(), buf.readEnum(Mode.class));
     }
 
     @Override

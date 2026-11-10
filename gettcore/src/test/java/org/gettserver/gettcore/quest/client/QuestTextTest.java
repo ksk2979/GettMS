@@ -26,12 +26,12 @@ class QuestTextTest {
         return assertInstanceOf(TranslatableContents.class, c.getContents());
     }
 
-    private static QuestSyncPayload sync(Phase phase, String questId, String npc, List<ObjState> objs,
-                                         List<String> done) {
-        return new QuestSyncPayload("main", "메인 퀘스트", "준비 중", phase == Phase.LINE_DONE ? "" : questId,
+    private static QuestSyncPayload.LineView sync(Phase phase, String questId, String npc, List<ObjState> objs,
+                                                  List<String> done) {
+        return new QuestSyncPayload.LineView("main", "메인 퀘스트", "", "준비 중", phase == Phase.LINE_DONE ? "" : questId,
                 "1장. 시작", phase == Phase.LINE_DONE ? "" : "나무 모으기", phase, npc, objs, done,
                 List.of(new QuestSummary("a", "1장. 시작", "첫 걸음"), new QuestSummary("b", "1장. 시작", "나무 모으기"),
-                        new QuestSummary("c", "2장. 광산", "철 캐기")));
+                        new QuestSummary("c", "2장. 광산", "철 캐기")), false);
     }
 
     @Test
@@ -123,7 +123,8 @@ class QuestTextTest {
                 o -> Component.literal(o.label()));
         assertEquals(List.of("메인 퀘스트", "준비 중"), done.stream().map(Component::getString).toList());
 
-        assertTrue(QuestText.hudLines(QuestSyncPayload.empty(), o -> LOG).isEmpty());
+        assertTrue(QuestText.hudLines(new QuestSyncPayload.LineView("", "", "", "", "", "", "", Phase.LINE_DONE, "",
+                List.of(), List.of(), List.of(), false), o -> LOG).isEmpty());
     }
 
     @Test

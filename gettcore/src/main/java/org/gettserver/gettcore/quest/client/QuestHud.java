@@ -40,7 +40,7 @@ public final class QuestHud {
         if (mc.options.hideGui || mc.player == null) return;
         if (mc.screen != null && !(mc.screen instanceof ChatScreen)) return;
         if (!ClientQuestState.hudVisible()) return;
-        List<Component> lines = QuestText.hudLines(ClientQuestState.get(), QuestHud::label);
+        List<Component> lines = mainLines();
         if (lines.isEmpty()) return;
 
         Layout box = layout(mc.font, lines);
@@ -76,9 +76,14 @@ public final class QuestHud {
         }
     }
 
+    /** HUD lines of the main line (sub lines come with the list HUD, Task 5). */
+    private static List<Component> mainLines() {
+        return ClientQuestState.get().main().map(l -> QuestText.hudLines(l, QuestHud::label)).orElse(List.of());
+    }
+
     /** The lines the HUD would show now, or a sample quest when there is no main line (for the move screen). */
     public static List<Component> linesOrSample() {
-        List<Component> lines = QuestText.hudLines(ClientQuestState.get(), QuestHud::label);
+        List<Component> lines = mainLines();
         if (!lines.isEmpty()) return lines;
         return List.of(
                 Component.translatable("gettcore.quest.hud.sample_title").withStyle(ChatFormatting.YELLOW),

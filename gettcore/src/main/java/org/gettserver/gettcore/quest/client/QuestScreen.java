@@ -109,7 +109,7 @@ public class QuestScreen extends Screen {
         if (sent) return;
         sent = true;
         button.active = false;
-        PacketDistributor.sendToServer(new QuestActionPayload(data.questId(), action));
+        PacketDistributor.sendToServer(new QuestActionPayload(data.lineId(), data.questId(), action, -1));
         onClose();
     }
 

@@ -111,6 +111,9 @@ public final class GettNetwork {
                 }));
         registrar.playToServer(QuestActionPayload.TYPE, QuestActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> QuestService.onAction((ServerPlayer) ctx.player(), payload)));
+        registrar.playToServer(QuestHidePayload.TYPE, QuestHidePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> QuestService.setHidden((ServerPlayer) ctx.player(),
+                        payload.lineId(), payload.hidden())));
         registrar.playToServer(EditorSaveChunkPayload.TYPE, EditorSaveChunkPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> EditorServerService.onChunk((ServerPlayer) ctx.player(), payload)));

@@ -11,7 +11,9 @@ import org.gettserver.gettcore.network.QuestSyncPayload.QuestSummary;
 public final class QuestViews {
     private QuestViews() {}
 
-    public static QuestSyncPayload sync(QuestLine line, QuestProgress progress, QuestStatus status) {
+    /** One line of the sync payload. {@code hidden}: the player hid this sub line from the HUD. */
+    public static QuestSyncPayload.LineView lineView(QuestLine line, QuestProgress progress, QuestStatus status,
+                                                     boolean hidden) {
         List<QuestSummary> quests = new ArrayList<>(line.quests().size());
         List<String> completed = new ArrayList<>();
         Set<String> done = progress.completed();
@@ -20,10 +22,10 @@ public final class QuestViews {
             if (done.contains(q.id()) && !completed.contains(q.id())) completed.add(q.id());
         }
         Quest cur = status.quest().orElse(null);
-        return new QuestSyncPayload(line.id(), line.name(), line.endText(),
+        return new QuestSyncPayload.LineView(line.id(), line.name(), line.giver().orElse(""), line.endText(),
                 cur == null ? "" : cur.id(), cur == null ? "" : cur.chapter(), cur == null ? "" : cur.title(),
                 status.phase(), QuestDialogs.hudNpc(status), objStates(status.objectives()), List.copyOf(completed),
-                List.copyOf(quests));
+                List.copyOf(quests), hidden);
     }
 
     public static List<ObjState> objStates(List<ObjectiveState> states) {

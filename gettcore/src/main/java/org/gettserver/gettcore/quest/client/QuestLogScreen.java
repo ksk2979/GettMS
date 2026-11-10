@@ -26,7 +26,11 @@ public class QuestLogScreen extends Screen {
     private static final int YELLOW = 0xFFFFFF55;
     private static final int GRAY = 0xFF808080;
 
-    private QuestSyncPayload seen;
+    /** Shown when no main line was sent. */
+    private static final QuestSyncPayload.LineView NO_LINE = new QuestSyncPayload.LineView("", "", "", "", "", "", "",
+            Phase.LINE_DONE, "", List.of(), List.of(), List.of(), false);
+
+    private QuestSyncPayload.LineView seen;
     private List<LogEntry> entries = List.of();
     private String selectedId = "";
     private int listScroll;
@@ -71,7 +75,7 @@ public class QuestLogScreen extends Screen {
 
     /** Rebuilds the rows when a new sync arrived; keeps the selection if that quest still exists. */
     private void refresh(boolean force) {
-        QuestSyncPayload s = ClientQuestState.get();
+        QuestSyncPayload.LineView s = ClientQuestState.get().main().orElse(NO_LINE);
         if (!force && s == seen) return;
         seen = s;
         entries = QuestText.logEntries(s);
@@ -88,7 +92,8 @@ public class QuestLogScreen extends Screen {
     private void requestDetails(Button b) {
         if (!isCurrent(selectedId)) return;
         b.active = false;
-        PacketDistributor.sendToServer(new QuestActionPayload(selectedId, QuestActionPayload.Action.VIEW));
+        PacketDistributor.sendToServer(new QuestActionPayload(seen.lineId(), selectedId,
+                QuestActionPayload.Action.VIEW, -1));
     }
 
     @Override

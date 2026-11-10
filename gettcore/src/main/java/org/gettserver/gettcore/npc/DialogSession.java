@@ -29,10 +29,11 @@ public final class DialogSession {
     private DialogSession() {}
 
     /**
-     * {@code questInjected}: the node was sent with the main quest choice at index 0, so client indices are shifted by
-     * one (see {@link QuestDialogs#resolve}).
+     * {@code injectedLines}: the node was sent with these lines' quest choices at indices 0..n-1, so client indices of
+     * node choices are shifted by n (see {@link QuestDialogs#resolve}).
      */
-    public record Session(String dialogId, String nodeId, int npcEntityId, String npcName, boolean questInjected) {}
+    public record Session(String dialogId, String nodeId, int npcEntityId, String npcName,
+                          List<String> injectedLines) {}
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
 
@@ -64,9 +65,10 @@ public final class DialogSession {
             close(player);
             return;
         }
-        QuestDialogs.Choice choice = QuestDialogs.resolve(session.questInjected(), index, node.choices().size());
+        QuestDialogs.Choice choice = QuestDialogs.resolve(session.injectedLines().size(), index,
+                node.choices().size());
         if (choice.quest()) {
-            openQuest(player, session, QuestService.MAIN_LINE);
+            openQuest(player, session, session.injectedLines().get(choice.questIndex()));
             return;
         }
         if (!choice.valid()) {
@@ -135,13 +137,14 @@ public final class DialogSession {
 
     private static void send(ServerPlayer player, String dialogId, String nodeId, int npcEntityId, String npcName,
                              DialogDefinition def, DialogNode node) {
-        // The main quest choice goes on top of the start node only.
-        Optional<String> questLabel = nodeId.equals(def.start())
-                ? QuestService.injectedChoice(player, npcName) : Optional.empty();
-        Session session = new Session(dialogId, nodeId, npcEntityId, npcName, questLabel.isPresent());
+        // Quest choices (main first, then sub lines) go on top of the start node only.
+        List<QuestDialogs.Injected> injected = nodeId.equals(def.start())
+                ? QuestService.injectedChoices(player, npcName) : List.of();
+        Session session = new Session(dialogId, nodeId, npcEntityId, npcName,
+                injected.stream().map(QuestDialogs.Injected::lineId).toList());
         SESSIONS.put(player.getUUID(), session);
-        List<String> labels = new ArrayList<>(node.choices().size() + 1);
-        questLabel.ifPresent(labels::add);
+        List<String> labels = new ArrayList<>(node.choices().size() + injected.size());
+        injected.forEach(i -> labels.add(i.label()));
         node.choices().stream().map(DialogChoice::label).forEach(labels::add);
         if (labels.isEmpty()) {
             // Client treats empty choices as "close"; a node with no choices would be a dead end.

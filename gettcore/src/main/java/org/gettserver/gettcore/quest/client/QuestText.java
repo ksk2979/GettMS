@@ -71,10 +71,10 @@ public final class QuestText {
     }
 
     /**
-     * Everything the tracker HUD shows for a sync, top to bottom (before wrapping). Empty when there is no main line.
+     * Everything the tracker HUD shows for one line, top to bottom (before wrapping). Empty for a blank line id.
      * {@code labeler} turns an objective into its label (client name resolution).
      */
-    public static List<Component> hudLines(QuestSyncPayload s, Function<ObjState, Component> labeler) {
+    public static List<Component> hudLines(QuestSyncPayload.LineView s, Function<ObjState, Component> labeler) {
         List<Component> out = new ArrayList<>();
         if (s.lineId().isEmpty()) return out;
         if (s.phase() == Phase.LINE_DONE) {
@@ -88,7 +88,7 @@ public final class QuestText {
     }
 
     /** The phase line, or one line per objective while ACTIVE (the HUD without its header). */
-    public static List<Component> progressLines(QuestSyncPayload s, Function<ObjState, Component> labeler) {
+    public static List<Component> progressLines(QuestSyncPayload.LineView s, Function<ObjState, Component> labeler) {
         List<Component> out = new ArrayList<>();
         Optional<Component> phase = phaseLine(s.phase(), s.npc(), s.endText());
         if (phase.isPresent()) {
@@ -100,14 +100,14 @@ public final class QuestText {
     }
 
     /** Status of one quest of the line for the quest list. */
-    public static Status status(QuestSyncPayload s, String questId) {
+    public static Status status(QuestSyncPayload.LineView s, String questId) {
         if (s.completedIds().contains(questId)) return Status.DONE;
         if (questId.equals(s.questId())) return Status.CURRENT;
         return Status.LOCKED;
     }
 
     /** Quest list rows in line order, with a header row whenever the chapter changes (none for a blank chapter). */
-    public static List<LogEntry> logEntries(QuestSyncPayload s) {
+    public static List<LogEntry> logEntries(QuestSyncPayload.LineView s) {
         List<LogEntry> out = new ArrayList<>();
         Set<String> done = new HashSet<>(s.completedIds());
         String chapter = null;

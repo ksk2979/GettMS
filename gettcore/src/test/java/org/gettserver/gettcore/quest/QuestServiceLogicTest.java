@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -18,6 +19,7 @@ import net.minecraft.world.item.Items;
 import org.gettserver.gettcore.network.QuestActionPayload;
 import org.gettserver.gettcore.network.QuestDetailPayload;
 import org.gettserver.gettcore.network.QuestDetailPayload.Mode;
+import org.gettserver.gettcore.network.QuestHidePayload;
 import org.gettserver.gettcore.network.QuestNotifyPayload;
 import org.gettserver.gettcore.network.QuestSyncPayload;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,11 @@ class QuestServiceLogicTest {
     private static final Quest Q3 = quest("q3", QuestTrigger.AUTO, QuestTrigger.AUTO,
             obj(Objective.Type.ADVANCEMENT, "minecraft:story/mine_stone", 5));
     private static final QuestLine LINE = new QuestLine("main", "메인", "준비 중", List.of(Q1, Q2, Q3));
+
+    private static final String FARMER = "농부";
+    private static final Quest S1 = quest("s1", npc(FARMER), npc(FARMER), obj(Objective.Type.KILL, "minecraft:zombie", 3));
+    private static final QuestLine SUB = new QuestLine("farm", "농부의 부탁", "끝", List.of(S1),
+            Optional.of(FARMER), Optional.empty());
 
     private static final class Facts implements PlayerFacts {
         int logs;
@@ -112,18 +119,18 @@ class QuestServiceLogicTest {
     @Test
     void choiceIndexMapping() {
         // Injected: 0 = quest, 1..n = node choices 0..n-1.
-        assertTrue(QuestDialogs.resolve(true, 0, 2).quest());
-        assertEquals(0, QuestDialogs.resolve(true, 1, 2).nodeIndex());
-        assertEquals(1, QuestDialogs.resolve(true, 2, 2).nodeIndex());
-        assertFalse(QuestDialogs.resolve(true, 3, 2).valid());
+        assertTrue(QuestDialogs.resolve(1, 0, 2).quest());
+        assertEquals(0, QuestDialogs.resolve(1, 1, 2).nodeIndex());
+        assertEquals(1, QuestDialogs.resolve(1, 2, 2).nodeIndex());
+        assertFalse(QuestDialogs.resolve(1, 3, 2).valid());
         // Only the quest choice (node without choices).
-        assertTrue(QuestDialogs.resolve(true, 0, 0).quest());
-        assertFalse(QuestDialogs.resolve(true, 1, 0).valid());
+        assertTrue(QuestDialogs.resolve(1, 0, 0).quest());
+        assertFalse(QuestDialogs.resolve(1, 1, 0).valid());
         // Not injected: identity.
-        assertFalse(QuestDialogs.resolve(false, 0, 2).quest());
-        assertEquals(0, QuestDialogs.resolve(false, 0, 2).nodeIndex());
-        assertFalse(QuestDialogs.resolve(false, 2, 2).valid());
-        assertFalse(QuestDialogs.resolve(false, -5, 2).valid());
+        assertFalse(QuestDialogs.resolve(0, 0, 2).quest());
+        assertEquals(0, QuestDialogs.resolve(0, 0, 2).nodeIndex());
+        assertFalse(QuestDialogs.resolve(0, 2, 2).valid());
+        assertFalse(QuestDialogs.resolve(0, -5, 2).valid());
     }
 
     /** Accept at 이장 then the same-visit talk completes the first quest (the sequence QuestService.onAction runs). */
@@ -137,6 +144,42 @@ class QuestServiceLogicTest {
         assertEquals(List.of("ACCEPTED:q1", "COMPLETED:q1", "ACCEPTED:q2"), describe(events));
     }
 
+    // ---- several lines ----
+
+    /** One kill counts for the accepted main kill quest and the accepted sub kill quest at once. */
+    @Test
+    void subLineRunsAlongsideMain() {
+        Quest m1 = quest("m1", QuestTrigger.AUTO, QuestTrigger.AUTO, obj(Objective.Type.KILL, "minecraft:zombie", 5));
+        QuestLine main = new QuestLine("main", "메인", "끝", List.of(m1));
+        Map<String, QuestProgress> progress = new java.util.HashMap<>();
+        Function<String, QuestProgress> of = id -> progress.computeIfAbsent(id, k -> new QuestProgress());
+        Facts f = new Facts();
+        QuestEngine.advance(main, of.apply("main"), f); // auto-accepts m1
+        QuestEngine.interact(SUB, of.apply("farm"), f, FARMER); // accepts s1 at the giver
+
+        List<QuestLine> judged = QuestLines.judged(List.of(SUB, main), of);
+        assertEquals(List.of("main", "farm"), judged.stream().map(QuestLine::id).toList());
+        assertTrue(QuestLines.applyKill(judged, of, "minecraft:zombie"::equals));
+        assertEquals(1, QuestEngine.status(main, of.apply("main"), f).objectives().get(0).current());
+        assertEquals(1, QuestEngine.status(SUB, of.apply("farm"), f).objectives().get(0).current());
+        assertFalse(QuestLines.applyKill(judged, of, "minecraft:skeleton"::equals));
+    }
+
+    /** Both lines saw 16 logs as done; once the other line's report took them, this report is no longer ready. */
+    @Test
+    void reportRejectedWhenItemsGoneAfterOtherLineConsumed() {
+        QuestProgress p = new QuestProgress();
+        p.completed().add("q1");
+        Facts f = new Facts();
+        QuestEngine.advance(LINE, p, f); // q2 accepted
+        f.logs = 16;
+        assertEquals(QuestStatus.Phase.READY_TO_REPORT, QuestEngine.status(LINE, p, f).phase());
+        f.logs = 0; // consumed by the other line's report
+        QuestStatus now = QuestEngine.status(LINE, p, f);
+        assertEquals(QuestStatus.Phase.ACTIVE, now.phase());
+        assertEquals(Optional.empty(), QuestDialogs.detailMode(now, CHIEF).filter(m -> m == Mode.REPORT));
+    }
+
     // ---- views ----
 
     @Test
@@ -147,7 +190,7 @@ class QuestServiceLogicTest {
         Facts f = new Facts();
         QuestEngine.advance(LINE, p, f);
         f.logs = 7;
-        QuestSyncPayload a = QuestViews.sync(LINE, p, QuestEngine.status(LINE, p, f));
+        QuestSyncPayload.LineView a = QuestViews.lineView(LINE, p, QuestEngine.status(LINE, p, f), false);
         assertEquals("main", a.lineId());
         assertEquals("q2", a.questId());
         assertEquals(QuestStatus.Phase.ACTIVE, a.phase());
@@ -156,9 +199,9 @@ class QuestServiceLogicTest {
         assertEquals(new QuestSyncPayload.ObjState("collect", "#minecraft:logs", "", 7, 16, false),
                 a.objectives().get(0));
         // Unchanged state builds an equal payload (no resend); a changed count does not.
-        assertEquals(a, QuestViews.sync(LINE, p, QuestEngine.status(LINE, p, f)));
+        assertEquals(a, QuestViews.lineView(LINE, p, QuestEngine.status(LINE, p, f), false));
         f.logs = 8;
-        assertNotEquals(a, QuestViews.sync(LINE, p, QuestEngine.status(LINE, p, f)));
+        assertNotEquals(a, QuestViews.lineView(LINE, p, QuestEngine.status(LINE, p, f), false));
     }
 
     @Test
@@ -242,14 +285,21 @@ class QuestServiceLogicTest {
     @Test
     void payloadCodecsRoundTrip() {
         QuestProgress p = new QuestProgress();
-        QuestSyncPayload sync = QuestViews.sync(LINE, p, QuestEngine.status(LINE, p, new Facts()));
+        QuestSyncPayload sync = new QuestSyncPayload(List.of(
+                QuestViews.lineView(LINE, p, QuestEngine.status(LINE, p, new Facts()), false),
+                QuestViews.lineView(SUB, p, QuestEngine.status(SUB, p, new Facts()), true)));
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         QuestSyncPayload.STREAM_CODEC.encode(buf, sync);
         assertEquals(sync, QuestSyncPayload.STREAM_CODEC.decode(buf));
         QuestSyncPayload.STREAM_CODEC.encode(buf, QuestSyncPayload.empty());
         assertEquals(QuestSyncPayload.empty(), QuestSyncPayload.STREAM_CODEC.decode(buf));
 
-        QuestActionPayload action = new QuestActionPayload("q1", QuestActionPayload.Action.REPORT);
+        assertEquals("main", sync.main().orElseThrow().lineId());
+        assertEquals("농부", sync.lines().get(1).giver());
+        assertTrue(sync.lines().get(1).hidden());
+        assertTrue(QuestSyncPayload.empty().main().isEmpty());
+
+        QuestActionPayload action = new QuestActionPayload("farm", "q1", QuestActionPayload.Action.REPORT, 1);
         QuestActionPayload.STREAM_CODEC.encode(buf, action);
         assertEquals(action, QuestActionPayload.STREAM_CODEC.decode(buf));
 
@@ -259,8 +309,9 @@ class QuestServiceLogicTest {
 
         RegistryFriendlyByteBuf rbuf = new RegistryFriendlyByteBuf(Unpooled.buffer(),
                 RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY));
-        QuestDetailPayload detail = new QuestDetailPayload("q1", "t", "d", "c", QuestViews.staticStates(Q2, false),
-                200, List.of(new ItemStack(Items.TORCH, 3)), 2, Mode.OFFER);
+        QuestDetailPayload detail = new QuestDetailPayload("farm", "q1", "t", "d", "c",
+                QuestViews.staticStates(Q2, false), 200, List.of(new ItemStack(Items.TORCH, 3)),
+                List.of(new ItemStack(Items.BREAD, 2), new ItemStack(Items.APPLE)), 2, Mode.OFFER);
         QuestDetailPayload.STREAM_CODEC.encode(rbuf, detail);
         QuestDetailPayload back = QuestDetailPayload.STREAM_CODEC.decode(rbuf);
         assertEquals(detail.objectives(), back.objectives());
@@ -268,5 +319,12 @@ class QuestServiceLogicTest {
         assertEquals(Mode.OFFER, back.mode());
         assertEquals(1, back.items().size());
         assertTrue(ItemStack.matches(detail.items().get(0), back.items().get(0)));
+        assertEquals("farm", back.lineId());
+        assertEquals(2, back.choices().size());
+        assertTrue(ItemStack.matches(detail.choices().get(1), back.choices().get(1)));
+
+        QuestHidePayload hide = new QuestHidePayload("farm", true);
+        QuestHidePayload.STREAM_CODEC.encode(buf, hide);
+        assertEquals(hide, QuestHidePayload.STREAM_CODEC.decode(buf));
     }
 }

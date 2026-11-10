@@ -8,19 +8,40 @@ public final class QuestDialogs {
     private QuestDialogs() {}
 
     public static final String LABEL_PREFIX = "§e[메인] ";
+    public static final String SUB_PREFIX = "§a[서브] ";
     public static final String REPORT_SUFFIX = " (완료)";
 
-    /** Result of mapping a client choice index on a node that may carry an injected quest choice at index 0. */
-    public record Choice(boolean quest, int nodeIndex) {
-        public static final Choice INVALID = new Choice(false, -1);
+    /** A quest choice put on top of an NPC's start node: the line it opens and its label. */
+    public record Injected(String lineId, String label) {}
+
+    /**
+     * Result of mapping a client choice index on a node that may carry injected quest choices at indices
+     * {@code 0..injectedCount-1}: {@code questIndex} ≥ 0 picks an injected choice, else {@code nodeIndex} ≥ 0 a node one.
+     */
+    public record Choice(int questIndex, int nodeIndex) {
+        public static final Choice INVALID = new Choice(-1, -1);
+
+        public boolean quest() {
+            return questIndex >= 0;
+        }
 
         public boolean valid() {
-            return quest || nodeIndex >= 0;
+            return quest() || nodeIndex >= 0;
         }
     }
 
     public static String choiceLabel(String title, boolean report) {
-        return LABEL_PREFIX + title + (report ? REPORT_SUFFIX : "");
+        return choiceLabel(title, report, false);
+    }
+
+    /** "§e[메인] 제목" for the main line, "§a[서브] 제목" for a sub line; " (완료)" appended for a report. */
+    public static String choiceLabel(String title, boolean report, boolean sub) {
+        return (sub ? SUB_PREFIX : LABEL_PREFIX) + title + (report ? REPORT_SUFFIX : "");
+    }
+
+    /** Reward index check of a report: anything when the quest has no choices, else {@code 0 <= choice < size}. */
+    public static boolean validChoice(Quest q, int choice) {
+        return q.choices().isEmpty() || (choice >= 0 && choice < q.choices().size());
     }
 
     /**
@@ -40,16 +61,21 @@ public final class QuestDialogs {
 
     /** Label of the quest choice injected at the top of this NPC's start node, if any (OFFER/REPORT only). */
     public static Optional<String> injectedLabel(QuestStatus status, String npcName) {
-        Optional<Mode> mode = detailMode(status, npcName);
-        if (mode.isEmpty() || mode.get() == Mode.VIEW) return Optional.empty();
-        return Optional.of(choiceLabel(status.quest().get().title(), mode.get() == Mode.REPORT));
+        return injectedLabel(status, npcName, false);
     }
 
-    /** Maps a client index to the injected quest choice or a node choice index (shifted by one when injected). */
-    public static Choice resolve(boolean injected, int index, int nodeChoices) {
-        if (injected && index == 0) return new Choice(true, -1);
-        int i = injected ? index - 1 : index;
-        return i >= 0 && i < nodeChoices ? new Choice(false, i) : Choice.INVALID;
+    /** Same as {@link #injectedLabel(QuestStatus, String)} with the sub-line prefix when {@code sub}. */
+    public static Optional<String> injectedLabel(QuestStatus status, String npcName, boolean sub) {
+        Optional<Mode> mode = detailMode(status, npcName);
+        if (mode.isEmpty() || mode.get() == Mode.VIEW) return Optional.empty();
+        return Optional.of(choiceLabel(status.quest().get().title(), mode.get() == Mode.REPORT, sub));
+    }
+
+    /** Maps a client index to an injected quest choice or a node choice index (shifted by {@code injectedCount}). */
+    public static Choice resolve(int injectedCount, int index, int nodeChoices) {
+        if (index >= 0 && index < injectedCount) return new Choice(index, -1);
+        int i = index - injectedCount;
+        return index >= 0 && i < nodeChoices ? new Choice(-1, i) : Choice.INVALID;
     }
 
     /** NPC the HUD should point to: start NPC while waiting, complete NPC when ready to report, else "". */
