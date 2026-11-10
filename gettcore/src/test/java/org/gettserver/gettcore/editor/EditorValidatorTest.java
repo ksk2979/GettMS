@@ -103,6 +103,84 @@ class EditorValidatorTest {
         assertTrue(r2.errors().isEmpty(), r2.errors().toString());
     }
 
+    private static final NpcMapping MERCHANT = new NpcMapping(Map.of(), Map.of("무기 상인", "c"));
+    private static final Map<String, DialogDefinition> MERCHANT_D = Map.of("c", dialog("c", "a",
+            Map.of("a", new DialogNode("x", List.of()))));
+
+    private static Quest subQuest(String id, QuestTrigger complete, List<ItemReward> choices) {
+        return new Quest(id, "", "제목", "", npc("무기 상인"), complete, List.of(), Rewards.EMPTY, "", choices);
+    }
+
+    private static QuestLine subLine(String id, String giver, String requires, Quest... qs) {
+        return new QuestLine(id, "부탁", "e", List.of(qs), Optional.ofNullable(giver), Optional.ofNullable(requires));
+    }
+
+    private static EditorValidator.Result validateQuests(Map<String, QuestLine> lines) {
+        return EditorValidator.validate(bundle(Map.of(), MERCHANT_D, MERCHANT, lines), RegistryChecks.ALL_EXIST);
+    }
+
+    @Test
+    void mainLineGiverRejected() {
+        var r = validateQuests(Map.of("main", subLine("main", "무기 상인", null)));
+        assertTrue(r.errors().contains("quests.main: main line cannot have a giver"), r.errors().toString());
+    }
+
+    @Test
+    void subGiverMustBeMapped() {
+        var r = validateQuests(Map.of("wm", subLine("wm", "없는 상인", null)));
+        assertTrue(r.errors().contains("quests.wm.giver: npc '없는 상인' is not in npcs.byName"), r.errors().toString());
+        var r2 = validateQuests(Map.of("wm", subLine("wm", " ", null)));
+        assertTrue(r2.errors().contains("quests.wm.giver: giver needs an npc name"), r2.errors().toString());
+    }
+
+    @Test
+    void autoCompleteWithChoicesRejected() {
+        var q = subQuest("q", QuestTrigger.AUTO, List.of(new ItemReward(rl("minecraft:a"), 1)));
+        var r = validateQuests(Map.of("wm", subLine("wm", "무기 상인", null, q)));
+        assertTrue(r.errors().contains("quests.wm.q: choices need an npc report (complete must be npc)"),
+                r.errors().toString());
+    }
+
+    @Test
+    void choicesCountMustBePositive() {
+        var q = subQuest("q", npc("무기 상인"), List.of(new ItemReward(rl("minecraft:a"), 1),
+                new ItemReward(rl("minecraft:b"), 0)));
+        var r = validateQuests(Map.of("wm", subLine("wm", "무기 상인", null, q)));
+        assertTrue(r.errors().contains("quests.wm.q.choices[1]: count must be >= 1"), r.errors().toString());
+        assertEquals(1, r.errors().size(), r.errors().toString());
+    }
+
+    @Test
+    void validSubLineAccepted() {
+        var q = subQuest("q", npc("무기 상인"), List.of(new ItemReward(rl("minecraft:a"), 1),
+                new ItemReward(rl("minecraft:b"), 2)));
+        var main = new QuestLine("main", "m", "e", List.of(quest("m1", QuestTrigger.AUTO, List.of(), Rewards.EMPTY)));
+        var r = validateQuests(Map.of("main", main, "wm", subLine("wm", "무기 상인", "main:m1", q)));
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().isEmpty(), r.warnings().toString());
+    }
+
+    @Test
+    void monsterKillTargetIsKept() {
+        var q = quest("q", QuestTrigger.AUTO,
+                List.of(new Objective(Objective.Type.KILL, "@monster", 10, false, Optional.empty())), Rewards.EMPTY);
+        var line = new QuestLine("main", "m", "e", List.of(q));
+        var r = EditorValidator.validate(bundle(Map.of(), NO_D, NpcMapping.EMPTY, Map.of("main", line)),
+                new RegistryChecks(id -> true, id -> false));
+        assertTrue(r.warnings().isEmpty(), r.warnings().toString());
+        assertEquals(1, r.cleaned().quests().get("main").quests().get(0).objectives().size());
+    }
+
+    @Test
+    void badRequiresIsOnlyAWarning() {
+        var r = validateQuests(Map.of("wm", subLine("wm", "무기 상인", "main:nope"),
+                "wx", subLine("wx", "무기 상인", "garbage")));
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().contains("quests.wm.requires: quest 'main:nope' not found"), r.warnings().toString());
+        assertTrue(r.warnings().contains("quests.wx.requires: 'garbage' must be lineId:questId"),
+                r.warnings().toString());
+    }
+
     @Test
     void questRuleErrors() {
         var q1 = quest("dup", QuestTrigger.AUTO, List.of(), Rewards.EMPTY);

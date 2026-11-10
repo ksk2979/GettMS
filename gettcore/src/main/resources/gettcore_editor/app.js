@@ -1107,8 +1107,12 @@
   const isCountOk = (v) => Number.isInteger(v) && v >= 1;
   const isNonNeg = (v) => Number.isInteger(v) && v >= 0;
 
+  const ANY_MONSTER = '@monster';
+  const ANY_MONSTER_NAME = '몬스터 아무거나';
+
   let entityIndex = null;
   function entityName(id) {
+    if (id === ANY_MONSTER) return ANY_MONSTER_NAME;
     if (!entityIndex) {
       entityIndex = new Map();
       for (const e of (S.catalog.entities || [])) entityIndex.set(e.id, e.name || e.id);
@@ -1164,6 +1168,27 @@
     xp(r) { return r.xp === undefined || isNonNeg(r.xp) ? '' : '0 이상의 정수여야 합니다'; },
     rewardItem(it) { return ITEM_ID.test(it.item || '') ? '' : '올바른 아이템 id가 아닙니다'; },
     rewardCount(it) { return it.count === undefined || isCountOk(it.count) ? '' : '1 이상의 정수여야 합니다'; },
+    giver(bundle, key, line) {
+      if (line.giver === undefined) return '';
+      if (key === 'main') return '메인 라인에는 퀘스트 주는 NPC를 둘 수 없습니다';
+      const g = line.giver || '';
+      if (!g.trim()) return 'NPC를 고르세요';
+      return npcNamesOf(bundle).includes(g) ? '' : `NPC 목록에 없는 이름입니다: ${g}`;
+    },
+    choicesNeedNpc(q) {
+      return (q.choices || []).length && trigOf(q, 'complete').type === 'auto'
+        ? '고르는 보상은 NPC에게 보고할 때 고릅니다 (완료 방식을 NPC로 바꾸세요)' : '';
+    },
+    /** 경고(저장은 막지 않음): 받을 수 있는 조건이 실제 퀘스트를 가리키는지. 서버는 없으면 조건 미충족으로 본다. */
+    requiresWarning(bundle, line) {
+      const req = line.requires;
+      if (req === undefined || req === '') return '';
+      const at = req.indexOf(':');
+      if (at <= 0 || at === req.length - 1) return `'줄id:퀘스트id' 모양이 아닙니다: ${req}`;
+      const target = bundle.quests[req.slice(0, at)];
+      const qid = req.slice(at + 1);
+      return target && (target.quests || []).some((x) => x.id === qid) ? '' : `없는 퀘스트입니다: ${req} (이대로면 아무도 받을 수 없습니다)`;
+    },
   };
 
   /** 퀘스트 하나의 오류 문장들. 목록 표시·머리글 오류 개수·저장 차단이 같은 결과를 쓴다. */
@@ -1185,6 +1210,11 @@
       add(questRules.rewardItem(it), `보상 아이템 ${n + 1}`);
       add(questRules.rewardCount(it), `보상 아이템 ${n + 1} 개수`);
     });
+    add(questRules.choicesNeedNpc(q), '고르는 보상');
+    (q.choices || []).forEach((it, n) => {
+      add(questRules.rewardItem(it), `고르는 보상 ${n + 1}`);
+      add(questRules.rewardCount(it), `고르는 보상 ${n + 1} 개수`);
+    });
     return out;
   }
 
@@ -1194,6 +1224,8 @@
       const lp = `퀘스트 라인 ${line.name || key}`;
       const m = questRules.lineKey(key, line);
       if (m) out.push(`${lp}: ${m}`);
+      const g = questRules.giver(bundle, key, line);
+      if (g) out.push(`${lp}: 퀘스트 주는 NPC: ${g}`);
       for (const q of (line.quests || [])) {
         for (const msg of questMessages(bundle, Object.assign({}, line, { quests: line.quests || [] }), q)) out.push(`${lp} › ${q.title || q.id}: ${msg}`);
       }
@@ -1213,7 +1245,7 @@
 
   /** 엔티티(또는 allowTags이면 태그) 하나를 고른다. 해결 값: "minecraft:zombie" / "#minecraft:skeletons" / null. */
   function pickEntity(opts) {
-    const o = Object.assign({ allowTags: true, title: '엔티티 선택' }, opts);
+    const o = Object.assign({ allowTags: true, anyMonster: false, title: '엔티티 선택' }, opts);
     return modal(o.title, (box, close) => {
       let query = '';
       const search = h('input', { type: 'text', class: 'grow', placeholder: '이름 또는 id 검색 (예: 좀비, zombie)', 'aria-label': '검색' });
@@ -1223,8 +1255,11 @@
       function draw() {
         const ents = (S.catalog.entities || []).filter((e) => !query || matches(((e.name || '') + ' ' + e.id).toLowerCase()));
         const tags = o.allowTags ? (S.catalog.entityTags || []).map((t) => t.replace(/^#/, '')).filter((t) => !query || matches(t.toLowerCase())) : [];
+        const anyMon = o.anyMonster && (!query || matches((ANY_MONSTER_NAME + ' ' + ANY_MONSTER + ' monster').toLowerCase()));
         body.replaceChildren(
-          ents.length === 0 && tags.length === 0 ? h('p', { class: 'muted' }, S.catalogOk ? '검색 결과가 없습니다.' : '엔티티 목록을 불러오지 못했습니다. 아래에서 id를 직접 입력하세요.') : null,
+          anyMon ? h('div', { class: 'taglist' }, h('button', { title: '좀비·스켈레톤·슬라임 등 적대 몹이면 무엇이든', onclick: () => close(ANY_MONSTER) },
+            ANY_MONSTER_NAME + '  ', h('span', { class: 'muted' }, ANY_MONSTER))) : null,
+          ents.length === 0 && tags.length === 0 && !anyMon ? h('p', { class: 'muted' }, S.catalogOk ? '검색 결과가 없습니다.' : '엔티티 목록을 불러오지 못했습니다. 아래에서 id를 직접 입력하세요.') : null,
           ents.length ? h('div', { class: 'taglist' }, ents.slice(0, 300).map((e) => h('button', { title: e.id, onclick: () => close(e.id) },
             (e.name || e.id) + '  ', h('span', { class: 'muted' }, e.id)))) : null,
           tags.length ? h('h2', { style: 'margin-top:.75rem' }, '태그') : null,
@@ -1300,7 +1335,8 @@
         if (!id) return;
         const name = await askText('퀘스트 라인 추가', '라인 이름', (v) => (v ? '' : '이름을 입력하세요'), id);
         if (!name) return;
-        b.quests[id] = { id, name, quests: [] };
+        // main 이 아닌 새 라인은 서브퀘스트 줄로 시작: 주는 NPC 칸이 빈 채로 빨갛게 떠서 고르게 한다 ('없음'을 고르면 메인형).
+        b.quests[id] = id === 'main' ? { id, name, quests: [] } : { id, name, giver: '', quests: [] };
         ui.questLine = id; ui.quest = null; ui.questId = null;
         changed(); rerender();
       } }, '+ 라인');
@@ -1319,8 +1355,41 @@
         () => questRules.lineKey(ui.questLine, line));
       const endText = h('input', { type: 'text', class: 'grow', value: line.endText === undefined ? '' : line.endText, placeholder: DEFAULT_END_TEXT, 'aria-label': '끝 문구',
         oninput: (e) => { line.endText = e.target.value; changed(); } });
+      const isMain = ui.questLine === 'main';
+      let giverRow = null;
+      if (!isMain || line.giver !== undefined) {   // main 에선 숨김 (잘못 들어간 값이 있으면 지울 수 있게만 보인다)
+        const NONE = '\u0001none';
+        const names = npcNamesOf(b);
+        const giverSel = checks.add(h('select', { 'aria-label': '퀘스트 주는 NPC', onchange: (e) => {
+          if (e.target.value === NONE) delete line.giver; else line.giver = e.target.value;
+          changed(); rerender();
+        } }, h('option', { value: NONE }, '없음 (메인형: 자동으로 이어짐)'), names.map((n) => h('option', { value: n }, n))),
+        () => questRules.giver(b, ui.questLine, line));
+        if (line.giver === '') giverSel.prepend(h('option', { value: '' }, '— 선택 —'));
+        else if (line.giver !== undefined && !names.includes(line.giver)) giverSel.prepend(h('option', { value: line.giver }, `(없음) ${line.giver}`));
+        giverSel.value = line.giver === undefined ? NONE : line.giver;
+        giverRow = h('div', { class: 'field' }, h('label', null, '퀘스트 주는 NPC'), giverSel,
+          names.length === 0 ? h('span', { class: 'muted' }, 'NPC·대화 탭에서 NPC를 먼저 추가하세요') : null);
+      }
+      let reqRow = null;
+      if (!isMain || line.requires !== undefined) {
+        const reqSel = h('select', { 'aria-label': '받을 수 있는 조건', onchange: (e) => {
+          if (e.target.value === '') delete line.requires; else line.requires = e.target.value;
+          changed(); rerender();
+        } }, h('option', { value: '' }, '없음 (바로 받을 수 있음)'),
+        lineKeys.filter((k) => k !== ui.questLine).flatMap((k) => (b.quests[k].quests || []).map((x) =>
+          h('option', { value: `${k}:${x.id}` }, `${b.quests[k].name || k} › ${x.title || x.id}`))));
+        const cur = line.requires || '';
+        if (cur && ![...reqSel.options].some((o) => o.value === cur)) reqSel.prepend(h('option', { value: cur }, `(없음) ${cur}`));
+        reqSel.value = cur;
+        const reqWarn = questRules.requiresWarning(b, line);
+        reqRow = h('div', { class: 'field' }, h('label', null, '받을 수 있는 조건'), reqSel,
+          h('span', { class: 'muted' }, '이 퀘스트를 끝내야 첫 퀘스트를 받을 수 있습니다'),
+          reqWarn ? h('span', { class: 'tag warn' }, reqWarn) : null);
+      }
       const lineSettings = h('div', { class: 'card' }, h('h2', null, '라인 설정'),
         h('div', { class: 'field' }, h('label', null, '이름'), lineName, h('span', { class: 'muted' }, 'id: ' + ui.questLine)),
+        giverRow, reqRow,
         h('div', { class: 'field' }, h('label', null, '모두 끝난 뒤 문구'), endText));
 
       /* ---- 왼쪽: 장별 퀘스트 목록 ---- */
@@ -1374,8 +1443,10 @@
 
       const addQuest = h('button', { class: 'primary', onclick: () => {
         const last = quests[quests.length - 1];
+        // 서브 줄(주는 NPC 있음)의 새 퀘스트는 그 NPC에게 받고 보고한다. 이미 있는 퀘스트는 건드리지 않는다.
+        const trig = () => (line.giver !== undefined ? { type: 'npc', npc: line.giver } : { type: 'auto' });
         const nq = { id: newQuestId(line), chapter: last ? (last.chapter || '') : '', title: '새 퀘스트', description: '',
-          start: { type: 'auto' }, complete: { type: 'auto' }, objectives: [], rewards: { gold: 0, items: [], xp: 0 }, completeText: '' };
+          start: trig(), complete: trig(), objectives: [], rewards: { gold: 0, items: [], xp: 0 }, completeText: '' };
         (line.quests = line.quests || quests).push(nq);
         ui.quest = nq; ui.questId = nq.id;
         changed(); rerender();
@@ -1430,6 +1501,7 @@
             changed(); rerender();
           } }, h('option', { value: 'auto' }, '자동'), h('option', { value: 'npc' }, 'NPC와 대화'));
           typeSel.value = t.type === 'npc' ? 'npc' : 'auto';
+          if (which === 'complete') checks.add(typeSel, () => questRules.choicesNeedNpc(q));
           let npcSel = null;
           if (t.type === 'npc') {
             npcSel = checks.add(h('select', { 'aria-label': label + ' NPC', onchange: (e) => { q[which].npc = e.target.value; changed(); } },
@@ -1470,7 +1542,7 @@
             if (st === 'missing') warn = '설치되지 않은 아이템 (저장하면 이 목표/퀘스트가 정리됩니다)';
           } else if (o.type === 'kill') {
             tgtEl = pickBtn(h('span', null, tgt ? (tgt.startsWith('#') ? tgt : entityName(tgt)) : '엔티티/태그 선택…'), async () => {
-              const id = await pickEntity({ title: '처치할 엔티티 또는 태그' });
+              const id = await pickEntity({ title: '처치할 엔티티 또는 태그', anyMonster: true });
               if (id) setTarget(id);
             });
             if (missingEntity(tgt)) warn = '설치되지 않은 엔티티 (저장하면 이 목표/퀘스트가 정리됩니다)';
@@ -1514,11 +1586,11 @@
         const numField = (key, label, rule) => checks.add(h('input', { type: 'number', min: 0, step: 1, 'aria-label': label,
           value: r0[key] === undefined ? 0 : (Number.isNaN(r0[key]) ? '' : r0[key]),
           oninput: (e) => { rw()[key] = e.target.value === '' ? NaN : Number(e.target.value); changed(); } }), () => rule(q.rewards || {}));
-        const rItems = r0.items || [];
-        const itemRows = rItems.map((it, i) => {
+        /** 아이템+개수 목록 편집 (보상 아이템·고르는 보상 공용). remove(i): i번째 삭제. */
+        const itemListRows = (list, remove, pickTitle, delLabel) => list.map((it, i) => {
           const st = itemStatus(it.item);
           const btn = checks.add(h('button', { class: 'icon-btn', title: '아이템 바꾸기', onclick: async () => {
-            const id = await pickItem({ title: '보상 아이템' });
+            const id = await pickItem({ title: pickTitle });
             if (id) { it.item = id; changed(); rerender(); }
           } }, iconEl(it.item, 28), h('span', null, itemName(it.item))), () => questRules.rewardItem(it));
           const cnt = checks.add(h('input', { type: 'number', min: 1, step: 1, 'aria-label': '개수', style: 'width:5rem',
@@ -1526,18 +1598,28 @@
             oninput: (e) => { it.count = e.target.value === '' ? NaN : Number(e.target.value); changed(); } }), () => questRules.rewardCount(it));
           return h('div', { class: 'field' }, btn, h('span', { class: 'id' }, it.item), cnt,
             st === 'missing' ? h('span', { class: 'tag bad' }, '설치되지 않은 아이템 (저장하면 빠짐)') : null, h('span', { class: 'spacer' }),
-            h('button', { class: 'danger small', 'aria-label': '보상 삭제', onclick: () => { rw().items.splice(i, 1); changed(); rerender(); } }, '삭제'));
+            h('button', { class: 'danger small', 'aria-label': delLabel, onclick: () => { remove(i); changed(); rerender(); } }, '삭제'));
         });
-        const addReward = h('button', { onclick: async () => {
-          const id = await pickItem({ title: '보상 아이템' });
+        /** 아이템을 골라 ensure()가 돌려준 목록 끝에 1개로 넣는 버튼. */
+        const addItemBtn = (label, pickTitle, ensure) => h('button', { onclick: async () => {
+          const id = await pickItem({ title: pickTitle });
           if (!id) return;
-          const r = rw();
-          (r.items = r.items || []).push({ item: id, count: 1 });
+          ensure().push({ item: id, count: 1 });
           changed(); rerender();
-        } }, '+ 보상 아이템');
+        } }, label);
+        const itemRows = itemListRows(r0.items || [], (i) => rw().items.splice(i, 1), '보상 아이템', '보상 삭제');
+        const addReward = addItemBtn('+ 보상 아이템', '보상 아이템', () => { const r = rw(); return (r.items = r.items || []); });
+        const choiceRows = itemListRows(q.choices || [], (i) => { q.choices.splice(i, 1); if (!q.choices.length) delete q.choices; },
+          '고르는 보상 아이템', '고르는 보상 삭제');
+        const addChoice = addItemBtn('+ 고르는 보상', '고르는 보상 아이템', () => (q.choices = q.choices || []));
+        const choiceWarn = h('div', { class: 'tag bad' });
+        dynamic.push(() => { const m = questRules.choicesNeedNpc(q); choiceWarn.textContent = m; choiceWarn.style.display = m ? '' : 'none'; });
         mid.push(h('div', { class: 'card' }, h('h2', null, '보상'),
           h('div', { class: 'field' }, h('label', null, '골드'), numField('gold', '골드', questRules.gold), h('label', null, '경험치 레벨'), numField('xp', '경험치', questRules.xp)),
           itemRows, h('div', { class: 'field' }, addReward)));
+        mid.push(h('div', { class: 'card' }, h('h2', null, '고르는 보상'),
+          h('p', { class: 'muted' }, 'NPC에게 보고할 때 이 중 하나를 골라 받습니다 (위 보상은 그대로 함께 받음). 비우면 고르기 없음.'),
+          choiceWarn, choiceRows, h('div', { class: 'field' }, addChoice)));
       }
 
       /* ---- 오른쪽: HUD 미리보기 ---- */
@@ -1559,8 +1641,10 @@
         if (r.gold) parts.push(`${r.gold} 골드`);
         if (r.xp) parts.push(`경험치 ${r.xp}레벨`);
         for (const it of (r.items || [])) parts.push(`${itemName(it.item)} x${it.count === undefined ? 1 : it.count}`);
+        const picks = (q.choices || []).map((it) => `${itemName(it.item)} x${it.count === undefined ? 1 : it.count}`);
         screenBox.append(h('strong', null, q.title || q.id), h('p', null, q.description || ''),
           h('div', { class: 'muted' }, '보상: ' + (parts.length ? parts.join(', ') : '없음')),
+          picks.length ? h('div', { class: 'muted' }, '하나 고르기: ' + picks.join(' / ')) : null,
           q.completeText ? h('p', { class: 'muted' }, '완료: ' + q.completeText) : null);
       }
       const right = h('div', { class: 'stack' },

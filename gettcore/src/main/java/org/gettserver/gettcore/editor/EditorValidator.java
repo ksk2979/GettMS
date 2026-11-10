@@ -81,7 +81,7 @@ public final class EditorValidator {
         Map<String, QuestLine> quests = new LinkedHashMap<>();
         b.quests().forEach((key, line) -> {
             checkKey("quests." + key, key, line.id(), errors);
-            validateLine(key, line, b, errors);
+            validateLine(key, line, b, errors, warnings);
             List<String> pruneWarnings = new ArrayList<>();
             quests.put(key, QuestPrune.prune(line, checks, pruneWarnings));
             for (String w : pruneWarnings) warnings.add(PRUNE_PREFIX.matcher(w).replaceFirst("quests.$1.$2: "));
@@ -276,7 +276,31 @@ public final class EditorValidator {
         });
     }
 
-    private static void validateLine(String lineKey, QuestLine line, EditorBundle b, List<String> errors) {
+    private static void validateLine(String lineKey, QuestLine line, EditorBundle b, List<String> errors,
+                                     List<String> warnings) {
+        String lp = "quests." + lineKey;
+        line.giver().ifPresent(giver -> {
+            if (lineKey.equals("main")) {
+                errors.add(lp + ": main line cannot have a giver");
+            } else if (giver.isBlank()) {
+                errors.add(lp + ".giver: giver needs an npc name");
+            } else if (!b.npcs().byName().containsKey(giver)) {
+                errors.add(lp + ".giver: npc '" + giver + "' is not in npcs.byName");
+            }
+        });
+        // requires 가 틀려도 저장은 허용한다(서버는 조건 미충족으로 취급) — 경고만.
+        line.requires().ifPresent(req -> {
+            int colon = req.indexOf(':');
+            if (colon <= 0 || colon == req.length() - 1) {
+                warnings.add(lp + ".requires: '" + req + "' must be lineId:questId");
+                return;
+            }
+            QuestLine target = b.quests().get(req.substring(0, colon));
+            String questId = req.substring(colon + 1);
+            if (target == null || target.quests().stream().noneMatch(q -> q.id().equals(questId))) {
+                warnings.add(lp + ".requires: quest '" + req + "' not found");
+            }
+        });
         Set<String> seen = new HashSet<>();
         for (Quest q : line.quests()) {
             String p = "quests." + lineKey + "." + q.id();
@@ -292,6 +316,12 @@ public final class EditorValidator {
             for (int n = 0; n < q.rewards().items().size(); n++) {
                 ItemReward r = q.rewards().items().get(n);
                 if (r.count() < 1) errors.add(p + ".rewards.items[" + n + "]: count must be >= 1");
+            }
+            if (q.complete().type() == QuestTrigger.Type.AUTO && !q.choices().isEmpty()) {
+                errors.add(p + ": choices need an npc report (complete must be npc)");
+            }
+            for (int n = 0; n < q.choices().size(); n++) {
+                if (q.choices().get(n).count() < 1) errors.add(p + ".choices[" + n + "]: count must be >= 1");
             }
         }
     }

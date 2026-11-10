@@ -61,6 +61,7 @@ public final class QuestPrune {
 
     private static boolean exists(Objective o, RegistryChecks checks) {
         if (o.isTag()) return true;
+        if (o.type() == Objective.Type.KILL && Objective.ANY_MONSTER.equals(o.target())) return true;
         ResourceLocation rl = ResourceLocation.tryParse(o.target());
         return switch (o.type()) {
             case COLLECT -> rl != null && checks.itemExists().test(rl);

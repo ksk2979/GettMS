@@ -59,6 +59,9 @@ public record Objective(Type type, String target, int count, boolean consume, Op
                     + o.type.targetField() + "'")
             : DataResult.success(o));
 
+    /** 처치 목표 대상: 몬스터(Enemy)면 무엇이든. */
+    public static final String ANY_MONSTER = "@monster";
+
     public boolean isTag() {
         return target.startsWith("#");
     }
