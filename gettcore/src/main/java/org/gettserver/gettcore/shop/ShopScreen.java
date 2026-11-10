@@ -257,6 +257,20 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         renderScrollbar(g, rows.size());
     }
 
+    /** 행의 아이콘·이름 위(구매/판매 버튼 왼쪽)에 마우스를 올리면 바닐라 아이템 툴팁(효과·방어력 등)을 보여준다. */
+    private void renderRowTooltip(GuiGraphics g, int mouseX, int mouseY) {
+        int x = leftPos + LIST_X;
+        int right = editing ? x + LIST_W : x + LIST_W - BTN_W - 4;
+        if (mouseX < x || mouseX >= right) return;
+        int i = (mouseY - (topPos + LIST_Y)) / ROW_H;
+        if (mouseY < topPos + LIST_Y || i >= VISIBLE_ROWS) return;
+        if ((mouseY - (topPos + LIST_Y)) % ROW_H >= ROW_H - 2) return;
+        List<Row> rows = rows();
+        if (scroll + i >= rows.size()) return;
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(rows.get(scroll + i).entry().item()));
+        g.renderTooltip(font, stack, mouseX, mouseY);
+    }
+
     /** 보이는 탭이면 화면 x, 아니면 -1. 넘칠 때는 왼쪽 화살표 자리만큼 밀린다. */
     private int tabX(int i, int total) {
         int visible = TabStrip.visibleCount(total);
@@ -379,6 +393,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                     g.renderTooltip(font, Component.literal(def.tabs().get(i).name()), mouseX, mouseY);
                 }
             }
+            renderRowTooltip(g, mouseX, mouseY);
         }
         if (popup != null) popup.render(g, mouseX, mouseY, partialTick);
     }
