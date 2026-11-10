@@ -79,6 +79,78 @@ class QuestCodecTest {
                 .result().isPresent());
     }
 
+    private static final String SUB = "{\"id\":\"wm\",\"name\":\"무기\",\"giver\":\"무기 상인\",\"quests\":[{\"id\":\"a\",\"title\":\"t\"%s}]}";
+
+    @Test
+    void subLineDefaultsTriggersToGiver() {
+        QuestLine line = parse(SUB.formatted(""));
+        QuestTrigger giver = new QuestTrigger(QuestTrigger.Type.NPC, java.util.Optional.of("무기 상인"));
+        assertTrue(line.isSub());
+        assertEquals(giver, line.quests().get(0).start());
+        assertEquals(giver, line.quests().get(0).complete());
+        assertEquals(java.util.Optional.empty(), line.requires());
+    }
+
+    @Test
+    void subLineKeepsExplicitAuto() {
+        QuestLine line = parse(SUB.formatted(",\"start\":{\"type\":\"auto\"}"));
+        assertEquals(QuestTrigger.AUTO, line.quests().get(0).start());
+        assertEquals("무기 상인", line.quests().get(0).complete().npc().orElseThrow());
+        QuestLine back = QuestLine.CODEC.parse(JsonOps.INSTANCE,
+                QuestLine.CODEC.encodeStart(JsonOps.INSTANCE, line).getOrThrow()).getOrThrow();
+        assertEquals(line, back);
+    }
+
+    @Test
+    void mainLineStillDefaultsAuto() {
+        QuestLine line = parse("{\"id\":\"x\",\"name\":\"X\",\"quests\":[{\"id\":\"q\",\"title\":\"T\"}]}");
+        assertFalse(line.isSub());
+        assertEquals(QuestTrigger.AUTO, line.quests().get(0).start());
+        assertEquals(QuestTrigger.AUTO, line.quests().get(0).complete());
+    }
+
+    @Test
+    void requiresStoredAsString() {
+        QuestLine line = parse("{\"id\":\"x\",\"name\":\"X\",\"giver\":\"g\",\"requires\":\"main:first_steps\",\"quests\":[]}");
+        assertEquals("main:first_steps", line.requires().orElseThrow());
+        assertEquals(line, QuestLine.CODEC.parse(JsonOps.INSTANCE,
+                QuestLine.CODEC.encodeStart(JsonOps.INSTANCE, line).getOrThrow()).getOrThrow());
+    }
+
+    @Test
+    void choicesRoundTrip() {
+        QuestLine line = parse(SUB.formatted(
+                ",\"choices\":[{\"item\":\"minecraft:wooden_sword\"},{\"item\":\"minecraft:stone_sword\",\"count\":2}]"));
+        List<ItemReward> choices = line.quests().get(0).choices();
+        assertEquals(2, choices.size());
+        assertEquals(2, choices.get(1).count());
+        assertEquals(line, QuestLine.CODEC.parse(JsonOps.INSTANCE,
+                QuestLine.CODEC.encodeStart(JsonOps.INSTANCE, line).getOrThrow()).getOrThrow());
+    }
+
+    @Test
+    void oldMainJsonUnchanged() {
+        QuestLine line = parse(SPEC);
+        assertFalse(line.isSub());
+        assertEquals(java.util.Optional.empty(), line.giver());
+        assertEquals(java.util.Optional.empty(), line.requires());
+        assertEquals(List.of(), line.quests().get(0).choices());
+    }
+
+    @Test
+    void pruneDropsMissingChoiceItems() {
+        QuestLine line = parse(SUB.formatted(
+                ",\"choices\":[{\"item\":\"othermod:gem\"},{\"item\":\"minecraft:bread\"}]"));
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"),
+                rl -> rl.getNamespace().equals("minecraft"));
+        List<String> warnings = new ArrayList<>();
+        QuestLine pruned = QuestPrune.prune(line, checks, warnings);
+        assertEquals(1, pruned.quests().get(0).choices().size());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("missing choice item")), warnings.toString());
+        assertEquals(line.giver(), pruned.giver());
+        assertEquals(line.requires(), pruned.requires());
+    }
+
     @Test
     void pruneDropsMissingAndEmptiedQuests() {
         QuestLine line = parse("""

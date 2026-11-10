@@ -36,16 +36,27 @@ public final class QuestPrune {
                             + " (skipped)");
                 }
             }
-            if (objectives.size() == q.objectives().size() && items.size() == q.rewards().items().size()) {
+            List<ItemReward> choices = new ArrayList<>();
+            for (ItemReward r : q.choices()) {
+                if (checks.itemExists().test(r.item())) {
+                    choices.add(r);
+                } else {
+                    warnings.add("quest " + line.id() + "/" + q.id() + ": missing choice item " + r.item()
+                            + " (skipped)");
+                }
+            }
+            if (objectives.size() == q.objectives().size() && items.size() == q.rewards().items().size()
+                    && choices.size() == q.choices().size()) {
                 kept.add(q);
             } else {
                 changed = true;
                 kept.add(new Quest(q.id(), q.chapter(), q.title(), q.description(), q.start(), q.complete(),
                         List.copyOf(objectives), new Rewards(q.rewards().gold(), List.copyOf(items), q.rewards().xp()),
-                        q.completeText()));
+                        q.completeText(), List.copyOf(choices)));
             }
         }
-        return changed ? new QuestLine(line.id(), line.name(), line.endText(), List.copyOf(kept)) : line;
+        return changed ? new QuestLine(line.id(), line.name(), line.endText(), List.copyOf(kept), line.giver(),
+                line.requires()) : line;
     }
 
     private static boolean exists(Objective o, RegistryChecks checks) {
