@@ -49,9 +49,9 @@
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.6.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.6.0/gettcore-1.6.0.jar",
-      "sha512": "99c5fc8e6a9fd984f859f283ee049333db35f96bb646ddbcdc0e93d866c743f58b3beeab7494bc2330568c0403d8727a72628ec7dfa8d09b3d0d464f47ee6fac",
+      "file": "gettcore-1.6.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.6.1/gettcore-1.6.1.jar",
+      "sha512": "9d6aac4eebcb3954ff9a9aba2ffa3bf3f5b63f124e9ae2c260873606087ca2120b8228183909306389fa6e14511630ad094a68fa511bb6fa326596b8761c46f4",
       "side": "both"
     },
     {
@@ -313,10 +313,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.6.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.6.0/gettcore-1.6.0.jar",
-      "sha512": "99c5fc8e6a9fd984f859f283ee049333db35f96bb646ddbcdc0e93d866c743f58b3beeab7494bc2330568c0403d8727a72628ec7dfa8d09b3d0d464f47ee6fac",
-      "size": 1518128,
+      "file": "gettcore-1.6.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.6.1/gettcore-1.6.1.jar",
+      "sha512": "9d6aac4eebcb3954ff9a9aba2ffa3bf3f5b63f124e9ae2c260873606087ca2120b8228183909306389fa6e14511630ad094a68fa511bb6fa326596b8761c46f4",
+      "size": 1518715,
       "side": "both"
     },
     {
@@ -544,5 +544,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "ca93484b02df749f102d6e5a7de2e719eda134595416f7c21206a266440ef7bf"
+  "lockSource": "871d0f9c15579ed6ac3765732ba3d92ab0366430f7d619bbbf2b5a14b706c823"
 }
