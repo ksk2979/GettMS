@@ -53,8 +53,9 @@ Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 | `/강화 <단계>` (`/reinforce`) | 손에 든 장비의 강화 단계를 그 값으로 설정(0 = 해제). 설정의 최대 단계보다 높게도 가능 |
 | `/인벤 <플레이어>` (`/invsee`) | 접속 중인 플레이어의 인벤토리(가방·핫바·갑옷·보조손) 열기. 넣고 빼기 가능, 회색 유리판 칸은 빈 자리 |
 | `/엔더 <플레이어>` (`/endersee`) | 접속 중인 플레이어의 엔더 상자 열기(넣고 빼기 가능) |
+| `/관전` (`/spectate`) | 관리자 관전 모드 켜기/끄기. 켜면 지형을 뚫고 날아다니고 다른 플레이어에게 안 보임(Tab 목록·접속/퇴장 메시지 포함, 재접속해도 유지). 관전 중인 관리자끼리는 머리만 보임. 끄면 원래 게임 모드로 그 자리에 나타남 |
 
-권한 노드: `gettcore.admin`(reload·편집기·귀환지점·인벤·엔더), `gettcore.economy.admin`, `gettcore.economy.check`, `gettcore.shop.edit`, `gettcore.boss.admin`, `gettcore.protect.admin`.
+권한 노드: `gettcore.admin`(reload·편집기·귀환지점·인벤·엔더·관전), `gettcore.economy.admin`, `gettcore.economy.check`, `gettcore.shop.edit`, `gettcore.boss.admin`, `gettcore.protect.admin`.
 
 ### 인챈트(마법부여) 넣기
 
