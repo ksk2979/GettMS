@@ -102,6 +102,7 @@ public final class QuestHud {
         double dy = event.getScrollDeltaY();
         Box box = lastBox;
         if (dy == 0 || box == null || !box.contains(event.getMouseX(), event.getMouseY())) return;
+        if (lastSubRows <= lastAvailable) return;
         scrollBy(-(int) Math.signum(dy));
         event.setCanceled(true);
     }

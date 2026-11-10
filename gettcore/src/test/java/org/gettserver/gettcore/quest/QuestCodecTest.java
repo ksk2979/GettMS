@@ -170,4 +170,34 @@ class QuestCodecTest {
         assertTrue(warnings.size() >= 2, warnings.toString());
         assertEquals(3, line.quests().size());
     }
+
+    @Test
+    void sanitizeDropsChoicesOnAutoComplete() {
+        QuestLine line = parse("{\"id\":\"x\",\"name\":\"X\",\"quests\":[{\"id\":\"a\",\"title\":\"t\","
+                + "\"choices\":[{\"item\":\"minecraft:bread\"}]}]}");
+        List<String> warnings = new ArrayList<>();
+        QuestLine out = QuestPrune.sanitize(line, warnings);
+        assertTrue(out.quests().get(0).choices().isEmpty());
+        assertEquals(1, warnings.size(), warnings.toString());
+        // NPC complete keeps choices
+        List<String> w2 = new ArrayList<>();
+        QuestLine ok = QuestPrune.sanitize(parse(SUB.formatted(",\"choices\":[{\"item\":\"minecraft:bread\"}]")), w2);
+        assertEquals(1, ok.quests().get(0).choices().size());
+        assertTrue(w2.isEmpty(), w2.toString());
+    }
+
+    @Test
+    void sanitizeIgnoresMainGiverAndWarnsBadRequires() {
+        QuestLine main = parse("{\"id\":\"main\",\"name\":\"M\",\"giver\":\"npc\",\"quests\":[]}");
+        List<String> warnings = new ArrayList<>();
+        QuestLine out = QuestPrune.sanitize(main, warnings);
+        assertTrue(out.giver().isEmpty());
+        assertEquals(1, warnings.size());
+        List<String> w2 = new ArrayList<>();
+        QuestPrune.sanitize(parse("{\"id\":\"s\",\"name\":\"S\",\"giver\":\"n\",\"requires\":\"bad\",\"quests\":[]}"), w2);
+        assertEquals(1, w2.size());
+        List<String> w3 = new ArrayList<>();
+        QuestPrune.sanitize(parse("{\"id\":\"s\",\"name\":\"S\",\"giver\":\"n\",\"requires\":\"main:q1\",\"quests\":[]}"), w3);
+        assertTrue(w3.isEmpty());
+    }
 }

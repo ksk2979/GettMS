@@ -1361,7 +1361,16 @@
         const NONE = '\u0001none';
         const names = npcNamesOf(b);
         const giverSel = checks.add(h('select', { 'aria-label': '퀘스트 주는 NPC', onchange: (e) => {
-          if (e.target.value === NONE) delete line.giver; else line.giver = e.target.value;
+          if (e.target.value === NONE) delete line.giver;
+          else {
+            line.giver = e.target.value;
+            if (line.giver) for (const q of line.quests || []) {   // 비어 있는 NPC 트리거에는 새 주는 NPC 를 채운다
+              for (const k of ['start', 'complete']) {
+                const t = q[k];
+                if (t && t.type === 'npc' && !t.npc) t.npc = line.giver;
+              }
+            }
+          }
           changed(); rerender();
         } }, h('option', { value: NONE }, '없음 (메인형: 자동으로 이어짐)'), names.map((n) => h('option', { value: n }, n))),
         () => questRules.giver(b, ui.questLine, line));

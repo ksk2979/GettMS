@@ -242,7 +242,7 @@ public final class GettData {
         for (ShopDefinition sd : newShops.values()) pruned.put(sd.id(), prune(sd, warnings));
         Map<String, QuestLine> prunedQuests = new java.util.TreeMap<>();
         for (QuestLine ql : newQuests.values()) {
-            prunedQuests.put(ql.id(), QuestPrune.prune(ql, registryChecks, warnings));
+            prunedQuests.put(ql.id(), QuestPrune.prune(QuestPrune.sanitize(ql, warnings), registryChecks, warnings));
         }
         rawQuestLines = Map.copyOf(newQuests);
         questLines = Map.copyOf(prunedQuests);

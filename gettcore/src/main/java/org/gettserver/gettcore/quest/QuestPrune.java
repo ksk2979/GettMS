@@ -2,12 +2,46 @@ package org.gettserver.gettcore.quest;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.resources.ResourceLocation;
 import org.gettserver.gettcore.data.RegistryChecks;
 
 /** Builds the in-memory view of a quest line without references to items/entities missing from the registry. */
 public final class QuestPrune {
     private QuestPrune() {}
+
+    /**
+     * 손으로 고친 파일이 편집기 규칙을 어긴 경우의 로드 시 보정: 완료가 AUTO 인 퀘스트의 고르는 보상 제거,
+     * main 줄의 giver 무시, 형식이 틀린 requires 경고.
+     */
+    public static QuestLine sanitize(QuestLine line, List<String> warnings) {
+        boolean changed = false;
+        List<Quest> quests = new ArrayList<>();
+        for (Quest q : line.quests()) {
+            if (q.complete().type() == QuestTrigger.Type.AUTO && !q.choices().isEmpty()) {
+                warnings.add("quest " + line.id() + "/" + q.id()
+                        + ": choices need an NPC complete trigger (choices ignored)");
+                q = new Quest(q.id(), q.chapter(), q.title(), q.description(), q.start(), q.complete(),
+                        q.objectives(), q.rewards(), q.completeText(), List.of());
+                changed = true;
+            }
+            quests.add(q);
+        }
+        Optional<String> giver = line.giver();
+        if ("main".equals(line.id()) && giver.isPresent()) {
+            warnings.add("quest line main: giver is not allowed on the main line (giver ignored)");
+            giver = Optional.empty();
+            changed = true;
+        }
+        line.requires().ifPresent(r -> {
+            int i = r.indexOf(':');
+            if (i <= 0 || i >= r.length() - 1 || r.indexOf(':', i + 1) >= 0) {
+                warnings.add("quest line " + line.id() + ": requires '" + r + "' is not lineId:questId");
+            }
+        });
+        return changed ? new QuestLine(line.id(), line.name(), line.endText(), List.copyOf(quests), giver,
+                line.requires()) : line;
+    }
 
     public static QuestLine prune(QuestLine line, RegistryChecks checks, List<String> warnings) {
         List<Quest> kept = new ArrayList<>();
