@@ -2,7 +2,7 @@
   "description": {
     "translate": "enchantment.gettcore.bigcatch"
   },
-  "supported_items": "minecraft:fishing_rod",
+  "supported_items": "#c:tools/fishing_rod",
   "weight": 1,
   "max_level": 3,
   "min_cost": {

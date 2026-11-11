@@ -16,6 +16,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.neoforged.neoforge.common.Tags;
 import org.gettserver.gettcore.GettCore;
 
 /** 특수 능력 정의, 도구별 풀, 뽑기, 도구에 붙은 특수 능력 조회/교체. */
@@ -95,7 +96,7 @@ public final class SpecialEnchants {
         if (stack.is(ItemTags.AXES)) return Optional.of(Tool.AXE);
         if (stack.is(ItemTags.SWORDS)) return Optional.of(Tool.SWORD);
         if (stack.is(Items.BOW)) return Optional.of(Tool.BOW);
-        if (stack.is(Items.FISHING_ROD)) return Optional.of(Tool.FISHING_ROD);
+        if (stack.is(Items.FISHING_ROD) || stack.is(Tags.Items.TOOLS_FISHING_ROD)) return Optional.of(Tool.FISHING_ROD);
         return Optional.empty();
     }
 

@@ -305,7 +305,8 @@
    * 데이터팩 사본(총·등장·Epic Fight)의 현재 덮어쓰기. 서버 스냅숏에 이 구역이 없으면 null — 그대로 저장하면 서버가 데이터팩을 건드리지 않는다.
    * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율},
    *   epicfight: {아이템: {스타일: {damage_bonus, speed_bonus, armor_negation, impact, max_strikes}}},
-   *   recipes: {제작법 id: true} (막은 모드 장비 제작법) }
+   *   recipes: {제작법 id: true} (막은 모드 장비 제작법),
+   *   fishing: {fish, loot, crates: {id: 가중치}, tables: {표 id: {weights, added}}} (Tide 낚시, 낚시 탭 참고) }
    */
   function normalizeDatapack(src) {
     if (!src || typeof src !== 'object') return null;
@@ -314,7 +315,14 @@
       .filter((o) => o && typeof o.kind === 'string' && typeof o.id === 'string').map((o) => ({ kind: o.kind, id: o.id }));
     const recipes = {};
     for (const [id, v] of Object.entries(obj(src.recipes))) if (v === true) recipes[id] = true;
-    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, removeOrphans };
+    const fsrc = obj(src.fishing);
+    const fishing = { fish: obj(fsrc.fish), loot: obj(fsrc.loot), crates: obj(fsrc.crates), tables: {} };
+    for (const [id, t] of Object.entries(obj(fsrc.tables))) {
+      if (!t || typeof t !== 'object') continue;
+      fishing.tables[id] = { weights: obj(t.weights), added: (Array.isArray(t.added) ? t.added : [])
+        .filter((a) => a && typeof a.item === 'string').map((a) => ({ item: a.item, weight: a.weight, min: a.min, max: a.max })) };
+    }
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, fishing, removeOrphans };
   }
 
   function normalizeBossPoints(src) {
@@ -2783,13 +2791,13 @@
 
   const round3 = (v) => Math.round(v * 1000) / 1000;
   const dpShown = (v, unit) => (isNum(v) ? String(round3(v)) + (unit || '') : '—');
-  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight·제작법 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
+  const dpMissing = () => h('p', { class: 'banner warn' }, '서버에서 총·등장·Epic Fight·제작법·낚시 목록을 받지 못했습니다. 이 탭의 내용은 저장해도 바뀌지 않습니다 (서버 로그 확인).');
 
   /**
    * 원본이 사라진 사본(모드를 지웠거나 업데이트로 파일이 없어짐) — 서버 datapackCatalog.orphans = [{kind, id}].
    * "삭제" 를 누르면 datapack.removeOrphans 에 넣고, 저장할 때 서버가 그 사본 파일을 지운다 (그때도 원본이 없는 것만).
    */
-  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율', recipes: '제작법' };
+  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율', recipes: '제작법', fishing: '낚시' };
   function dpOrphanCard(container, kinds) {
     const cat = S.dpCatalog;
     const dp = S.bundle.datapack;
@@ -2997,6 +3005,297 @@
     },
   };
   registerTab(gunsTab);
+
+  /* ───────────── 낚시 (Tide) ─────────────
+   * datapack.fishing = { fish: {id: 가중치}, loot: {id: 가중치}, crates: {id: 가중치},
+   *   tables: {전리품 표 id: {weights: {원본 순번: 가중치(0 = 뺌)}, added: [{item, weight, min, max}]}} }
+   * 원래 값은 datapackCatalog.fishing (서버 FishingBalance.catalog). 범위는 서버 FishingBalance 와 같다.
+   */
+  const FISH_WEIGHT_MAX = 10000;
+  const FISH_COUNT_MAX = 64;
+  const FISH_GROUPS = { freshwater: '민물', saltwater: '바다', underground: '지하', lava: '용암', void: '공허' };
+  const FISH_RARITY = { common: '흔함', uncommon: '드묾', rare: '희귀', very_rare: '매우 희귀', legendary: '전설' };
+  const FISH_RARITY_ORDER = ['common', 'uncommon', 'rare', 'very_rare', 'legendary'];
+  const FISH_LOOT_NAMES = {
+    surface_junk: '지상 쓰레기', surface_treasure: '지상 보물', underground_junk: '지하 쓰레기', underground_treasure: '지하 보물',
+    lava_junk: '용암 쓰레기', nether_treasure: '네더 보물', desert_well_treasure: '사막 우물 보물', ocean_monument_treasure: '해저 유적 보물',
+    trial_chamber_treasure: '시련의 방 보물', sunflower_rod: '해바라기 낚싯대 보너스',
+  };
+  const FISH_CRATE_NAMES = {
+    surface_freshwater: '지상 민물 상자', surface_saltwater: '지상 바다 상자', surface_lava: '지상 용암 상자', underground: '지하 상자',
+    underground_lava: '지하 용암 상자', deep: '깊은 곳 상자', deep_lava: '깊은 곳 용암 상자', nether: '네더 상자', end: '엔드 상자',
+  };
+  const fishTail = (id) => id.slice(id.lastIndexOf('/') + 1);
+  const fishPct = (ratio) => Math.round(ratio * 1000) / 10;
+
+  const fishWeightRule = (v) => (v === undefined || (isNum(v) && v >= 0 && v <= FISH_WEIGHT_MAX) ? '' : `0~${FISH_WEIGHT_MAX} 사이 숫자여야 합니다 (비우면 원래 값)`);
+  const fishEntryRule = (v) => (v === undefined || (isInt(v) && v >= 0 && v <= FISH_WEIGHT_MAX) ? '' : `0~${FISH_WEIGHT_MAX} 사이 정수여야 합니다 (비우면 원래 값)`);
+  const fishAddedWeightRule = (v) => (isInt(v) && v >= 1 && v <= FISH_WEIGHT_MAX ? '' : `1~${FISH_WEIGHT_MAX} 사이 정수여야 합니다`);
+  function fishAddedCountRule(a) {
+    const ok = (n) => isInt(n) && n >= 1 && n <= FISH_COUNT_MAX;
+    if (!ok(a.min) || !ok(a.max)) return `개수는 1~${FISH_COUNT_MAX} 사이 정수여야 합니다`;
+    return a.min <= a.max ? '' : '최소 개수가 최대보다 큽니다';
+  }
+  /** 표에 남는 항목 수 (원본에서 0 으로 빼지 않은 것 + 추가한 것). catalogTable 이 없으면 알 수 없으므로 1. */
+  function fishTableLeft(catalogTable, edits) {
+    if (!catalogTable) return 1;
+    const kept = (catalogTable.entries || []).filter((en) => (edits.weights || {})[en.key] !== 0).length;
+    return kept + (edits.added || []).length;
+  }
+
+  function validateFishing(bundle) {
+    const out = [];
+    const f = bundle.datapack && bundle.datapack.fishing;
+    if (!f) return out;
+    for (const [key, label] of [['fish', '물고기'], ['loot', '묶음'], ['crates', '상자']]) {
+      for (const [id, v] of Object.entries(f[key] || {})) {
+        const m = fishWeightRule(v);
+        if (m) out.push(`낚시 › ${label} ${id}: ${m}`);
+      }
+    }
+    const tables = (S.dpCatalog && S.dpCatalog.fishing && S.dpCatalog.fishing.tables) || [];
+    for (const [id, t] of Object.entries(f.tables || {})) {
+      for (const [k, v] of Object.entries(t.weights || {})) {
+        const m = fishEntryRule(v);
+        if (m) out.push(`낚시 › 내용물 ${id} › ${Number(k) + 1}번째: ${m}`);
+      }
+      (t.added || []).forEach((a, i) => {
+        const m = fishAddedWeightRule(a.weight) || fishAddedCountRule(a);
+        if (m) out.push(`낚시 › 내용물 ${id} › 추가한 아이템 ${i + 1}번: ${m}`);
+      });
+      if (fishTableLeft(tables.find((x) => x.id === id), t) < 1) {
+        out.push(`낚시 › 내용물 ${id}: 남는 아이템이 없습니다 — 아예 안 나오게 하려면 묶음 가중치를 0 으로 하세요`);
+      }
+    }
+    return out;
+  }
+
+  const fishingUi = { view: 'fish', query: '', group: '', rarity: '', onlyChanged: false };
+
+  const fishingTab = {
+    id: 'fishing',
+    title: '낚시',
+    validate: validateFishing,
+    render(container) {
+      const card = h('div', { class: 'card' }, h('h2', null, '낚시 확률'),
+        h('p', { class: 'muted' }, 'Tide 모드의 낚시 가중치를 바꿉니다. 찌를 건질 때마다 먼저 "물고기(고정 85) · 쓰레기 묶음 · 보물 묶음 · 상자" 중 하나가 가중치 비율로 뽑히고, 물고기가 뽑히면 그 자리(바이옴·깊이·시간 등 조건)에 맞는 물고기끼리 다시 가중치 비율로 뽑힙니다. 숫자가 클수록 자주 나오고 0 이면 아예 안 나옵니다. 빈 칸은 모드의 원래 값입니다.'),
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 바꾼 파일의 사본만 쓰고 /reload 를 자동으로 실행합니다. 다음에 던지는 찌부터 적용됩니다. "원래대로" = 사본 삭제. 행운(바다의 행운 등)은 묶음·물고기마다 정해진 만큼 가중치를 더하거나 빼는데(보물 +, 쓰레기 −), 가중치를 0 으로 한 것은 행운이 있어도 안 나옵니다.'));
+      container.append(card);
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      if (!cat || !dp) { card.append(dpMissing()); return null; }
+      const fc = cat.fishing || { fish: [], loot: [], crates: [], tables: [] };
+      if (!(fc.fish || []).length && !(fc.loot || []).length) {
+        card.append(h('p', { class: 'muted' }, '서버에 Tide 낚시 데이터가 없습니다 (Tide 모드가 설치돼 있는지 확인).'));
+        dpOrphanCard(container, ['fishing']);
+        return null;
+      }
+      const fs = dp.fishing;
+      let rowChecks = makeChecks();
+      const body = h('div');
+
+      // 한 줄짜리 가중치 칸: section = fs.fish / fs.loot / fs.crates
+      const weightInput = (section, row, label, onChange) => rowChecks.add(h('input', { type: 'number', step: 'any', min: 0, style: 'width:5.5rem',
+        'aria-label': `${label} 가중치`, placeholder: dpShown(row.weight), value: shownNum(section[row.id]),
+        oninput: (e) => {
+          const raw = e.target.value.trim();
+          const v = Number(raw);
+          if (raw === '' || Math.abs(v - row.weight) < 1e-9) delete section[row.id]; else section[row.id] = v;
+          changed();
+          if (onChange) onChange();
+        } }), () => fishWeightRule(section[row.id]));
+      const resetBtn = (section, row, redraw) => (section[row.id] !== undefined
+        ? h('button', { class: 'small', 'aria-label': `${row.id} 원래대로`, onclick: () => { delete section[row.id]; changed(); redraw(); } }, '원래대로') : null);
+      const whereText = (row) => (row.where || []).join(' · ');
+      const luckNote = (row) => (row.quality > 0 ? `행운 1당 +${dpShown(row.quality)}` : row.quality < 0 ? `행운 1당 ${dpShown(row.quality)}` : '');
+
+      const drawFish = () => {
+        const fish = fc.fish || [];
+        const tbody = h('tbody');
+        const count = h('span', { class: 'muted' });
+        const draw = () => {
+          rowChecks = makeChecks();
+          const q = fishingUi.query.trim().toLowerCase();
+          const list = fish.filter((f) => (!fishingUi.onlyChanged || fs.fish[f.id] !== undefined)
+            && (!fishingUi.group || f.group === fishingUi.group)
+            && (!fishingUi.rarity || f.rarity === fishingUi.rarity)
+            && (!q || (itemName(f.item) + ' ' + f.item + ' ' + whereText(f)).toLowerCase().includes(q)));
+          count.textContent = `${list.length}종`;
+          tbody.replaceChildren(...list.map((f) => {
+            const off = () => fs.fish[f.id] === 0;
+            const state = h('span', { class: 'tag gray' }, '안 낚임');
+            const paintState = () => { state.style.display = off() ? '' : 'none'; };
+            paintState();
+            return h('tr', null,
+              h('td', null, h('div', { style: 'display:flex;gap:.4rem;align-items:center' }, iconEl(f.item, 24),
+                h('div', null, h('div', null, itemName(f.item), ' ', state), h('div', { class: 'id' }, f.item)))),
+              h('td', null, FISH_RARITY[f.rarity] || f.rarity),
+              h('td', null, h('div', null, FISH_GROUPS[f.group] || f.group || '—'), h('div', { class: 'id', style: 'white-space:normal;max-width:20rem' }, whereText(f))),
+              h('td', null, weightInput(fs.fish, f, itemName(f.item), paintState),
+                h('div', { class: 'id' }, `원래 ${dpShown(f.weight)}${luckNote(f) ? ' · ' + luckNote(f) : ''}`)),
+              h('td', null, resetBtn(fs.fish, f, draw)));
+          }));
+          rowChecks.paint();
+        };
+        const groups = Array.from(new Set(fish.map((f) => f.group).filter(Boolean))).sort();
+        const groupSel = h('select', { 'aria-label': '사는 곳', onchange: (e) => { fishingUi.group = e.target.value; draw(); } },
+          h('option', { value: '' }, '모든 곳'), ...groups.map((g) => h('option', { value: g }, FISH_GROUPS[g] || g)));
+        groupSel.value = groups.includes(fishingUi.group) ? fishingUi.group : '';
+        fishingUi.group = groupSel.value;
+        const rarities = FISH_RARITY_ORDER.filter((r) => fish.some((f) => f.rarity === r));
+        const raritySel = h('select', { 'aria-label': '희귀도', onchange: (e) => { fishingUi.rarity = e.target.value; draw(); } },
+          h('option', { value: '' }, '모든 희귀도'), ...rarities.map((r) => h('option', { value: r }, FISH_RARITY[r])));
+        raritySel.value = rarities.includes(fishingUi.rarity) ? fishingUi.rarity : '';
+        fishingUi.rarity = raritySel.value;
+        const search = h('input', { type: 'search', placeholder: '이름·id·사는 곳 검색', 'aria-label': '물고기 검색', value: fishingUi.query, style: 'width:16rem',
+          oninput: (e) => { fishingUi.query = e.target.value; draw(); } });
+        const onlyChanged = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: fishingUi.onlyChanged,
+          onchange: (e) => { fishingUi.onlyChanged = e.target.checked; draw(); } }), ' 바꾼 것만');
+        body.replaceChildren(
+          h('p', { class: 'muted' }, '물고기끼리의 비율입니다. 같은 자리에서 낚일 수 있는 물고기들의 가중치를 모두 더한 것 중 그 물고기 몫만큼 나옵니다 — 자리마다 후보가 달라서 확률(%)을 하나로 보여 드릴 수는 없고, 희귀도와 사는 곳을 참고하세요. 가중치 0 인 물고기는 도감에는 남지만 낚이지 않습니다.'),
+          h('div', { class: 'field' }, search, groupSel, raritySel, onlyChanged, count),
+          h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['물고기', '희귀도', '사는 곳', '가중치', ''].map((t) => h('th', null, t)))), tbody)));
+        draw();
+      };
+
+      const drawLoot = () => {
+        rowChecks = makeChecks();
+        const fishW = isNum(fc.fishGroupWeight) ? fc.fishGroupWeight : 85;
+        const blocks = (fc.loot || []).map((g) => {
+          const name = FISH_LOOT_NAMES[fishTail(g.id)] || g.id;
+          const table = (fc.tables || []).find((t) => t.id === g.table);
+          const share = h('span', { class: 'muted' });
+          const paintShare = () => {
+            const w = fs.loot[g.id] !== undefined ? fs.loot[g.id] : g.weight;
+            share.textContent = !isNum(w) ? '' : w <= 0 ? '안 나옴' : `물고기(${fishW})와만 비교하면 약 ${fishPct(w / (fishW + w))}%`;
+          };
+          paintShare();
+          const head = h('div', { class: 'field' }, h('strong', null, name), h('span', { class: 'id' }, whereText(g)),
+            h('span', { class: 'spacer' }), h('span', null, '묶음 가중치'), weightInput(fs.loot, g, name, paintShare),
+            h('span', { class: 'id' }, `원래 ${dpShown(g.weight)}${luckNote(g) ? ' · ' + luckNote(g) : ''}`), share,
+            resetBtn(fs.loot, g, drawLoot));
+          const block = h('div', { class: 'card' }, head);
+          if (!table) {
+            block.append(h('p', { class: 'muted' }, `내용물 표 ${g.table} 을(를) 서버에서 찾지 못했습니다.`));
+            return block;
+          }
+          if (!table.editable) {
+            block.append(h('p', { class: 'muted' }, `내용물 표 ${g.table} 은(는) 구조가 달라 여기서 아이템별로 바꿀 수 없습니다 (묶음 가중치만 조절).`));
+            return block;
+          }
+          const edits = () => fs.tables[table.id] || (fs.tables[table.id] = { weights: {}, added: [] });
+          const cleanup = () => {
+            const t = fs.tables[table.id];
+            if (t && !Object.keys(t.weights).length && !t.added.length) delete fs.tables[table.id];
+          };
+          const cur = () => fs.tables[table.id] || { weights: {}, added: [] };
+          const effective = (en) => { const v = cur().weights[en.key]; return v !== undefined ? v : en.weight; };
+          const pctCells = [];
+          const empty = h('p', { class: 'banner warn' }, '남는 아이템이 없습니다 — 아예 안 나오게 하려면 위의 묶음 가중치를 0 으로 하세요.');
+          const paintPct = () => {
+            const c = cur();
+            let total = 0;
+            for (const en of table.entries) { const w = effective(en); if (isNum(w) && w > 0) total += w; }
+            for (const a of c.added) if (isNum(a.weight) && a.weight > 0) total += a.weight;
+            for (const [el, get] of pctCells) {
+              const w = get();
+              el.textContent = !isNum(w) || w <= 0 ? '안 나옴' : total > 0 ? `${fishPct(w / total)}%` : '';
+            }
+            empty.style.display = fishTableLeft(table, c) < 1 ? '' : 'none';
+          };
+          const pctCell = (get) => { const el = h('td', { class: 'muted' }); pctCells.push([el, get]); return el; };
+          const entryName = (en) => (en.item ? itemName(en.item) : `${en.type || '항목'} ${en.name || ''}`.trim());
+          const rows = table.entries.map((en) => {
+            const inp = rowChecks.add(h('input', { type: 'number', step: 1, min: 0, style: 'width:5rem', 'aria-label': `${name} ${entryName(en)} 가중치`,
+              placeholder: String(en.weight), value: shownNum(cur().weights[en.key]),
+              oninput: (e) => {
+                const raw = e.target.value.trim();
+                const v = Number(raw);
+                const t = edits();
+                if (raw === '' || v === en.weight) delete t.weights[en.key]; else t.weights[en.key] = v;
+                cleanup(); changed(); paintPct();
+              } }), () => fishEntryRule(cur().weights[en.key]));
+            return h('tr', null,
+              h('td', null, h('div', { style: 'display:flex;gap:.4rem;align-items:center' }, en.item ? iconEl(en.item, 24) : null,
+                h('div', null, h('div', null, entryName(en)), h('div', { class: 'id' }, [en.item || en.name].concat(en.notes || []).filter(Boolean).join(' · '))))),
+              h('td', null, inp, h('span', { class: 'id' }, ` 원래 ${en.weight}`)),
+              h('td', { class: 'muted' }, '—'),
+              pctCell(() => effective(en)),
+              h('td', null, cur().weights[en.key] !== undefined ? h('button', { class: 'small', 'aria-label': `${entryName(en)} 원래대로`, onclick: () => {
+                delete edits().weights[en.key]; cleanup(); changed(); drawLoot();
+              } }, '원래대로') : null));
+          });
+          const addedRows = cur().added.map((a, i) => {
+            const num = (key, label, width, rule) => rowChecks.add(h('input', { type: 'number', step: 1, min: 1, style: `width:${width}`,
+              'aria-label': `${name} 추가한 ${itemName(a.item)} ${label}`, value: shownNum(a[key]),
+              oninput: (e) => { a[key] = numOf(e); changed(); paintPct(); rowChecks.paint(); } }), rule);
+            const status = itemStatus(a.item);
+            return h('tr', null,
+              h('td', null, h('div', { style: 'display:flex;gap:.4rem;align-items:center' }, iconEl(a.item, 24),
+                h('div', null, h('div', null, itemName(a.item), ' ', h('span', { class: 'tag' }, '추가함'),
+                  status === 'missing' ? h('span', { class: 'tag bad' }, '설치되지 않은 아이템 (저장하면 건너뜀)') : null),
+                  h('div', { class: 'id' }, a.item)))),
+              h('td', null, num('weight', '가중치', '5rem', () => fishAddedWeightRule(a.weight))),
+              h('td', null, num('min', '최소 개수', '3.5rem', () => fishAddedCountRule(a)), ' ~ ', num('max', '최대 개수', '3.5rem', () => fishAddedCountRule(a)), ' 개'),
+              pctCell(() => a.weight),
+              h('td', null, h('button', { class: 'small', 'aria-label': `${itemName(a.item)} 삭제`, onclick: () => {
+                edits().added.splice(i, 1); cleanup(); changed(); drawLoot();
+              } }, '삭제')));
+          });
+          block.append(
+            h('p', { class: 'muted' }, `이 묶음이 뽑혔을 때 나오는 아이템입니다 (전리품 표 ${table.id}). 가중치는 정수이고, 0 으로 하면 그 아이템만 빠집니다.`),
+            empty,
+            h('div', { class: 'scroll-x' }, h('table', null,
+              h('thead', null, h('tr', null, ['아이템', '가중치', '개수', '묶음 안 확률', ''].map((t) => h('th', null, t)))),
+              h('tbody', null, ...rows, ...addedRows))),
+            h('div', { class: 'field' }, h('button', { onclick: async () => {
+              const id = await pickItem({ title: `'${name}' 에 추가할 아이템` });
+              if (!id) return;
+              edits().added.push({ item: id, weight: 1, min: 1, max: 1 });
+              changed(); drawLoot();
+            } }, '+ 아이템 추가')));
+          paintPct();
+          return block;
+        });
+        body.replaceChildren(
+          h('p', { class: 'muted' }, '쓰레기·보물 묶음입니다. "묶음 가중치"는 물고기(85)와 겨루는 값이라, 0 으로 하면 그 묶음(예: 쓰레기)이 통째로 안 나옵니다. 그 아래 표는 묶음이 뽑혔을 때 무엇이 나오는지이며, 강화석 같은 아이템을 직접 추가할 수 있습니다. 지상 보물 표(minecraft:gameplay/fishing/treasure)는 낚싯대 특수 능력 "월척"의 추가 보물에도 쓰입니다.'),
+          ...blocks);
+        rowChecks.paint();
+      };
+
+      const drawCrates = () => {
+        rowChecks = makeChecks();
+        const tbody = h('tbody', null, ...(fc.crates || []).map((c) => {
+          const name = FISH_CRATE_NAMES[fishTail(c.id)] || c.id;
+          return h('tr', null,
+            h('td', null, h('div', null, name), h('div', { class: 'id' }, c.id)),
+            h('td', { class: 'id', style: 'white-space:normal' }, whereText(c)),
+            h('td', null, weightInput(fs.crates, c, name), h('span', { class: 'id' }, ` 원래 ${dpShown(c.weight)}`)),
+            h('td', null, resetBtn(fs.crates, c, drawCrates)));
+        }));
+        body.replaceChildren(
+          h('p', { class: 'muted' }, '낚시로 건지는 상자입니다. 상자가 얼마나 자주 나오는지 자체는 Tide 설정(config 의 crateWeight)이 정하고, 여기 가중치는 그 자리에서 어떤 상자가 나올지를 정합니다. 0 으로 하면 그 상자는 안 나오며, 한 자리의 상자를 모두 0 으로 하면 그곳에서는 상자가 나오지 않습니다. 상자 안 내용물은 여기서 바꾸지 않습니다.'),
+          h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['상자', '나오는 곳', '가중치', ''].map((t) => h('th', null, t)))), tbody)));
+        rowChecks.paint();
+      };
+
+      const views = [['fish', '물고기', drawFish], ['loot', '쓰레기·보물', drawLoot], ['crates', '상자', drawCrates]];
+      const switcher = h('div', { class: 'tabs', role: 'tablist', 'aria-label': '낚시 묶음' });
+      const show = () => {
+        const v = views.find((x) => x[0] === fishingUi.view) || views[0];
+        switcher.replaceChildren(...views.map(([id, title]) => h('button', { role: 'tab', 'aria-selected': String(id === v[0]),
+          onclick: () => { fishingUi.view = id; show(); } }, title)));
+        v[2]();
+      };
+      card.append(switcher, body);
+      show();
+      dpOrphanCard(container, ['fishing']);
+      return () => rowChecks.paint();
+    },
+  };
+  registerTab(fishingTab);
 
   /* ----- 등장 탭 ----- */
 

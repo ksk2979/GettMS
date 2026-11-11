@@ -78,13 +78,21 @@ public final class FishingEffects {
             state = new HookState(hook.getId());
             LURE.put(player.getUUID(), state);
         }
-        if (!state.luredReduced && hook.timeUntilLured > 0) {
-            hook.timeUntilLured = Math.max(1, (int) Math.round(hook.timeUntilLured * factor));
+        // Tide 가 있으면 player.fishing 은 껍데기라서 실제 대기 시간은 Tide 찌에 있다
+        Object tide = TideHookBridge.hook(player);
+        int lured = tide != null ? TideHookBridge.lured(tide) : hook.timeUntilLured;
+        if (!state.luredReduced && lured > 0) {
+            int reduced = Math.max(1, (int) Math.round(lured * factor));
+            if (tide != null) TideHookBridge.setLured(tide, reduced);
+            else hook.timeUntilLured = reduced;
             state.luredReduced = true;
         }
-        if (!state.hookedReduced && hook.timeUntilHooked > 0) {
+        int hooked = tide != null ? TideHookBridge.hooked(tide) : hook.timeUntilHooked;
+        if (!state.hookedReduced && hooked > 0) {
             // 둘 다 0이 되면 바닐라가 대기를 새로 뽑으므로 최소 1틱은 남긴다
-            hook.timeUntilHooked = Math.max(1, (int) Math.round(hook.timeUntilHooked * factor));
+            int reduced = Math.max(1, (int) Math.round(hooked * factor));
+            if (tide != null) TideHookBridge.setHooked(tide, reduced);
+            else hook.timeUntilHooked = reduced;
             state.hookedReduced = true;
         }
     }

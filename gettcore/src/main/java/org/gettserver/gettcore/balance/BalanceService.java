@@ -42,6 +42,7 @@ public final class BalanceService {
     public static final String SPAWN_MOBS = "spawnMobs";
     public static final String EPICFIGHT = "epicfight";
     public static final String RECIPES = "recipes";
+    public static final String FISHING = "fishing";
 
     /** Spawn copies changed since this server started: they wait for a restart (biome modifiers load once). */
     private static volatile boolean spawnRestartPending;
@@ -70,7 +71,8 @@ public final class BalanceService {
                 GUNS, originals(rm, GunBalance.FOLDER).keySet(),
                 EPICFIGHT, originals(rm, EpicFightBalance.FOLDER).keySet(),
                 SPAWN_RULES, originals(rm, SpawnBalance.FOLDER).keySet(),
-                RECIPES, originalFiles(rm, RecipeBalance.FOLDER));
+                RECIPES, originalFiles(rm, RecipeBalance.FOLDER),
+                FISHING, fishingFiles(rm));
         return BalanceOrphans.find(packDir(server), files,
                 net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE::containsKey);
     }
@@ -104,6 +106,45 @@ public final class BalanceService {
         return out;
     }
 
+    /** One file's original (topmost version that is not from our pack), or null. */
+    static JsonObject originalOf(ResourceManager rm, ResourceLocation file) {
+        List<Resource> stack = rm.getResourceStack(file);
+        int i = PackFiles.originalIndex(stack.stream().map(Resource::sourcePackId).toList());
+        if (i < 0) return null;
+        try (Reader r = stack.get(i).openAsReader()) {
+            JsonElement el = JsonParser.parseReader(r);
+            return el.isJsonObject() ? el.getAsJsonObject() : null;
+        } catch (IOException | RuntimeException ex) {
+            GettCore.LOGGER.debug("balance: skipped unreadable {}: {}", file, ex.toString());
+            return null;
+        }
+    }
+
+    /** Tide's fishing data files and the loot tables its junk / treasure groups use. Empty without Tide. */
+    static FishingBalance.Originals fishingOriginals(ResourceManager rm) {
+        Map<ResourceLocation, JsonObject> loot = originals(rm, FishingBalance.LOOT_FOLDER);
+        Map<String, JsonObject> tables = new HashMap<>();
+        for (String id : FishingBalance.tableIds(loot)) {
+            ResourceLocation file = FishingBalance.tableFile(id);
+            JsonObject table = file == null ? null : originalOf(rm, file);
+            if (table != null) tables.put(id, table);
+        }
+        return new FishingBalance.Originals(originals(rm, FishingBalance.FISH_FOLDER), loot,
+                originals(rm, FishingBalance.CRATE_FOLDER), tables);
+    }
+
+    /** Every file a fishing copy can stand for (data files + all loot tables), for the orphan check. */
+    private static java.util.Set<ResourceLocation> fishingFiles(ResourceManager rm) {
+        java.util.Set<ResourceLocation> out = new java.util.HashSet<>();
+        for (FishingBalance.Kind k : FishingBalance.KINDS) out.addAll(originalFiles(rm, k.folder()));
+        out.addAll(originalFiles(rm, FishingBalance.TABLE_FOLDER));
+        return out;
+    }
+
+    private static boolean itemExists(ResourceLocation id) {
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(id);
+    }
+
     /** Like {@link #originals} but only which files exist (no parsing): for the orphan check of large folders. */
     static java.util.Set<ResourceLocation> originalFiles(ResourceManager rm, String folder) {
         java.util.Set<ResourceLocation> out = new java.util.HashSet<>();
@@ -121,8 +162,10 @@ public final class BalanceService {
             Map<ResourceLocation, JsonObject> mods = originals(server.getResourceManager(), SpawnBalance.FOLDER);
             Map<ResourceLocation, JsonObject> ef = originals(server.getResourceManager(), EpicFightBalance.FOLDER);
             Map<ResourceLocation, JsonObject> recipes = originals(server.getResourceManager(), RecipeBalance.FOLDER);
+            FishingBalance.Originals fishing = fishingOriginals(server.getResourceManager());
             Path pack = packDir(server);
             JsonObject state = new JsonObject();
+            state.add(FISHING, FishingBalance.state(fishing, pack));
             state.add(RECIPES, RecipeBalance.state(recipes, RecipeItems::kindOf, pack));
             state.add(GUNS, GunBalance.state(guns, pack));
             state.add(EPICFIGHT, EpicFightBalance.state(ef, pack));
@@ -134,6 +177,7 @@ public final class BalanceService {
             cat.addProperty("packEnabled", packEnabled(server));
             cat.addProperty("spawnRestartPending", spawnRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
+            cat.add(FISHING, FishingBalance.catalog(fishing, BalanceService::itemExists));
             cat.add(EPICFIGHT, EpicFightBalance.catalog(ef));
             cat.add(RECIPES, RecipeBalance.catalog(RecipeBalance.rows(recipes, RecipeItems::kindOf, pack)));
             cat.add(SPAWN_RULES, SpawnBalance.ruleCatalog(mods));
@@ -185,6 +229,8 @@ public final class BalanceService {
         if (ef != null) errs.addAll(EpicFightBalance.validate(ef));
         JsonObject recipes = section(desired, RECIPES, errs);
         if (recipes != null) errs.addAll(RecipeBalance.validate(recipes));
+        JsonObject fishing = section(desired, FISHING, errs);
+        if (fishing != null) errs.addAll(FishingBalance.validate(fishing));
         errs.addAll(BalanceOrphans.validate(desired.get(BalanceOrphans.REMOVE_KEY)));
         return errs;
     }
@@ -235,6 +281,18 @@ public final class BalanceService {
                         + " 이미 가진 장비와 상점·보상으로 받는 장비는 그대로입니다");
             }
         }
+        boolean fishingChanged = false;
+        JsonObject fishing = section(desired, FISHING, new ArrayList<>());
+        if (fishing != null) {
+            FishingBalance.Outcome o = FishingBalance.reconcile(fishingOriginals(server.getResourceManager()), pack,
+                    fishing, BalanceService::itemExists);
+            msgs.addAll(o.warnings());
+            fishingChanged = o.changed();
+            if (fishingChanged) {
+                msgs.add("낚시: 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(원래대로)"
+                        + " — /reload 가 끝나면 다음에 던지는 찌부터 새 가중치로 낚입니다");
+            }
+        }
         int spawnWritten = 0;
         int spawnDeleted = 0;
         JsonObject rules = section(desired, SPAWN_RULES, new ArrayList<>());
@@ -268,11 +326,11 @@ public final class BalanceService {
         boolean hasData = PackFiles.hasData(pack);
         if (hasData && PackFiles.ensurePack(pack)) msgs.add("데이터팩 gett_balance 를 새로 만들었습니다");
         boolean enable = hasData && !packEnabled(server);
-        boolean reload = gunsChanged || efChanged || recipesChanged || enable;
+        boolean reload = gunsChanged || efChanged || recipesChanged || fishingChanged || enable;
         if (reload) {
             reload(server);
             msgs.add(enable ? "데이터팩 gett_balance 를 켜고 /reload 를 실행합니다"
-                    : "총·Epic Fight·제작법 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
+                    : "총·Epic Fight·제작법·낚시 반영을 위해 /reload 를 실행합니다 (몇 초 걸릴 수 있음)");
         }
         if (!msgs.isEmpty()) GettCore.LOGGER.info("balance save: {}", msgs);
         return new Applied(reload, msgs);

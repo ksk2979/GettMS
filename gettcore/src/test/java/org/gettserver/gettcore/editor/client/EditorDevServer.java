@@ -145,6 +145,50 @@ public final class EditorDevServer {
                 b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade());
     }
 
+    /** A few Tide 2.1.1 fishing files (trimmed) and the vanilla junk / treasure tables. */
+    private static org.gettserver.gettcore.balance.FishingBalance.Originals fishingSample() {
+        java.util.Map<ResourceLocation, JsonObject> fish = new LinkedHashMap<>();
+        String surface = "{\"type\":\"tide:dimension\",\"dimensions\":[\"minecraft:overworld\"]},{\"type\":\"tide:fluid\",\"fluid\":\"water\"},{\"type\":\"tide:above\",\"y\":40}";
+        fish.put(ResourceLocation.parse("minecraft:fishing/fish/saltwater/cod.json"), JsonParser.parseString(
+                "{\"conditions\":[" + surface + ",{\"type\":\"tide:saltwater\"}],\"fish\":\"minecraft:cod\","
+                        + "\"journal_profile\":{\"group\":\"saltwater\"},\"selection_weight\":30.0}").getAsJsonObject());
+        fish.put(ResourceLocation.parse("minecraft:fishing/fish/freshwater/salmon.json"), JsonParser.parseString(
+                "{\"conditions\":[" + surface + ",{\"type\":\"tide:freshwater\"}],\"fish\":\"minecraft:salmon\","
+                        + "\"journal_profile\":{\"group\":\"freshwater\"},\"selection_weight\":25.0}").getAsJsonObject());
+        fish.put(ResourceLocation.parse("minecraft:fishing/fish/saltwater/pufferfish.json"), JsonParser.parseString(
+                "{\"conditions\":[" + surface + ",{\"type\":\"tide:saltwater\"},{\"type\":\"tide:time_of_day\",\"ranges\":[]}],"
+                        + "\"fish\":\"minecraft:pufferfish\",\"journal_profile\":{\"group\":\"saltwater\",\"rarity\":\"rare\"},"
+                        + "\"selection_weight\":8.0,\"selection_quality\":0.5}").getAsJsonObject());
+        fish.put(ResourceLocation.parse("minecraft:fishing/fish/saltwater/tropical_fish.json"), JsonParser.parseString(
+                "{\"conditions\":[{\"type\":\"tide:found_in\",\"biomes\":[\"#tide:has_jungle_fish\",\"#tide:has_swamp_fish\"]}," + surface + "],"
+                        + "\"fish\":\"minecraft:tropical_fish\",\"journal_profile\":{\"group\":\"saltwater\",\"rarity\":\"legendary\"},"
+                        + "\"selection_weight\":1.5}").getAsJsonObject());
+        java.util.Map<ResourceLocation, JsonObject> loot = new LinkedHashMap<>();
+        loot.put(ResourceLocation.parse("tide:fishing/loot/surface_junk.json"), JsonParser.parseString(
+                "{\"conditions\":[" + surface + "],\"loot_table\":\"minecraft:gameplay/fishing/junk\",\"quality\":-2.0,\"weight\":10.0}").getAsJsonObject());
+        loot.put(ResourceLocation.parse("tide:fishing/loot/surface_treasure.json"), JsonParser.parseString(
+                "{\"conditions\":[{\"type\":\"tide:open_water\",\"in_open_water\":true}," + surface + "],"
+                        + "\"loot_table\":\"minecraft:gameplay/fishing/treasure\",\"quality\":2.0,\"weight\":5.0}").getAsJsonObject());
+        java.util.Map<ResourceLocation, JsonObject> crates = new LinkedHashMap<>();
+        crates.put(ResourceLocation.parse("tide:fishing/crates/surface_lava.json"), JsonParser.parseString(
+                "{\"conditions\":[{\"type\":\"tide:fluid\",\"fluid\":\"lava\"}],\"loot_table\":\"tide:chests/crates/surface_lava\",\"weight\":1.0}").getAsJsonObject());
+        java.util.Map<String, JsonObject> tables = new LinkedHashMap<>();
+        tables.put("minecraft:gameplay/fishing/junk", JsonParser.parseString(
+                "{\"type\":\"minecraft:fishing\",\"pools\":[{\"rolls\":1.0,\"entries\":["
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:lily_pad\",\"weight\":17},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:leather_boots\",\"weight\":10,\"functions\":[{\"function\":\"minecraft:set_damage\"}]},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:bowl\",\"weight\":10},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:rotten_flesh\",\"weight\":10},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:stick\",\"weight\":5}]}]}").getAsJsonObject());
+        tables.put("minecraft:gameplay/fishing/treasure", JsonParser.parseString(
+                "{\"type\":\"minecraft:fishing\",\"pools\":[{\"rolls\":1.0,\"entries\":["
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:name_tag\"},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:saddle\"},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:book\",\"functions\":[{\"function\":\"minecraft:enchant_with_levels\"}]},"
+                        + "{\"type\":\"minecraft:item\",\"name\":\"minecraft:nautilus_shell\"}]}]}").getAsJsonObject());
+        return new org.gettserver.gettcore.balance.FishingBalance.Originals(fish, loot, crates, tables);
+    }
+
     /** Snapshot + the balance sections with a few real-looking mod files (trimmed). */
     private static String withBalance(String snapshotJson) {
         java.util.Map<ResourceLocation, JsonObject> guns = new LinkedHashMap<>();
@@ -179,6 +223,7 @@ public final class EditorDevServer {
                 "{\"attributes\":{\"common\":{\"impact\":1.1,\"max_strikes\":1}},\"type\":\"epicfight:sword\"}").getAsJsonObject());
         cat.add(BalanceService.EPICFIGHT, EpicFightBalance.catalog(ef));
         cat.add(BalanceService.SPAWN_RULES, SpawnBalance.ruleCatalog(rules));
+        cat.add(BalanceService.FISHING, org.gettserver.gettcore.balance.FishingBalance.catalog(fishingSample(), id -> true));
         cat.add(BalanceService.RECIPES, JsonParser.parseString(
                 "[{\"id\":\"magistuarmory:armet\",\"item\":\"magistuarmory:armet\",\"mod\":\"magistuarmory\",\"kind\":\"armor\",\"type\":\"minecraft:crafting_shaped\"},"
                         + "{\"id\":\"magistuarmory:bronze_pike\",\"item\":\"magistuarmory:bronze_pike\",\"mod\":\"magistuarmory\",\"kind\":\"weapon\",\"type\":\"minecraft:crafting_shaped\"},"
