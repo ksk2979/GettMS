@@ -5,9 +5,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 public record EconomyConfig(String currencyName, int hudOffsetX, int hudOffsetY, int xpOrbAmount,
                             int returnCastSeconds, PriceDynamicsConfig priceDynamics,
-                            PriceFluctuationConfig priceFluctuation) {
+                            PriceFluctuationConfig priceFluctuation, double otherGunSoundVolume) {
     public EconomyConfig {
         priceFluctuation = priceFluctuation.sanitized();
+        otherGunSoundVolume = Double.isNaN(otherGunSoundVolume) ? 1.0 : Math.max(0.0, Math.min(1.0, otherGunSoundVolume));
     }
 
     /** Whether this shop's sell prices follow the timed market right now. */
@@ -16,7 +17,7 @@ public record EconomyConfig(String currencyName, int hudOffsetX, int hudOffsetY,
     }
 
     public static final EconomyConfig DEFAULT = new EconomyConfig("골드", 0, 0, 7, 3, PriceDynamicsConfig.DISABLED,
-            PriceFluctuationConfig.DEFAULT);
+            PriceFluctuationConfig.DEFAULT, 0.1);
 
     public static final Codec<EconomyConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.optionalFieldOf("currencyName", DEFAULT.currencyName()).forGetter(EconomyConfig::currencyName),
@@ -25,6 +26,7 @@ public record EconomyConfig(String currencyName, int hudOffsetX, int hudOffsetY,
             Codec.INT.optionalFieldOf("xpOrbAmount", DEFAULT.xpOrbAmount()).forGetter(EconomyConfig::xpOrbAmount),
             Codec.INT.optionalFieldOf("returnCastSeconds", DEFAULT.returnCastSeconds()).forGetter(EconomyConfig::returnCastSeconds),
             PriceDynamicsConfig.CODEC.optionalFieldOf("priceDynamics", PriceDynamicsConfig.DISABLED).forGetter(EconomyConfig::priceDynamics),
-            PriceFluctuationConfig.CODEC.optionalFieldOf("priceFluctuation", PriceFluctuationConfig.DEFAULT).forGetter(EconomyConfig::priceFluctuation)
+            PriceFluctuationConfig.CODEC.optionalFieldOf("priceFluctuation", PriceFluctuationConfig.DEFAULT).forGetter(EconomyConfig::priceFluctuation),
+            Codec.DOUBLE.optionalFieldOf("otherGunSoundVolume", DEFAULT.otherGunSoundVolume()).forGetter(EconomyConfig::otherGunSoundVolume)
     ).apply(i, EconomyConfig::new));
 }

@@ -27,7 +27,7 @@ public final class DataEvents {
 
     public static ConfigSyncPayload configPayload() {
         EconomyConfig c = GettData.get().economy();
-        return new ConfigSyncPayload(c.hudOffsetX(), c.hudOffsetY(), c.currencyName());
+        return new ConfigSyncPayload(c.hudOffsetX(), c.hudOffsetY(), c.currencyName(), (float) c.otherGunSoundVolume());
     }
 
     public static void syncConfig(MinecraftServer server) {
