@@ -115,7 +115,11 @@ public class UpgradeScreen extends AbstractContainerScreen<UpgradeMenu> {
             return;
         }
         UpgradeConfig.Step step = found.get();
-        big(g, Component.translatable("gettcore.screen.upgrade.next", next.get().getDescription()), LINE_Y + 14, TEXT);
+        Component nextName = UpgradeConfig.isBackpackStep(step)
+                ? Component.translatable("gettcore.screen.upgrade.backpack_tier",
+                        BackpackBridge.tierName(BackpackBridge.tier(gear) + 1))
+                : next.get().getDescription();
+        big(g, Component.translatable("gettcore.screen.upgrade.next", nextName), LINE_Y + 14, TEXT);
         int held = held(found);
         GuiText.smallRight(g, font, new ItemStack(material.get()),
                 Component.translatable("gettcore.screen.cost.upgrade_material", material.get().getDescription(),

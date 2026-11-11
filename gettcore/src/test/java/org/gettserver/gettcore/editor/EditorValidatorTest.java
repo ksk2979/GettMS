@@ -20,7 +20,7 @@ class EditorValidatorTest {
 
     @Test
     void serverOnlyModItemIsKept() {
-        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("servermod"), rl -> true);
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("servermod") || rl.getNamespace().equals("minecraft"), rl -> true);
         EditorBundle b = bundle(Map.of("s", shop("s", entry("servermod:gem", 5, 1))), NO_D, NpcMapping.EMPTY, NO_Q);
         EditorValidator.Result r = EditorValidator.validate(b, checks);
         assertTrue(r.errors().isEmpty(), r.errors().toString());

@@ -81,7 +81,9 @@ public class UpgradeMenu extends AbstractContainerMenu {
     }
 
     private boolean accepts(ItemStack stack) {
-        return !stack.isEmpty() && config().involves(UpgradeService.key(stack));
+        if (stack.isEmpty()) return false;
+        if (BackpackBridge.isBackpack(stack)) return !config().backpackTiers().isEmpty();
+        return config().involves(UpgradeService.key(stack));
     }
 
     /** 다음 단계가 있고 재료 {@code held}개·골드 {@code gold}가 비용 이상. */

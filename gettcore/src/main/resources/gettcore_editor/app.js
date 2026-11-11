@@ -286,12 +286,23 @@
   }
 
   /** equipment.json: 아이템별로 덮어쓸 툴팁 값만 (빠진 값 = 그 아이템의 원래 값). */
+  const BACKPACK_TIER_DEFAULTS = [
+    { material: 'minecraft:iron_ingot', count: 20, gold: 0 }, { material: 'minecraft:gold_ingot', count: 20, gold: 0 },
+    { material: 'minecraft:diamond', count: 10, gold: 0 }, { material: 'minecraft:netherite_ingot', count: 4, gold: 0 }];
+  const BACKPACK_TIER_LABELS = ['가죽 → 철', '철 → 금', '금 → 다이아몬드', '다이아몬드 → 네더라이트'];
+
   /** upgrade.json: 업그레이드 단계 목록 [{from, to, material, count, gold}] (빠진 count = 1, gold = 0). */
   function normalizeUpgrade(src) {
     const steps = (src && Array.isArray(src.steps) ? src.steps : []).filter((s) => s && typeof s === 'object')
       .map((s) => ({ from: String(s.from || ''), to: String(s.to || ''), material: String(s.material || ''),
         count: s.count === undefined ? 1 : s.count, gold: s.gold === undefined ? 0 : s.gold }));
-    return { steps };
+    // 배낭 등급 비용 4단계(가죽→철→금→다이아몬드→네더라이트). 파일에 없거나 모자라면 기본값으로 채운다.
+    const given = src && Array.isArray(src.backpackTiers) ? src.backpackTiers : [];
+    const backpackTiers = BACKPACK_TIER_DEFAULTS.map((d, i) => {
+      const t = given[i] && typeof given[i] === 'object' ? given[i] : d;
+      return { material: String(t.material || ''), count: t.count === undefined ? 1 : t.count, gold: t.gold === undefined ? 0 : t.gold };
+    });
+    return { steps, backpackTiers };
   }
 
   function normalizeEquipment(src) {
@@ -2696,11 +2707,22 @@
     return out;
   }
 
+  function backpackTierErrors(t) {
+    const e = [];
+    if (!ITEM_ID.test(t.material || '')) e.push('재료를 고르세요');
+    if (!Number.isInteger(t.count) || t.count < 1 || t.count > 2304) e.push('재료 개수는 1~2304 정수여야 합니다');
+    if (!Number.isInteger(t.gold) || t.gold < 0) e.push('골드는 0 이상의 정수여야 합니다');
+    return e;
+  }
+
   function validateUpgrade(bundle) {
     const steps = (bundle.upgrade && bundle.upgrade.steps) || [];
     const out = [];
     upgradeRowErrors(steps).forEach((errs, i) => {
       for (const m of errs) out.push(`업그레이드 ${i + 1}번 (${steps[i].from ? itemName(steps[i].from) : '빈 단계'}): ${m}`);
+    });
+    ((bundle.upgrade && bundle.upgrade.backpackTiers) || []).forEach((t, i) => {
+      for (const m of backpackTierErrors(t)) out.push(`배낭 등급 ${BACKPACK_TIER_LABELS[i]}: ${m}`);
     });
     return out;
   }
@@ -2785,8 +2807,31 @@
         h('div', { class: 'field' }, search, add, count),
         h('div', { class: 'scroll-x' }, h('table', null,
           h('thead', null, h('tr', null, ['#', '현재 장비', '', '다음 장비', '재료', '개수', '골드', ''].map((t) => h('th', null, t)))), tbody))));
+
+      // 배낭 등급: 배낭은 등급이 올라도 아이템이 그대로라 위 표에 넣을 수 없어 따로 둔다.
+      const tierChecks = makeChecks();
+      const tiers = S.bundle.upgrade.backpackTiers;
+      const tierBody = h('tbody');
+      const drawTiers = () => {
+        tierBody.replaceChildren(...tiers.map((t, i) => h('tr', null,
+          h('td', null, BACKPACK_TIER_LABELS[i]),
+          h('td', null, h('button', { class: 'icon-btn', title: '재료 바꾸기', 'aria-label': `${BACKPACK_TIER_LABELS[i]} 재료 바꾸기`, onclick: async () => {
+            const id = await pickItem({ title: `재료 (${BACKPACK_TIER_LABELS[i]})` });
+            if (!id) return;
+            t.material = id; changed(); drawTiers();
+          } }, iconEl(t.material, 28), h('span', null, t.material ? itemName(t.material) : '— 선택 —')),
+            h('div', { class: 'id' }, t.material || ''), unknownNote(t.material)),
+          h('td', null, tierChecks.add(intIn(t, 'count', '재료 개수', 1), () => (Number.isInteger(t.count) && t.count >= 1 && t.count <= 2304 ? '' : '1~2304 정수'))),
+          h('td', null, tierChecks.add(intIn(t, 'gold', '골드', 0), () => (Number.isInteger(t.gold) && t.gold >= 0 ? '' : '0 이상의 정수'))))));
+        tierChecks.paint();
+      };
+      container.append(h('div', { class: 'card' }, h('h2', null, '배낭 등급'),
+        h('p', { class: 'muted' }, '여행자 배낭(모든 종류)을 대장장이의 \'업그레이드\' 화면에 올리면 한 등급씩 올립니다. 안에 든 물건과 장착한 업그레이드는 그대로입니다.'),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['등급', '재료', '개수', '골드'].map((t) => h('th', null, t)))), tierBody))));
+      drawTiers();
       draw();
-      return () => rowChecks.paint();
+      return () => { rowChecks.paint(); tierChecks.paint(); };
     },
   };
   registerTab(upgradeTab);

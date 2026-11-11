@@ -952,5 +952,11 @@
       "count": 1,
       "gold": 0
     }
+  ],
+  "backpackTiers": [
+    { "material": "minecraft:iron_ingot", "count": 20, "gold": 0 },
+    { "material": "minecraft:gold_ingot", "count": 20, "gold": 0 },
+    { "material": "minecraft:diamond", "count": 10, "gold": 0 },
+    { "material": "minecraft:netherite_ingot", "count": 4, "gold": 0 }
   ]
 }

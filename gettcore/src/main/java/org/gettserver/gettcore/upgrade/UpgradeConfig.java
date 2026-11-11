@@ -21,11 +21,37 @@ import net.minecraft.resources.ResourceLocation;
  * {@code to} 아이템으로 바꾼다. {@code from} 은 목록 안에서 한 번만 나오고, 단계를 따라가다 처음으로 돌아오면(순환) 안
  * 된다. 판정은 {@link UpgradeRules}, 적용은 {@code UpgradeService}.
  */
-public record UpgradeConfig(List<Step> steps) {
+public record UpgradeConfig(List<Step> steps, List<TierCost> backpackTiers) {
     public static final String FILE = "upgrade.json";
-    /** Without the file nothing can be upgraded (the bundled default file carries the Epic Knights chains). */
-    public static final UpgradeConfig DEFAULT = new UpgradeConfig(List.of());
     public static final int MAX_COUNT = 64 * 36;
+
+    /**
+     * Cost of one Traveler's Backpack tier step. Every backpack keeps its item id and carries the tier as a
+     * component, so these are not {@link Step}s: entry n is the cost of tier n → n + 1 (leather → iron → gold →
+     * diamond → netherite) for any backpack. An empty list switches backpack upgrading off.
+     */
+    public record TierCost(String material, int count, long gold) {
+        public static final Codec<TierCost> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.STRING.fieldOf("material").forGetter(TierCost::material),
+                Codec.INT.optionalFieldOf("count").forGetter(t -> Optional.of(t.count())),
+                Codec.LONG.optionalFieldOf("gold").forGetter(t -> Optional.of(t.gold()))
+        ).apply(i, (material, count, gold) -> new TierCost(material, count.orElse(1), gold.orElse(0L))));
+    }
+
+    /** Leather → iron 20 iron, → gold 20 gold, → diamond 10 diamonds, → netherite 4 netherite ingots. */
+    public static final List<TierCost> BACKPACK_DEFAULT = List.of(
+            new TierCost("minecraft:iron_ingot", 20, 0), new TierCost("minecraft:gold_ingot", 20, 0),
+            new TierCost("minecraft:diamond", 10, 0), new TierCost("minecraft:netherite_ingot", 4, 0));
+    /** Backpacks have five tiers, so four steps. */
+    public static final int BACKPACK_STEPS = 4;
+
+    /** Without the file only backpacks can be upgraded (the bundled default file carries the Epic Knights chains). */
+    public static final UpgradeConfig DEFAULT = new UpgradeConfig(List.of());
+
+    /** Steps with the default backpack costs (what a file without {@code backpackTiers} means). */
+    public UpgradeConfig(List<Step> steps) {
+        this(steps, BACKPACK_DEFAULT);
+    }
 
     public record Step(String from, String to, String material, int count, long gold) {
         public static final Codec<Step> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -40,7 +66,9 @@ public record UpgradeConfig(List<Step> steps) {
     }
 
     public static final Codec<UpgradeConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
-            Step.CODEC.listOf().optionalFieldOf("steps", List.of()).forGetter(UpgradeConfig::steps)
+            Step.CODEC.listOf().optionalFieldOf("steps", List.of()).forGetter(UpgradeConfig::steps),
+            TierCost.CODEC.listOf().optionalFieldOf("backpackTiers", BACKPACK_DEFAULT)
+                    .forGetter(UpgradeConfig::backpackTiers)
     ).apply(i, UpgradeConfig::new));
 
     /** Server → client copy (the screen shows the next item and its cost). */
@@ -49,6 +77,22 @@ public record UpgradeConfig(List<Step> steps) {
 
     public UpgradeConfig {
         steps = List.copyOf(steps);
+        backpackTiers = List.copyOf(backpackTiers);
+    }
+
+    /**
+     * The step for a backpack {@code item} at {@code tier} (0 = leather): same item on both sides, the cost of
+     * that tier. Empty at the last tier or when backpack upgrading is off.
+     */
+    public Optional<Step> backpackStep(String item, int tier) {
+        if (tier < 0 || tier >= backpackTiers.size()) return Optional.empty();
+        TierCost c = backpackTiers.get(tier);
+        return Optional.of(new Step(item, item, c.material(), c.count(), c.gold()));
+    }
+
+    /** Whether {@code step} came from {@link #backpackStep} (the item stays, only its tier goes up). */
+    public static boolean isBackpackStep(Step step) {
+        return step.from().equals(step.to());
     }
 
     public static String toJsonString(UpgradeConfig c) {
@@ -83,6 +127,7 @@ public record UpgradeConfig(List<Step> steps) {
     public List<String> errors() {
         List<String> out = new ArrayList<>();
         check(out);
+        checkBackpack(out);
         return out;
     }
 
@@ -90,8 +135,9 @@ public record UpgradeConfig(List<Step> steps) {
     public UpgradeConfig sanitized(List<String> warnings) {
         List<String> lines = new ArrayList<>();
         List<Step> kept = check(lines);
+        List<TierCost> tiers = checkBackpack(lines);
         lines.forEach(l -> warnings.add(FILE + ": " + l));
-        UpgradeConfig c = new UpgradeConfig(kept);
+        UpgradeConfig c = new UpgradeConfig(kept, tiers);
         return c.equals(this) ? this : c;
     }
 
@@ -138,6 +184,38 @@ public record UpgradeConfig(List<Step> steps) {
         return kept;
     }
 
+    /**
+     * Backpack tier costs: at most {@link #BACKPACK_STEPS}; a material that is not an item id ends the list there
+     * (a later tier could not be reached anyway); count and gold are clamped.
+     */
+    private List<TierCost> checkBackpack(List<String> out) {
+        List<TierCost> kept = new ArrayList<>();
+        for (int n = 0; n < backpackTiers.size(); n++) {
+            TierCost t = backpackTiers.get(n);
+            String p = "backpackTiers[" + n + "]";
+            if (n >= BACKPACK_STEPS) {
+                out.add(p + ": backpacks have only " + BACKPACK_STEPS + " tier steps (ignored)");
+                break;
+            }
+            if (!isItemId(t.material())) {
+                out.add(p + ": material '" + t.material() + "' is not an item id (this and later tiers skipped)");
+                break;
+            }
+            int count = t.count();
+            if (count < 1 || count > MAX_COUNT) {
+                count = Math.max(1, Math.min(MAX_COUNT, count));
+                out.add(p + ": count " + t.count() + " must be 1.." + MAX_COUNT + " (set to " + count + ")");
+            }
+            long gold = t.gold();
+            if (gold < 0) {
+                gold = 0;
+                out.add(p + ": gold " + t.gold() + " must be >= 0 (set to 0)");
+            }
+            kept.add(count == t.count() && gold == t.gold() ? t : new TierCost(t.material(), count, gold));
+        }
+        return kept;
+    }
+
     /** Every item id the steps mention (from, to, material). */
     public Set<String> itemIds() {
         Set<String> out = new HashSet<>();
@@ -146,6 +224,7 @@ public record UpgradeConfig(List<Step> steps) {
             out.add(s.to());
             out.add(s.material());
         }
+        for (TierCost t : backpackTiers) out.add(t.material());
         return out;
     }
 

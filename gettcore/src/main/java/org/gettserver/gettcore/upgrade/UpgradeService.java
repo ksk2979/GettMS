@@ -58,6 +58,9 @@ public final class UpgradeService {
     /** Next step for {@code gear}; empty when there is none or its result/material item is not installed. */
     public static Optional<UpgradeConfig.Step> nextStep(ItemStack gear, UpgradeConfig config) {
         if (gear.isEmpty()) return Optional.empty();
+        if (BackpackBridge.isBackpack(gear)) {
+            return config.backpackStep(key(gear), BackpackBridge.tier(gear)).filter(s -> item(s.material()).isPresent());
+        }
         return config.step(key(gear)).filter(s -> item(s.to()).isPresent() && item(s.material()).isPresent());
     }
 
@@ -100,6 +103,10 @@ public final class UpgradeService {
         if (found.isEmpty()) return;
         UpgradeConfig.Step step = found.get();
         Item to = item(step.to()).orElseThrow();
+        boolean backpack = UpgradeConfig.isBackpackStep(step);
+        // The result is made before anything is taken: a backpack that cannot be raised costs nothing.
+        ItemStack result = backpack ? BackpackBridge.upgraded(gear) : upgraded(gear, to);
+        if (result.isEmpty()) return;
         UUID id = player.getUUID();
         EconomyData eco = EconomyData.get(player.server);
         List<ItemStack> slots = StoneCounter.slots(player.getInventory());
@@ -113,12 +120,13 @@ public final class UpgradeService {
         if (step.gold() > 0) eco.changed(id);
         player.getInventory().setChanged();
         // (4) replace the gear
-        ItemStack result = upgraded(gear, to);
         menu.setGear(result);
         menu.broadcastChanges();
         // (5) chat line, sound, log line
-        player.sendSystemMessage(Component.translatable("gettcore.msg.upgrade.success", to.getDescription())
-                .withStyle(ChatFormatting.GREEN));
+        Component line = backpack
+                ? Component.translatable("gettcore.msg.upgrade.backpack", BackpackBridge.tierName(BackpackBridge.tier(result)))
+                : Component.translatable("gettcore.msg.upgrade.success", to.getDescription());
+        player.sendSystemMessage(line.copy().withStyle(ChatFormatting.GREEN));
         player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.SMITHING_TABLE_USE,
                 SoundSource.PLAYERS, 1.0f, 1.0f);
         GettCore.LOGGER.info("gettcore: {} upgrade {} -> {} ({} x{}, {} gold)", player.getGameProfile().getName(),
