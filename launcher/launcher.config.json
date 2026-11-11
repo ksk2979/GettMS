@@ -44,14 +44,15 @@
     "worldedit",
     "epic-knights-shields-armor-and-weapons",
     "epic-fight",
-    "weapons-of-miracles"
+    "weapons-of-miracles",
+    "tide"
   ],
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.7.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.7.0/gettcore-1.7.0.jar",
-      "sha512": "684c1b9d7861ec2fba37331c186e722f5f19879b93fb50299ce0bcef7581d2dbc4e55e910f57f49628d0109f4df1003a6505cba5403eda04a6ec30be767aacf8",
+      "file": "gettcore-1.7.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.7.1/gettcore-1.7.1.jar",
+      "sha512": "d3c4f29de93a4ce7f2fe29a5d5aa200f99d8f413a3b6211013ec1e4bc6d67482b31d7383ca33eb8c821b744292c6455cef5261ad5d73b8af8c37a551c4c20add",
       "side": "both"
     },
     {
@@ -313,10 +314,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.7.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.7.0/gettcore-1.7.0.jar",
-      "sha512": "684c1b9d7861ec2fba37331c186e722f5f19879b93fb50299ce0bcef7581d2dbc4e55e910f57f49628d0109f4df1003a6505cba5403eda04a6ec30be767aacf8",
-      "size": 1527486,
+      "file": "gettcore-1.7.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.7.1/gettcore-1.7.1.jar",
+      "sha512": "d3c4f29de93a4ce7f2fe29a5d5aa200f99d8f413a3b6211013ec1e4bc6d67482b31d7383ca33eb8c821b744292c6455cef5261ad5d73b8af8c37a551c4c20add",
+      "size": 1557483,
       "side": "both"
     },
     {
@@ -504,6 +505,14 @@
       "side": "both"
     },
     {
+      "slug": "tide",
+      "file": "tide-neoforge-1.21.1-2.1.1.jar",
+      "url": "https://cdn.modrinth.com/data/die1AF7i/versions/1ki6UyqV/tide-neoforge-1.21.1-2.1.1.jar",
+      "sha512": "a6ee50e7b1a31e3d12641827ada1816da08c6185ca6447a23c7f90bf4964c022c8dafd8d9df865b4c2368365b21114d326bd5eabde1c76392123d3e9b4b6111f",
+      "size": 2155309,
+      "side": "both"
+    },
+    {
       "slug": "travelersbackpack",
       "file": "travelersbackpack-neoforge-1.21.1-10.1.41.jar",
       "url": "https://cdn.modrinth.com/data/rlloIFEV/versions/JrOhWsXk/travelersbackpack-neoforge-1.21.1-10.1.41.jar",
@@ -544,5 +553,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "16f88a44de86a6d8c73d3d18603beb770f42d5042e53fdfe4e9e79792a67ab18"
+  "lockSource": "c0ba6e35525f5bfeda59b7d70b18647b836402f85d07dd46fbb362654731212a"
 }
