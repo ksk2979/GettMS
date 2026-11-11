@@ -106,7 +106,8 @@
     "xaeros-minimap",
     "xaeros-world-map",
     "entityculling",
-    "sodium"
+    "sodium",
+    "lambdynamiclights"
   ],
   "serverOnlyMods": [
     "playername-styler"
@@ -337,6 +338,14 @@
       "side": "both"
     },
     {
+      "slug": "lambdynamiclights",
+      "file": "lambdynamiclights-4.8.11+1.21.1.jar",
+      "url": "https://cdn.modrinth.com/data/yBW8D80W/versions/ksaGCvSu/lambdynamiclights-4.8.11%2B1.21.1.jar",
+      "sha512": "0286076e8b2922dfbe90cd4544a0d16e6d07d7249c732a37479ea4281e9cf96c86dd2e1ce5261489bd5553ceba33044bc550a04b9eb582645eb97f15c9c6a64c",
+      "size": 2023375,
+      "side": "client"
+    },
+    {
       "slug": "luckperms",
       "file": "LuckPerms-NeoForge-5.4.149.jar",
       "url": "https://github.com/ksk2979/GettMS/releases/download/server-deps/LuckPerms-NeoForge-5.4.149.jar",
@@ -553,5 +562,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "168920f34653eed43f88422d43e123f817b6f498a8a4924208a3e062ad9a886b"
+  "lockSource": "75404e9fc4d65847956dd98778759260e72d7577dba5ef8576db71bdeb85d390"
 }

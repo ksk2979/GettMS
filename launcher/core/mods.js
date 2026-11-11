@@ -25,6 +25,8 @@ async function resolve(slugs, mc, log) {
     for (const d of v.dependencies || []) {
       if (d.dependency_type !== 'required' || !d.project_id) continue;
       const p = await fetchJson(`${API}/project/${d.project_id}`);
+      // 여러 로더용 jar 는 다른 로더의 의존성(예: Fabric API)도 적어 둔다. NeoForge 판이 아예 없는 건 건너뜀.
+      if (!(p.loaders || []).includes('neoforge')) { log(`  의존성 건너뜀(NeoForge용 아님): ${slug} -> ${p.slug}`); continue; }
       if (!seen.has(p.slug)) { log(`  의존성: ${slug} -> ${p.slug}`); queue.push(p.slug); }
     }
   }
