@@ -10,25 +10,30 @@ import net.neoforged.neoforge.client.event.sound.PlaySoundEvent;
 import org.gettserver.gettcore.economy.ClientConfig;
 
 /**
- * Turns down gun sounds made by <em>other</em> players. NTGL plays those as its own {@code GunShotSound} (shots and
- * reloads; no attenuation, audible for 100 blocks at nearly full volume), while the shooter's own shot is a plain
- * sound instance and stays as it is. The factor comes from the server ({@code economy.json otherGunSoundVolume}).
+ * Turns down gun sounds. NTGL plays other players' shots and reloads as its own {@code GunShotSound} (no attenuation,
+ * audible for 100 blocks at nearly full volume) and the shooter's own as plain sound instances, so both are caught:
+ * the first by class, the second by the sound's namespace. The factor comes from the server
+ * ({@code economy.json gunSoundVolume}).
  */
 public final class GunSoundVolume {
     /** Matched by name so gettcore does not need NTGL to compile or to run. */
     static final String GUN_SHOT_CLASS = "com.nukateam.ntgl.client.audio.GunShotSound";
 
+    /** NTGL itself and Create: Gunsmithing; their sounds are all gun handling (fire, reload, cock). */
+    static final java.util.Set<String> GUN_NAMESPACES = java.util.Set.of("ntgl", "cgs");
+
     private GunSoundVolume() {}
 
     public static void onPlaySound(PlaySoundEvent event) {
         SoundInstance sound = event.getSound();
-        float factor = ClientConfig.otherGunSoundVolume();
-        if (sound == null || !applies(sound.getClass().getName(), factor)) return;
+        float factor = ClientConfig.gunSoundVolume();
+        if (sound == null || sound instanceof Scaled) return;
+        if (!applies(sound.getClass().getName(), sound.getLocation().getNamespace(), factor)) return;
         event.setSound(new Scaled(sound, factor));
     }
 
-    static boolean applies(String soundClass, float factor) {
-        return factor < 1.0F && GUN_SHOT_CLASS.equals(soundClass);
+    static boolean applies(String soundClass, String namespace, float factor) {
+        return factor < 1.0F && (GUN_SHOT_CLASS.equals(soundClass) || GUN_NAMESPACES.contains(namespace));
     }
 
     /** The same sound, only quieter. */

@@ -45,7 +45,7 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientConfig.set(payload.hudOffsetX(), payload.hudOffsetY(), payload.currencyName(),
-                        payload.otherGunSoundVolume()));
+                        payload.gunSoundVolume()));
         registrar.playToClient(EnchantConfigSyncPayload.TYPE, EnchantConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientEnchantConfig.set(payload.config()));
         registrar.playToClient(PetConfigSyncPayload.TYPE, PetConfigSyncPayload.STREAM_CODEC,

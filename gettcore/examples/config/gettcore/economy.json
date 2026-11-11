@@ -4,7 +4,7 @@
   "hudOffsetY": 0,
   "xpOrbAmount": 7,
   "returnCastSeconds": 3,
-  "otherGunSoundVolume": 0.1,
+  "gunSoundVolume": 0.2,
   "priceDynamics": {
     "enabled": false,
     "sellDropPercentPerUnit": 1.0,

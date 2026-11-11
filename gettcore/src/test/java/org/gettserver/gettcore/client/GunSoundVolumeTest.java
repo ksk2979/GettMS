@@ -7,23 +7,26 @@ import com.mojang.serialization.JsonOps;
 import org.gettserver.gettcore.data.EconomyConfig;
 import org.junit.jupiter.api.Test;
 
-/** 다른 사람 총소리 음량 배율: NTGL 의 GunShotSound 만, 배율이 1 미만일 때만. */
+/** 총소리 음량 배율: 남이 쏜 소리(NTGL GunShotSound)와 내 총소리(ntgl·cgs 소리), 배율이 1 미만일 때만. */
 class GunSoundVolumeTest {
     @Test
-    void onlyOtherPlayersGunShotsAndOnlyWhenTurnedDown() {
-        assertTrue(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, 0.1F));
-        assertTrue(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, 0.0F));
-        assertFalse(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, 1.0F));
-        assertFalse(GunSoundVolume.applies("net.minecraft.client.resources.sounds.SimpleSoundInstance", 0.1F));
+    void onlyGunSoundsAndOnlyWhenTurnedDown() {
+        String simple = "net.minecraft.client.resources.sounds.SimpleSoundInstance";
+        assertTrue(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, "minecraft", 0.2F));
+        assertTrue(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, "cgs", 0.0F));
+        assertTrue(GunSoundVolume.applies(simple, "cgs", 0.2F), "my own shot");
+        assertTrue(GunSoundVolume.applies(simple, "ntgl", 0.2F));
+        assertFalse(GunSoundVolume.applies(GunSoundVolume.GUN_SHOT_CLASS, "cgs", 1.0F));
+        assertFalse(GunSoundVolume.applies(simple, "minecraft", 0.2F));
     }
 
     @Test
-    void configDefaultsToTenPercentAndIsClamped() {
-        assertEquals(0.1, EconomyConfig.DEFAULT.otherGunSoundVolume());
-        assertEquals(0.1, parse("{}").otherGunSoundVolume());
-        assertEquals(0.5, parse("{\"otherGunSoundVolume\":0.5}").otherGunSoundVolume());
-        assertEquals(1.0, parse("{\"otherGunSoundVolume\":7}").otherGunSoundVolume());
-        assertEquals(0.0, parse("{\"otherGunSoundVolume\":-1}").otherGunSoundVolume());
+    void configDefaultsToTwentyPercentAndIsClamped() {
+        assertEquals(0.2, EconomyConfig.DEFAULT.gunSoundVolume());
+        assertEquals(0.2, parse("{}").gunSoundVolume());
+        assertEquals(0.5, parse("{\"gunSoundVolume\":0.5}").gunSoundVolume());
+        assertEquals(1.0, parse("{\"gunSoundVolume\":7}").gunSoundVolume());
+        assertEquals(0.0, parse("{\"gunSoundVolume\":-1}").gunSoundVolume());
     }
 
     private static EconomyConfig parse(String json) {
