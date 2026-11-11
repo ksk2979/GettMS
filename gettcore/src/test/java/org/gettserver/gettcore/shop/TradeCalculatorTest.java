@@ -45,6 +45,15 @@ class TradeCalculatorTest {
     }
 
     @Test
+    void tideFishBookkeepingComponentsDoNotBlockSelling() {
+        assertTrue(TradeCalculator.ignoredComponent(ResourceLocation.parse("tide:fish_length")));
+        assertTrue(TradeCalculator.ignoredComponent(ResourceLocation.parse("tide:is_bucketable")));
+        assertFalse(TradeCalculator.ignoredComponent(ResourceLocation.parse("tide:bait_contents")), "bait is worth something");
+        assertFalse(TradeCalculator.ignoredComponent(ResourceLocation.parse("minecraft:custom_name")));
+        assertFalse(TradeCalculator.ignoredComponent(null));
+    }
+
+    @Test
     void countSellableSumsStacks() {
         List<ItemStack> inv = List.of(new ItemStack(Items.CARROT, 64), new ItemStack(Items.DIAMOND, 3),
                 new ItemStack(Items.CARROT, 10), ItemStack.EMPTY);
