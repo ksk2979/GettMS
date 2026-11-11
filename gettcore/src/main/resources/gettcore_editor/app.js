@@ -673,8 +673,12 @@
         S.ui.shopId = null; S.ui.tabFilter = '';
         changed(); rerender();
       } }, '상점 삭제');
+      // 시세 변동: 켜면 이 상점의 판매가가 economy.json 의 priceFluctuation 주기마다 기준가의 최소~최대 % 안에서 다시 정해진다 (끄면 정가).
+      const fluctuate = h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: !!shop.fluctuate, 'aria-label': '시세 변동',
+        onchange: (e) => { if (e.target.checked) shop.fluctuate = true; else delete shop.fluctuate; changed(); } }), ' 시세 변동');
       const head = h('div', { class: 'card' }, h('div', { class: 'field' },
-        h('label', null, '이름'), nameInput, h('span', { class: 'muted' }, 'id: ' + shop.id), h('span', { class: 'spacer' }), delShop));
+        h('label', null, '이름'), nameInput, h('span', { class: 'muted' }, 'id: ' + shop.id), fluctuate, h('span', { class: 'spacer' }), delShop),
+        h('p', { class: 'muted' }, '"시세 변동"을 켠 상점은 판매가가 일정 시간마다(기본 30분, 정각·30분에) 기준가의 70~130% 사이에서 10골드 단위로 바뀝니다. 기준가보다 높으면 초록 ▲, 낮으면 빨강 ▼ 로 보이고, 많이 팔아도 가격은 떨어지지 않습니다. 끄면 항상 아래에 적은 정가입니다. 구매가는 변하지 않으며, 살 수도 있는 아이템의 판매가는 구매가를 넘지 않습니다. 주기·범위는 서버 config/gettcore/economy.json 의 priceFluctuation 에서 바꿉니다.'));
 
       // 분류 편집
       const tabRows = shop.tabs.map((t, i) => {

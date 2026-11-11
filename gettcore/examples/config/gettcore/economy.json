@@ -10,5 +10,13 @@
     "recoverPercentPerHour": 10.0,
     "minRatio": 0.5,
     "maxRatio": 2.0
+  },
+  "priceFluctuation": {
+    "enabled": true,
+    "intervalMinutes": 30,
+    "minPercent": 70.0,
+    "maxPercent": 130.0,
+    "roundTo": 10,
+    "announce": true
   }
 }

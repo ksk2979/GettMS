@@ -22,6 +22,7 @@
   "itemGroup.gettcore": "Gett",
   "item.gettcore.check": "수표",
   "gettcore.msg.sold": "%s %d개를 판매했습니다 (+%s 골드)",
+  "gettcore.msg.market_changed": "§6[시세]§r 상점 판매 시세가 바뀌었습니다.",
   "gettcore.msg.bought": "%s %d개를 구매했습니다 (-%s 골드)",
   "gettcore.msg.inventory_full": "인벤토리가 가득 찼습니다",
   "gettcore.msg.invalid_trade": "잘못된 거래입니다",

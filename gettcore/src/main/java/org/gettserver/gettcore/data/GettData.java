@@ -236,6 +236,7 @@ public final class GettData {
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
                 ShopDefinition sd = en.getValue();
+                if (newEco.fluctuates(sd)) continue;   // timed market prices live in the current prices
                 ShopDefinition norm = normalized(sd);
                 if (norm.equals(sd)) continue;
                 newShops.put(en.getKey(), norm);
@@ -334,7 +335,7 @@ public final class GettData {
             }
         }
         if (kept.size() == sd.entries().size()) return sd;
-        return new ShopDefinition(sd.id(), sd.name(), sd.tabs(), List.copyOf(kept));
+        return sd.withEntries(List.copyOf(kept));
     }
 
     /** The shop exactly as stored in its file (entries for items missing from the registry included). */
@@ -603,8 +604,7 @@ public final class GettData {
 
     /** With dynamics disabled, current prices always equal base prices. */
     private static ShopDefinition normalized(ShopDefinition shop) {
-        return new ShopDefinition(shop.id(), shop.name(), shop.tabs(),
-                shop.entries().stream().map(e -> e.withPrices(e.buyPrice(), e.sellPrice())).toList());
+        return shop.withEntries(shop.entries().stream().map(e -> e.withPrices(e.buyPrice(), e.sellPrice())).toList());
     }
 
     public EconomyConfig economy() {
@@ -694,7 +694,7 @@ public final class GettData {
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */
     public synchronized void saveShop(ShopDefinition shop) throws IOException {
-        if (!economy.priceDynamics().enabled()) shop = normalized(shop);
+        if (!economy.priceDynamics().enabled() && !economy.fluctuates(shop)) shop = normalized(shop);
         writeShopFile(shop);
         Map<String, ShopDefinition> s = new HashMap<>(shops);
         s.put(shop.id(), shop);

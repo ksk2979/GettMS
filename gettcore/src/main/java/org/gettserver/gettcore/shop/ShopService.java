@@ -19,6 +19,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.data.PriceDynamicsConfig;
+import org.gettserver.gettcore.data.PriceFluctuationConfig;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
 import org.gettserver.gettcore.economy.EconomyData;
@@ -49,7 +50,7 @@ public final class ShopService {
         player.closeContainer();
         OPEN_SHOPS.put(player.getUUID(), shopId);
         // Sync before the menu opens so the screen finds its definition on init.
-        PacketDistributor.sendToPlayer(player, new ShopSyncPayload(shopId, shop.get(), dynamicsOn()));
+        PacketDistributor.sendToPlayer(player, new ShopSyncPayload(shopId, shop.get(), dynamicsOn(shop.get())));
         var result = player.openMenu(new SimpleMenuProvider(
                 (id, inv, p) -> new ShopMenu(id, inv, shopId, mode, canEdit),
                 Component.literal(shop.get().name())), buf -> {
@@ -66,8 +67,49 @@ public final class ShopService {
         return GettData.get().economy().priceDynamics();
     }
 
-    private static boolean dynamicsOn() {
-        return dynamics().enabled();
+    /** Whether this shop's prices can differ from the base prices (the client then shows ▲/▼ marks). */
+    private static boolean dynamicsOn(ShopDefinition shop) {
+        return dynamics().enabled() || fluctuates(shop);
+    }
+
+    private static boolean fluctuates(ShopDefinition shop) {
+        return GettData.get().economy().fluctuates(shop);
+    }
+
+    /** Period of the last {@link #fluctuationTick}; Long.MIN_VALUE = none yet (no announcement on the first one). */
+    private static long lastPeriod = Long.MIN_VALUE;
+
+    /**
+     * Timed market: puts this period's sell prices into every shop marked {@code fluctuate}. Cheap when nothing
+     * changed, so it also picks up edited base prices and a switched-on shop within seconds.
+     */
+    public static void fluctuationTick() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null || !GettData.get().loaded()) return;
+        PriceFluctuationConfig cfg = GettData.get().economy().priceFluctuation();
+        if (!cfg.enabled()) {
+            lastPeriod = Long.MIN_VALUE;
+            return;
+        }
+        long period = PriceFluctuation.period(System.currentTimeMillis(), cfg);
+        long seed = server.overworld().getSeed();
+        boolean anyShop = false;
+        for (ShopDefinition def : GettData.get().allShops()) {
+            if (!def.fluctuate()) continue;
+            anyShop = true;
+            Map<ResourceLocation, GettData.CurrentPrices> prices = new java.util.LinkedHashMap<>();
+            for (ShopEntry e : def.entries()) {
+                long sell = e.canSell() ? PriceFluctuation.sellPrice(e, seed, def.id(), period, cfg) : e.sellPrice();
+                if (e.currentBuyPrice() != e.buyPrice() || e.currentSellPrice() != sell) {
+                    prices.put(e.item(), new GettData.CurrentPrices(e.buyPrice(), sell));
+                }
+            }
+            if (!prices.isEmpty()) persistPricesAndSync(def.id(), prices);
+        }
+        if (anyShop && cfg.announce() && lastPeriod != Long.MIN_VALUE && period != lastPeriod) {
+            server.getPlayerList().broadcastSystemMessage(Component.translatable("gettcore.msg.market_changed"), false);
+        }
+        lastPeriod = period;
     }
 
     /** Returns true only when the save succeeded and the resync ran. */
@@ -96,7 +138,7 @@ public final class ShopService {
         if (server == null) return;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             if (isOpen(p, updated.id())) {
-                PacketDistributor.sendToPlayer(p, new ShopSyncPayload(updated.id(), updated, dynamicsOn()));
+                PacketDistributor.sendToPlayer(p, new ShopSyncPayload(updated.id(), updated, dynamicsOn(updated)));
             }
         }
     }
@@ -106,6 +148,7 @@ public final class ShopService {
         PriceDynamicsConfig cfg = dynamics();
         if (!cfg.enabled()) return;
         for (ShopDefinition def : GettData.get().allShops()) {
+            if (fluctuates(def)) continue;   // timed market prices are not pulled back to the base
             Map<ResourceLocation, GettData.CurrentPrices> prices = new java.util.LinkedHashMap<>();
             for (ShopEntry e : def.entries()) {
                 if (e.currentBuyPrice() == e.buyPrice() && e.currentSellPrice() == e.sellPrice()) continue;
@@ -254,7 +297,7 @@ public final class ShopService {
             // Re-read the live definition so consecutive entries in sellAll don't overwrite each other.
             String shopId = OPEN_SHOPS.get(player.getUUID());
             Optional<ShopDefinition> live = shopId == null ? Optional.empty() : GettData.get().shop(shopId);
-            if (live.isPresent()) {
+            if (live.isPresent() && !fluctuates(live.get())) {
                 long ns = PriceDynamics.afterSale(entry.currentSellPrice(), entry.sellPrice(), n, cfg);
                 persistPricesAndSync(live.get().id(),
                         Map.of(entry.item(), new GettData.CurrentPrices(entry.currentBuyPrice(), ns)));

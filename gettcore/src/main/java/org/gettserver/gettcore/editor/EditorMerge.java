@@ -16,7 +16,7 @@ public final class EditorMerge {
     public static ShopDefinition keepCurrentPrices(ShopDefinition incoming, ShopDefinition existing) {
         Map<ResourceLocation, ShopEntry> old = new HashMap<>();
         if (existing != null) for (ShopEntry e : existing.entries()) old.putIfAbsent(e.item(), e);
-        return new ShopDefinition(incoming.id(), incoming.name(), incoming.tabs(), incoming.entries().stream().map(e -> {
+        return incoming.withEntries(incoming.entries().stream().map(e -> {
             ShopEntry prev = old.get(e.item());
             if (prev != null && prev.buyPrice() == e.buyPrice() && prev.sellPrice() == e.sellPrice()) {
                 return e.withCurrentPrices(prev.currentBuyPrice(), prev.currentSellPrice());

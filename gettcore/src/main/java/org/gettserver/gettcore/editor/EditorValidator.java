@@ -62,7 +62,7 @@ public final class EditorValidator {
                 }
             }
             shops.put(key, kept.size() == shop.entries().size() ? shop
-                    : new ShopDefinition(shop.id(), shop.name(), shop.tabs(), List.copyOf(kept)));
+                    : shop.withEntries(List.copyOf(kept)));
         });
 
         b.dialogs().forEach((key, d) -> validateDialog(key, d, b, errors));
