@@ -39,6 +39,16 @@ class GettDataTest {
     }
 
     @Test
+    void dirWithoutBossesJsonGetsDefaultBosses(@TempDir Path dir) throws IOException {
+        Files.createDirectories(dir.resolve("shops"));
+        Files.writeString(dir.resolve("shops/good.json"), SHOP);
+        GettData data = new GettData();
+        data.load(dir);
+        var giraffe = net.minecraft.resources.ResourceLocation.parse("gettcore:boss_giraffe");
+        assertEquals(2, data.bosses().boss(giraffe).skills().size());
+    }
+
+    @Test
     void emptyDirGetsDefaults(@TempDir Path dir) {
         GettData data = new GettData();
         GettData.LoadReport r = data.load(dir.resolve("gettcore"));

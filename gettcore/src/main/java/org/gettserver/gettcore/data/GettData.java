@@ -33,6 +33,7 @@ import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
 import org.gettserver.gettcore.fieldgold.FieldGoldConfig;
 import org.gettserver.gettcore.mobs.MobStatsConfig;
+import org.gettserver.gettcore.skill.BossConfig;
 import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
@@ -51,7 +52,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "equipment.json", "upgrade.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "bosses.json", "equipment.json", "upgrade.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -88,6 +89,7 @@ public final class GettData {
     private volatile ReinforceConfig reinforce = ReinforceConfig.DEFAULT;
     private volatile HuntingConfig hunting = HuntingConfig.DEFAULT;
     private volatile MobStatsConfig mobs = MobStatsConfig.DEFAULT;
+    private volatile BossConfig bosses = BossConfig.DEFAULT;
     private volatile FieldGoldConfig fieldGold = FieldGoldConfig.DEFAULT;
     private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile UpgradeConfig upgrade = UpgradeConfig.DEFAULT;
@@ -199,6 +201,11 @@ public final class GettData {
         MobStatsConfig newMobs = Files.isRegularFile(mobsFile)
                 ? read(mobsFile, MobStatsConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(mobs)
                 : MobStatsConfig.DEFAULT;
+        // An unreadable bosses.json keeps the config already loaded.
+        Path bossesFile = dir.resolve(BossConfig.FILE);
+        BossConfig newBosses = Files.isRegularFile(bossesFile)
+                ? read(bossesFile, BossConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(bosses)
+                : BossConfig.DEFAULT;
         // An unreadable field_gold.json keeps the config already loaded.
         Path fieldGoldFile = dir.resolve(FieldGoldConfig.FILE);
         FieldGoldConfig newFieldGold = Files.isRegularFile(fieldGoldFile)
@@ -229,6 +236,7 @@ public final class GettData {
         reinforce = newReinforce;
         hunting = newHunting;
         mobs = newMobs;
+        bosses = newBosses;
         fieldGold = newFieldGold;
         equipment = newEquipment;
         upgrade = newUpgrade;
@@ -578,7 +586,7 @@ public final class GettData {
             }
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
-                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE)) {
+                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -680,6 +688,11 @@ public final class GettData {
     /** Per entity type base stat overrides from mobs.json (sanitized). */
     public MobStatsConfig mobs() {
         return mobs;
+    }
+
+    /** Boss aggro and skill settings from bosses.json (sanitized). */
+    public BossConfig bosses() {
+        return bosses;
     }
 
     /** Per item attribute overrides from equipment.json (sanitized). */

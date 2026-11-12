@@ -1,0 +1,145 @@
+{
+  "bosses": {
+    "gettcore:boss_bear": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    },
+    "gettcore:boss_elephant": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    },
+    "gettcore:boss_giraffe": {
+      "aggro": "after",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 12.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": [
+        {
+          "id": "ramgak",
+          "type": "wind_line",
+          "enabled": true,
+          "shout": true,
+          "shoutText": "람각",
+          "damage": 14.0,
+          "knockback": 2.5,
+          "minRange": 8.0,
+          "maxRange": 32.0,
+          "chargeSeconds": 1.0,
+          "cooldownSeconds": 8.0,
+          "shape": {
+            "length": 30.0,
+            "width": 3.0,
+            "radius": 0.0
+          },
+          "aftershock": {
+            "damage": 8.0,
+            "delaySeconds": 0.5,
+            "width": 4.0
+          },
+          "terrain": {
+            "enabled": true,
+            "depth": 5,
+            "width": 10
+          }
+        },
+        {
+          "id": "stomp",
+          "type": "stomp",
+          "enabled": true,
+          "shout": false,
+          "shoutText": "쿠웅",
+          "damage": 18.0,
+          "knockback": 1.6,
+          "minRange": 0.0,
+          "maxRange": 6.0,
+          "chargeSeconds": 0.8,
+          "cooldownSeconds": 12.0,
+          "shape": {
+            "length": 0.0,
+            "width": 0.0,
+            "radius": 6.0
+          },
+          "aftershock": {
+            "damage": 0.0,
+            "delaySeconds": 0.0,
+            "width": 0.0
+          },
+          "terrain": {
+            "enabled": true,
+            "depth": 2,
+            "width": 12
+          }
+        }
+      ]
+    },
+    "gettcore:boss_lion": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    },
+    "gettcore:boss_mammoth": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    },
+    "gettcore:boss_tiger": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    },
+    "gettcore:boss_vulture": {
+      "aggro": "first",
+      "searchRange": 24.0,
+      "releaseRange": 40.0,
+      "reaggroRange": 16.0,
+      "calmSeconds": 300,
+      "preferredDistance": 0.0,
+      "shoutRange": 24.0,
+      "enrageBelow": 0.3,
+      "enrageCooldownMult": 0.6,
+      "skills": []
+    }
+  }
+}
