@@ -59,7 +59,7 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
     ).apply(i, SkillSpec::new));
 
     /** Optional field that is always written back out (an operator sees every knob in the example file). */
-    public static <T> MapCodec<T> opt(Codec<T> codec, String name, T def) {
+    static <T> MapCodec<T> opt(Codec<T> codec, String name, T def) {
         return codec.optionalFieldOf(name).xmap(o -> o.orElse(def), Optional::of);
     }
 

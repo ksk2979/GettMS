@@ -1,12 +1,14 @@
 package org.gettserver.gettcore.hunting;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.WeakHashMap;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
@@ -21,7 +23,8 @@ import org.gettserver.gettcore.skill.SkillRunner;
 public final class VariantSkills {
     static final double SHOUT_RANGE = 24;
 
-    private static final Map<Mob, SkillRunner> RUNNERS = new WeakHashMap<>();
+    /** Variant-tagged mobs in loaded server levels; the value is the runner, or null while the entry has no skills. */
+    private static final Map<Mob, SkillRunner> TAGGED = new HashMap<>();
 
     private VariantSkills() {}
 
@@ -30,29 +33,53 @@ public final class VariantSkills {
         return !entry.skills().isEmpty();
     }
 
+    enum Action { NONE, CREATE, DROP }
+
+    /** Pure: what to do with a tagged mob's runner given whether it has one and whether its entry wants one. */
+    static Action decide(boolean hasRunner, boolean wants) {
+        if (wants) return hasRunner ? Action.NONE : Action.CREATE;
+        return hasRunner ? Action.DROP : Action.NONE;
+    }
+
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
         if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Mob mob)) return;
-        entryOf(mob).filter(VariantSkills::wantsRunner).ifPresent(e -> RUNNERS.computeIfAbsent(mob, SkillRunner::new));
+        if (VariantTag.read(mob.getPersistentData()).isPresent()) TAGGED.putIfAbsent(mob, null);
+    }
+
+    @SubscribeEvent
+    public static void onLeave(EntityLeaveLevelEvent event) {
+        if (event.getLevel().isClientSide() || !(event.getEntity() instanceof Mob mob)) return;
+        SkillRunner runner = TAGGED.remove(mob);
+        if (runner != null) runner.cancel();
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        TAGGED.clear();
     }
 
     @SubscribeEvent
     public static void onTick(EntityTickEvent.Post event) {
-        if (event.getEntity().level().isClientSide() || !(event.getEntity() instanceof Mob mob)) return;
-        SkillRunner runner = RUNNERS.get(mob);
-        if (runner == null) return;
+        // Untagged mobs (nearly all) leave here after one hash lookup.
+        if (!(event.getEntity() instanceof Mob mob) || !TAGGED.containsKey(mob)) return;
+        SkillRunner runner = TAGGED.get(mob);
         if (!mob.isAlive() || mob.isRemoved()) {
-            runner.cancel();
-            RUNNERS.remove(mob);
+            if (runner != null) runner.cancel();
+            TAGGED.remove(mob);
             return;
         }
         Optional<HuntingConfig.Entry> entry = entryOf(mob).filter(VariantSkills::wantsRunner);
-        if (entry.isEmpty()) {
-            runner.cancel();
-            RUNNERS.remove(mob);
-            return;
+        switch (decide(runner != null, entry.isPresent())) {
+            case CREATE -> TAGGED.put(mob, runner = new SkillRunner(mob));
+            case DROP -> {
+                runner.cancel();
+                TAGGED.put(mob, null);
+                return;
+            }
+            case NONE -> {}
         }
-        runner.tick(entry.get().skills(), mob.getTarget(), 0, 1, SHOUT_RANGE);
+        if (runner != null) runner.tick(entry.get().skills(), mob.getTarget(), 0, 1, SHOUT_RANGE);
     }
 
     /** The mob's current config entry via its variant tag (empty: untagged, data not loaded, zone/entry removed). */
