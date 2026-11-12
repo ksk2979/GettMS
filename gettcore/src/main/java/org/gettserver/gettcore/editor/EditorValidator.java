@@ -167,9 +167,14 @@ public final class EditorValidator {
             errors.add(p + ": 해제 거리 " + num(b.releaseRange()) + " 이 다시 잡히는 거리 " + num(b.reaggroRange())
                     + " 보다 작습니다");
         }
+        validateSkills(p, b.skills(), errors);
+    }
+
+    /** Per-skill checks shared by boss and hunting-variant skill lists. */
+    private static void validateSkills(String p, List<SkillSpec> skills, List<String> errors) {
         Set<String> ids = new HashSet<>();
-        for (int n = 0; n < b.skills().size(); n++) {
-            SkillSpec s = b.skills().get(n);
+        for (int n = 0; n < skills.size(); n++) {
+            SkillSpec s = skills.get(n);
             String sp = p + ".skills[" + n + "]";
             if (!s.knownType()) {
                 errors.add(sp + ": 알 수 없는 스킬 종류 '" + s.type() + "' (" + SkillSpec.WIND_LINE + " 또는 "
@@ -246,6 +251,7 @@ public final class EditorValidator {
                 if (!checks.entityExists().test(e.entity())) {
                     errors.add(ep + ": entity " + e.entity() + " is not a registered entity");
                 }
+                validateSkills(ep, e.skills(), errors);
             }
         }
     }

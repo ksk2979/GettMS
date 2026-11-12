@@ -113,4 +113,44 @@ class HuntingConfigTest {
         assertEquals(1, added.without("a").zones().size());
         assertEquals("b", added.without("a").zones().get(0).id());
     }
+
+    private static org.gettserver.gettcore.skill.SkillSpec skill(String id, String type) {
+        return new org.gettserver.gettcore.skill.SkillSpec(id, type, true, false, "", 10, 1, 0, 20, 1, 10,
+                new org.gettserver.gettcore.skill.SkillSpec.Shape(10, 2, 6),
+                new org.gettserver.gettcore.skill.SkillSpec.Aftershock(0, 0, 0),
+                new org.gettserver.gettcore.skill.SkillSpec.Terrain(false, 0, 0));
+    }
+
+    private static Entry withSkills(String name, List<org.gettserver.gettcore.skill.SkillSpec> skills) {
+        Entry e = entry(name, 1);
+        return new Entry(e.name(), e.entity(), e.health(), e.attack(), e.speed(), e.armor(), e.scale(), e.weight(),
+                e.gold(), e.xpMultiplier(), skills);
+    }
+
+    @Test
+    void entryWithoutSkillsDecodesToEmptyList() {
+        Zone z = parse("{\"zones\":[{\"id\":\"숲\",\"dimension\":\"minecraft:overworld\",\"min\":[0,0,0],"
+                + "\"max\":[5,5,5],\"entries\":[{\"name\":\"a\",\"entity\":\"minecraft:zombie\"}]}]}").zones().get(0);
+        assertEquals(List.of(), z.entries().get(0).skills());
+    }
+
+    @Test
+    void entrySkillsRoundTrip() {
+        HuntingConfig c = new HuntingConfig(List.of(zone("숲", List.of(withSkills("a", List.of(skill("s1", "stomp")))))));
+        JsonElement json = HuntingConfig.CODEC.encodeStart(JsonOps.INSTANCE, c).getOrThrow();
+        assertEquals(c, HuntingConfig.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    @Test
+    void entrySkillsAreSanitized() {
+        HuntingConfig c = new HuntingConfig(List.of(zone("숲", List.of(
+                withSkills("a", List.of(skill("s1", "stomp"), skill("s2", "nope"), skill("s1", "wind_line")))))));
+        List<String> warnings = new ArrayList<>();
+        Entry e = c.sanitized(warnings).zones().get(0).entries().get(0);
+        assertEquals(1, e.skills().size());
+        assertEquals("s1", e.skills().get(0).id());
+        assertTrue(warnings.stream().anyMatch(w -> w.startsWith("hunting.json: ") && w.contains("zone 숲 entry a")
+                && w.contains("s2") && w.contains("unknown type")), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("duplicate id")), warnings.toString());
+    }
 }

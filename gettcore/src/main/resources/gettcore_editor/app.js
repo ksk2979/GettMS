@@ -272,7 +272,12 @@
     const p = src || {};
     return {
       zones: (Array.isArray(p.zones) ? p.zones : []).map((z) => Object.assign({}, HUNT_ZONE_DEFAULTS, z, {
-        entries: (Array.isArray(z.entries) ? z.entries : []).map((e) => Object.assign({ name: '', entity: '' }, HUNT_ENTRY_DEFAULTS, e)),
+        entries: (Array.isArray(z.entries) ? z.entries : []).map((e) => {
+          const out = Object.assign({ name: '', entity: '' }, HUNT_ENTRY_DEFAULTS, e);
+          // skills 는 없으면 없는 채로 둔다 (처음 고칠 때 만든다).
+          if (Array.isArray(e.skills)) out.skills = e.skills.filter((k) => k && typeof k === 'object').map((k) => normalizeSkill(clone(k)));
+          return out;
+        }),
       })),
     };
   }
@@ -2605,8 +2610,17 @@
       if (r) out.push(`${w} › 해제 거리: ${r}`);
       for (const [where, m] of skillListErrors(b.skills || [])) out.push(`${w} › ${where}: ${m}`);
     }
+    for (const z of (bundle.hunting && bundle.hunting.zones) || []) {
+      for (const e of z.entries || []) {
+        const w = `사냥터 ${z.id} › ${e.name}`;
+        for (const [where, m] of skillListErrors(e.skills || [])) out.push(`${w} › ${where}: ${m}`);
+      }
+    }
     return out;
   }
+
+  /** 원래 공격하지 않는 몬스터 (카탈로그에 그런 표시가 없어 짧은 목록으로 대신한다). */
+  const PASSIVE_MOBS = new Set(['cow', 'sheep', 'pig', 'chicken', 'horse', 'rabbit'].map((n) => 'minecraft:' + n));
 
   /** 새 스킬: 그 종류의 기본 스킬 복사본, id 는 겹치지 않게 (ramgak, ramgak_2, ...). */
   function newSkill(skills, type) {
@@ -2640,9 +2654,14 @@
       const typeOpts = Object.entries(SKILL_TYPE_LABEL).map(([v, t]) => h('option', { value: v }, t));
       if (!SKILL_TYPE_LABEL[s.type]) typeOpts.unshift(h('option', { value: s.type }, `(알 수 없음) ${s.type}`));
       const typeSel = checks.add(h('select', { 'aria-label': `${w} 종류`, onchange: (e) => {
-        // 범위 칸은 종류마다 달라 새 종류의 기본 범위로 바꾼다.
+        // 범위·후폭풍·지형 칸은 종류마다 달라 새 종류의 기본값으로 바꾼다 (숨겨진 옛 값이 남아 검사되지 않게).
         s.type = e.target.value;
-        if (SKILL_TEMPLATES[s.type]) s.shape = clone(SKILL_TEMPLATES[s.type].shape);
+        if (SKILL_TEMPLATES[s.type]) {
+          const t = SKILL_TEMPLATES[s.type];
+          s.shape = clone(t.shape);
+          s.aftershock = clone(t.aftershock);
+          s.terrain = clone(t.terrain);
+        }
         onChange(true);
       } }, typeOpts), () => bossSkillRules.type(s));
       typeSel.value = s.type;
@@ -2694,9 +2713,40 @@
       const id = S.ui.bossId;
       const name = entityName(id);
 
+      // 사냥터 개체를 골랐으면 (zone, entry 는 번호) 스킬 표만 보인다.
+      const zones = S.bundle.hunting.zones;
+      const sel = S.ui.huntSel;
+      const variant = sel && zones[sel.zone] && zones[sel.zone].entries[sel.entry] ? zones[sel.zone].entries[sel.entry] : null;
+      if (sel && !variant) S.ui.huntSel = null;
+
+      const pick = (fn) => () => { fn(); renderTabContent(); };
       const left = h('div', { class: 'card' }, h('h2', null, '보스 개체'),
-        h('div', { class: 'list' }, ids.map((k) => h('button', { 'aria-current': String(k === id), onclick: () => { S.ui.bossId = k; renderTabContent(); } },
-          entityName(k), saved[k] ? null : h('span', { class: 'muted' }, ' · 기본값')))));
+        h('div', { class: 'list' }, ids.map((k) => h('button', { 'aria-current': String(!variant && k === id),
+          onclick: pick(() => { S.ui.bossId = k; S.ui.huntSel = null; }) },
+          entityName(k), saved[k] ? null : h('span', { class: 'muted' }, ' · 기본값')))),
+        h('h2', { style: 'margin-top:1rem' }, '사냥터 개체'),
+        zones.some((z) => z.entries.length)
+          ? h('div', { class: 'list' }, zones.flatMap((z, zi) => z.entries.map((e, ei) => h('button',
+            { 'aria-current': String(variant === e), onclick: pick(() => { S.ui.huntSel = { zone: zi, entry: ei }; }) },
+            `${z.id} / ${e.name}`, e.skills && e.skills.length ? h('span', { class: 'muted' }, ` · 스킬 ${e.skills.length}`) : null))))
+          : h('p', { class: 'muted' }, '사냥터 탭에서 변종을 먼저 만드세요.'));
+
+      if (variant) {
+        const vname = `${zones[sel.zone].id} / ${variant.name}`;
+        // 처음 고칠 때 skills 배열을 만든다.
+        const skills = variant.skills || [];
+        const vEdited = (structural) => {
+          if (!variant.skills) variant.skills = skills;
+          changed();
+          if (structural) renderTabContent();
+        };
+        container.append(h('div', { class: 'split' }, left, h('div', { class: 'stack' },
+          h('div', { class: 'card' }, h('h2', null, vname), h('div', { class: 'id' }, variant.entity),
+            PASSIVE_MOBS.has(variant.entity) ? h('p', { class: 'banner warn' }, '이 몹은 원래 공격하지 않아서 스킬을 쓰지 않습니다.') : null,
+            h('p', { class: 'muted' }, '사냥터 개체는 스킬만 씁니다 (어그로·광폭화 설정은 없습니다). 저장하면 이미 나와 있는 개체에도 바로 적용됩니다.')),
+          h('div', { class: 'card' }, h('h2', null, '스킬'), skillTable(skills, checks, vname, vEdited)))));
+        return () => checks.paint();
+      }
 
       // 파일에 항목이 없는 보스는 지금 쓰이는 값(기본값)에서 시작하고, 처음 고칠 때 그 값으로 항목을 만든다.
       const b = saved[id] || bossDefault(id);

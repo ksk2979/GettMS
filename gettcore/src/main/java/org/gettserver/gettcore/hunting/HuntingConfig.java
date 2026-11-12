@@ -12,6 +12,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import org.gettserver.gettcore.skill.SkillSpec;
 
 /**
  * hunting.json: hunting zones (사냥터). Inside a zone natural spawns are blocked and only the zone's variants appear.
@@ -40,7 +41,8 @@ public record HuntingConfig(List<Zone> zones) {
 
     /** One variant: absolute stats (not multipliers), spawn weight and kill reward. */
     public record Entry(String name, ResourceLocation entity, double health, double attack, double speed, double armor,
-                        double scale, int weight, long gold, double xpMultiplier) {
+                        double scale, int weight, long gold, double xpMultiplier,
+                        List<SkillSpec> skills) {
         public static final Codec<Entry> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Codec.STRING.fieldOf("name").forGetter(Entry::name),
                 ResourceLocation.CODEC.fieldOf("entity").forGetter(Entry::entity),
@@ -51,8 +53,19 @@ public record HuntingConfig(List<Zone> zones) {
                 Codec.DOUBLE.optionalFieldOf("scale", 1.0).forGetter(Entry::scale),
                 Codec.INT.optionalFieldOf("weight", 1).forGetter(Entry::weight),
                 Codec.LONG.optionalFieldOf("gold", 0L).forGetter(Entry::gold),
-                Codec.DOUBLE.optionalFieldOf("xpMultiplier", 1.0).forGetter(Entry::xpMultiplier)
+                Codec.DOUBLE.optionalFieldOf("xpMultiplier", 1.0).forGetter(Entry::xpMultiplier),
+                SkillSpec.CODEC.listOf().optionalFieldOf("skills", List.of()).forGetter(Entry::skills)
         ).apply(i, Entry::new));
+
+        public Entry {
+            skills = List.copyOf(skills);
+        }
+
+        /** A variant without skills. */
+        public Entry(String name, ResourceLocation entity, double health, double attack, double speed, double armor,
+                     double scale, int weight, long gold, double xpMultiplier) {
+            this(name, entity, health, attack, speed, armor, scale, weight, gold, xpMultiplier, List.of());
+        }
 
         Entry sanitized(String where, List<String> warnings) {
             double h = clamp(where, "health", health, MIN_HEALTH, MAX_HEALTH, warnings);
@@ -67,7 +80,8 @@ public record HuntingConfig(List<Zone> zones) {
                 g = 0;
             }
             double x = clamp(where, "xpMultiplier", xpMultiplier, 0, MAX_XP_MULTIPLIER, warnings);
-            Entry e = new Entry(name, entity, h, a, s, ar, sc, w, g, x);
+            Entry e = new Entry(name, entity, h, a, s, ar, sc, w, g, x,
+                    SkillSpec.sanitizedList(FILE, where, skills, warnings));
             return e.equals(this) ? this : e;
         }
     }

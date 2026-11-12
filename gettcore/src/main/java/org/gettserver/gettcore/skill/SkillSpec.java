@@ -59,7 +59,7 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
     ).apply(i, SkillSpec::new));
 
     /** Optional field that is always written back out (an operator sees every knob in the example file). */
-    static <T> MapCodec<T> opt(Codec<T> codec, String name, T def) {
+    public static <T> MapCodec<T> opt(Codec<T> codec, String name, T def) {
         return codec.optionalFieldOf(name).xmap(o -> o.orElse(def), Optional::of);
     }
 
@@ -104,6 +104,28 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
                 clamp(where, "cooldownSeconds", cooldownSeconds, 0.5, 600, warnings),
                 sh, af, te);
         return out.equals(this) ? this : out;
+    }
+
+    /**
+     * The usable skills of one owner: unknown types and duplicate ids dropped, the rest clamped (one warning each,
+     * prefixed {@code file: } and naming {@code owner}).
+     */
+    public static List<SkillSpec> sanitizedList(String file, String owner, List<SkillSpec> skills, List<String> warnings) {
+        List<SkillSpec> kept = new java.util.ArrayList<>();
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        String own = BossConfig.FILE + ": ";
+        for (SkillSpec s : skills) {
+            if (!s.knownType()) {
+                warnings.add(file + ": " + owner + " skill " + s.id() + ": unknown type " + s.type() + " (skipped)");
+            } else if (!ids.add(s.id())) {
+                warnings.add(file + ": " + owner + " skill " + s.id() + ": duplicate id (skipped)");
+            } else {
+                List<String> w = new java.util.ArrayList<>();
+                kept.add(s.sanitized(owner + " skill " + s.id(), w));
+                for (String m : w) warnings.add(m.startsWith(own) ? file + ": " + m.substring(own.length()) : m);
+            }
+        }
+        return kept;
     }
 
     static double clamp(String where, String field, double v, double min, double max, List<String> warnings) {

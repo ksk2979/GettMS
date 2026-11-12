@@ -57,17 +57,7 @@ public record BossConfig(Map<String, Boss> bosses) {
         ).apply(i, Boss::new));
 
         private Boss sanitized(String name, List<String> warnings) {
-            List<SkillSpec> kept = new ArrayList<>();
-            Set<String> ids = new HashSet<>();
-            for (SkillSpec s : skills) {
-                if (!s.knownType()) {
-                    warnings.add(FILE + ": " + name + " skill " + s.id() + ": unknown type " + s.type() + " (skipped)");
-                } else if (!ids.add(s.id())) {
-                    warnings.add(FILE + ": " + name + " skill " + s.id() + ": duplicate id (skipped)");
-                } else {
-                    kept.add(s.sanitized(name + " skill " + s.id(), warnings));
-                }
-            }
+            List<SkillSpec> kept = SkillSpec.sanitizedList(FILE, name, skills, warnings);
             return new Boss(aggro,
                     SkillSpec.clamp(name, "searchRange", searchRange, 0, 128, warnings),
                     SkillSpec.clamp(name, "releaseRange", releaseRange, 0, 128, warnings),

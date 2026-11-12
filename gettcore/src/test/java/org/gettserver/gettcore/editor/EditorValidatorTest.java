@@ -453,6 +453,26 @@ class EditorValidatorTest {
         assertEquals(Optional.of(0.0), r.cleaned().mobs().overrides().get("minecraft:zombie").armor());
     }
 
+    @Test
+    void huntingEntrySkillsGetTheBossSkillChecks() {
+        SkillSpec ok = new SkillSpec("a", SkillSpec.STOMP, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+        SkillSpec unknown = new SkillSpec("x", "laser", true, false, "", 10, 1, 0, 20, 1, 10,
+                ok.shape(), ok.aftershock(), ok.terrain());
+        SkillSpec dup = new SkillSpec("a", SkillSpec.STOMP, true, true, " ", 10, 1, 12, 8, 1, 10,
+                ok.shape(), ok.aftershock(), ok.terrain());
+        var e = new org.gettserver.gettcore.hunting.HuntingConfig.Entry("큰 좀비", rl("minecraft:zombie"), 50, 5, 0.3, 2, 1,
+                1, 10, 1, List.of(ok, unknown, dup));
+        var h = new org.gettserver.gettcore.hunting.HuntingConfig(List.of(huntZone("숲", List.of(e))));
+        var r = EditorValidator.validate(huntBundle(h, org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT),
+                RegistryChecks.ALL_EXIST);
+        String p = "hunting.zones.숲.entries.큰 좀비.skills";
+        assertEquals(List.of(p + "[1]: 알 수 없는 스킬 종류 'laser' (wind_line 또는 stomp)",
+                p + "[2]: 스킬 id 'a' 가 겹칩니다",
+                p + "[2]: 외침이 켜져 있으면 외칠 글자가 필요합니다",
+                p + "[2]: 최소 거리 12 가 최대 거리 8 보다 큽니다"), r.errors());
+    }
+
     private static org.gettserver.gettcore.hunting.HuntingConfig.Entry huntEntry(String name, String entity, int weight) {
         return new org.gettserver.gettcore.hunting.HuntingConfig.Entry(name, rl(entity), 50, 5, 0.3, 2, 1, weight, 10, 1);
     }
