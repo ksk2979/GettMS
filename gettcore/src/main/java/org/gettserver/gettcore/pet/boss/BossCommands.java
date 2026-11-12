@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -24,6 +25,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -33,10 +36,11 @@ import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.perm.Perms;
 import org.gettserver.gettcore.pet.PetRegistry;
 
-/** /보스지점 추가|삭제|목록|이동|리셋 and /bosspoint add|remove|list|goto|reset (Perms.BOSS_ADMIN). */
+/** /보스지점 추가|삭제|목록|이동|리셋|모션 and /bosspoint add|remove|list|goto|reset|anim (Perms.BOSS_ADMIN). */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class BossCommands {
     private static final String MSG = "gettcore.msg.boss_point.";
+    private static final double ANIM_RANGE = 32;
 
     private static final SuggestionProvider<CommandSourceStack> POINT_IDS = (ctx, builder) ->
             SharedSuggestionProvider.suggest(GettData.get().bossPoints().stream().map(BossPoint::id), builder);
@@ -49,12 +53,13 @@ public final class BossCommands {
     @SubscribeEvent
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> d = event.getDispatcher();
-        d.register(root("보스지점", "추가", "삭제", "목록", "이동", "리셋"));
-        d.register(root("bosspoint", "add", "remove", "list", "goto", "reset"));
+        d.register(root("보스지점", "추가", "삭제", "목록", "이동", "리셋", "모션"));
+        d.register(root("bosspoint", "add", "remove", "list", "goto", "reset", "anim"));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name, String add, String remove,
-                                                                   String list, String jump, String reset) {
+                                                                   String list, String jump, String reset,
+                                                                   String anim) {
         return Commands.literal(name)
                 .requires(Perms.require(Perms.BOSS_ADMIN))
                 .then(Commands.literal(add)
@@ -73,7 +78,8 @@ public final class BossCommands {
                 .then(Commands.literal(remove).then(pointArg().executes(BossCommands::remove)))
                 .then(Commands.literal(list).executes(BossCommands::list))
                 .then(Commands.literal(jump).then(pointArg().executes(BossCommands::jump)))
-                .then(Commands.literal(reset).then(pointArg().executes(BossCommands::reset)));
+                .then(Commands.literal(reset).then(pointArg().executes(BossCommands::reset)))
+                .then(Commands.literal(anim).executes(BossCommands::anim));
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> pointArg() {
@@ -169,6 +175,23 @@ public final class BossCommands {
         if (find(id).isEmpty()) return notFound(ctx, id);
         BossPointData.get(ctx.getSource().getServer()).reset(id);
         ctx.getSource().sendSuccess(() -> Component.translatable(MSG + "reset_done", id), true);
+        return 1;
+    }
+
+    /** Debug: plays the stomp animation on the nearest boss giraffe within {@link #ANIM_RANGE} blocks. */
+    private static int anim(CommandContext<CommandSourceStack> ctx) {
+        ServerLevel level = ctx.getSource().getLevel();
+        Vec3 pos = ctx.getSource().getPosition();
+        Optional<BossGiraffe> nearest = level.getEntitiesOfClass(BossGiraffe.class,
+                        AABB.ofSize(pos, ANIM_RANGE * 2, ANIM_RANGE * 2, ANIM_RANGE * 2),
+                        g -> g.distanceToSqr(pos) <= ANIM_RANGE * ANIM_RANGE)
+                .stream().min(Comparator.comparingDouble(g -> g.distanceToSqr(pos)));
+        if (nearest.isEmpty()) {
+            ctx.getSource().sendFailure(Component.translatable(MSG + "anim_none"));
+            return 0;
+        }
+        level.broadcastEntityEvent(nearest.get(), BossGiraffe.EVENT_STOMP);
+        ctx.getSource().sendSuccess(() -> Component.translatable(MSG + "anim_played"), false);
         return 1;
     }
 

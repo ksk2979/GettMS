@@ -14,9 +14,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -25,10 +30,17 @@ import net.minecraft.world.level.storage.loot.LootTable;
 
 /** Boss giraffe: a scaled-up wild giraffe that hunts players around its boss point. Not tamable. */
 public class BossGiraffe extends Giraffe implements GettBoss {
+    /** Entity event: play the stomp animation (sent at the start of a stomp charge, and by the debug command). */
+    public static final byte EVENT_STOMP = 70;
+    /** How long the stomp animation runs (0.8 s charge + 0.3 s slam) before its state is stopped. */
+    static final int STOMP_TICKS = 22;
     private static final EntityDataAccessor<CompoundTag> BOSS_DATA =
             SynchedEntityData.defineId(BossGiraffe.class, EntityDataSerializers.COMPOUND_TAG);
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */
     private BossState boss;
+    /** Client: started by {@link #EVENT_STOMP}, played by the boss giraffe model. */
+    public final AnimationState stompAnimationState = new AnimationState();
+    private int stompStartTick;
 
     public BossGiraffe(EntityType<? extends BossGiraffe> type, Level level) {
         super(type, level);
@@ -88,14 +100,35 @@ public class BossGiraffe extends Giraffe implements GettBoss {
         updateSwingTime();
     }
 
+    /** Like {@link BossBehavior#registerGroundGoals}, but keeps its distance and casts skills instead of melee chase. */
     @Override
     protected void registerGoals() {
-        BossBehavior.registerGroundGoals(this, goalSelector, targetSelector);
+        goalSelector.removeAllGoals(g -> true);
+        targetSelector.removeAllGoals(g -> true);
+        goalSelector.addGoal(0, new FloatGoal(this));
+        goalSelector.addGoal(1, new KeepDistanceGoal(this, BossBehavior.ATTACK_SPEED_MODIFIER));
+        goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 1.0));
+        goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 8.0F));
+        goalSelector.addGoal(7, new RandomLookAroundGoal(this));
+        BossAggro.registerTargets(this, targetSelector);
+    }
+
+    @Override
+    public void handleEntityEvent(byte id) {
+        if (id == EVENT_STOMP) {
+            stompAnimationState.start(tickCount);
+            stompStartTick = tickCount;
+        } else {
+            super.handleEntityEvent(id);
+        }
     }
 
     @Override
     public void tick() {
         super.tick();
+        if (level().isClientSide && stompAnimationState.isStarted() && tickCount - stompStartTick > STOMP_TICKS) {
+            stompAnimationState.stop();
+        }
         bossState().tick();
     }
 

@@ -308,6 +308,8 @@
   "gettcore.msg.boss_point.list_line": "%s: %s · %s %s %s %s · 반경 %s · 최대 %s마리 · 리스폰 %s분 · 생존 %s",
   "gettcore.msg.boss_point.goto": "보스 지점 %s (으)로 이동했습니다",
   "gettcore.msg.boss_point.reset_done": "보스 지점 %s 을(를) 리셋했습니다 (곧 다시 스폰됩니다)",
+  "gettcore.msg.boss_point.anim_played": "보스 기린 모션 재생",
+  "gettcore.msg.boss_point.anim_none": "근처에 보스 기린이 없습니다",
   "gettcore.msg.boss_point.no_dimension": "보스 지점 %s 의 차원 %s 이(가) 없습니다",
   "gettcore.msg.boss_point.save_failed": "boss_points.json 저장 실패: %s",
   "gettcore.msg.region.need_worldedit": "WorldEdit 이 필요합니다",

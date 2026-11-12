@@ -308,6 +308,8 @@
   "gettcore.msg.boss_point.list_line": "%s: %s · %s %s %s %s · radius %s · max %s · respawn %s min · alive %s",
   "gettcore.msg.boss_point.goto": "Teleported to boss point %s",
   "gettcore.msg.boss_point.reset_done": "Reset boss point %s (it will respawn soon)",
+  "gettcore.msg.boss_point.anim_played": "Played the boss giraffe animation",
+  "gettcore.msg.boss_point.anim_none": "No boss giraffe nearby",
   "gettcore.msg.boss_point.no_dimension": "Boss point %s: dimension %s does not exist",
   "gettcore.msg.boss_point.save_failed": "Saving boss_points.json failed: %s",
   "gettcore.msg.region.need_worldedit": "WorldEdit is required",

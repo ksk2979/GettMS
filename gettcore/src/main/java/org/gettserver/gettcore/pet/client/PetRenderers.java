@@ -135,16 +135,11 @@ public final class PetRenderers {
                 applyScale(entity, poseStack);
             }
         });
-        event.registerEntityRenderer(PetRegistry.BOSS_GIRAFFE.get(), ctx -> new GiraffeRenderer(ctx) {
-            @Override
-            protected void scale(Giraffe entity, PoseStack poseStack, float partialTick) {
-                applyScale(entity, poseStack);
-            }
-        });
+        event.registerEntityRenderer(PetRegistry.BOSS_GIRAFFE.get(), BossGiraffeRenderer::new);
     }
 
     /** Boss pets and bosses render at their species' sizeScale; everything else is left at 1. */
-    private static void applyScale(Entity entity, PoseStack poseStack) {
+    static void applyScale(Entity entity, PoseStack poseStack) {
         float s;
         if (entity instanceof GettPet pet && pet.isBossPet()) {
             s = pet.petState().scale();

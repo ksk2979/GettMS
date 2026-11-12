@@ -28,7 +28,7 @@ import org.gettserver.gettcore.skill.BossConfig;
 public final class BossAggro {
     private BossAggro() {}
 
-    private static BossConfig.Boss config(Mob boss) {
+    static BossConfig.Boss config(Mob boss) {
         return GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType()));
     }
 
