@@ -30,7 +30,8 @@ import org.jetbrains.annotations.Nullable;
  * kicks, {@link BossGiraffe#EVENT_RAMGAK}), then a piercing blast flies from 1 block
  * above its feet along a straight line locked shortly before release (aimed at the target's centre); the ground it
  * passed over erupts {@code aftershock.delaySeconds} later (an aftershock buried too deep is skipped),
- * digging a trench of overlapping craters when {@code terrain} is on.
+ * digging craters when {@code terrain} is on and its depth is above 0. The line itself punches a hole
+ * {@code terrain.width} thick through what blocks it, but never digs below the caster's feet layer.
  * The line is not stopped by blocks, and never loads chunks.
  */
 public final class WindLineSkill implements SkillType {
@@ -65,7 +66,7 @@ public final class WindLineSkill implements SkillType {
         Vec3 origin = lineOrigin(caster);
         Vec3 dir = cast.aim()[0] != null ? cast.aim()[0] : LineHit.direction(origin, origin, caster.getLookAngle());
         lines.put(cast, new Line(origin, dir, spec.shape().length(), spec.shape().width() / 2,
-                Math.max(1, spec.aftershock().width())));
+                Math.max(1, spec.aftershock().width()), lowestCarvableY(caster.getY())));
         SkillFx.sound(cast.level(), origin, BuiltInRegistries.SOUND_EVENT.wrapAsHolder(SoundEvents.BREEZE_SHOOT), 2.0F);
     }
 
@@ -98,6 +99,11 @@ public final class WindLineSkill implements SkillType {
         return age * FRONT_SPEED < length;
     }
 
+    /** The sweep digs no block below this height: the layer the caster's feet are in and above, never the floor under it. */
+    static int lowestCarvableY(double feetY) {
+        return Mth.floor(feetY);
+    }
+
     /** Charge age at which the direction is locked (0 when the charge is shorter than the lock). */
     static int lockAge(int chargeTicks) {
         return Math.max(0, chargeTicks - AIM_LOCK_TICKS);
@@ -122,8 +128,8 @@ public final class WindLineSkill implements SkillType {
             }
         }
         if (spec.terrain().enabled()) {
-            SkillWorld.carve(level, TerrainRules.tube(start, end, spec.shape().width() / 2,
-                    level.getMinBuildHeight(), level.getMaxBuildHeight() - 1));
+            SkillWorld.carve(level, TerrainRules.tube(start, end, spec.terrain().width() / 2.0,
+                    Math.max(level.getMinBuildHeight(), line.minCarveY), level.getMaxBuildHeight() - 1));
         }
     }
 
@@ -141,7 +147,7 @@ public final class WindLineSkill implements SkillType {
         }
         BlockPos surface = BlockPos.containing(ground).below();
         SkillSpec.Terrain terrain = shock.terrain();
-        if (terrain.enabled()) {
+        if (terrain.enabled() && terrain.depth() > 0) {
             SkillWorld.carve(level, TerrainRules.crater(surface, terrain.width() / 2.0, terrain.depth(),
                     level.getMinBuildHeight(), level.getMaxBuildHeight() - 1));
         } else {
@@ -210,15 +216,17 @@ public final class WindLineSkill implements SkillType {
         final Vec3 dir;
         final double length;
         final double halfWidth;
+        final int minCarveY;
         private final List<Vec3> shockPoints;
         private final Set<Integer> hit = new HashSet<>();
         private int nextShock;
 
-        Line(Vec3 origin, Vec3 dir, double length, double halfWidth, double shockStep) {
+        Line(Vec3 origin, Vec3 dir, double length, double halfWidth, double shockStep, int minCarveY) {
             this.origin = origin;
             this.dir = dir;
             this.length = length;
             this.halfWidth = halfWidth;
+            this.minCarveY = minCarveY;
             this.shockPoints = LineHit.segments(origin, dir, length, shockStep);
         }
 

@@ -35,9 +35,15 @@ class BossConfigTest {
         assertEquals(List.of("ramgak", "stomp"), g.skills().stream().map(SkillSpec::id).toList());
         SkillSpec ramgak = g.skills().get(0);
         assertEquals(14, ramgak.damage());
-        assertEquals(5, ramgak.terrain().depth());
-        assertEquals(10, ramgak.terrain().width());
+        assertEquals(0, g.preferredDistance(), "chases into melee");
+        assertEquals(0, ramgak.minRange());
+        assertEquals(32, ramgak.maxRange());
+        assertEquals(10, ramgak.cooldownSeconds());
+        assertEquals(new SkillSpec.Terrain(true, 0, 2), ramgak.terrain(), "pierces, no crater");
         assertEquals(20, ramgak.chargeTicks());
+        SkillSpec stomp = g.skills().get(1);
+        assertEquals(6, stomp.cooldownSeconds());
+        assertEquals(new SkillSpec.Terrain(true, 1, 6), stomp.terrain());
     }
 
     @Test

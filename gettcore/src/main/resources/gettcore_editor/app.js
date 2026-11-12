@@ -352,11 +352,11 @@
   /** 종류별 기본 스킬 (BossConfig.DEFAULT 기린의 람각·내려찍기와 같아야 한다). "스킬 추가"는 이것의 복사본. */
   const SKILL_TEMPLATES = {
     wind_line: { id: 'ramgak', type: 'wind_line', enabled: true, shout: true, shoutText: '람각', damage: 14, knockback: 2.5,
-      minRange: 8, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 8, shape: { length: 30, width: 3, radius: 0 },
-      aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 5, width: 10 } },
+      minRange: 0, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 10, shape: { length: 30, width: 3, radius: 0 },
+      aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 0, width: 2 } },
     stomp: { id: 'stomp', type: 'stomp', enabled: true, shout: false, shoutText: '쿠웅', damage: 18, knockback: 1.6,
-      minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 12, shape: { length: 0, width: 0, radius: 6 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 12 } },
+      minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 6, shape: { length: 0, width: 0, radius: 6 },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 1, width: 6 } },
   };
   const BOSS_IDS = ['lion', 'tiger', 'bear', 'elephant', 'mammoth', 'vulture', 'giraffe'].map((n) => 'gettcore:boss_' + n);
   const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -365,7 +365,7 @@
   function bossDefault(id) {
     const b = Object.assign({}, BOSS_ENTRY_DEFAULTS, { skills: [] });
     if (id === 'gettcore:boss_giraffe') {
-      Object.assign(b, { aggro: 'after', preferredDistance: 12, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
+      Object.assign(b, { aggro: 'after', preferredDistance: 0, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
     }
     return b;
   }
@@ -2685,8 +2685,10 @@
           : stomp ? [sep('반경 '), num(s, 'shape.radius')] : null),
         h('td', nowrap, line ? [sep('피해 '), num(s, 'aftershock.damage'), sep(' 지연 '), num(s, 'aftershock.delaySeconds'),
           sep(' 폭 '), num(s, 'aftershock.width')] : sep('—')),
-        h('td', nowrap, chk(s.terrain, 'enabled', `${w} 지형 파괴`), sep(' 깊이 '), num(s, 'terrain.depth'),
-          sep(' 폭 '), num(s, 'terrain.width')),
+        h('td', nowrap, chk(s.terrain, 'enabled', `${w} 지형 파괴`),
+          line ? [h('span', { title: '막힌 곳을 뚫는 굵기' }, ' 굵기 '), num(s, 'terrain.width'),
+            h('span', { title: '후폭풍이 파는 구덩이 깊이. 0 = 바닥은 안 팜' }, ' 구덩이 깊이 '), num(s, 'terrain.depth')]
+          : [sep(' 깊이 '), num(s, 'terrain.depth'), sep(' 폭 '), num(s, 'terrain.width')]),
         h('td', null, h('button', { class: 'danger small', 'aria-label': `${w} 삭제`, onclick: () => {
           skills.splice(i, 1); onChange(true);
         } }, '삭제')));

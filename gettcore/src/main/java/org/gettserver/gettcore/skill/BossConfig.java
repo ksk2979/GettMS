@@ -76,13 +76,13 @@ public record BossConfig(Map<String, Boss> bosses) {
     public static final BossConfig DEFAULT;
 
     static {
-        SkillSpec ramgak = new SkillSpec("ramgak", SkillSpec.WIND_LINE, true, true, "람각", 14, 2.5, 8, 32, 1.0, 8,
-                new SkillSpec.Shape(30, 3, 0), new SkillSpec.Aftershock(8, 0.5, 4), new SkillSpec.Terrain(true, 5, 10));
-        SkillSpec stomp = new SkillSpec("stomp", SkillSpec.STOMP, true, false, "쿠웅", 18, 1.6, 0, 6, 0.8, 12,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 2, 12));
+        SkillSpec ramgak = new SkillSpec("ramgak", SkillSpec.WIND_LINE, true, true, "람각", 14, 2.5, 0, 32, 1.0, 10,
+                new SkillSpec.Shape(30, 3, 0), new SkillSpec.Aftershock(8, 0.5, 4), new SkillSpec.Terrain(true, 0, 2));
+        SkillSpec stomp = new SkillSpec("stomp", SkillSpec.STOMP, true, false, "쿠웅", 18, 1.6, 0, 6, 0.8, 6,
+                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 1, 6));
         Boss d = Boss.DEFAULT;
         Boss giraffe = new Boss(Aggro.AFTER, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds, d.speed,
-                d.armor, 12, d.shoutRange, d.enrageBelow, d.enrageCooldownMult, List.of(ramgak, stomp));
+                d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult, List.of(ramgak, stomp));
         Map<String, Boss> m = new TreeMap<>();
         for (String n : List.of("lion", "tiger", "bear", "elephant", "mammoth", "vulture")) {
             m.put("gettcore:boss_" + n, d);

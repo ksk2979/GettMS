@@ -20,7 +20,7 @@ class WindLineTest {
     private static final Vec3 X = new Vec3(1, 0, 0);
 
     @Test void eachVictimHitOncePerCast() {
-        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4);
+        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4, 0);
         Vec3 victim = new Vec3(1.5, 0, 0.5); // on the border of sections 0 and 1
         assertTrue(line.sweepHits(line.from(0), line.to(0), 7, victim));
         assertFalse(line.sweepHits(line.from(1), line.to(1), 7, victim));
@@ -29,7 +29,7 @@ class WindLineTest {
     }
 
     @Test void pendingAftershocksSurviveCaster() {
-        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4);
+        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4, 0);
         UUID caster = UUID.randomUUID();
         List<Shock> all = new ArrayList<>();
         SkillSpec.Terrain terrain = new SkillSpec.Terrain(true, 5, 10);
@@ -74,7 +74,7 @@ class WindLineTest {
     @Test void frontReachesLengthIn20Ticks() {
         for (int age = 0; age < 20; age++) assertTrue(WindLineSkill.sweeping(age, 30), "age " + age);
         assertFalse(WindLineSkill.sweeping(20, 30));
-        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4);
+        Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4, 0);
         assertEquals(28.5, line.from(19), 1e-9);
         assertEquals(30.0, line.to(19), 1e-9);
     }

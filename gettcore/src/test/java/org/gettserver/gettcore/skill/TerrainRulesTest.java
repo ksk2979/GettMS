@@ -64,6 +64,18 @@ class TerrainRulesTest {
         assertTrue(TerrainRules.crater(new BlockPos(0, 64, 0), 5, 0, MIN_Y, MAX_Y).isEmpty());
     }
 
+    @Test void tubeWithFloorMinYNeverDigsBelowTheFeetLayer() {
+        int feet = WindLineSkill.lowestCarvableY(65.0);
+        assertEquals(65, feet);
+        assertEquals(65, WindLineSkill.lowestCarvableY(65.7), "feet partway up a slab: still that layer");
+        List<BlockPos> tube = TerrainRules.tube(new Vec3(0, 66, 0), new Vec3(10, 66, 0), 1.0, feet, MAX_Y);
+        assertTrue(tube.stream().noneMatch(p -> p.getY() < 65), "ground layer (64) and below stay");
+        assertTrue(tube.contains(new BlockPos(5, 65, 0)), "wall at feet level is pierced");
+        assertTrue(tube.contains(new BlockPos(5, 66, 0)));
+        assertTrue(tube.contains(new BlockPos(5, 67, 0)), "and above");
+        assertFalse(tube.contains(new BlockPos(5, 64, 0)));
+    }
+
     @Test void tubeContainsBothEnds() {
         List<BlockPos> tube = TerrainRules.tube(new Vec3(0, 64, 0), new Vec3(10, 64, 0), 1.5, MIN_Y, MAX_Y);
         assertTrue(tube.contains(new BlockPos(0, 64, 0)));
