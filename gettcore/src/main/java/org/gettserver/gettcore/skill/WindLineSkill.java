@@ -24,7 +24,8 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * {@code wind_line} (람각): wind gathers on the caster during the charge, then a piercing blast flies along a straight
- * line locked shortly before release; the ground it passed over erupts {@code aftershock.delaySeconds} later.
+ * line locked shortly before release; the ground it passed over erupts {@code aftershock.delaySeconds} later,
+ * digging a trench of overlapping craters when {@code terrain} is on.
  * The line is not stopped by blocks, and never loads chunks.
  */
 public final class WindLineSkill implements SkillType {
@@ -75,8 +76,12 @@ public final class WindLineSkill implements SkillType {
         if (loaded(level, start) && loaded(level, end)) sweep(cast, line, age, start, end);
         int delay = (int) Math.round(spec.aftershock().delaySeconds() * 20);
         double radius = spec.aftershock().width() / 2 + 1;
-        for (Shock shock : line.passedShocks(line.to(age), spec.aftershock().damage(), radius, cast.caster().getUUID())) {
-            if (loaded(level, shock.point())) SkillWorld.later(level, delay, () -> erupt(level, shock));
+        for (Shock shock : line.passedShocks(line.to(age), spec.aftershock().damage(), radius, spec.terrain(),
+                cast.caster().getUUID())) {
+            if (!loaded(level, shock.point())) continue;
+            // Ground found now, before any crater nearby is dug: a later scan would sink into the trench.
+            Shock grounded = shock.at(ground(level, shock.point()));
+            SkillWorld.later(level, delay, () -> erupt(level, grounded));
         }
         return true;
     }
@@ -91,7 +96,7 @@ public final class WindLineSkill implements SkillType {
         return Math.max(0, chargeTicks - AIM_LOCK_TICKS);
     }
 
-    /** One swept section: wind particles across the width, and everyone on it hit (once per cast). */
+    /** One swept section: wind particles across the width, everyone on it hit (once per cast), blocks in it dug out. */
     private static void sweep(Cast cast, Line line, int age, Vec3 start, Vec3 end) {
         ServerLevel level = cast.level();
         Mob caster = cast.caster();
@@ -109,12 +114,16 @@ public final class WindLineSkill implements SkillType {
                 SkillTargets.hit(caster, victim, spec.damage(), push);
             }
         }
+        if (spec.terrain().enabled()) {
+            SkillWorld.carve(level, TerrainRules.tube(start, end, spec.shape().width() / 2,
+                    level.getMinBuildHeight(), level.getMaxBuildHeight() - 1));
+        }
     }
 
-    /** A scheduled aftershock: holds only level-free values, so it runs even after the caster is gone. */
+    /** A scheduled aftershock on the ground at {@code shock.point}: level-free values, so it outlives the caster. */
     private static void erupt(ServerLevel level, Shock shock) {
         if (!loaded(level, shock.point())) return;
-        Vec3 ground = ground(level, shock.point());
+        Vec3 ground = shock.point();
         SkillFx.particles(level, ParticleTypes.EXPLOSION, ground, 1, 0, 0);
         SkillFx.particles(level, ParticleTypes.POOF, ground, 12, shock.radius() * 0.5, 0.05);
         SkillFx.sound(level, ground, SoundEvents.GENERIC_EXPLODE, 1.0F);
@@ -122,6 +131,14 @@ public final class WindLineSkill implements SkillType {
         for (LivingEntity victim : SkillTargets.in(level, new AABB(ground, ground).inflate(shock.radius()), caster)) {
             if (!StompSkill.inRadius(ground, victim.position(), shock.radius())) continue;
             SkillTargets.hit(level, caster, victim, shock.damage(), StompSkill.push(ground, victim.position(), AFTERSHOCK_PUSH));
+        }
+        BlockPos surface = BlockPos.containing(ground).below();
+        SkillSpec.Terrain terrain = shock.terrain();
+        if (terrain.enabled()) {
+            SkillWorld.carve(level, TerrainRules.crater(surface, terrain.width() / 2.0, terrain.depth(),
+                    level.getMinBuildHeight(), level.getMaxBuildHeight() - 1));
+        } else {
+            SkillFx.debrisBurst(level, surface, shock.radius());
         }
     }
 
@@ -152,7 +169,11 @@ public final class WindLineSkill implements SkillType {
     }
 
     /** An aftershock waiting to go off: positions and numbers and the caster's UUID only, never the Mob. */
-    record Shock(Vec3 point, double damage, double radius, UUID casterId) {}
+    record Shock(Vec3 point, double damage, double radius, SkillSpec.Terrain terrain, UUID casterId) {
+        Shock at(Vec3 newPoint) {
+            return new Shock(newPoint, damage, radius, terrain, casterId);
+        }
+    }
 
     /** Level-free state of one cast's line: geometry, who was already hit, which aftershocks are scheduled. */
     static final class Line {
@@ -193,11 +214,11 @@ public final class WindLineSkill implements SkillType {
         }
 
         /** Aftershocks for the points the front (at {@code front}) has newly passed; each point once. */
-        List<Shock> passedShocks(double front, double damage, double radius, UUID casterId) {
+        List<Shock> passedShocks(double front, double damage, double radius, SkillSpec.Terrain terrain, UUID casterId) {
             List<Shock> out = new ArrayList<>();
             while (nextShock < shockPoints.size()
                     && shockPoints.get(nextShock).subtract(origin).dot(dir) <= front + 1.0E-9) {
-                out.add(new Shock(shockPoints.get(nextShock++), damage, radius, casterId));
+                out.add(new Shock(shockPoints.get(nextShock++), damage, radius, terrain, casterId));
             }
             return out;
         }

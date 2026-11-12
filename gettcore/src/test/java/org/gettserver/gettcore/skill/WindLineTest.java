@@ -31,12 +31,16 @@ class WindLineTest {
         Line line = new Line(Vec3.ZERO, X, 30, 1.5, 4);
         UUID caster = UUID.randomUUID();
         List<Shock> all = new ArrayList<>();
-        for (int age = 0; WindLineSkill.sweeping(age, 30); age++) all.addAll(line.passedShocks(line.to(age), 8, 3, caster));
+        SkillSpec.Terrain terrain = new SkillSpec.Terrain(true, 5, 10);
+        for (int age = 0; WindLineSkill.sweeping(age, 30); age++) {
+            all.addAll(line.passedShocks(line.to(age), 8, 3, terrain, caster));
+        }
         assertEquals(8, all.size(), "every segment exactly once");
         assertEquals(new Vec3(2, 0, 0), all.get(0).point());
         assertEquals(caster, all.get(0).casterId());
         assertEquals(8.0, all.get(0).damage());
         assertEquals(3.0, all.get(0).radius());
+        assertEquals(terrain, all.get(0).terrain());
         for (RecordComponent c : Shock.class.getRecordComponents()) {
             assertFalse(Entity.class.isAssignableFrom(c.getType()), c.getName() + " holds an entity");
         }

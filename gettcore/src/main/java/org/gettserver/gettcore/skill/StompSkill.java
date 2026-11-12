@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.skill;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
@@ -9,7 +10,10 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.pet.boss.BossGiraffe;
 
-/** {@code stomp}: rears up during the charge, then slams down, hitting everyone within {@code shape.radius}. */
+/**
+ * {@code stomp}: rears up during the charge, then slams down, hitting everyone within {@code shape.radius} and
+ * digging a crater under its feet (terrain on) or just throwing ground debris (terrain off).
+ */
 public final class StompSkill implements SkillType {
     @Override
     public void charge(Cast cast, int age) {
@@ -28,6 +32,14 @@ public final class StompSkill implements SkillType {
         for (LivingEntity victim : SkillTargets.in(level, new AABB(center, center).inflate(radius), caster)) {
             if (!inRadius(center, victim.position(), radius)) continue;
             SkillTargets.hit(caster, victim, spec.damage(), push(center, victim.position(), spec.knockback()));
+        }
+        BlockPos ground = caster.blockPosition().below();
+        SkillSpec.Terrain terrain = spec.terrain();
+        if (terrain.enabled()) {
+            SkillWorld.carve(level, TerrainRules.crater(ground, terrain.width() / 2.0, terrain.depth(),
+                    level.getMinBuildHeight(), level.getMaxBuildHeight() - 1));
+        } else {
+            SkillFx.debrisBurst(level, ground, radius);
         }
         SkillFx.particles(level, ParticleTypes.EXPLOSION, center, 1, 0, 0);
         SkillFx.particles(level, ParticleTypes.POOF, center, 30, radius * 0.5, 0.1);
