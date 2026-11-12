@@ -68,6 +68,9 @@ public class GettCoreClient {
         modBus.addListener(RegisterGuiLayersEvent.class, event -> {
             event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render);
             event.registerAbove(VanillaGuiLayers.CROSSHAIR, CaptureAimClient.LAYER_ID, CaptureAimClient::render);
+            // 보스 기술명 외침(화면 가운데 위, 크게): 바닐라 타이틀과 별개 레이어.
+            event.registerAbove(VanillaGuiLayers.TITLE, org.gettserver.gettcore.skill.client.SkillShoutHud.LAYER_ID,
+                    org.gettserver.gettcore.skill.client.SkillShoutHud::render);
         });
     }
 }

@@ -40,7 +40,7 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2");
+        PayloadRegistrar registrar = event.registrar("3");
         registrar.playToClient(BalanceSyncPayload.TYPE, BalanceSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
@@ -98,6 +98,10 @@ public final class GettNetwork {
         registrar.playToClient(QuietHealthDropPayload.TYPE, QuietHealthDropPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         org.gettserver.gettcore.reinforce.ClientQuietHealth::suppressNextFlash));
+        // SkillShoutHud (client-only, skill.client) is referenced only inside the client-bound handler.
+        registrar.playToClient(SkillShoutPayload.TYPE, SkillShoutPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.skill.client.SkillShoutHud.show(payload.text())));
         registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index(), payload.action())));

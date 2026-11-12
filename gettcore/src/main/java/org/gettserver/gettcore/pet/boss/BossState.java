@@ -9,6 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Mob;
 import org.gettserver.gettcore.skill.AggroRules;
+import org.gettserver.gettcore.skill.SkillRunner;
 
 /**
  * State of one boss entity, shared by all boss classes. Persistent values live in one synched {@link CompoundTag}
@@ -27,6 +28,7 @@ public final class BossState {
     private final Mob mob;
     private final EntityDataAccessor<CompoundTag> data;
     private ServerBossEvent bossEvent;
+    private SkillRunner skills;
 
     public BossState(Mob mob, EntityDataAccessor<CompoundTag> data) {
         this.mob = mob;
@@ -96,6 +98,12 @@ public final class BossState {
                     BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.PROGRESS);
         }
         return bossEvent;
+    }
+
+    /** Lazily created; runs this boss's bosses.json skills (not saved: a reload starts idle). */
+    public SkillRunner skills() {
+        if (skills == null) skills = new SkillRunner(mob);
+        return skills;
     }
 
     public void startSeenBy(ServerPlayer player) {

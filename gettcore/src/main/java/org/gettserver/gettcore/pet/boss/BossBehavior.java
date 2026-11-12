@@ -36,6 +36,7 @@ import org.gettserver.gettcore.economy.Ledger;
 import org.gettserver.gettcore.mobs.MobStatsRules;
 import org.gettserver.gettcore.mobs.MobStatsService;
 import org.gettserver.gettcore.pet.PetSpecies;
+import org.gettserver.gettcore.skill.BossConfig;
 
 /** Shared boss logic. The boss classes cannot share a superclass (each extends its Naturalist original). */
 public final class BossBehavior {
@@ -82,7 +83,7 @@ public final class BossBehavior {
 
     /**
      * Server tick of every boss: a boss whose point no longer exists (removed in the editor or with /gett boss
-     * remove) is discarded; otherwise stats on the first tick, boss bar progress, leash to its point.
+     * remove) is discarded; otherwise stats on the first tick, boss bar progress, aggro, skills, leash to its point.
      */
     static void serverTick(Mob boss, BossState state) {
         if (isOrphan(state.pointId(), GettData.get().bossPoints())) {
@@ -93,7 +94,9 @@ public final class BossBehavior {
         if (!state.applied()) apply(boss, species(boss));
         float max = boss.getMaxHealth();
         state.bossEvent().setProgress(max > 0 ? Mth.clamp(boss.getHealth() / max, 0.0F, 1.0F) : 0.0F);
-        BossAggro.serverTick(boss, state, GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType())));
+        BossConfig.Boss cfg = GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType()));
+        BossAggro.serverTick(boss, state, cfg);
+        state.skills().tick(cfg.skills(), boss.getTarget(), cfg.enrageBelow(), cfg.enrageCooldownMult(), cfg.shoutRange());
         String id = state.pointId();
         if (id.isEmpty()) return;
         point(id).filter(p -> p.dimension().equals(boss.level().dimension()))
