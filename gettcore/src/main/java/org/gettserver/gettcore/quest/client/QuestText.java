@@ -62,9 +62,10 @@ public final class QuestText {
             case WAIT_START -> Optional.of(npc.isBlank()
                     ? Component.translatable("gettcore.quest.hud.wait_start_any")
                     : Component.translatable("gettcore.quest.hud.wait_start", npc));
-            case READY_TO_REPORT -> Optional.of(npc.isBlank()
+            // 목표를 다 채운 상태라 완료한 목표 줄과 같은 초록색.
+            case READY_TO_REPORT -> Optional.of((npc.isBlank()
                     ? Component.translatable("gettcore.quest.hud.report_any")
-                    : Component.translatable("gettcore.quest.hud.report", npc));
+                    : Component.translatable("gettcore.quest.hud.report", npc)).withStyle(ChatFormatting.GREEN));
             case LINE_DONE -> Optional.of(endText.isBlank()
                     ? Component.translatable("gettcore.quest.hud.line_done")
                     : Component.literal(endText));

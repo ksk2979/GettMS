@@ -113,6 +113,8 @@ class QuestTextTest {
         assertEquals("이장", wait.getArgs()[0]);
         assertEquals("gettcore.quest.hud.report",
                 tr(QuestText.phaseLine(Phase.READY_TO_REPORT, "이장", "").orElseThrow()).getKey());
+        assertEquals(net.minecraft.network.chat.TextColor.fromLegacyFormat(net.minecraft.ChatFormatting.GREEN),
+                QuestText.phaseLine(Phase.READY_TO_REPORT, "이장", "").orElseThrow().getStyle().getColor());
         assertEquals("gettcore.quest.hud.wait_start_any",
                 tr(QuestText.phaseLine(Phase.WAIT_START, "", "").orElseThrow()).getKey());
         assertEquals("준비 중", QuestText.phaseLine(Phase.LINE_DONE, "", "준비 중").orElseThrow().getString());
