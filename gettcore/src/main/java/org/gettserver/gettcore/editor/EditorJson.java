@@ -21,6 +21,7 @@ import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.skill.BossConfig;
 import org.gettserver.gettcore.upgrade.UpgradeConfig;
 
 /** Bundle JSON as in spec 3.4: same per-file formats as the on-disk files, via the existing codecs. */
@@ -43,6 +44,7 @@ public final class EditorJson {
         root.add("mobs", MobStatsConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.mobs()).getOrThrow());
         root.add("equipment", EquipmentConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.equipment()).getOrThrow());
         root.add("upgrade", UpgradeConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.upgrade()).getOrThrow());
+        root.add("bosses", BossConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.bosses()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -82,7 +84,10 @@ public final class EditorJson {
                 decodeSection(root, "hunting", HuntingConfig.CODEC),
                 decodeSection(root, "mobs", MobStatsConfig.CODEC),
                 decodeSection(root, "equipment", EquipmentConfig.CODEC),
-                decodeSection(root, "upgrade", UpgradeConfig.CODEC));
+                decodeSection(root, "upgrade", UpgradeConfig.CODEC),
+                // Optional for a payload from before bosses.json existed (every other section is required).
+                root.has("bosses") && !root.get("bosses").isJsonNull()
+                        ? decodeSection(root, "bosses", BossConfig.CODEC) : BossConfig.DEFAULT);
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.gettserver.gettcore.data.*;
 import org.gettserver.gettcore.quest.*;
+import org.gettserver.gettcore.skill.BossConfig;
+import org.gettserver.gettcore.skill.SkillSpec;
 import org.junit.jupiter.api.Test;
 
 class EditorValidatorTest {
@@ -503,6 +505,76 @@ class EditorValidatorTest {
         assertTrue(r.errors().get(0).startsWith("upgrade.steps[0] minecraft:iron_sword: count 0"), r.errors().toString());
         assertTrue(r.errors().get(1).startsWith("upgrade.steps[1] minecraft:iron_sword: another step"),
                 r.errors().toString());
+    }
+
+    private static EditorValidator.Result validateBosses(BossConfig bosses) {
+        return EditorValidator.validate(withBosses(bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q), bosses),
+                RegistryChecks.ALL_EXIST);
+    }
+
+    @Test
+    void acceptsDefaultBosses() {
+        var r = validateBosses(BossConfig.DEFAULT);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().isEmpty(), r.warnings().toString());
+        assertEquals(BossConfig.DEFAULT, r.cleaned().bosses());
+    }
+
+    @Test
+    void rejectsUnknownSkillType() {
+        var r = validateBosses(withGiraffe(withSkills(giraffe(), skill("x", "laser", false, "", 0, 10))));
+        assertEquals(List.of("bosses." + GIRAFFE + ".skills[0]: 알 수 없는 스킬 종류 'laser' (wind_line 또는 stomp)"),
+                r.errors());
+    }
+
+    @Test
+    void rejectsDuplicateSkillIds() {
+        var r = validateBosses(withGiraffe(withSkills(giraffe(),
+                skill("a", SkillSpec.WIND_LINE, false, "", 0, 10), skill("a", SkillSpec.WIND_LINE, false, "", 0, 10),
+                skill(" ", SkillSpec.WIND_LINE, false, "", 0, 10))));
+        assertEquals(List.of("bosses." + GIRAFFE + ".skills[1]: 스킬 id 'a' 가 겹칩니다",
+                "bosses." + GIRAFFE + ".skills[2]: 스킬 id 가 비어 있습니다"), r.errors());
+    }
+
+    @Test
+    void rejectsMinRangeAboveMaxRange() {
+        var r = validateBosses(withGiraffe(withSkills(giraffe(), skill("a", SkillSpec.WIND_LINE, false, "", 12, 8))));
+        assertEquals(List.of("bosses." + GIRAFFE + ".skills[0]: 최소 거리 12 가 최대 거리 8 보다 큽니다"), r.errors());
+    }
+
+    @Test
+    void rejectsShoutWithoutText() {
+        var r = validateBosses(withGiraffe(withSkills(giraffe(), skill("a", SkillSpec.WIND_LINE, true, " ", 0, 8))));
+        assertEquals(List.of("bosses." + GIRAFFE + ".skills[0]: 외침이 켜져 있으면 외칠 글자가 필요합니다"), r.errors());
+    }
+
+    @Test
+    void rejectsReleaseBelowReaggro() {
+        BossConfig.Boss g = giraffe();
+        var r = validateBosses(withGiraffe(new BossConfig.Boss(g.aggro(), g.searchRange(), 10, 16, g.calmSeconds(),
+                g.speed(), g.armor(), g.preferredDistance(), g.shoutRange(), g.enrageBelow(), g.enrageCooldownMult(),
+                g.skills())));
+        assertEquals(List.of("bosses." + GIRAFFE + ": 해제 거리 10 이 다시 잡히는 거리 16 보다 작습니다"), r.errors());
+    }
+
+    @Test
+    void rejectsNumbersOutsideClampRanges() {
+        BossConfig.Boss g = giraffe();
+        SkillSpec s = g.skills().get(0);
+        SkillSpec wild = new SkillSpec(s.id(), s.type(), s.enabled(), s.shout(), s.shoutText(), 3000, s.knockback(),
+                s.minRange(), s.maxRange(), s.chargeSeconds(), s.cooldownSeconds(),
+                new SkillSpec.Shape(100, s.shape().width(), 0), s.aftershock(),
+                new SkillSpec.Terrain(true, 20, s.terrain().width()));
+        var r = validateBosses(withGiraffe(new BossConfig.Boss(g.aggro(), g.searchRange(), g.releaseRange(),
+                g.reaggroRange(), g.calmSeconds(), Optional.empty(), Optional.of(31.0), g.preferredDistance(),
+                g.shoutRange(), 1.5, g.enrageCooldownMult(), List.of(wild, g.skills().get(1)))));
+        String p = "bosses." + GIRAFFE;
+        assertEquals(List.of(p + ": armor 31 은(는) 0~30 사이여야 합니다",
+                p + ": enrageBelow 1.5 은(는) 0~1 사이여야 합니다",
+                p + ".skills[0]: damage 3000 은(는) 0~2048 사이여야 합니다",
+                p + ".skills[0]: shape.length 100 은(는) 1~64 사이여야 합니다",
+                p + ".skills[0]: terrain.depth 20 은(는) 0~16 사이여야 합니다"), r.errors(),
+                "a line's radius 0 is not checked");
     }
 
     private static EditorBundle withUpgrade(EditorBundle b, org.gettserver.gettcore.upgrade.UpgradeConfig u) {

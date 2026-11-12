@@ -28,6 +28,8 @@ import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.gettserver.gettcore.quest.QuestTrigger;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.skill.BossConfig;
+import org.gettserver.gettcore.skill.SkillSpec;
 import org.gettserver.gettcore.upgrade.UpgradeConfig;
 
 /** Server-side gate for every editor save. Errors block the save; warnings are reported and cleaned away. */
@@ -138,9 +140,81 @@ public final class EditorValidator {
         });
         UpgradeConfig upgrade = b.upgrade().sanitized(new ArrayList<>());
 
+        // Anything the load path would drop or clamp blocks the save here.
+        b.bosses().bosses().forEach((key, boss) -> validateBoss("bosses." + key, boss, errors));
+        List<String> bossWarnings = new ArrayList<>();
+        BossConfig bosses = b.bosses().sanitized(bossWarnings);
+        addPrefixed(bossWarnings, BossConfig.FILE, "bosses", warnings);
+
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs, equipment, upgrade));
+                        hunting, mobs, equipment, upgrade, bosses));
+    }
+
+    /** Ranges as in {@link BossConfig.Boss}'s / {@link SkillSpec}'s sanitizing, plus the cross-field rules. */
+    private static void validateBoss(String p, BossConfig.Boss b, List<String> errors) {
+        within(p, "searchRange", b.searchRange(), 0, 128, errors);
+        within(p, "releaseRange", b.releaseRange(), 0, 128, errors);
+        within(p, "reaggroRange", b.reaggroRange(), 0, 128, errors);
+        within(p, "calmSeconds", b.calmSeconds(), 0, 3600, errors);
+        b.speed().ifPresent(v -> within(p, "speed", v, 0, 1024, errors));
+        b.armor().ifPresent(v -> within(p, "armor", v, 0, 30, errors));
+        within(p, "preferredDistance", b.preferredDistance(), 0, 128, errors);
+        within(p, "shoutRange", b.shoutRange(), 0, 128, errors);
+        within(p, "enrageBelow", b.enrageBelow(), 0, 1, errors);
+        within(p, "enrageCooldownMult", b.enrageCooldownMult(), 0.1, 1, errors);
+        if (b.releaseRange() < b.reaggroRange()) {
+            errors.add(p + ": 해제 거리 " + num(b.releaseRange()) + " 이 다시 잡히는 거리 " + num(b.reaggroRange())
+                    + " 보다 작습니다");
+        }
+        Set<String> ids = new HashSet<>();
+        for (int n = 0; n < b.skills().size(); n++) {
+            SkillSpec s = b.skills().get(n);
+            String sp = p + ".skills[" + n + "]";
+            if (!s.knownType()) {
+                errors.add(sp + ": 알 수 없는 스킬 종류 '" + s.type() + "' (" + SkillSpec.WIND_LINE + " 또는 "
+                        + SkillSpec.STOMP + ")");
+                continue;
+            }
+            if (s.id().isBlank()) {
+                errors.add(sp + ": 스킬 id 가 비어 있습니다");
+            } else if (!ids.add(s.id())) {
+                errors.add(sp + ": 스킬 id '" + s.id() + "' 가 겹칩니다");
+            }
+            if (s.shout() && s.shoutText().isBlank()) errors.add(sp + ": 외침이 켜져 있으면 외칠 글자가 필요합니다");
+            within(sp, "damage", s.damage(), 0, 2048, errors);
+            within(sp, "knockback", s.knockback(), 0, 10, errors);
+            within(sp, "minRange", s.minRange(), 0, 64, errors);
+            within(sp, "maxRange", s.maxRange(), 0, 64, errors);
+            if (s.minRange() > s.maxRange()) {
+                errors.add(sp + ": 최소 거리 " + num(s.minRange()) + " 가 최대 거리 " + num(s.maxRange()) + " 보다 큽니다");
+            }
+            within(sp, "chargeSeconds", s.chargeSeconds(), 0.2, 10, errors);
+            within(sp, "cooldownSeconds", s.cooldownSeconds(), 0.5, 600, errors);
+            // Only the shape fields the type uses (a stomp has no length, a line no radius).
+            if (SkillSpec.WIND_LINE.equals(s.type())) {
+                within(sp, "shape.length", s.shape().length(), 1, 64, errors);
+                within(sp, "shape.width", s.shape().width(), 0.5, 32, errors);
+            } else {
+                within(sp, "shape.radius", s.shape().radius(), 0.5, 32, errors);
+            }
+            within(sp, "aftershock.damage", s.aftershock().damage(), 0, 2048, errors);
+            within(sp, "aftershock.delaySeconds", s.aftershock().delaySeconds(), 0, 10, errors);
+            within(sp, "aftershock.width", s.aftershock().width(), 0, 32, errors);
+            within(sp, "terrain.depth", s.terrain().depth(), 0, 16, errors);
+            within(sp, "terrain.width", s.terrain().width(), 0, 32, errors);
+        }
+    }
+
+    private static void within(String path, String field, double v, double min, double max, List<String> errors) {
+        if (Double.isNaN(v) || v < min || v > max) {
+            errors.add(path + ": " + field + " " + num(v) + " 은(는) " + num(min) + "~" + num(max) + " 사이여야 합니다");
+        }
+    }
+
+    /** 12.0 as "12", 1.5 as "1.5". */
+    private static String num(double v) {
+        return v == Math.rint(v) && !Double.isInfinite(v) ? Long.toString((long) v) : Double.toString(v);
     }
 
     /** Adds {@code from}'s warnings to {@code out}, "{@code file}: ..." rewritten to "{@code section}: ...". */

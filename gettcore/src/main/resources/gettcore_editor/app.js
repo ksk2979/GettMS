@@ -9,7 +9,7 @@
  *   6. 상점 탭
  *   7. NPC·대화 탭
   7b. 퀘스트 탭 (엔티티 선택기, 발전과제 선택기 포함)
- *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭, 강화 탭
+ *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭, 강화 탭, 사냥터 탭, 보스·스킬 탭 (스킬 표 skillTable 은 다시 쓸 수 있음)
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -131,7 +131,7 @@
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
       reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
-      upgrade: bundle.upgrade, datapack: bundle.datapack });
+      upgrade: bundle.upgrade, bosses: bundle.bosses, datapack: bundle.datapack });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -336,6 +336,55 @@
     return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, fishing, removeOrphans };
   }
 
+  /*
+   * bosses.json (BossConfig / SkillSpec 코덱). 서버 코덱은 모든 필드를 쓰지만, 빠진 필드는 코덱의 기본값으로 채운다.
+   * speed / armor 는 없으면 "원래 값" (키를 빼고 저장).
+   */
+  const BOSS_ENTRY_DEFAULTS = { aggro: 'first', searchRange: 24, releaseRange: 40, reaggroRange: 16, calmSeconds: 300,
+    preferredDistance: 0, shoutRange: 24, enrageBelow: 0.3, enrageCooldownMult: 0.6 };
+  const SKILL_CODEC_DEFAULTS = { enabled: true, shout: false, shoutText: '', damage: 10, knockback: 1, minRange: 0, maxRange: 24,
+    chargeSeconds: 1, cooldownSeconds: 10 };
+  /** 종류별 기본 스킬 (BossConfig.DEFAULT 기린의 람각·내려찍기와 같아야 한다). "스킬 추가"는 이것의 복사본. */
+  const SKILL_TEMPLATES = {
+    wind_line: { id: 'ramgak', type: 'wind_line', enabled: true, shout: true, shoutText: '람각', damage: 14, knockback: 2.5,
+      minRange: 8, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 8, shape: { length: 30, width: 3, radius: 0 },
+      aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 5, width: 10 } },
+    stomp: { id: 'stomp', type: 'stomp', enabled: true, shout: false, shoutText: '쿠웅', damage: 18, knockback: 1.6,
+      minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 12, shape: { length: 0, width: 0, radius: 6 },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 12 } },
+  };
+  const BOSS_IDS = ['lion', 'tiger', 'bear', 'elephant', 'mammoth', 'vulture', 'giraffe'].map((n) => 'gettcore:boss_' + n);
+  const clone = (v) => JSON.parse(JSON.stringify(v));
+
+  /** 파일에 항목이 없는 보스가 실제로 쓰는 값 (BossConfig.DEFAULT 의 항목, 없으면 Boss.DEFAULT). */
+  function bossDefault(id) {
+    const b = Object.assign({}, BOSS_ENTRY_DEFAULTS, { skills: [] });
+    if (id === 'gettcore:boss_giraffe') {
+      Object.assign(b, { aggro: 'after', preferredDistance: 12, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
+    }
+    return b;
+  }
+
+  function normalizeSkill(s) {
+    return Object.assign({}, SKILL_CODEC_DEFAULTS, s, {
+      shape: Object.assign({ length: 0, width: 0, radius: 0 }, s.shape),
+      aftershock: Object.assign({ damage: 0, delaySeconds: 0, width: 0 }, s.aftershock),
+      terrain: Object.assign({ enabled: false, depth: 0, width: 0 }, s.terrain),
+    });
+  }
+
+  function normalizeBosses(src) {
+    const p = src && typeof src.bosses === 'object' && src.bosses ? src.bosses : {};
+    const bosses = {};
+    for (const [k, b] of Object.entries(p)) {
+      if (!b || typeof b !== 'object') continue;
+      bosses[k] = Object.assign({}, BOSS_ENTRY_DEFAULTS, clone(b), {
+        skills: (Array.isArray(b.skills) ? b.skills : []).filter((s) => s && typeof s === 'object').map((s) => normalizeSkill(clone(s))),
+      });
+    }
+    return { bosses };
+  }
+
   function normalizeBossPoints(src) {
     return (Array.isArray(src) ? src : []).map((pt) => Object.assign({}, BOSS_POINT_DEFAULTS, pt));
   }
@@ -362,6 +411,7 @@
       mobs: normalizeMobs(src.mobs !== undefined ? src.mobs : f.mobs),
       equipment: normalizeEquipment(src.equipment !== undefined ? src.equipment : f.equipment),
       upgrade: normalizeUpgrade(src.upgrade !== undefined ? src.upgrade : f.upgrade),
+      bosses: normalizeBosses(src.bosses !== undefined ? src.bosses : f.bosses),
       datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {
@@ -2461,6 +2511,254 @@
     },
   };
   registerTab(huntingTab);
+
+  /* ----- 보스·스킬 탭 ----- */
+
+  // 서버 EditorValidator(보스) = BossConfig / SkillSpec.sanitized 의 범위. [최소, 최대, 정수?]
+  const BOSS_LIMITS = {
+    searchRange: [0, 128], releaseRange: [0, 128], reaggroRange: [0, 128], calmSeconds: [0, 3600, true],
+    speed: [0, 1024], armor: [0, 30], preferredDistance: [0, 128], shoutRange: [0, 128], enrageBelow: [0, 1],
+    enrageCooldownMult: [0.1, 1],
+  };
+  const SKILL_LIMITS = {
+    damage: [0, 2048], knockback: [0, 10], minRange: [0, 64], maxRange: [0, 64], chargeSeconds: [0.2, 10],
+    cooldownSeconds: [0.5, 600], 'shape.length': [1, 64], 'shape.width': [0.5, 32], 'shape.radius': [0.5, 32],
+    'aftershock.damage': [0, 2048], 'aftershock.delaySeconds': [0, 10], 'aftershock.width': [0, 32],
+    'terrain.depth': [0, 16, true], 'terrain.width': [0, 32, true],
+  };
+  const SKILL_TYPE_LABEL = { wind_line: '람각', stomp: '내려찍기' };
+  const SHOUT_TEXT_MAX = 24;   // SkillSpec.MAX_SHOUT_TEXT
+  const BOSS_NUM_LABEL = { searchRange: '탐색 범위', releaseRange: '해제 거리', reaggroRange: '다시 잡히는 거리', calmSeconds: '진정 시간(초)',
+    speed: '이동속도', armor: '방어', preferredDistance: '선호 거리', shoutRange: '외침 범위', enrageBelow: '광폭화 체력', enrageCooldownMult: '쿨타임 배율' };
+  const SKILL_NUM_LABEL = { damage: '피해', knockback: '밀쳐내기', minRange: '최소 거리', maxRange: '최대 거리', chargeSeconds: '모으기(초)',
+    cooldownSeconds: '쿨타임(초)', 'shape.length': '길이', 'shape.width': '폭', 'shape.radius': '반경', 'aftershock.damage': '후폭풍 피해',
+    'aftershock.delaySeconds': '후폭풍 지연', 'aftershock.width': '후폭풍 폭', 'terrain.depth': '파괴 깊이', 'terrain.width': '파괴 폭' };
+
+  const fmtNum = (v) => String(Math.round(v * 1000) / 1000);
+
+  function limitRule(limits, key, v) {
+    const [lo, hi, int] = limits[key];
+    if (int ? !isInt(v) : !isNum(v)) return int ? '정수여야 합니다' : '숫자여야 합니다';
+    return v >= lo && v <= hi ? '' : `${lo}~${hi} 사이여야 합니다`;
+  }
+
+  /** 'shape.length' 같은 점 경로의 [객체, 키]. */
+  function fieldRef(obj, key) {
+    const dot = key.indexOf('.');
+    return dot < 0 ? [obj, key] : [obj[key.slice(0, dot)], key.slice(dot + 1)];
+  }
+
+  // 화면 칸과 오류 목록이 같은 규칙을 쓴다.
+  const bossSkillRules = {
+    bossNum(b, key) {
+      if ((key === 'speed' || key === 'armor') && b[key] === undefined) return '';   // 빈칸 = 원래 값
+      return limitRule(BOSS_LIMITS, key, b[key]);
+    },
+    release(b) {
+      return isNum(b.releaseRange) && isNum(b.reaggroRange) && b.releaseRange < b.reaggroRange
+        ? `해제 거리는 다시 잡히는 거리(${fmtNum(b.reaggroRange)}) 이상이어야 합니다` : '';
+    },
+    type(s) { return SKILL_TYPE_LABEL[s.type] ? '' : `알 수 없는 스킬 종류입니다: ${s.type}`; },
+    id(skills, i) {
+      const id = skills[i].id;
+      if (!id || !String(id).trim()) return '스킬 id가 비어 있습니다';
+      return skills.some((x, j) => j < i && x.id === id) ? '같은 스킬 id가 있습니다' : '';
+    },
+    shoutText(s) { return s.shout && !String(s.shoutText || '').trim() ? '외침이 켜져 있으면 외칠 글자가 필요합니다' : ''; },
+    /** 그 종류가 쓰지 않는 범위 칸(람각의 반경, 내려찍기의 길이·폭)은 검사하지 않는다. */
+    skillNum(s, key) {
+      if (key === 'shape.radius' ? s.type !== 'stomp' : key.startsWith('shape.') && s.type !== 'wind_line') return '';
+      const [o, k] = fieldRef(s, key);
+      return limitRule(SKILL_LIMITS, key, o ? o[k] : undefined);
+    },
+    range(s) {
+      return isNum(s.minRange) && isNum(s.maxRange) && s.minRange > s.maxRange
+        ? `최소 거리(${fmtNum(s.minRange)})가 최대 거리보다 큽니다` : '';
+    },
+  };
+
+  /** 스킬 목록 하나의 오류 [[어디, 문장]] (보스 항목과 사냥터 개체가 함께 쓴다). */
+  function skillListErrors(skills) {
+    const out = [];
+    skills.forEach((s, i) => {
+      const w = `스킬 ${s.id || '#' + (i + 1)}`;
+      const add = (m, where) => { if (m) out.push([`${w} ${where}`, m]); };
+      add(bossSkillRules.type(s), '종류');
+      if (!SKILL_TYPE_LABEL[s.type]) return;
+      add(bossSkillRules.id(skills, i), 'id');
+      add(bossSkillRules.shoutText(s), '외침');
+      for (const key of Object.keys(SKILL_LIMITS)) add(bossSkillRules.skillNum(s, key), SKILL_NUM_LABEL[key]);
+      add(bossSkillRules.range(s), '쓰는 거리');
+    });
+    return out;
+  }
+
+  function validateBossSkills(bundle) {
+    const out = [];
+    for (const [id, b] of Object.entries((bundle.bosses && bundle.bosses.bosses) || {})) {
+      const w = `보스 ${entityName(id)}`;
+      for (const key of Object.keys(BOSS_LIMITS)) {
+        const m = bossSkillRules.bossNum(b, key);
+        if (m) out.push(`${w} › ${BOSS_NUM_LABEL[key]}: ${m}`);
+      }
+      const r = bossSkillRules.release(b);
+      if (r) out.push(`${w} › 해제 거리: ${r}`);
+      for (const [where, m] of skillListErrors(b.skills || [])) out.push(`${w} › ${where}: ${m}`);
+    }
+    return out;
+  }
+
+  /** 새 스킬: 그 종류의 기본 스킬 복사본, id 는 겹치지 않게 (ramgak, ramgak_2, ...). */
+  function newSkill(skills, type) {
+    const s = clone(SKILL_TEMPLATES[type]);
+    let id = s.id;
+    for (let n = 2; skills.some((x) => x.id === id); n++) id = `${s.id}_${n}`;
+    s.id = id;
+    return s;
+  }
+
+  /**
+   * 스킬 표. skills 배열을 그 자리에서 고친다. onChange(structural)는 값이 바뀔 때마다 불린다 — 행 추가·삭제·종류
+   * 변경이면 true (부른 쪽이 다시 그린다). 보스 항목과 사냥터 개체가 함께 쓴다.
+   */
+  function skillTable(skills, checks, where, onChange) {
+    const set = (obj, key, v) => { obj[key] = v; onChange(false); };
+    const num = (s, key, extraCheck) => {
+      const [o, k] = fieldRef(s, key);
+      const [lo, hi, int] = SKILL_LIMITS[key];
+      return checks.add(h('input', { type: 'number', step: int ? 1 : 'any', min: lo, max: hi, style: 'width:4.5rem',
+        'aria-label': `${where} ${s.id} ${SKILL_NUM_LABEL[key]}`, value: shownNum(o[k]),
+        oninput: (e) => set(o, k, numOf(e)) }), () => bossSkillRules.skillNum(s, key) || (extraCheck ? extraCheck() : ''));
+    };
+    const chk = (obj, key, label) => h('input', { type: 'checkbox', checked: !!obj[key], 'aria-label': label,
+      onchange: (e) => set(obj, key, e.target.checked) });
+    const sep = (t) => h('span', { class: 'muted' }, t);
+    const nowrap = { style: 'white-space:nowrap' };
+
+    const rows = skills.map((s, i) => {
+      const w = `${where} 스킬 ${s.id || i + 1}`;
+      const typeOpts = Object.entries(SKILL_TYPE_LABEL).map(([v, t]) => h('option', { value: v }, t));
+      if (!SKILL_TYPE_LABEL[s.type]) typeOpts.unshift(h('option', { value: s.type }, `(알 수 없음) ${s.type}`));
+      const typeSel = checks.add(h('select', { 'aria-label': `${w} 종류`, onchange: (e) => {
+        // 범위 칸은 종류마다 달라 새 종류의 기본 범위로 바꾼다.
+        s.type = e.target.value;
+        if (SKILL_TEMPLATES[s.type]) s.shape = clone(SKILL_TEMPLATES[s.type].shape);
+        onChange(true);
+      } }, typeOpts), () => bossSkillRules.type(s));
+      typeSel.value = s.type;
+      const line = s.type === 'wind_line';
+      const stomp = s.type === 'stomp';
+      return h('tr', null,
+        h('td', null, chk(s, 'enabled', `${w} 켜기`)),
+        h('td', null, typeSel),
+        h('td', null, checks.add(h('input', { type: 'text', value: s.id, style: 'width:7rem', 'aria-label': `${w} id`,
+          oninput: (e) => set(s, 'id', e.target.value.trim()) }), () => bossSkillRules.id(skills, i))),
+        h('td', nowrap, chk(s, 'shout', `${w} 외침`), ' ',
+          checks.add(h('input', { type: 'text', value: s.shoutText, maxlength: SHOUT_TEXT_MAX, style: 'width:5.5rem', 'aria-label': `${w} 외칠 글자`,
+            oninput: (e) => set(s, 'shoutText', e.target.value) }), () => bossSkillRules.shoutText(s))),
+        h('td', null, num(s, 'damage')),
+        h('td', null, num(s, 'knockback')),
+        h('td', nowrap, num(s, 'minRange'), sep(' ~ '), num(s, 'maxRange', () => bossSkillRules.range(s))),
+        h('td', null, num(s, 'chargeSeconds')),
+        h('td', null, num(s, 'cooldownSeconds')),
+        h('td', nowrap, line ? [sep('길이 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width')]
+          : stomp ? [sep('반경 '), num(s, 'shape.radius')] : null),
+        h('td', nowrap, line ? [sep('피해 '), num(s, 'aftershock.damage'), sep(' 지연 '), num(s, 'aftershock.delaySeconds'),
+          sep(' 폭 '), num(s, 'aftershock.width')] : sep('—')),
+        h('td', nowrap, chk(s.terrain, 'enabled', `${w} 지형 파괴`), sep(' 깊이 '), num(s, 'terrain.depth'),
+          sep(' 폭 '), num(s, 'terrain.width')),
+        h('td', null, h('button', { class: 'danger small', 'aria-label': `${w} 삭제`, onclick: () => {
+          skills.splice(i, 1); onChange(true);
+        } }, '삭제')));
+    });
+    const addType = h('select', { 'aria-label': `${where} 추가할 스킬 종류` },
+      Object.entries(SKILL_TYPE_LABEL).map(([v, t]) => h('option', { value: v }, t)));
+    const head = ['켜기', '종류', 'id', '외침', '피해', '밀쳐내기', '쓰는 거리(최소~최대)', '모으기(초)', '쿨타임(초)', '범위', '후폭풍', '지형 파괴', ''];
+    return h('div', null,
+      skills.length ? h('div', { class: 'scroll-x' }, h('table', null,
+        h('thead', null, h('tr', null, head.map((t) => h('th', null, t)))), h('tbody', null, rows)))
+        : h('p', { class: 'muted' }, '스킬이 없습니다 (일반 공격만 합니다).'),
+      h('div', { class: 'field', style: 'margin-top:.5rem' }, addType,
+        h('button', { class: 'small', onclick: () => { skills.push(newSkill(skills, addType.value)); onChange(true); } }, '스킬 추가')));
+  }
+
+  const bossSkillsTab = {
+    id: 'bossSkills',
+    title: '보스·스킬',
+    validate: validateBossSkills,
+    render(container) {
+      const checks = makeChecks();
+      const saved = S.bundle.bosses.bosses;
+      const ids = Array.from(new Set(Object.keys(saved).concat(BOSS_IDS))).sort((a, b) => entityName(a).localeCompare(entityName(b)));
+      if (!ids.includes(S.ui.bossId)) S.ui.bossId = ids[0];
+      const id = S.ui.bossId;
+      const name = entityName(id);
+
+      const left = h('div', { class: 'card' }, h('h2', null, '보스 개체'),
+        h('div', { class: 'list' }, ids.map((k) => h('button', { 'aria-current': String(k === id), onclick: () => { S.ui.bossId = k; renderTabContent(); } },
+          entityName(k), saved[k] ? null : h('span', { class: 'muted' }, ' · 기본값')))));
+
+      // 파일에 항목이 없는 보스는 지금 쓰이는 값(기본값)에서 시작하고, 처음 고칠 때 그 값으로 항목을 만든다.
+      const b = saved[id] || bossDefault(id);
+      const edited = (structural) => {
+        if (!saved[id]) saved[id] = b;
+        changed();
+        if (structural) renderTabContent();
+      };
+      const labeled = (label, el, unit) => [h('label', null, label), el, unit ? h('span', { class: 'muted' }, unit) : null];
+      const bossNum = (key, extraCheck) => {
+        const [lo, hi, int] = BOSS_LIMITS[key];
+        return checks.add(h('input', { type: 'number', step: int ? 1 : 'any', min: lo, max: hi, style: 'width:5.5rem',
+          'aria-label': `${name} ${BOSS_NUM_LABEL[key]}`, value: shownNum(b[key]),
+          oninput: (e) => { b[key] = numOf(e); edited(false); } }), () => bossSkillRules.bossNum(b, key) || (extraCheck ? extraCheck() : ''));
+      };
+      // 방어·이동속도: 빈칸 = 원래 값 (키를 뺀다).
+      const optNum = (key) => checks.add(h('input', { type: 'number', step: 'any', min: BOSS_LIMITS[key][0], max: BOSS_LIMITS[key][1], style: 'width:5.5rem',
+        placeholder: '원래 값', 'aria-label': `${name} ${BOSS_NUM_LABEL[key]}`, value: shownNum(b[key]),
+        oninput: (e) => { if (e.target.value === '') delete b[key]; else b[key] = Number(e.target.value); edited(false); } }),
+        () => bossSkillRules.bossNum(b, key));
+
+      // 신체 스펙: 크기·체력·공격 배율은 펫 탭의 종 정보(같은 객체), 방어·이동속도는 bosses.json.
+      const sp = S.bundle.pets.species[id];
+      const spNum = (key, label) => checks.add(h('input', { type: 'number', step: 'any', min: 0, style: 'width:5rem', 'aria-label': `${name} ${label}`,
+        value: shownNum(sp[key]), oninput: (e) => { sp[key] = numOf(e); changed(); } }), () => petRules.positive(sp[key]));
+      const bodyCard = h('div', { class: 'card' }, h('h2', null, '신체 스펙'),
+        h('div', { class: 'field' },
+          sp ? [labeled('크기 배율', spNum('sizeScale', '크기 배율')), labeled('체력 배율', spNum('healthMult', '체력 배율')),
+            labeled('공격 배율', spNum('attackMult', '공격 배율'))] : h('span', { class: 'muted' }, '펫 탭에 종 정보가 없습니다'),
+          labeled('방어', optNum('armor')), labeled('이동속도', optNum('speed'))),
+        h('p', { class: 'muted' }, '크기·체력 배율은 새로 나오는 보스부터, 나머지는 저장 즉시 적용됩니다.'));
+
+      const aggroSel = h('select', { 'aria-label': `${name} 어그로`, onchange: (e) => { b.aggro = e.target.value; edited(true); } },
+        h('option', { value: 'first' }, '선공'), h('option', { value: 'after' }, '후공'));
+      aggroSel.value = b.aggro;
+      // 광폭화 체력은 파일에 0~1 비율, 화면에는 %.
+      const enragePct = checks.add(h('input', { type: 'number', step: 'any', min: 0, max: 100, style: 'width:5rem', 'aria-label': `${name} 광폭화 체력(%)`,
+        value: isNum(b.enrageBelow) ? fmtNum(b.enrageBelow * 100) : '',
+        oninput: (e) => { const v = numOf(e); b.enrageBelow = isNum(v) ? v / 100 : v; edited(false); } }),
+        () => (bossSkillRules.bossNum(b, 'enrageBelow') ? '0~100 사이여야 합니다' : ''));
+      const after = b.aggro === 'after';
+      const aggroCard = h('div', { class: 'card' }, h('h2', null, '어그로'),
+        h('div', { class: 'field' }, aggroSel,
+          after ? [labeled('탐색 범위', bossNum('searchRange'), '블록'),
+            labeled('해제 거리', bossNum('releaseRange', () => bossSkillRules.release(b)), '블록'),
+            labeled('다시 잡히는 거리', bossNum('reaggroRange'), '블록'),
+            labeled('진정 시간(초)', bossNum('calmSeconds'))] : null),
+        h('div', { class: 'field' }, labeled('선호 거리', bossNum('preferredDistance'), '블록'),
+          labeled('외침 범위', bossNum('shoutRange'), '블록')),
+        h('div', { class: 'field' }, labeled('광폭화 체력(%)', enragePct, '% 이하'),
+          labeled('쿨타임 배율', bossNum('enrageCooldownMult'))));
+
+      const skillCard = h('div', { class: 'card' }, h('h2', null, '스킬'), skillTable(b.skills, checks, name, edited));
+
+      container.append(h('div', { class: 'split' }, left, h('div', { class: 'stack' },
+        h('div', { class: 'card' }, h('h2', null, name), h('div', { class: 'id' }, id),
+          saved[id] ? null : h('p', { class: 'muted' }, '파일에 항목이 없어 기본값을 쓰는 중입니다. 고치면 이 값에서 시작해 항목이 생깁니다.')),
+        bodyCard, aggroCard, skillCard)));
+      return () => checks.paint();
+    },
+  };
+  registerTab(bossSkillsTab);
 
   /* ----- 몬스터 탭 ----- */
 

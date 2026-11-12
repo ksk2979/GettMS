@@ -142,7 +142,7 @@ public final class EditorDevServer {
                     new org.gettserver.gettcore.protect.ProtectConfig.Flags(false, false, false))));
         }
         return new EditorBundle(shops, b.dialogs(), b.npcs(), b.quests(), List.copyOf(points), b.pets(), protect,
-                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade());
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), b.bosses());
     }
 
     /** A few Tide 2.1.1 fishing files (trimmed) and the vanilla junk / treasure tables. */

@@ -22,6 +22,8 @@ import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.skill.BossConfig;
+import org.gettserver.gettcore.skill.SkillSpec;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -367,5 +369,42 @@ class GettDataSaveBundleTest {
         assertTrue(bad.errors().stream().anyMatch(e -> e.startsWith("upgrade.steps[1]") && e.contains("cycle")),
                 bad.errors().toString());
         assertEquals(upgrade, data.upgrade());
+    }
+
+    @Test
+    void saveBundleWritesBossesJsonAndReloads(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        String giraffe = "gettcore:boss_giraffe";
+        BossConfig.Boss g = raw.bosses().bosses().get(giraffe);
+        SkillSpec ramgak = g.skills().get(0);
+        assertEquals("ramgak", ramgak.id(), "bundled default is installed");
+        SkillSpec harder = new SkillSpec(ramgak.id(), ramgak.type(), ramgak.enabled(), ramgak.shout(),
+                ramgak.shoutText(), 20, ramgak.knockback(), ramgak.minRange(), ramgak.maxRange(),
+                ramgak.chargeSeconds(), ramgak.cooldownSeconds(), ramgak.shape(), ramgak.aftershock(), ramgak.terrain());
+        List<SkillSpec> skills = new java.util.ArrayList<>(g.skills());
+        skills.set(0, harder);
+        Map<String, BossConfig.Boss> bosses = new TreeMap<>(raw.bosses().bosses());
+        bosses.put(giraffe, new BossConfig.Boss(g.aggro(), g.searchRange(), g.releaseRange(), g.reaggroRange(),
+                g.calmSeconds(), g.speed(), g.armor(), g.preferredDistance(), g.shoutRange(), g.enrageBelow(),
+                g.enrageCooldownMult(), skills));
+
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(),
+                raw.equipment(), raw.upgrade(), new BossConfig(bosses)), RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(20.0, ramgakDamage(Files.readString(dir.resolve("bosses.json"))));
+        assertEquals(20.0, data.bosses().boss(ResourceLocation.parse(giraffe)).skills().get(0).damage());
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertEquals(14.0, ramgakDamage(Files.readString(latest.resolve("bosses.json"))), "backup holds the old file");
+    }
+
+    private static double ramgakDamage(String bossesJson) {
+        return com.google.gson.JsonParser.parseString(bossesJson).getAsJsonObject().getAsJsonObject("bosses")
+                .getAsJsonObject("gettcore:boss_giraffe").getAsJsonArray("skills").get(0).getAsJsonObject()
+                .get("damage").getAsDouble();
     }
 }

@@ -15,6 +15,8 @@ import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.skill.BossConfig;
+import org.gettserver.gettcore.skill.SkillSpec;
 
 final class Fixtures {
     private Fixtures() {}
@@ -115,6 +117,39 @@ final class Fixtures {
                 Map.of(CaptureTier.IRON, 11.0, CaptureTier.GOLD, 22.0, CaptureTier.DIAMOND, 33.0, CaptureTier.NETHERITE, 44.0),
                 Map.of(CaptureTier.IRON, 5.0, CaptureTier.GOLD, 6.0, CaptureTier.DIAMOND, 7.0, CaptureTier.NETHERITE, 8.0),
                 d.throwCooldownTicks());
+    }
+
+    static final String GIRAFFE = "gettcore:boss_giraffe";
+
+    /** The default giraffe entry (after-aggro, ramgak + stomp). */
+    static BossConfig.Boss giraffe() {
+        return BossConfig.DEFAULT.bosses().get(GIRAFFE);
+    }
+
+    /** The default giraffe's ramgak with the given id/type, shout and use range. */
+    static SkillSpec skill(String id, String type, boolean shout, String shoutText, double minRange, double maxRange) {
+        SkillSpec s = giraffe().skills().get(0);
+        return new SkillSpec(id, type, s.enabled(), shout, shoutText, s.damage(), s.knockback(), minRange, maxRange,
+                s.chargeSeconds(), s.cooldownSeconds(), s.shape(), s.aftershock(), s.terrain());
+    }
+
+    /** {@code b} with its skill list replaced. */
+    static BossConfig.Boss withSkills(BossConfig.Boss b, SkillSpec... skills) {
+        return new BossConfig.Boss(b.aggro(), b.searchRange(), b.releaseRange(), b.reaggroRange(), b.calmSeconds(),
+                b.speed(), b.armor(), b.preferredDistance(), b.shoutRange(), b.enrageBelow(), b.enrageCooldownMult(),
+                List.of(skills));
+    }
+
+    /** {@link BossConfig#DEFAULT} with the giraffe entry replaced. */
+    static BossConfig withGiraffe(BossConfig.Boss giraffe) {
+        Map<String, BossConfig.Boss> m = new java.util.TreeMap<>(BossConfig.DEFAULT.bosses());
+        m.put(GIRAFFE, giraffe);
+        return new BossConfig(m);
+    }
+
+    static EditorBundle withBosses(EditorBundle b, BossConfig bosses) {
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), bosses);
     }
 
     /** Pets config with the given species (keyed by their id) and default health bar/capture settings. */

@@ -395,7 +395,7 @@ public final class GettData {
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
                 new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs,
-                equipment, upgrade);
+                equipment, upgrade, bosses);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -412,7 +412,7 @@ public final class GettData {
 
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
-     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json, mobs.json, equipment.json and upgrade.json (all to .tmp first, then moved), deletes
+     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json, mobs.json, equipment.json, upgrade.json and bosses.json (all to .tmp first, then moved), deletes
      * files of ids no longer present and reloads. Boss points, pets, protect and reinforce are replaced as a whole; the ids of boss points that are gone
      * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
@@ -472,6 +472,8 @@ public final class GettData {
                     b.equipment()).getOrThrow(IOException::new));
             writes.put(dir.resolve(UpgradeConfig.FILE), UpgradeConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.upgrade()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(BossConfig.FILE), BossConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.bosses()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }

@@ -11,6 +11,7 @@ import org.gettserver.gettcore.pet.PetConfig;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.quest.*;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
+import org.gettserver.gettcore.skill.BossConfig;
 import org.junit.jupiter.api.Test;
 
 class EditorJsonTest {
@@ -248,5 +249,30 @@ class EditorJsonTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> EditorJson.decode(FULL.replace(",\"upgrade\":{}", "")));
         assertTrue(e.getMessage().startsWith("upgrade: missing section"), e.getMessage());
+    }
+
+    @Test
+    void bossesSectionRoundTrips() {
+        EditorBundle base = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of());
+        EditorBundle b = new EditorBundle(base.shops(), base.dialogs(), base.npcs(), base.quests(), base.bossPoints(),
+                base.pets(), base.protect(), base.reinforce(), base.hunting(), base.mobs(), base.equipment(),
+                base.upgrade(), BossConfig.DEFAULT);
+        String json = EditorJson.encode(b, null);
+        assertEquals(b, EditorJson.decode(json));
+        var root = com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+        // The web page reads/writes these field names directly (every field written, as the codec does).
+        var giraffe = root.getAsJsonObject("bosses").getAsJsonObject("bosses").getAsJsonObject("gettcore:boss_giraffe");
+        assertEquals("after", giraffe.get("aggro").getAsString());
+        var ramgak = giraffe.getAsJsonArray("skills").get(0).getAsJsonObject();
+        assertEquals("ramgak", ramgak.get("id").getAsString());
+        assertEquals("wind_line", ramgak.get("type").getAsString());
+        assertEquals(30.0, ramgak.getAsJsonObject("shape").get("length").getAsDouble());
+        assertTrue(ramgak.getAsJsonObject("terrain").get("enabled").getAsBoolean());
+    }
+
+    @Test
+    void bundleWithoutBossesSectionDecodesToDefault() {
+        // An editor payload from before bosses.json existed.
+        assertEquals(BossConfig.DEFAULT, EditorJson.decode(FULL).bosses());
     }
 }
