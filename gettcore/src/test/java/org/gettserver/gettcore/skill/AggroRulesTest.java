@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.OptionalDouble;
 import org.gettserver.gettcore.skill.AggroRules.Memory;
 import org.gettserver.gettcore.skill.BossConfig.Aggro;
 import org.junit.jupiter.api.Test;
@@ -70,6 +71,20 @@ class AggroRulesTest {
         assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.AFTER, ANGRY0));
         assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.FIRST, Memory.CALM));
         assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.FIRST, ANGRY0));
+    }
+
+    @Test void afterBossFollowsUpToItsReleaseRange() {
+        assertEquals(OptionalDouble.of(40), AggroRules.followRange(Aggro.AFTER, 40));
+        assertEquals(OptionalDouble.of(64), AggroRules.followRange(Aggro.AFTER, 64));
+    }
+
+    @Test void firstBossKeepsItsOwnFollowRange() {
+        assertEquals(OptionalDouble.empty(), AggroRules.followRange(Aggro.FIRST, 40));
+    }
+
+    @Test void onlyAnAfterBossKeepsAnUnseenTarget() {
+        assertTrue(AggroRules.keepsUnseenTarget(Aggro.AFTER));
+        assertFalse(AggroRules.keepsUnseenTarget(Aggro.FIRST));
     }
 
     @Test void firstModeAlwaysAcquires() {

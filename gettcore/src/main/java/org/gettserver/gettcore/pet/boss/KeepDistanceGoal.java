@@ -14,14 +14,17 @@ import org.gettserver.gettcore.skill.SkillSpec;
 import org.gettserver.gettcore.skill.SkillTargets;
 
 /**
- * A skill-casting boss's fight movement: backs off inside {@code preferredDistance - 2}, closes in beyond its
- * longest skill range, otherwise holds; stands still while casting; melees whoever is within reach.
+ * A skill-casting boss's fight movement: backs off inside {@code preferredDistance - 2}, follows beyond
+ * {@code preferredDistance + 4}, otherwise holds; stands still while casting; melees whoever is within reach.
  * Chases like {@code MeleeAttackGoal} when {@code preferredDistance == 0}, without an enabled skill, or against a
  * target its skills cannot hit.
  */
 public class KeepDistanceGoal extends Goal {
     static final int ATTACK_COOLDOWN_TICKS = 20;
     static final int REPATH_TICKS = 10;
+    /** Hold band around {@code preferredDistance}: retreat inside {@code - RETREAT_MARGIN}, follow beyond {@code + FOLLOW_MARGIN}. */
+    static final double RETREAT_MARGIN = 2;
+    static final double FOLLOW_MARGIN = 4;
     /** Retreat target search: horizontal / vertical range for {@link DefaultRandomPos#getPosAway}. */
     private static final int RETREAT_RANGE = 16;
     private static final int RETREAT_HEIGHT = 7;
@@ -40,20 +43,20 @@ public class KeepDistanceGoal extends Goal {
         setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
-    /** Pure: what to do at {@code distance} from the target. */
-    static Move decide(double distance, double preferred, double maxSkillRange) {
-        if (distance < preferred - 2) return Move.RETREAT;
-        if (distance > maxSkillRange) return Move.APPROACH;
+    /** Pure: what to do at {@code distance} from the target: stay within {@code preferred - 2 .. preferred + 4}. */
+    static Move decide(double distance, double preferred) {
+        if (distance < preferred - RETREAT_MARGIN) return Move.RETREAT;
+        if (distance > preferred + FOLLOW_MARGIN) return Move.APPROACH;
         return Move.HOLD;
     }
 
     /**
      * Pure: {@link #decide}, or a plain melee chase ({@link Move#APPROACH}) when keeping distance is pointless:
-     * {@code preferred == 0}, no enabled skill ({@code maxSkillRange == 0}), or a target the skills cannot hit.
+     * {@code preferred == 0}, no enabled skill, or a target the skills cannot hit.
      */
-    static Move move(double distance, double preferred, double maxSkillRange, boolean skillTarget) {
-        if (preferred <= 0 || maxSkillRange <= 0 || !skillTarget) return Move.APPROACH;
-        return decide(distance, preferred, maxSkillRange);
+    static Move move(double distance, double preferred, boolean hasSkill, boolean skillTarget) {
+        if (preferred <= 0 || !hasSkill || !skillTarget) return Move.APPROACH;
+        return decide(distance, preferred);
     }
 
     @Override
@@ -101,7 +104,7 @@ public class KeepDistanceGoal extends Goal {
             attackCooldown = ATTACK_COOLDOWN_TICKS;
         }
         BossConfig.Boss cfg = BossAggro.config(mob);
-        Move move = move(mob.distanceTo(target), cfg.preferredDistance(), maxSkillRange(cfg.skills()),
+        Move move = move(mob.distanceTo(target), cfg.preferredDistance(), hasEnabledSkill(cfg.skills()),
                 SkillTargets.valid(mob, target));
         boolean changed = move != lastMove;
         lastMove = move;
@@ -119,12 +122,10 @@ public class KeepDistanceGoal extends Goal {
         }
     }
 
-    /** The longest {@code maxRange} among the enabled skills (0 without any). */
-    private static double maxSkillRange(List<SkillSpec> skills) {
-        double max = 0;
+    private static boolean hasEnabledSkill(List<SkillSpec> skills) {
         for (SkillSpec s : skills) {
-            if (s.enabled()) max = Math.max(max, s.maxRange());
+            if (s.enabled()) return true;
         }
-        return max;
+        return false;
     }
 }

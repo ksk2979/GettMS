@@ -17,6 +17,16 @@ public final class BossGiraffeAnimation {
             .addAnimation("neck", rotX(0, 0, 0.6F, 20, 0.8F, 20, 0.85F, 0))
             .build();
 
+    /**
+     * 람각, timed to the default 1.0 s charge: the right foreleg draws back and the chest leans back through 0.8 s,
+     * the leg kicks forward at the release (1.05 s) with the neck following through, all settled by 1.4 s.
+     */
+    public static final AnimationDefinition RAMGAK = AnimationDefinition.Builder.withLength(1.4F)
+            .addAnimation("right_arm", rotX(0, 0, 0.8F, 40, 0.95F, 45, 1.05F, -65, 1.15F, -60, 1.4F, 0))
+            .addAnimation("shoulders", rotX(0, 0, 0.8F, -10, 0.95F, -10, 1.05F, 6, 1.4F, 0))
+            .addAnimation("neck", rotX(0, 0, 0.8F, -12, 0.95F, -12, 1.1F, 25, 1.4F, 0))
+            .build();
+
     /** X rotation channel from (seconds, degrees) pairs, linear between them. */
     private static AnimationChannel rotX(float... timeDegrees) {
         Keyframe[] frames = new Keyframe[timeDegrees.length / 2];

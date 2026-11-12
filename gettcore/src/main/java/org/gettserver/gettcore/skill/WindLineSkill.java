@@ -22,10 +22,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.gettserver.gettcore.pet.boss.BossGiraffe;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * {@code wind_line} (람각): wind gathers on the caster during the charge, then a piercing blast flies from 1 block
+ * {@code wind_line} (람각): wind gathers on the caster during the charge (a boss giraffe draws its foreleg back and
+ * kicks, {@link BossGiraffe#EVENT_RAMGAK}), then a piercing blast flies from 1 block
  * above its feet along a straight line locked shortly before release (aimed at the target's centre); the ground it
  * passed over erupts {@code aftershock.delaySeconds} later (an aftershock buried too deep is skipped),
  * digging a trench of overlapping craters when {@code terrain} is on.
@@ -48,6 +50,7 @@ public final class WindLineSkill implements SkillType {
     @Override
     public void charge(Cast cast, int age) {
         Mob caster = cast.caster();
+        if (age == 0 && caster instanceof BossGiraffe) cast.level().broadcastEntityEvent(caster, BossGiraffe.EVENT_RAMGAK);
         Vec3 chest = chest(caster);
         double radius = caster.getBbWidth() * 0.5 + 1.5;
         SkillFx.gather(cast.level(), ParticleTypes.FLAME, chest, radius, 2);

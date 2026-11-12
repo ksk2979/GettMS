@@ -34,6 +34,10 @@ public class BossGiraffe extends Giraffe implements GettBoss {
     public static final byte EVENT_STOMP = 70;
     /** How long the stomp animation runs (0.8 s charge + 0.3 s slam) before its state is stopped. */
     static final int STOMP_TICKS = 22;
+    /** Entity event: play the 람각 foot animation (sent at the start of a wind line charge, and by the debug command). */
+    public static final byte EVENT_RAMGAK = 71;
+    /** How long the 람각 animation runs (1.0 s charge + kick, settled by 1.4 s) before its state is stopped. */
+    static final int RAMGAK_TICKS = 28;
     private static final EntityDataAccessor<CompoundTag> BOSS_DATA =
             SynchedEntityData.defineId(BossGiraffe.class, EntityDataSerializers.COMPOUND_TAG);
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */
@@ -41,6 +45,9 @@ public class BossGiraffe extends Giraffe implements GettBoss {
     /** Client: started by {@link #EVENT_STOMP}, played by the boss giraffe model. */
     public final AnimationState stompAnimationState = new AnimationState();
     private int stompStartTick;
+    /** Client: started by {@link #EVENT_RAMGAK}, played by the boss giraffe model. */
+    public final AnimationState ramgakAnimationState = new AnimationState();
+    private int ramgakStartTick;
 
     public BossGiraffe(EntityType<? extends BossGiraffe> type, Level level) {
         super(type, level);
@@ -118,6 +125,9 @@ public class BossGiraffe extends Giraffe implements GettBoss {
         if (id == EVENT_STOMP) {
             stompAnimationState.start(tickCount);
             stompStartTick = tickCount;
+        } else if (id == EVENT_RAMGAK) {
+            ramgakAnimationState.start(tickCount);
+            ramgakStartTick = tickCount;
         } else {
             super.handleEntityEvent(id);
         }
@@ -126,8 +136,11 @@ public class BossGiraffe extends Giraffe implements GettBoss {
     @Override
     public void tick() {
         super.tick();
-        if (level().isClientSide && stompAnimationState.isStarted() && tickCount - stompStartTick > STOMP_TICKS) {
-            stompAnimationState.stop();
+        if (level().isClientSide) {
+            if (stompAnimationState.isStarted() && tickCount - stompStartTick > STOMP_TICKS) stompAnimationState.stop();
+            if (ramgakAnimationState.isStarted() && tickCount - ramgakStartTick > RAMGAK_TICKS) {
+                ramgakAnimationState.stop();
+            }
         }
         bossState().tick();
     }

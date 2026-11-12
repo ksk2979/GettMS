@@ -3,6 +3,7 @@ package org.gettserver.gettcore.pet.boss;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.OwnableEntity;
@@ -10,6 +11,7 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
@@ -35,27 +37,61 @@ public final class BossAggro {
 
     /** Hurt-by (whoever hit it) first, then the nearest player, which a calm 후공 boss may not pick. */
     static void registerTargets(PathfinderMob boss, GoalSelector targets) {
-        targets.addGoal(1, new HurtByTargetGoal(boss));
+        targets.addGoal(1, new BossHurtByTargetGoal(boss));
         targets.addGoal(2, new PlayerTargetGoal(boss));
+    }
+
+    /** Vanilla's line-of-sight memory (ticks) of each target goal: hurt-by sets it on start, the player goal keeps the default. */
+    private static final int HURT_BY_UNSEEN_TICKS = 300;
+    private static final int PLAYER_UNSEEN_TICKS = 60;
+
+    /** Unseen memory for this tick: a 후공 boss never forgets a target behind a wall, 선공 keeps {@code vanilla}. */
+    private static int unseenMemory(Mob boss, int vanilla) {
+        return AggroRules.keepsUnseenTarget(config(boss).aggro()) ? Integer.MAX_VALUE : vanilla;
+    }
+
+    private static final class BossHurtByTargetGoal extends HurtByTargetGoal {
+        BossHurtByTargetGoal(PathfinderMob boss) {
+            super(boss);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            unseenMemoryTicks = unseenMemory(mob, HURT_BY_UNSEEN_TICKS);
+            return super.canContinueToUse();
+        }
     }
 
     private static final class PlayerTargetGoal extends NearestAttackableTargetGoal<Player> {
         private final PathfinderMob boss;
+        /** Vanilla fixes the search range at construction; 선공 keeps that, 후공 uses its live follow range. */
+        private final double constructedRange;
 
         PlayerTargetGoal(PathfinderMob boss) {
             super(boss, Player.class, true);
             this.boss = boss;
+            this.constructedRange = getFollowDistance();
         }
 
         @Override
         public boolean canUse() {
             if (!(boss instanceof GettBoss gb)) return super.canUse();
             BossConfig.Aggro mode = config(boss).aggro();
-            if (mode == BossConfig.Aggro.FIRST) return super.canUse();
+            if (mode == BossConfig.Aggro.FIRST) {
+                targetConditions.range(constructedRange);
+                return super.canUse();
+            }
             if (!gb.bossState().aggro().angry()) return false;
+            targetConditions.range(getFollowDistance());
             if (!super.canUse()) return false;
             return AggroRules.mayAcquirePlayer(mode, gb.bossState().aggro(), boss.distanceTo(target),
                     config(boss).reaggroRange());
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            unseenMemoryTicks = unseenMemory(mob, PLAYER_UNSEEN_TICKS);
+            return super.canContinueToUse();
         }
     }
 
@@ -97,6 +133,14 @@ public final class BossAggro {
         }
         cfg.speed().ifPresent(v -> setBase(boss, Attributes.MOVEMENT_SPEED, v));
         cfg.armor().ifPresent(v -> setBase(boss, Attributes.ARMOR, v));
+        setBase(boss, Attributes.FOLLOW_RANGE, AggroRules.followRange(cfg.aggro(), cfg.releaseRange())
+                .orElseGet(() -> speciesBase(boss, Attributes.FOLLOW_RANGE)));
+    }
+
+    /** The species default (the boss type's registered attribute set), e.g. to undo a 후공 follow range on a switch to 선공. */
+    @SuppressWarnings("unchecked")
+    private static double speciesBase(Mob boss, Holder<Attribute> attribute) {
+        return DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) boss.getType()).getBaseValue(attribute);
     }
 
     private static void setBase(Mob boss, Holder<Attribute> attribute, double value) {
