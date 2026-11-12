@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.UUID;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -44,6 +45,30 @@ class WindLineTest {
         for (RecordComponent c : Shock.class.getRecordComponents()) {
             assertFalse(Entity.class.isAssignableFrom(c.getType()), c.getName() + " holds an entity");
         }
+    }
+
+    /** Solid at and below y 64: the surface (top of the ground) is y 65. */
+    private static final java.util.function.IntPredicate GROUND_64 = y -> y <= 64;
+
+    @Test void shockInAirLandsOnTheGroundBelow() {
+        assertEquals(OptionalDouble.of(65), WindLineSkill.groundY(70.3, GROUND_64));
+        assertEquals(OptionalDouble.of(65), WindLineSkill.groundY(65.0, GROUND_64), "already on the surface");
+    }
+
+    @Test void shockUnderTheSurfaceRisesToIt() {
+        assertEquals(OptionalDouble.of(65), WindLineSkill.groundY(61.5, GROUND_64), "3 blocks under the surface");
+        assertEquals(OptionalDouble.of(65), WindLineSkill.groundY(53.0, GROUND_64), "surface 12 up still found");
+    }
+
+    @Test void shockBuriedDeeperThanTheScanIsSkipped() {
+        assertEquals(OptionalDouble.empty(), WindLineSkill.groundY(52.0, GROUND_64), "surface 13 up");
+        assertEquals(OptionalDouble.empty(), WindLineSkill.groundY(10.0, y -> true));
+    }
+
+    @Test void shockOverDeepAirStaysAtThePoint() {
+        assertEquals(OptionalDouble.of(90.5), WindLineSkill.groundY(90.5, GROUND_64), "ground 26 down");
+        assertEquals(OptionalDouble.of(77.0), WindLineSkill.groundY(77.0, GROUND_64), "ground 13 down");
+        assertEquals(OptionalDouble.of(65), WindLineSkill.groundY(76.0, GROUND_64), "ground 12 down");
     }
 
     @Test void frontReachesLengthIn20Ticks() {

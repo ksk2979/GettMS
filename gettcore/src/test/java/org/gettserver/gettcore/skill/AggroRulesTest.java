@@ -65,6 +65,13 @@ class AggroRulesTest {
         assertFalse(AggroRules.mayAcquirePlayer(Aggro.AFTER, Memory.CALM, 3, 16));
     }
 
+    @Test void calmAfterBossDropsAPlayerTarget() {
+        assertTrue(AggroRules.shouldDropPlayerTarget(Aggro.AFTER, Memory.CALM));
+        assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.AFTER, ANGRY0));
+        assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.FIRST, Memory.CALM));
+        assertFalse(AggroRules.shouldDropPlayerTarget(Aggro.FIRST, ANGRY0));
+    }
+
     @Test void firstModeAlwaysAcquires() {
         assertTrue(AggroRules.mayAcquirePlayer(Aggro.FIRST, Memory.CALM, 999, 16));
         assertTrue(AggroRules.mayAcquirePlayer(Aggro.FIRST, ANGRY0, 999, 16));

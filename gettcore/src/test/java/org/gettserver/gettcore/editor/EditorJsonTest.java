@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.gettserver.gettcore.data.*;
 import net.minecraft.core.BlockPos;
 import org.gettserver.gettcore.pet.PetConfig;
@@ -271,8 +272,19 @@ class EditorJsonTest {
     }
 
     @Test
-    void bundleWithoutBossesSectionDecodesToDefault() {
-        // An editor payload from before bosses.json existed.
-        assertEquals(BossConfig.DEFAULT, EditorJson.decode(FULL).bosses());
+    void bundleWithoutBossesSectionKeepsTheCurrentConfig() {
+        // An editor page from before bosses.json existed (a stale tab) must not reset bosses.json to defaults.
+        BossConfig current = withGiraffe(new BossConfig.Boss(BossConfig.Aggro.FIRST, 30, 50, 20, 60,
+                Optional.empty(), Optional.empty(), 0, 32, 0, 1, List.of()));
+        assertEquals(current, EditorJson.decode(FULL, current).bosses());
+        assertEquals(current, EditorJson.decode(FULL.substring(0, FULL.length() - 1) + ",\"bosses\":null}", current).bosses());
+    }
+
+    @Test
+    void bundleWithBossesSectionIgnoresTheCurrentConfig() {
+        BossConfig current = withGiraffe(new BossConfig.Boss(BossConfig.Aggro.FIRST, 30, 50, 20, 60,
+                Optional.empty(), Optional.empty(), 0, 32, 0, 1, List.of()));
+        String json = EditorJson.encode(EditorJson.decode(FULL, BossConfig.DEFAULT), null);
+        assertEquals(BossConfig.DEFAULT, EditorJson.decode(json, current).bosses());
     }
 }

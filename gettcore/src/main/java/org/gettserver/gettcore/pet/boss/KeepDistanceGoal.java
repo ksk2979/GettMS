@@ -11,11 +11,13 @@ import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.skill.BossConfig;
 import org.gettserver.gettcore.skill.SkillSpec;
+import org.gettserver.gettcore.skill.SkillTargets;
 
 /**
  * A skill-casting boss's fight movement: backs off inside {@code preferredDistance - 2}, closes in beyond its
  * longest skill range, otherwise holds; stands still while casting; melees whoever is within reach.
- * {@code preferredDistance == 0} chases like {@code MeleeAttackGoal}.
+ * Chases like {@code MeleeAttackGoal} when {@code preferredDistance == 0}, without an enabled skill, or against a
+ * target its skills cannot hit.
  */
 public class KeepDistanceGoal extends Goal {
     static final int ATTACK_COOLDOWN_TICKS = 20;
@@ -43,6 +45,15 @@ public class KeepDistanceGoal extends Goal {
         if (distance < preferred - 2) return Move.RETREAT;
         if (distance > maxSkillRange) return Move.APPROACH;
         return Move.HOLD;
+    }
+
+    /**
+     * Pure: {@link #decide}, or a plain melee chase ({@link Move#APPROACH}) when keeping distance is pointless:
+     * {@code preferred == 0}, no enabled skill ({@code maxSkillRange == 0}), or a target the skills cannot hit.
+     */
+    static Move move(double distance, double preferred, double maxSkillRange, boolean skillTarget) {
+        if (preferred <= 0 || maxSkillRange <= 0 || !skillTarget) return Move.APPROACH;
+        return decide(distance, preferred, maxSkillRange);
     }
 
     @Override
@@ -90,9 +101,8 @@ public class KeepDistanceGoal extends Goal {
             attackCooldown = ATTACK_COOLDOWN_TICKS;
         }
         BossConfig.Boss cfg = BossAggro.config(mob);
-        double preferred = cfg.preferredDistance();
-        Move move = preferred <= 0 ? Move.APPROACH
-                : decide(mob.distanceTo(target), preferred, maxSkillRange(cfg.skills()));
+        Move move = move(mob.distanceTo(target), cfg.preferredDistance(), maxSkillRange(cfg.skills()),
+                SkillTargets.valid(mob, target));
         boolean changed = move != lastMove;
         lastMove = move;
         if (move == Move.HOLD) {

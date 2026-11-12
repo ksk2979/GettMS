@@ -34,6 +34,14 @@ public final class AggroRules {
         return mode == BossConfig.Aggro.FIRST || (m.angry() && distance <= reaggroRange);
     }
 
+    /**
+     * Should a boss let go of the player-side target it holds? A calm 후공 boss does (switched from 선공, or its anger
+     * expired); a real hit makes it angry before the hurt-by goal picks the attacker.
+     */
+    public static boolean shouldDropPlayerTarget(BossConfig.Aggro mode, Memory m) {
+        return mode == BossConfig.Aggro.AFTER && !m.angry();
+    }
+
     public static boolean shouldRelease(BossConfig.Aggro mode, double distance, double releaseRange) {
         return mode == BossConfig.Aggro.AFTER && distance > releaseRange;
     }

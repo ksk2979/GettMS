@@ -1,6 +1,7 @@
 package org.gettserver.gettcore.pet.boss;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -64,14 +65,21 @@ public final class BossAggro {
         if (!(event.getEntity() instanceof GettBoss gb) || event.getEntity().level().isClientSide) return;
         var attacker = event.getSource().getEntity();
         if (attacker == null) return;
-        boolean owned = (attacker instanceof OwnableEntity o && o.getOwner() instanceof Player)
-                || (attacker instanceof GettPet p && p.ownerId() != null);
         BossState state = gb.bossState();
-        state.setAggro(AggroRules.onHurt(state.aggro(), AggroRules.playerSide(attacker instanceof Player, owned),
-                event.getEntity().level().getGameTime()));
+        state.setAggro(AggroRules.onHurt(state.aggro(), playerSide(attacker), event.getEntity().level().getGameTime()));
     }
 
-    /** Memory tick, 후공 release when the target is too far, live speed/armor from bosses.json. */
+    /** A player, or an entity owned by a player (a tamed animal, an owned pet). */
+    private static boolean playerSide(Entity e) {
+        boolean owned = (e instanceof OwnableEntity o && o.getOwner() instanceof Player)
+                || (e instanceof GettPet p && p.ownerId() != null);
+        return AggroRules.playerSide(e instanceof Player, owned);
+    }
+
+    /**
+     * Memory tick; 후공 release when the target is too far, or when a calm 후공 boss still holds a player-side target
+     * (switched from 선공, or its anger expired); live speed/armor from bosses.json.
+     */
     static void serverTick(Mob boss, BossState state, BossConfig.Boss cfg) {
         long now = boss.level().getGameTime();
         AggroRules.Memory memory = state.aggro();
@@ -81,7 +89,8 @@ public final class BossAggro {
             state.setAggro(AggroRules.tick(memory, sees, now, cfg.calmSeconds()));
         }
         LivingEntity target = boss.getTarget();
-        if (target != null && AggroRules.shouldRelease(cfg.aggro(), boss.distanceTo(target), cfg.releaseRange())) {
+        if (target != null && (AggroRules.shouldRelease(cfg.aggro(), boss.distanceTo(target), cfg.releaseRange())
+                || (playerSide(target) && AggroRules.shouldDropPlayerTarget(cfg.aggro(), state.aggro())))) {
             boss.setTarget(null);
             boss.setLastHurtByMob(null);
             boss.getNavigation().stop();

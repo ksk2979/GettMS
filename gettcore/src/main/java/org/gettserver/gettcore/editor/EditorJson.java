@@ -62,7 +62,16 @@ public final class EditorJson {
         return GSON.toJson(root);
     }
 
+    /** As {@link #decode(String, BossConfig)} with {@link BossConfig#DEFAULT}; only for callers that never save the result. */
     public static EditorBundle decode(String json) {
+        return decode(json, BossConfig.DEFAULT);
+    }
+
+    /**
+     * {@code bossesIfAbsent}: used when the payload has no {@code bosses} section (a page from before bosses.json
+     * existed); a save passes the config currently loaded, so a stale page never resets bosses.json.
+     */
+    public static EditorBundle decode(String json, BossConfig bossesIfAbsent) {
         JsonElement parsed;
         try {
             parsed = JsonParser.parseString(json);
@@ -87,7 +96,7 @@ public final class EditorJson {
                 decodeSection(root, "upgrade", UpgradeConfig.CODEC),
                 // Optional for a payload from before bosses.json existed (every other section is required).
                 root.has("bosses") && !root.get("bosses").isJsonNull()
-                        ? decodeSection(root, "bosses", BossConfig.CODEC) : BossConfig.DEFAULT);
+                        ? decodeSection(root, "bosses", BossConfig.CODEC) : bossesIfAbsent);
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

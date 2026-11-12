@@ -571,10 +571,20 @@ class EditorValidatorTest {
     @Test
     void rejectsReleaseBelowReaggro() {
         BossConfig.Boss g = giraffe();
-        var r = validateBosses(withGiraffe(new BossConfig.Boss(g.aggro(), g.searchRange(), 10, 16, g.calmSeconds(),
-                g.speed(), g.armor(), g.preferredDistance(), g.shoutRange(), g.enrageBelow(), g.enrageCooldownMult(),
-                g.skills())));
+        var r = validateBosses(withGiraffe(new BossConfig.Boss(BossConfig.Aggro.AFTER, g.searchRange(), 10, 16,
+                g.calmSeconds(), g.speed(), g.armor(), g.preferredDistance(), g.shoutRange(), g.enrageBelow(),
+                g.enrageCooldownMult(), g.skills())));
         assertEquals(List.of("bosses." + GIRAFFE + ": 해제 거리 10 이 다시 잡히는 거리 16 보다 작습니다"), r.errors());
+    }
+
+    @Test
+    void acceptsReleaseBelowReaggroForAFirstBoss() {
+        // 선공 bosses never release or re-acquire by range; the editor hides both fields.
+        BossConfig.Boss g = giraffe();
+        var r = validateBosses(withGiraffe(new BossConfig.Boss(BossConfig.Aggro.FIRST, g.searchRange(), 10, 16,
+                g.calmSeconds(), g.speed(), g.armor(), g.preferredDistance(), g.shoutRange(), g.enrageBelow(),
+                g.enrageCooldownMult(), g.skills())));
+        assertEquals(List.of(), r.errors());
     }
 
     @Test

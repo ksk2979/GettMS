@@ -402,6 +402,30 @@ class GettDataSaveBundleTest {
         assertEquals(14.0, ramgakDamage(Files.readString(latest.resolve("bosses.json"))), "backup holds the old file");
     }
 
+    @Test
+    void savingAPayloadWithoutBossesKeepsBossesJson(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        var bossesJson = com.google.gson.JsonParser.parseString(Files.readString(dir.resolve("bosses.json")))
+                .getAsJsonObject();
+        bossesJson.getAsJsonObject("bosses").getAsJsonObject("gettcore:boss_giraffe").getAsJsonArray("skills").get(0)
+                .getAsJsonObject().addProperty("damage", 20.0);
+        Files.writeString(dir.resolve("bosses.json"), bossesJson.toString());
+        data.load(dir);
+        BossConfig customised = data.bosses();
+        assertEquals(20.0, customised.boss(ResourceLocation.parse("gettcore:boss_giraffe")).skills().get(0).damage());
+
+        // A stale editor page: its payload has no "bosses" section.
+        var payload = com.google.gson.JsonParser.parseString(
+                org.gettserver.gettcore.editor.EditorJson.encode(data.rawBundle(), null)).getAsJsonObject();
+        payload.remove("bosses");
+        EditorBundle stale = org.gettserver.gettcore.editor.EditorJson.decode(payload.toString(), data.bosses());
+        GettData.SaveResult r = data.saveBundle(stale, RegistryChecks.ALL_EXIST);
+
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(20.0, ramgakDamage(Files.readString(dir.resolve("bosses.json"))));
+        assertEquals(customised, data.bosses());
+    }
+
     private static double ramgakDamage(String bossesJson) {
         return com.google.gson.JsonParser.parseString(bossesJson).getAsJsonObject().getAsJsonObject("bosses")
                 .getAsJsonObject("gettcore:boss_giraffe").getAsJsonArray("skills").get(0).getAsJsonObject()

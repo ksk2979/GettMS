@@ -163,7 +163,8 @@ public final class EditorValidator {
         within(p, "shoutRange", b.shoutRange(), 0, 128, errors);
         within(p, "enrageBelow", b.enrageBelow(), 0, 1, errors);
         within(p, "enrageCooldownMult", b.enrageCooldownMult(), 0.1, 1, errors);
-        if (b.releaseRange() < b.reaggroRange()) {
+        // Only 후공 bosses release and re-acquire by range (the editor hides both fields for 선공).
+        if (b.aggro() == BossConfig.Aggro.AFTER && b.releaseRange() < b.reaggroRange()) {
             errors.add(p + ": 해제 거리 " + num(b.releaseRange()) + " 이 다시 잡히는 거리 " + num(b.reaggroRange())
                     + " 보다 작습니다");
         }

@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
+import java.util.function.IntPredicate;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,8 +25,9 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * {@code wind_line} (람각): wind gathers on the caster during the charge, then a piercing blast flies along a straight
- * line locked shortly before release; the ground it passed over erupts {@code aftershock.delaySeconds} later,
+ * {@code wind_line} (람각): wind gathers on the caster during the charge, then a piercing blast flies from 1 block
+ * above its feet along a straight line locked shortly before release (aimed at the target's centre); the ground it
+ * passed over erupts {@code aftershock.delaySeconds} later (an aftershock buried too deep is skipped),
  * digging a trench of overlapping craters when {@code terrain} is on.
  * The line is not stopped by blocks, and never loads chunks.
  */
@@ -37,6 +40,7 @@ public final class WindLineSkill implements SkillType {
     private static final double LIFT = 0.4;       // upward part of the line's push
     private static final double AFTERSHOCK_PUSH = 1.0;
     private static final int GROUND_SCAN = 12;
+    private static final double ORIGIN_HEIGHT = 1.0;  // line origin above the caster's feet
 
     /** The line of each running cast, from release until the front has passed; weak so a cancelled cast is dropped. */
     private final Map<Cast, Line> lines = new WeakHashMap<>();
@@ -48,14 +52,14 @@ public final class WindLineSkill implements SkillType {
         double radius = caster.getBbWidth() * 0.5 + 1.5;
         SkillFx.gather(cast.level(), ParticleTypes.FLAME, chest, radius, 2);
         SkillFx.gather(cast.level(), ParticleTypes.END_ROD, chest, radius, 1);
-        if (age == lockAge(cast.spec().chargeTicks())) cast.aim()[0] = aim(cast, chest);
+        if (age == lockAge(cast.spec().chargeTicks())) cast.aim()[0] = aim(cast, lineOrigin(caster));
     }
 
     @Override
     public void release(Cast cast) {
         Mob caster = cast.caster();
         SkillSpec spec = cast.spec();
-        Vec3 origin = chest(caster);
+        Vec3 origin = lineOrigin(caster);
         Vec3 dir = cast.aim()[0] != null ? cast.aim()[0] : LineHit.direction(origin, origin, caster.getLookAngle());
         lines.put(cast, new Line(origin, dir, spec.shape().length(), spec.shape().width() / 2,
                 Math.max(1, spec.aftershock().width())));
@@ -80,8 +84,8 @@ public final class WindLineSkill implements SkillType {
                 cast.caster().getUUID())) {
             if (!loaded(level, shock.point())) continue;
             // Ground found now, before any crater nearby is dug: a later scan would sink into the trench.
-            Shock grounded = shock.at(ground(level, shock.point()));
-            SkillWorld.later(level, delay, () -> erupt(level, grounded));
+            ground(level, shock.point()).map(shock::at)
+                    .ifPresent(grounded -> SkillWorld.later(level, delay, () -> erupt(level, grounded)));
         }
         return true;
     }
@@ -142,25 +146,47 @@ public final class WindLineSkill implements SkillType {
         }
     }
 
-    /** Top of the first non-air block at or below {@code point} (at most {@link #GROUND_SCAN} down); else the point. */
-    private static Vec3 ground(ServerLevel level, Vec3 point) {
+    /** {@link #groundY} on the level's column at {@code point} (non-air = solid); empty = skip this aftershock. */
+    private static Optional<Vec3> ground(ServerLevel level, Vec3 point) {
         BlockPos.MutableBlockPos pos = BlockPos.containing(point).mutable();
-        for (int i = 0; i <= GROUND_SCAN; i++) {
-            if (!level.getBlockState(pos).isAir()) return new Vec3(point.x, pos.getY() + 1, point.z);
-            pos.move(Direction.DOWN);
+        OptionalDouble y = groundY(point.y, by -> !level.getBlockState(pos.setY(by)).isAir());
+        return y.isPresent() ? Optional.of(new Vec3(point.x, y.getAsDouble(), point.z)) : Optional.empty();
+    }
+
+    /**
+     * Pure: the ground height for a shock at height {@code y}. In air: the top of the first solid block at most
+     * {@link #GROUND_SCAN} below, else {@code y} itself. Inside a solid block: the first non-solid height at most
+     * {@link #GROUND_SCAN} above (the surface), else empty (skip: no eruption hidden underground).
+     */
+    static OptionalDouble groundY(double y, IntPredicate solidAt) {
+        int by = Mth.floor(y);
+        if (solidAt.test(by)) {
+            for (int i = 1; i <= GROUND_SCAN; i++) {
+                if (!solidAt.test(by + i)) return OptionalDouble.of(by + i);
+            }
+            return OptionalDouble.empty();
         }
-        return point;
+        for (int i = 1; i <= GROUND_SCAN; i++) {
+            if (solidAt.test(by - i)) return OptionalDouble.of(by - i + 1);
+        }
+        return OptionalDouble.of(y);
     }
 
-    /** Target's center seen from the chest; the look direction when the target is gone or on top of the caster. */
-    private static Vec3 aim(Cast cast, Vec3 chest) {
+    /** Target's center seen from the line origin; the look direction when the target is gone or on top of it. */
+    private static Vec3 aim(Cast cast, Vec3 origin) {
         Entity target = cast.level().getEntity(cast.targetId());
-        Vec3 at = target != null && target.isAlive() ? target.getBoundingBox().getCenter() : chest;
-        return LineHit.direction(chest, at, cast.caster().getLookAngle());
+        Vec3 at = target != null && target.isAlive() ? target.getBoundingBox().getCenter() : origin;
+        return LineHit.direction(origin, at, cast.caster().getLookAngle());
     }
 
+    /** Where the wind gathers during the charge. */
     private static Vec3 chest(Mob caster) {
         return caster.position().add(0, caster.getBbHeight() * 0.5, 0);
+    }
+
+    /** Where the line starts: sent from the feet, so it runs along the ground rather than diving into it. */
+    private static Vec3 lineOrigin(Mob caster) {
+        return caster.position().add(0, ORIGIN_HEIGHT, 0);
     }
 
     /** Whether the chunk column holding {@code p} is loaded (never loads it). */

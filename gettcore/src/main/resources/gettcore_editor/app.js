@@ -2559,8 +2559,9 @@
       if ((key === 'speed' || key === 'armor') && b[key] === undefined) return '';   // 빈칸 = 원래 값
       return limitRule(BOSS_LIMITS, key, b[key]);
     },
+    /** 후공만 거리로 놓고 다시 잡는다(선공은 두 칸이 숨겨져 있다). */
     release(b) {
-      return isNum(b.releaseRange) && isNum(b.reaggroRange) && b.releaseRange < b.reaggroRange
+      return b.aggro === 'after' && isNum(b.releaseRange) && isNum(b.reaggroRange) && b.releaseRange < b.reaggroRange
         ? `해제 거리는 다시 잡히는 거리(${fmtNum(b.reaggroRange)}) 이상이어야 합니다` : '';
     },
     type(s) { return SKILL_TYPE_LABEL[s.type] ? '' : `알 수 없는 스킬 종류입니다: ${s.type}`; },
