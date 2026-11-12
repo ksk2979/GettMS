@@ -135,6 +135,12 @@ public final class PetRenderers {
                 applyScale(entity, poseStack);
             }
         });
+        event.registerEntityRenderer(PetRegistry.BOSS_GIRAFFE.get(), ctx -> new GiraffeRenderer(ctx) {
+            @Override
+            protected void scale(Giraffe entity, PoseStack poseStack, float partialTick) {
+                applyScale(entity, poseStack);
+            }
+        });
     }
 
     /** Boss pets and bosses render at their species' sizeScale; everything else is left at 1. */

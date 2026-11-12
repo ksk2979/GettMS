@@ -202,6 +202,20 @@
       "healthMult": 5,
       "attackMult": 2,
       "killGold": 0
+    },
+    "gettcore:boss_giraffe": {
+      "kind": "mount",
+      "petEntity": "gettcore:pet_giraffe",
+      "attack": 6,
+      "speed": 0.3,
+      "attackSpeed": 1.0,
+      "flySpeed": 0.6,
+      "climbSpeed": 0.3,
+      "boss": true,
+      "sizeScale": 1.6,
+      "healthMult": 5,
+      "attackMult": 2,
+      "killGold": 0
     }
   }
 }

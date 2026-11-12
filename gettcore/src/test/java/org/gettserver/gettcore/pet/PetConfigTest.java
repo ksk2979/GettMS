@@ -35,7 +35,7 @@ class PetConfigTest {
     @Test
     void parsesDefaultFile() throws Exception {
         PetConfig cfg = defaultFile();
-        assertEquals(15, cfg.species().size());
+        assertEquals(16, cfg.species().size());
         PetSpecies lion = cfg.species(ResourceLocation.parse("naturalist:lion")).orElseThrow();
         assertEquals(PetSpecies.Kind.FIGHTER, lion.kind());
         assertEquals("naturalist:lion", lion.id());

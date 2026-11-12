@@ -19,6 +19,7 @@ import com.crispytwig.naturalist.world.entity.animal.vulture.Vulture;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import java.util.List;
 import net.neoforged.bus.api.IEventBus;
@@ -28,7 +29,9 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.pet.boss.BossBear;
+import org.gettserver.gettcore.pet.boss.BossEggs;
 import org.gettserver.gettcore.pet.boss.BossElephant;
+import org.gettserver.gettcore.pet.boss.BossGiraffe;
 import org.gettserver.gettcore.pet.boss.BossLion;
 import org.gettserver.gettcore.pet.boss.BossMammoth;
 import org.gettserver.gettcore.pet.boss.BossTiger;
@@ -119,9 +122,11 @@ public final class PetRegistry {
             pet("boss_mammoth", BossMammoth::new, 2.5F, 4.0F);
     public static final DeferredHolder<EntityType<?>, EntityType<BossVulture>> BOSS_VULTURE =
             pet("boss_vulture", BossVulture::new, 0.9F, 0.5F);
+    public static final DeferredHolder<EntityType<?>, EntityType<BossGiraffe>> BOSS_GIRAFFE =
+            pet("boss_giraffe", BossGiraffe::new, 1.9F, 5.4F);
     /** All boss types (command suggestions). */
     public static final List<DeferredHolder<EntityType<?>, ? extends EntityType<?>>> BOSS_TYPES =
-            List.of(BOSS_LION, BOSS_TIGER, BOSS_BEAR, BOSS_ELEPHANT, BOSS_MAMMOTH, BOSS_VULTURE);
+            List.of(BOSS_LION, BOSS_TIGER, BOSS_BEAR, BOSS_ELEPHANT, BOSS_MAMMOTH, BOSS_VULTURE, BOSS_GIRAFFE);
 
     public static final DeferredHolder<SoundEvent, SoundEvent> WHISTLE = sound("whistle");
     public static final DeferredHolder<SoundEvent, SoundEvent> CAPTURE_SUCCESS = sound("capture_success");
@@ -130,6 +135,7 @@ public final class PetRegistry {
     private PetRegistry() {}
 
     public static void register(IEventBus modBus) {
+        BossEggs.bootstrap();
         ITEMS.register(modBus);
         DATA_COMPONENTS.register(modBus);
         ENTITIES.register(modBus);
@@ -158,6 +164,8 @@ public final class PetRegistry {
         event.put(BOSS_ELEPHANT.get(), Elephant.createAttributes().build());
         event.put(BOSS_MAMMOTH.get(), Mammoth.createAttributes().build());
         event.put(BOSS_VULTURE.get(), Vulture.createAttributes().build());
+        // Naturalist's giraffe has no attack damage of its own; the boss needs one for BossBehavior.apply.
+        event.put(BOSS_GIRAFFE.get(), Giraffe.createAttributes().add(Attributes.ATTACK_DAMAGE, 6.0).build());
     }
 
     private static <T extends Mob> DeferredHolder<EntityType<?>, EntityType<T>> pet(

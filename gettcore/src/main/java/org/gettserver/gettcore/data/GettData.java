@@ -63,6 +63,8 @@ public final class GettData {
     static final String MARKER = ".defaults-installed";
     /** One-shot upgrade (1.2.0): adds only the 이장 -> chief name mapping to an npcs.json installed earlier. */
     static final String NPC_CHIEF_UPGRADE = "npcs.json@chief";
+    static final String PETS_BOSS_GIRAFFE_UPGRADE = "pets.json@boss_giraffe";
+    private static final String BOSS_GIRAFFE_KEY = "gettcore:boss_giraffe";
     /** One-shot upgrade (reinforce): adds only the 대장장이 -> blacksmith name mapping to an earlier npcs.json. */
     static final String NPC_BLACKSMITH_UPGRADE = "npcs.json@blacksmith";
 
@@ -821,6 +823,7 @@ public final class GettData {
         }
         applyNpcUpgrade(dir, marker, installed, NPC_CHIEF_UPGRADE, "이장", "chief", errors);
         applyNpcUpgrade(dir, marker, installed, NPC_BLACKSMITH_UPGRADE, "대장장이", "blacksmith", errors);
+        applyBossGiraffeUpgrade(dir, marker, installed, errors);
     }
 
     /**
@@ -838,6 +841,44 @@ public final class GettData {
         } catch (IOException e) {
             errors.add("npcs.json: adding " + npcName + " mapping failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * One-shot pets.json patch: adds the bundled boss_giraffe species when the file lacks it (an existing entry is never
+     * overwritten). A freshly copied pets.json already has it; a deleted pets.json is not resurrected. An unreadable
+     * pets.json is retried on the next load.
+     */
+    private static void applyBossGiraffeUpgrade(Path dir, Path marker, Set<String> installed, List<String> errors) {
+        if (installed.contains(PETS_BOSS_GIRAFFE_UPGRADE)) return;
+        try {
+            Path file = dir.resolve(PETS_FILE);
+            if (Files.isRegularFile(file) && !addBossGiraffeSpecies(file)) return;
+            Files.writeString(marker, PETS_BOSS_GIRAFFE_UPGRADE + "\n", StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException | RuntimeException e) {
+            errors.add(PETS_FILE + ": adding boss_giraffe failed: " + e.getMessage());
+        }
+    }
+
+    /** Edits the JSON tree so other species stay as the operator wrote them. False if the file is unreadable. */
+    private static boolean addBossGiraffeSpecies(Path file) throws IOException {
+        com.google.gson.JsonObject root;
+        try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            JsonElement json = JsonParser.parseReader(r);
+            if (!json.isJsonObject()) return false;
+            root = json.getAsJsonObject();
+        } catch (com.google.gson.JsonParseException e) {
+            return false;
+        }
+        if (!(root.get("species") instanceof com.google.gson.JsonObject species)) return false;
+        if (species.has(BOSS_GIRAFFE_KEY)) return true;
+        try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/" + PETS_FILE)) {
+            if (in == null) throw new IOException("missing bundled default: " + PETS_FILE);
+            JsonElement bundled = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+            species.add(BOSS_GIRAFFE_KEY, bundled.getAsJsonObject().getAsJsonObject("species").get(BOSS_GIRAFFE_KEY));
+        }
+        writeJson(file, root);
+        return true;
     }
 
     /**

@@ -33,11 +33,13 @@ class PetLangTest {
             "thrown_capture_ball",
             "pet_lion", "pet_tiger", "pet_bear", "pet_black_bear", "pet_hippo",
             "pet_elephant", "pet_mammoth", "pet_giraffe", "pet_ostrich", "pet_vulture",
-            "boss_lion", "boss_tiger", "boss_bear", "boss_elephant", "boss_mammoth", "boss_vulture"};
+            "boss_lion", "boss_tiger", "boss_bear", "boss_elephant", "boss_mammoth", "boss_vulture", "boss_giraffe"};
 
     private static final String[] ITEM_PATHS = {
             "check", "xp_orb_item", "return_stone", "enchant_stone", "reinforce_stone", "captured_mob",
-            "capture_ball_iron", "capture_ball_gold", "capture_ball_diamond", "capture_ball_netherite"};
+            "capture_ball_iron", "capture_ball_gold", "capture_ball_diamond", "capture_ball_netherite",
+            "boss_lion_spawn_egg", "boss_tiger_spawn_egg", "boss_bear_spawn_egg", "boss_elephant_spawn_egg",
+            "boss_mammoth_spawn_egg", "boss_vulture_spawn_egg", "boss_giraffe_spawn_egg"};
 
     private static Set<String> keys(String file) throws Exception {
         try (InputStream in = PetLangTest.class.getResourceAsStream("/assets/gettcore/lang/" + file)) {

@@ -103,6 +103,7 @@ public class GettCore {
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
                         output.accept(PetRegistry.CAPTURE_BALL_DIAMOND.get());
                         output.accept(PetRegistry.CAPTURE_BALL_NETHERITE.get());
+                        org.gettserver.gettcore.pet.boss.BossEggs.ITEMS.forEach(egg -> output.accept(egg.get()));
                     })
                     .build());
 

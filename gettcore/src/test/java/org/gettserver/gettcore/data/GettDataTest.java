@@ -500,4 +500,53 @@ class GettDataTest {
         assertTrue(bad.errors().stream().anyMatch(e -> e.contains("upgrade.json")), bad.errors().toString());
         assertEquals("a:y", data.upgrade().steps().get(0).to());
     }
+
+    private static final String GIRAFFE_KEY = "gettcore:boss_giraffe";
+    private static final String GIRAFFE_UPGRADE = "pets.json@boss_giraffe";
+    private static final String PETS_WITHOUT_GIRAFFE = """
+            {"species":{"gettcore:pet_lion":{"kind":"fighter","petEntity":"gettcore:pet_lion","attack":9,
+            "speed":0.3,"attackSpeed":1.0,"flySpeed":0.6,"climbSpeed":0.3}}}""";
+
+    private static Path petsInstall(Path dir, String petsJson, String... markerLines) throws IOException {
+        Path root = dir.resolve("gettcore");
+        Files.createDirectories(root);
+        Files.writeString(root.resolve("pets.json"), petsJson);
+        Files.write(root.resolve(GettData.MARKER), java.util.List.of(markerLines));
+        return root;
+    }
+
+    @Test
+    void existingPetsJsonGainsBossGiraffeOnce(@TempDir Path dir) throws IOException {
+        Path root = petsInstall(dir, PETS_WITHOUT_GIRAFFE, "pets.json");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(root);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        PetSpecies giraffe = data.pets().species().get(GIRAFFE_KEY);
+        assertNotNull(giraffe);
+        assertEquals(PetSpecies.Kind.MOUNT, giraffe.kind());
+        assertEquals(1.6, giraffe.sizeScale());
+        assertEquals(9, data.pets().species().get("gettcore:pet_lion").attack());
+        assertEquals(2, data.pets().species().size());
+        assertTrue(Files.readAllLines(root.resolve(GettData.MARKER)).contains(GIRAFFE_UPGRADE));
+    }
+
+    @Test
+    void bossGiraffeUpgradeNeverOverwrites(@TempDir Path dir) throws IOException {
+        Path root = petsInstall(dir, PETS_WITHOUT_GIRAFFE.replace("}}}", "},\"" + GIRAFFE_KEY + "\":"
+                + "{\"kind\":\"mount\",\"petEntity\":\"gettcore:pet_giraffe\",\"attack\":6,\"speed\":0.3,"
+                + "\"attackSpeed\":1.0,\"flySpeed\":0.6,\"climbSpeed\":0.3,\"boss\":true,\"sizeScale\":3}}}"),
+                "pets.json");
+        GettData data = new GettData();
+        data.load(root);
+        assertEquals(3.0, data.pets().species().get(GIRAFFE_KEY).sizeScale());
+        assertTrue(Files.readAllLines(root.resolve(GettData.MARKER)).contains(GIRAFFE_UPGRADE));
+    }
+
+    @Test
+    void bossGiraffeUpgradeRunsOnce(@TempDir Path dir) throws IOException {
+        Path root = petsInstall(dir, PETS_WITHOUT_GIRAFFE, "pets.json", GIRAFFE_UPGRADE);
+        GettData data = new GettData();
+        data.load(root);
+        assertFalse(data.pets().species().containsKey(GIRAFFE_KEY));
+    }
 }
