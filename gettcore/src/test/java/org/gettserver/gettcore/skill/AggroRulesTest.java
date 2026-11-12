@@ -43,6 +43,13 @@ class AggroRulesTest {
         assertEquals(new Memory(true, 5000), AggroRules.tick(ANGRY0, true, 5000, 300));
     }
 
+    @Test void seeingAPlayerRefreshesAtMostOncePerSecond() {
+        Memory m = new Memory(true, 100);
+        assertEquals(m, AggroRules.tick(m, true, 101, 300));
+        assertEquals(m, AggroRules.tick(m, true, 119, 300));
+        assertEquals(new Memory(true, 120), AggroRules.tick(m, true, 120, 300));
+    }
+
     @Test void calmSecondsZeroNeverCalms() {
         assertTrue(AggroRules.tick(ANGRY0, false, 10_000_000, 0).angry());
     }

@@ -2,6 +2,9 @@ package org.gettserver.gettcore.skill;
 
 /** Pure 선공/후공 rules for a boss; the entity glue is {@code pet.boss.BossAggro}. */
 public final class AggroRules {
+    /** Seeing a player refreshes the timer at most this often (the memory is a synched tag; calm is minutes). */
+    public static final long REFRESH_TICKS = 20;
+
     private AggroRules() {}
 
     /** {@code provokedTick} is the game time of the last hit by (or sighting of) the player side. */
@@ -18,10 +21,10 @@ public final class AggroRules {
         return playerSide ? new Memory(true, now) : m;
     }
 
-    /** seesPlayer: a valid player within searchRange. Angry + seen refreshes the timer; expiry calms. */
+    /** seesPlayer: a valid player within searchRange. Angry + seen refreshes the timer (at most once per {@link #REFRESH_TICKS}); expiry calms. */
     public static Memory tick(Memory m, boolean seesPlayer, long now, int calmSeconds) {
         if (!m.angry()) return m;
-        if (seesPlayer) return new Memory(true, now);
+        if (seesPlayer) return now - m.provokedTick() >= REFRESH_TICKS ? new Memory(true, now) : m;
         if (calmSeconds > 0 && now - m.provokedTick() >= calmSeconds * 20L) return Memory.CALM;
         return m;
     }

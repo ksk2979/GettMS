@@ -74,9 +74,12 @@ public final class BossAggro {
     /** Memory tick, 후공 release when the target is too far, live speed/armor from bosses.json. */
     static void serverTick(Mob boss, BossState state, BossConfig.Boss cfg) {
         long now = boss.level().getGameTime();
-        boolean sees = boss.level().getNearestPlayer(boss.getX(), boss.getY(), boss.getZ(), cfg.searchRange(),
-                EntitySelector.NO_CREATIVE_OR_SPECTATOR) != null;
-        state.setAggro(AggroRules.tick(state.aggro(), sees, now, cfg.calmSeconds()));
+        AggroRules.Memory memory = state.aggro();
+        if (memory.angry()) {
+            boolean sees = boss.level().getNearestPlayer(boss.getX(), boss.getY(), boss.getZ(), cfg.searchRange(),
+                    EntitySelector.NO_CREATIVE_OR_SPECTATOR) != null;
+            state.setAggro(AggroRules.tick(memory, sees, now, cfg.calmSeconds()));
+        }
         LivingEntity target = boss.getTarget();
         if (target != null && AggroRules.shouldRelease(cfg.aggro(), boss.distanceTo(target), cfg.releaseRange())) {
             boss.setTarget(null);
