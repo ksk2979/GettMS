@@ -24,8 +24,6 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -95,6 +93,7 @@ public final class BossBehavior {
         if (!state.applied()) apply(boss, species(boss));
         float max = boss.getMaxHealth();
         state.bossEvent().setProgress(max > 0 ? Mth.clamp(boss.getHealth() / max, 0.0F, 1.0F) : 0.0F);
+        BossAggro.serverTick(boss, state, GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType())));
         String id = state.pointId();
         if (id.isEmpty()) return;
         point(id).filter(p -> p.dimension().equals(boss.level().dimension()))
@@ -147,7 +146,7 @@ public final class BossBehavior {
         goals.addGoal(5, new WaterAvoidingRandomStrollGoal(boss, 1.0));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));
-        registerTargets(boss, targets);
+        BossAggro.registerTargets(boss, targets);
     }
 
     /** The vulture: Naturalist's flying wander (its flying navigation stays), melee chase through the air. */
@@ -159,12 +158,7 @@ public final class BossBehavior {
         goals.addGoal(5, new FlyingWanderGoal(boss));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));
-        registerTargets(boss, targets);
-    }
-
-    private static void registerTargets(PathfinderMob boss, GoalSelector targets) {
-        targets.addGoal(1, new HurtByTargetGoal(boss));
-        targets.addGoal(2, new NearestAttackableTargetGoal<>(boss, Player.class, true));
+        BossAggro.registerTargets(boss, targets);
     }
 
     /** Rolls the original's loot table {@link #LOOT_ROLLS} times; {@code roll} is the boss class's super call. */
