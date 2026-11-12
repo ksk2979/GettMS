@@ -1,6 +1,6 @@
 package org.gettserver.gettcore.hunting;
 
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.world.entity.Mob;
@@ -24,7 +24,7 @@ public final class VariantSkills {
     static final double SHOUT_RANGE = 24;
 
     /** Variant-tagged mobs in loaded server levels; the value is the runner, or null while the entry has no skills. */
-    private static final Map<Mob, SkillRunner> TAGGED = new HashMap<>();
+    private static final Map<Mob, SkillRunner> TAGGED = new IdentityHashMap<>();
 
     private VariantSkills() {}
 
@@ -61,8 +61,10 @@ public final class VariantSkills {
 
     @SubscribeEvent
     public static void onTick(EntityTickEvent.Post event) {
-        // Untagged mobs (nearly all) leave here after one hash lookup.
-        if (!(event.getEntity() instanceof Mob mob) || !TAGGED.containsKey(mob)) return;
+        // Server side only (an integrated server's client copy shares the entity id). Untagged mobs (nearly all)
+        // leave after one lookup.
+        if (event.getEntity().level().isClientSide() || !(event.getEntity() instanceof Mob mob)
+                || !TAGGED.containsKey(mob)) return;
         SkillRunner runner = TAGGED.get(mob);
         if (!mob.isAlive() || mob.isRemoved()) {
             if (runner != null) runner.cancel();
