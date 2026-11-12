@@ -48,14 +48,16 @@ public final class ReinforceMilestones {
     // ---- 순수 함수 ------------------------------------------------------------------------------------------
 
     /**
-     * 분류별 유효 단계. GUN/MELEE: 주손 장비가 그 분류일 때 그 단계; SHIELD: {@link #shieldLevel}(주손이 총·원거리
+     * 분류별 유효 단계. GUN/MELEE/RANGED: 주손 장비가 그 분류일 때 그 단계; SHIELD: {@link #shieldLevel}(주손이 총·원거리
      * 무기면 0); ARMOR: 네 부위의
      * 최소 단계(한 부위라도 비었거나 방어구가 아니면 0). {@code armor} 는 네 칸이어야 하며 모자라면 ARMOR 는 0.
      */
     public static Map<Target, Integer> levels(Held main, Held off, boolean shieldBlocked, List<Held> armor) {
         Map<Target, Integer> out = new EnumMap<>(Target.class);
         for (Target t : Target.values()) out.put(t, 0);
-        if (main.target() == Target.GUN || main.target() == Target.MELEE) out.put(main.target(), main.level());
+        if (main.target() == Target.GUN || main.target() == Target.MELEE || main.target() == Target.RANGED) {
+            out.put(main.target(), main.level());
+        }
         out.put(Target.SHIELD, shieldLevel(main, off, shieldBlocked));
         int armorMin = armor.size() == ReinforceEffects.ARMOR_SLOTS.length ? Integer.MAX_VALUE : 0;
         for (Held h : armor) {

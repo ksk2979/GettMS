@@ -6,6 +6,8 @@ import java.util.function.Predicate;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ElytraItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -21,14 +23,14 @@ import org.gettserver.gettcore.GettCore;
  */
 public final class ReinforceRules {
 
-    public enum Target { GUN, MELEE, SHIELD, ARMOR, ELYTRA }
+    public enum Target { GUN, MELEE, SHIELD, ARMOR, ELYTRA, RANGED }
 
     private ReinforceRules() {}
 
     /**
      * 강화 대상 분류. 총(주입된 NTGL 판정)이 먼저, 그 다음 SwordItem/AxeItem/{@code #minecraft:swords}/
-     * {@code #minecraft:axes} → MELEE, ShieldItem → SHIELD, ArmorItem → ARMOR, ElytraItem → ELYTRA. 그 밖(빈 스택·도구·활·석궁)은
-     * empty.
+     * {@code #minecraft:axes} → MELEE, ShieldItem → SHIELD, ArmorItem → ARMOR, ElytraItem → ELYTRA, 활·석궁·삼지창
+     * (BowItem/CrossbowItem/TridentItem) → RANGED. 그 밖(빈 스택·도구)은 empty.
      */
     public static Optional<Target> target(ItemStack stack, Predicate<ItemStack> isNtglWeapon) {
         if (stack.isEmpty()) return Optional.empty();
@@ -38,7 +40,8 @@ public final class ReinforceRules {
                         || stack.is(ItemTags.SWORDS) || stack.is(ItemTags.AXES),
                 item instanceof ShieldItem,
                 item instanceof ArmorItem,
-                item instanceof ElytraItem);
+                item instanceof ElytraItem,
+                item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem);
     }
 
     /** {@link #target} 의 우선순위만 떼어 낸 부분(레지스트리 없이 테스트). */
@@ -47,11 +50,17 @@ public final class ReinforceRules {
     }
 
     static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor, boolean elytra) {
+        return classify(gun, melee, shield, armor, elytra, false);
+    }
+
+    static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor, boolean elytra,
+            boolean ranged) {
         if (gun) return Optional.of(Target.GUN);
         if (melee) return Optional.of(Target.MELEE);
         if (shield) return Optional.of(Target.SHIELD);
         if (armor) return Optional.of(Target.ARMOR);
         if (elytra) return Optional.of(Target.ELYTRA);
+        if (ranged) return Optional.of(Target.RANGED);
         return Optional.empty();
     }
 
@@ -133,6 +142,11 @@ public final class ReinforceRules {
     /** 총 피해 배율 1 + N × gunDamagePercentPerLevel/100. */
     public static double gunMultiplier(int level, ReinforceConfig config) {
         return 1 + Math.max(0, level) * config.gunDamagePercentPerLevel() / 100;
+    }
+
+    /** 활·석궁 화살, 삼지창(투척·찌르기) 피해 배율 1 + N × rangedDamagePercentPerLevel/100. */
+    public static double rangedMultiplier(int level, ReinforceConfig config) {
+        return 1 + Math.max(0, level) * config.rangedDamagePercentPerLevel() / 100;
     }
 
     /** 근접 공격력 ADD_MULTIPLIED_TOTAL 값 N × meleeDamagePercentPerLevel/100 (기본 10%/단계 → 0.1×N). */

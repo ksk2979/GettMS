@@ -4,6 +4,7 @@
   "stoneCost": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   "gunDamagePercentPerLevel": 10,
   "meleeDamagePercentPerLevel": 10,
+  "rangedDamagePercentPerLevel": 10,
   "shieldSpeedPercentPerLevel": 1.7,
   "armorHealthPerLevel": 0.5,
   "armorHealthMax": 60,

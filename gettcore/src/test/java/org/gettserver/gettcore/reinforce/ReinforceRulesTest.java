@@ -96,6 +96,16 @@ class ReinforceRulesTest {
     }
 
     @Test
+    void rangedClassificationAndMultiplier() {
+        assertEquals(Optional.of(Target.RANGED), ReinforceRules.classify(false, false, false, false, false, true));
+        assertEquals(Optional.of(Target.GUN), ReinforceRules.classify(true, false, false, false, false, true));
+        assertEquals(Optional.of(Target.MELEE), ReinforceRules.classify(false, true, false, false, false, true));
+        assertEquals(1.0, ReinforceRules.rangedMultiplier(0, D), EPS);
+        assertEquals(1.3, ReinforceRules.rangedMultiplier(3, D), EPS);
+        assertEquals(4.0, ReinforceRules.rangedMultiplier(30, D), EPS);
+    }
+
+    @Test
     void elytraClassification() {
         assertEquals(Optional.of(Target.ELYTRA), ReinforceRules.classify(false, false, false, false, true));
         assertEquals(Optional.of(Target.ARMOR), ReinforceRules.classify(false, false, false, true, true));

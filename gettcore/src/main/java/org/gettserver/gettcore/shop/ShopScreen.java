@@ -2,6 +2,7 @@ package org.gettserver.gettcore.shop;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -30,7 +31,10 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private static final int TAB_H = 22;
     private static final int ARROW_W = (TabStrip.SLOTS - TabStrip.OVERFLOW_SLOTS) * TAB_W / 2;
     private static final int LIST_X = 8;
-    private static final int LIST_Y = 32;
+    private static final int SEARCH_Y = 31;
+    private static final int SEARCH_H = 14;
+    private static final int CLEAR_W = 14;
+    private static final int LIST_Y = 50;
     private static final int LIST_W = 160;
     private static final int ROW_H = 24;
     private static final int VISIBLE_ROWS = 6;
@@ -39,6 +43,8 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private static final int SB_X = LIST_X + LIST_W + 3;
     private static final int SB_W = 6;
     private static final int SB_H = VISIBLE_ROWS * ROW_H - 2;
+    /** 목록 아래 버튼(전체판매·손에 든 아이템 추가) 줄. */
+    private static final int FOOTER_Y = LIST_Y + VISIBLE_ROWS * ROW_H;
 
     private record Row(ShopEntry entry, int owned) {}
 
@@ -52,6 +58,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private Button editToggle;
     private final List<AbstractWidget> editWidgets = new ArrayList<>();
     private String editSignature;
+    /** 검색어(소문자, 앞뒤 공백 제거). 비어 있으면 검색 안 함. 화면 크기가 바뀌어도(init 재호출) 유지한다. */
+    private String query = "";
+    private EditBox searchBox;
 
     /** EditBox that commits when it loses focus. */
     private static final class PriceBox extends EditBox {
@@ -84,7 +93,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     public ShopScreen(ShopMenu menu, Inventory inv, Component title) {
         super(menu, inv, title);
         this.imageWidth = 360;
-        this.imageHeight = 200;
+        this.imageHeight = 218;
     }
 
     @Override
@@ -101,10 +110,26 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                 syncEditWidgets();
             }).bounds(leftPos + imageWidth - 48, topPos + 4, 44, 16).build());
         }
+        searchBox = new EditBox(font, leftPos + LIST_X, topPos + SEARCH_Y, LIST_W - CLEAR_W - 2, SEARCH_H,
+                Component.translatable("gettcore.gui.search"));
+        searchBox.setMaxLength(32);
+        searchBox.setHint(Component.translatable("gettcore.gui.search"));
+        searchBox.setValue(query);
+        searchBox.setResponder(text -> {
+            query = text.trim().toLowerCase(Locale.ROOT);
+            scroll = 0;
+            syncSelectedTab();
+        });
+        addRenderableWidget(searchBox);
+        addRenderableWidget(Button.builder(Component.literal("x"), b -> {
+            searchBox.setValue("");
+            searchBox.setFocused(false);
+            setFocused(null);
+        }).bounds(leftPos + LIST_X + LIST_W - CLEAR_W, topPos + SEARCH_Y, CLEAR_W, SEARCH_H).build());
         if (menu.mode() == ShopMode.SELL) {
             addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.sell_all"),
                     b -> PacketDistributor.sendToServer(new TradePayload(menu.shopId(),
-                            ResourceLocation.withDefaultNamespace("air"), 1, ShopMode.SELL, true))).bounds(leftPos + LIST_X, topPos + 176, LIST_W, 18).build());
+                            ResourceLocation.withDefaultNamespace("air"), 1, ShopMode.SELL, true))).bounds(leftPos + LIST_X, topPos + FOOTER_Y, LIST_W, 18).build());
         }
     }
 
@@ -163,7 +188,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (!d.tabs().isEmpty()) {
             String tabId = d.tabs().get(Math.min(selectedTab, d.tabs().size() - 1)).id();
             editWidgets.add(addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.add_held"),
-                    b -> addHeld(tabId)).bounds(ex, topPos + 176, 176, 18).build()));
+                    b -> addHeld(tabId)).bounds(ex, topPos + FOOTER_Y, 176, 18).build()));
         }
     }
 
@@ -195,20 +220,69 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     private List<Row> rows() {
         ShopDefinition def = definition();
         List<Row> out = new ArrayList<>();
-        if (def == null) return out;
+        if (def == null || nothingFound(def)) return out;
         String tabId = def.tabs().isEmpty() ? null : def.tabs().get(Math.min(selectedTab, def.tabs().size() - 1)).id();
         for (ShopEntry e : def.entries()) {
             if (tabId != null && !tabId.equals(e.tab())) continue;
-            if (editing) {
-                out.add(new Row(e, 0));
-            } else if (menu.mode() == ShopMode.BUY) {
-                if (e.canBuy()) out.add(new Row(e, 0));
-            } else if (e.canSell()) {
-                // 보유 수량이 0이어도 목록에 남긴다(버튼만 비활성화). 전체 판매 목록을 한눈에 볼 수 있게.
-                out.add(new Row(e, TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item())));
+            if (!listed(e)) continue;
+            // 판매: 보유 수량이 0이어도 목록에 남긴다(버튼만 비활성화). 전체 판매 목록을 한눈에 볼 수 있게.
+            int owned = !editing && menu.mode() == ShopMode.SELL
+                    ? TradeCalculator.countSellable(minecraft.player.getInventory().items, e.item()) : 0;
+            out.add(new Row(e, owned));
+        }
+        return out;
+    }
+
+    /** 지금 모드(편집/구매/판매)와 검색어로 목록에 나오는 항목인지. */
+    private boolean listed(ShopEntry e) {
+        if (!editing && !(menu.mode() == ShopMode.BUY ? e.canBuy() : e.canSell())) return false;
+        return matchesQuery(BuiltInRegistries.ITEM.get(e.item()).getDescription().getString(), e.item().getPath(),
+                query);
+    }
+
+    /** 검색어(소문자)가 비었거나 아이템 표시 이름·레지스트리 경로에 들어 있으면 true. */
+    static boolean matchesQuery(String displayName, String path, String query) {
+        return query.isEmpty() || displayName.toLowerCase(Locale.ROOT).contains(query) || path.contains(query);
+    }
+
+    /**
+     * 탭 줄에 보이는 탭 번호들. 검색 중이 아니면 전부, 검색 중이면 맞는 항목이 하나라도 있는 탭만(검색을 지우면 다시
+     * 전부).
+     */
+    private List<Integer> shownTabs(ShopDefinition def) {
+        List<Integer> out = new ArrayList<>();
+        for (int i = 0; i < def.tabs().size(); i++) {
+            if (query.isEmpty()) {
+                out.add(i);
+                continue;
+            }
+            String id = def.tabs().get(i).id();
+            for (ShopEntry e : def.entries()) {
+                if (id.equals(e.tab()) && listed(e)) {
+                    out.add(i);
+                    break;
+                }
             }
         }
         return out;
+    }
+
+    /** 고른 탭이 검색으로 숨겨졌으면 보이는 첫 탭으로 옮기고, 고른 탭이 탭 줄 안에 보이게 한다. */
+    private void syncSelectedTab() {
+        ShopDefinition def = definition();
+        if (def == null) return;
+        List<Integer> tabs = shownTabs(def);
+        if (tabs.isEmpty()) return;
+        if (!tabs.contains(selectedTab)) {
+            selectedTab = tabs.get(0);
+            scroll = 0;
+        }
+        tabOffset = TabStrip.ensureVisible(tabOffset, tabs.indexOf(selectedTab), tabs.size());
+    }
+
+    /** 검색 결과가 하나도 없어 탭이 전부 숨겨진 상태. */
+    private boolean nothingFound(ShopDefinition def) {
+        return !query.isEmpty() && !def.tabs().isEmpty() && shownTabs(def).isEmpty();
     }
 
     @Override
@@ -223,11 +297,14 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         }
         ShopDefinition def = definition();
         if (def != null) {
-            int total = def.tabs().size();
+            List<Integer> tabs = shownTabs(def);
+            int total = tabs.size();
+            if (total > 0 && !tabs.contains(selectedTab)) syncSelectedTab();
             tabOffset = TabStrip.clampOffset(tabOffset, total);
-            for (int i = 0; i < total; i++) {
-                int x = tabX(i, total);
+            for (int p = 0; p < total; p++) {
+                int x = tabX(p, total);
                 if (x < 0) continue;
+                int i = tabs.get(p);
                 ShopTab tab = def.tabs().get(i);
                 int y = topPos + TAB_Y;
                 g.fill(x, y, x + TAB_W - 2, y + TAB_H, i == selectedTab ? 0xFFFFF6DC : 0xFFD9C9A0);
@@ -271,7 +348,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         g.renderTooltip(font, stack, mouseX, mouseY);
     }
 
-    /** 보이는 탭이면 화면 x, 아니면 -1. 넘칠 때는 왼쪽 화살표 자리만큼 밀린다. */
+    /** 탭 줄의 {@code i} 번째({@link #shownTabs} 안의 순서)가 보이면 화면 x, 아니면 -1. 넘칠 때는 왼쪽 화살표 자리만큼 밀린다. */
     private int tabX(int i, int total) {
         int visible = TabStrip.visibleCount(total);
         if (i < tabOffset || i >= tabOffset + visible) return -1;
@@ -385,12 +462,13 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (popup == null) renderTooltip(g, mouseX, mouseY);
         ShopDefinition def = definition();
         if (def != null && popup == null) {
-            int total = def.tabs().size();
-            for (int i = 0; i < total; i++) {
-                int x = tabX(i, total);
+            List<Integer> tabs = shownTabs(def);
+            int total = tabs.size();
+            for (int p = 0; p < total; p++) {
+                int x = tabX(p, total);
                 int y = topPos + TAB_Y;
                 if (x >= 0 && mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
-                    g.renderTooltip(font, Component.literal(def.tabs().get(i).name()), mouseX, mouseY);
+                    g.renderTooltip(font, Component.literal(def.tabs().get(tabs.get(p)).name()), mouseX, mouseY);
                 }
             }
             renderRowTooltip(g, mouseX, mouseY);
@@ -420,8 +498,9 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
         if (popup != null) return popup.keyPressed(key, scan, mods);
-        // Like AnvilScreen: a focused price box swallows every key except ESC, so E / hotbar digits do not leak through.
-        if (getFocused() instanceof PriceBox box && box.isFocused() && key != 256) {
+        // Like AnvilScreen: a focused text box (price or search) swallows every key except ESC, so E / hotbar digits
+        // do not leak through.
+        if (getFocused() instanceof EditBox box && box.isFocused() && key != 256) {
             return box.keyPressed(key, scan, mods) || box.canConsumeInput();
         }
         return super.keyPressed(key, scan, mods);
@@ -436,9 +515,15 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (popup != null) return popup.mouseClicked(mouseX, mouseY, button);
+        // 검색칸 밖을 누르면 입력을 끝낸다(탭·행 클릭은 super 를 거치지 않아 포커스가 남는다).
+        if (searchBox != null && searchBox.isFocused() && !searchBox.isMouseOver(mouseX, mouseY)) {
+            searchBox.setFocused(false);
+            setFocused(null);
+        }
         ShopDefinition def = definition();
         if (def != null && button == 0) {
-            int total = def.tabs().size();
+            List<Integer> tabs = shownTabs(def);
+            int total = tabs.size();
             int y = topPos + TAB_Y;
             for (int dir : new int[] {-1, 1}) {
                 int ax = arrowX(dir);
@@ -448,11 +533,11 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
                     return true;
                 }
             }
-            for (int i = 0; i < total; i++) {
-                int x = tabX(i, total);
+            for (int p = 0; p < total; p++) {
+                int x = tabX(p, total);
                 if (x >= 0 && mouseX >= x && mouseX < x + TAB_W - 2 && mouseY >= y && mouseY < y + TAB_H) {
-                    selectedTab = i;
-                    tabOffset = TabStrip.ensureVisible(tabOffset, i, total);
+                    selectedTab = tabs.get(p);
+                    tabOffset = TabStrip.ensureVisible(tabOffset, p, total);
                     scroll = 0;
                     return true;
                 }
@@ -484,7 +569,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if (popup != null) return true;
         ShopDefinition def = definition();
         if (def != null && overTabRow(mouseX, mouseY)) {
-            int total = def.tabs().size();
+            int total = shownTabs(def).size();
             if (scrollY != 0) tabOffset = TabStrip.clampOffset(tabOffset - (int) Math.signum(scrollY), total);
             return true;
         }

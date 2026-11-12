@@ -21,6 +21,7 @@ import net.minecraft.resources.ResourceLocation;
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                               List<Long> goldCost,
                               double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
+                              double rangedDamagePercentPerLevel,
                               double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
                               double armorDefensePerLevel, long enchantGoldCost, Elytra elytra,
                               List<Milestone> milestones) {
@@ -34,6 +35,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
 
     /** 방어구 부위당 방어(ARMOR 속성) 증가 기본값/단계: 30강 4부위 = +6. */
     static final double DEFAULT_ARMOR_DEFENSE = 0.05;
+    /** 활·석궁·삼지창 피해 증가 기본값(%/단계). */
+    static final double DEFAULT_RANGED_DAMAGE = 10;
     /** 마법부여 1회 골드 기본값. */
     static final long DEFAULT_ENCHANT_GOLD = 1000;
 
@@ -99,7 +102,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                     55.0, 50.0, 45.0, 40.0, 35.0, 30.0, 25.0, 20.0, 15.0, 10.0,
                     10.0, 9.0, 9.0, 8.0, 8.0, 7.0, 7.0, 6.0, 6.0, 5.0),
             Collections.nCopies(30, 1), DEFAULT_GOLD,
-            10, 10, 1.7, 0.5, 60, DEFAULT_ARMOR_DEFENSE, DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, List.of());
+            10, 10, DEFAULT_RANGED_DAMAGE, 1.7, 0.5, 60, DEFAULT_ARMOR_DEFENSE, DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, List.of());
 
     /** 최대 단계 상한(sanitize 가 허용하는 maxLevel 의 최댓값). */
     public static final int MAX_LEVEL_LIMIT = 50;
@@ -159,6 +162,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                            double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
                            List<Milestone> milestones) {
         this(maxLevel, successPercent, stoneCost, defaultGold(Math.max(1, Math.min(MAX_LEVEL_LIMIT, maxLevel))), gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                DEFAULT_RANGED_DAMAGE,
                 shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax, DEFAULT_ARMOR_DEFENSE,
                 DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, milestones);
     }
@@ -173,6 +177,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                     .forGetter(ReinforceConfig::gunDamagePercentPerLevel),
             Codec.DOUBLE.optionalFieldOf("meleeDamagePercentPerLevel", DEFAULT.meleeDamagePercentPerLevel)
                     .forGetter(ReinforceConfig::meleeDamagePercentPerLevel),
+            Codec.DOUBLE.optionalFieldOf("rangedDamagePercentPerLevel", DEFAULT_RANGED_DAMAGE)
+                    .forGetter(ReinforceConfig::rangedDamagePercentPerLevel),
             Codec.DOUBLE.optionalFieldOf("shieldSpeedPercentPerLevel", DEFAULT.shieldSpeedPercentPerLevel)
                     .forGetter(ReinforceConfig::shieldSpeedPercentPerLevel),
             Codec.DOUBLE.optionalFieldOf("armorHealthPerLevel", DEFAULT.armorHealthPerLevel)
@@ -255,6 +261,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                         DEFAULT.gunDamagePercentPerLevel, warnings),
                 nonNegative("meleeDamagePercentPerLevel", meleeDamagePercentPerLevel,
                         DEFAULT.meleeDamagePercentPerLevel, warnings),
+                nonNegative("rangedDamagePercentPerLevel", rangedDamagePercentPerLevel,
+                        DEFAULT_RANGED_DAMAGE, warnings),
                 nonNegative("shieldSpeedPercentPerLevel", shieldSpeedPercentPerLevel,
                         DEFAULT.shieldSpeedPercentPerLevel, warnings),
                 nonNegative("armorHealthPerLevel", armorHealthPerLevel, DEFAULT.armorHealthPerLevel, warnings),
@@ -281,7 +289,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
 
     private static String milestoneProblem(Milestone m, int max, Predicate<ResourceLocation> exists) {
         if (m.target() == null || m.target() == ReinforceRules.Target.ELYTRA) {
-            return "target must be gun, melee, shield or armor";
+            return "target must be gun, melee, ranged, shield or armor";
         }
         if (m.level() < 1 || m.level() > max) return "level " + m.level() + " must be within [1, " + max + "]";
         if (m.amplifier() < 0 || m.amplifier() > 9) return "amplifier " + m.amplifier() + " must be within [0, 9]";

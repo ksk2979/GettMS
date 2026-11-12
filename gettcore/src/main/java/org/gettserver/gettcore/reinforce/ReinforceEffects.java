@@ -7,20 +7,25 @@ import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.EquipmentSlotGroup;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TridentItem;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.util.thread.EffectiveSide;
 import net.neoforged.neoforge.event.ItemAttributeModifierEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEquipmentChangeEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
@@ -71,7 +76,7 @@ public final class ReinforceEffects {
             ReinforceConfig cfg) {
         if (target == null || level <= 0) return List.of();
         List<ModifierSpec> specs = switch (target) {
-            case GUN, SHIELD, ELYTRA -> List.of();
+            case GUN, SHIELD, ELYTRA, RANGED -> List.of();
             case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
                     ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
                     EquipmentSlotGroup.MAINHAND));
@@ -134,6 +139,7 @@ public final class ReinforceEffects {
             case SHIELD -> n * cfg.shieldSpeedPercentPerLevel();
             case ARMOR -> ReinforceRules.armorHealth(n, cfg);
             case ELYTRA -> ReinforceRules.elytraSpeedPercent(n, cfg);
+            case RANGED -> n * cfg.rangedDamagePercentPerLevel();
         };
     }
 
@@ -167,6 +173,27 @@ public final class ReinforceEffects {
         EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
         for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, config()))
             event.addModifier(holder(spec.stat()), spec.toModifier(), spec.group());
+    }
+
+    /**
+     * 활·석궁·삼지창 강화 피해. 화살·던진 삼지창은 쏜 무기({@code AbstractArrow.getWeaponItem}: 활/석궁 사본, 삼지창은
+     * 자기 자신)의 단계로, 삼지창 찌르기는 공격자의 주손 삼지창 단계로 피해를 곱한다. 서버에서만 발생하는 이벤트.
+     */
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        Entity direct = event.getSource().getDirectEntity();
+        ItemStack weapon = null;
+        if (direct instanceof AbstractArrow arrow) {
+            weapon = arrow.getWeaponItem();
+        } else if (direct instanceof LivingEntity attacker
+                && attacker.getMainHandItem().getItem() instanceof TridentItem) {
+            weapon = attacker.getMainHandItem();
+        }
+        if (weapon == null || weapon.isEmpty()) return;
+        int level = ReinforceRules.level(weapon);
+        if (level <= 0 || ReinforceTargets.target(weapon).orElse(null) != Target.RANGED) return;
+        double mult = ReinforceRules.rangedMultiplier(level, GettData.get().reinforce());
+        if (mult != 1) event.setAmount((float) (event.getAmount() * mult));
     }
 
     /**
