@@ -5,6 +5,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterClientTooltipComponentFactoriesEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
@@ -32,6 +33,9 @@ public class GettCoreClient {
                     event.register(GettCore.REINFORCE_MENU.get(), ReinforceScreen::new);
                     event.register(GettCore.UPGRADE_MENU.get(), org.gettserver.gettcore.upgrade.UpgradeScreen::new);
                 });
+        modBus.addListener(RegisterClientTooltipComponentFactoriesEvent.class, event ->
+                event.register(org.gettserver.gettcore.detector.DetectorTooltip.class,
+                        org.gettserver.gettcore.detector.client.ClientDetectorTooltip::new));
         modBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(AbilityKey.TOGGLE);
             event.register(QuestKeys.QUEST_LOG);

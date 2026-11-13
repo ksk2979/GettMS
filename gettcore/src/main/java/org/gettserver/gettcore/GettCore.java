@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
@@ -20,6 +21,7 @@ import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.gettserver.gettcore.detector.DetectorItem;
 import org.gettserver.gettcore.economy.CheckItem;
 import org.gettserver.gettcore.enchant.EnchantMenu;
 import org.gettserver.gettcore.enchant.EnchantService;
@@ -60,6 +62,11 @@ public class GettCore {
             DATA_COMPONENTS.registerComponentType("reinforce_level",
                     b -> b.persistent(ExtraCodecs.NON_NEGATIVE_INT).networkSynchronized(ByteBufCodecs.VAR_INT));
 
+    /** 탐지기의 대상 칸(아이템 1개). 없으면 컴포넌트 없음. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<ItemContainerContents>> DETECTOR_TARGET =
+            DATA_COMPONENTS.registerComponentType("detector_target",
+                    b -> b.persistent(ItemContainerContents.CODEC).networkSynchronized(ItemContainerContents.STREAM_CODEC));
+
     public static final DeferredItem<CheckItem> CHECK =
             ITEMS.registerItem("check", CheckItem::new, new Item.Properties().stacksTo(1));
 
@@ -71,6 +78,8 @@ public class GettCore {
             ITEMS.registerItem("enchant_stone", EnchantStoneItem::new, new Item.Properties().stacksTo(64));
     public static final DeferredItem<ReinforceStoneItem> REINFORCE_STONE =
             ITEMS.registerItem("reinforce_stone", ReinforceStoneItem::new, new Item.Properties().stacksTo(64));
+    public static final DeferredItem<DetectorItem> DETECTOR =
+            ITEMS.registerItem("detector", DetectorItem::new, new Item.Properties().stacksTo(1));
 
     /** 튼튼한 모루: 써도 금이 가지 않고 떨어지지 않음. 관리자 지급 전용(크리에이티브 탭·/give). */
     public static final net.neoforged.neoforge.registries.DeferredBlock<org.gettserver.gettcore.anvil.SturdyAnvilBlock> STURDY_ANVIL =
@@ -98,6 +107,7 @@ public class GettCore {
                         output.accept(RETURN_STONE.get());
                         output.accept(ENCHANT_STONE.get());
                         output.accept(REINFORCE_STONE.get());
+                        output.accept(DETECTOR.get());
                         output.accept(STURDY_ANVIL_ITEM.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
