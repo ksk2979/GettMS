@@ -217,6 +217,12 @@ public final class EditorHttpServer {
             tooBig = body.length > MAX_SAVE_BYTES;
         }
         if (tooBig) {
+            // 응답 전에 보낸 본문을 (상한까지) 읽어 버린다. 안 읽고 닫으면 아직 보내는 중인 브라우저 쪽 연결이 끊겨
+            // 413 대신 "연결 재설정" 오류로 보인다.
+            byte[] sink = new byte[64 * 1024];
+            long left = 4L * MAX_SAVE_BYTES;
+            int n;
+            while (left > 0 && (n = ex.getRequestBody().read(sink, 0, (int) Math.min(sink.length, left))) > 0) left -= n;
             ex.getResponseHeaders().set("Connection", "close");
             sendApi(ex, 413, "{\"error\":\"too large\"}");
             return;
