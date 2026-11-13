@@ -381,5 +381,7 @@
   "gettcore.container.endersee": "%s's Ender Chest",
   "gettcore.spectate.on": "Spectate on — other players cannot see you. /spectate to turn off",
   "gettcore.spectate.off": "Spectate off — you are visible again.",
-  "gettcore.spectate.still_on": "You are hidden in spectate mode. /spectate to turn off"
+  "gettcore.spectate.still_on": "You are hidden in spectate mode. /spectate to turn off",
+  "gettcore.epicfight.cost": "Cost: %s",
+  "gettcore.epicfight.gain": "Gain: %s"
 }
