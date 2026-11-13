@@ -165,7 +165,7 @@ public final class DetectorService {
     }
 
     private static void chime(ServerPlayer player) {
-        player.serverLevel().playSound(null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME,
-                SoundSource.PLAYERS, 1.0F, 1.0F);
+        // Only the user hears it (playSound(null, ...) would reach everyone nearby).
+        player.playNotifySound(SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.0F, 1.0F);
     }
 }

@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment, upgrade } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment·upgrade만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment, upgrade, bosses, detector } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment·upgrade·detector만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
@@ -131,7 +131,7 @@
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
       reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
-      upgrade: bundle.upgrade, bosses: bundle.bosses, datapack: bundle.datapack });
+      upgrade: bundle.upgrade, bosses: bundle.bosses, detector: bundle.detector, datapack: bundle.datapack });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -310,6 +310,38 @@
     return { steps, backpackTiers };
   }
 
+  // detector.json 기본값 (서버 DetectorConfig 와 같다)
+  const DETECTOR_DEFAULT_TAGS = ['minecraft:small_flowers', 'minecraft:tall_flowers'];
+  const DETECTOR_DEFAULT_TARGETS = [
+    ['coal', ['coal', 'coal_ore', 'deepslate_coal_ore'], ['coal_ore', 'deepslate_coal_ore']],
+    ['iron', ['raw_iron', 'iron_ore', 'deepslate_iron_ore'], ['iron_ore', 'deepslate_iron_ore']],
+    ['copper', ['raw_copper', 'copper_ore', 'deepslate_copper_ore'], ['copper_ore', 'deepslate_copper_ore']],
+    ['gold', ['raw_gold', 'gold_ore', 'deepslate_gold_ore'], ['gold_ore', 'deepslate_gold_ore']],
+    ['diamond', ['diamond', 'diamond_ore', 'deepslate_diamond_ore'], ['diamond_ore', 'deepslate_diamond_ore']],
+    ['emerald', ['emerald', 'emerald_ore', 'deepslate_emerald_ore'], ['emerald_ore', 'deepslate_emerald_ore']],
+    ['redstone', ['redstone', 'redstone_ore', 'deepslate_redstone_ore'], ['redstone_ore', 'deepslate_redstone_ore']],
+    ['lapis', ['lapis_lazuli', 'lapis_ore', 'deepslate_lapis_ore'], ['lapis_ore', 'deepslate_lapis_ore']],
+    ['quartz', ['quartz', 'nether_quartz_ore'], ['nether_quartz_ore']],
+    ['nether_gold', ['gold_nugget', 'nether_gold_ore'], ['nether_gold_ore']],
+    ['ancient_debris', ['netherite_scrap', 'ancient_debris'], ['ancient_debris']],
+  ];
+
+  /** detector.json: 숫자 4개 + 자기 자신을 찾는 블록 태그 + 대상 목록 (빠진 값 = 서버 기본값). */
+  function normalizeDetector(src) {
+    const s = src && typeof src === 'object' ? src : {};
+    const num = (v, d) => (v === undefined ? d : v);
+    const strs = (a) => a.filter((x) => typeof x === 'string');
+    const targets = Array.isArray(s.targets)
+      ? s.targets.filter((t) => t && typeof t === 'object').map((t) => ({
+        id: String(t.id || ''), items: Array.isArray(t.items) ? strs(t.items) : [],
+        blocks: Array.isArray(t.blocks) ? strs(t.blocks) : [], ore: t.ore === undefined ? true : !!t.ore }))
+      : DETECTOR_DEFAULT_TARGETS.map(([id, items, blocks]) => ({ id,
+        items: items.map((x) => 'minecraft:' + x), blocks: blocks.map((x) => 'minecraft:' + x), ore: true }));
+    return { range: num(s.range, 24), durationSeconds: num(s.durationSeconds, 60), cooldownSeconds: num(s.cooldownSeconds, 300),
+      maxBlocks: num(s.maxBlocks, 4096), selfBlockTags: Array.isArray(s.selfBlockTags) ? strs(s.selfBlockTags) : DETECTOR_DEFAULT_TAGS.slice(),
+      targets };
+  }
+
   function normalizeEquipment(src) {
     const p = src || {};
     const items = {};
@@ -417,6 +449,7 @@
       equipment: normalizeEquipment(src.equipment !== undefined ? src.equipment : f.equipment),
       upgrade: normalizeUpgrade(src.upgrade !== undefined ? src.upgrade : f.upgrade),
       bosses: normalizeBosses(src.bosses !== undefined ? src.bosses : f.bosses),
+      detector: normalizeDetector(src.detector !== undefined ? src.detector : f.detector),
       datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {
@@ -3188,6 +3221,115 @@
     },
   };
   registerTab(upgradeTab);
+
+  /* ----- 탐지기 탭 (detector.json: 탐지기 아이템·광맥 탐지 인챈트가 찾는 블록) ----- */
+
+  // [키, 라벨, 최소, 최대] — 서버 DetectorConfig.sanitized() 와 같은 범위
+  const DETECTOR_NUMS = [['range', '범위 (칸)', 1, 64], ['durationSeconds', '표시 시간 (초)', 1, 3600],
+    ['cooldownSeconds', '쿨타임 (초)', 0, 86400], ['maxBlocks', '블록 상한', 1, 16384]];
+  const detectorNumOk = (d, [key, , min, max]) => Number.isInteger(d[key]) && d[key] >= min && d[key] <= max;
+
+  // 서버 DetectorConfig.errors() 와 같은 규칙: id 비었음/중복, 아이템·블록 없음, 잘못된 id, 앞 대상이 이미 쓴 아이템.
+  function detectorRowErrors(targets) {
+    const out = targets.map(() => []);
+    const ids = new Set();
+    const owner = new Map();
+    targets.forEach((t, i) => {
+      const e = out[i];
+      const id = (t.id || '').trim();
+      if (!id) e.push('id 가 비어 있습니다');
+      else if (ids.has(t.id)) e.push('id 가 중복됩니다');
+      else ids.add(t.id);
+      if (!t.items.length) e.push('아이템 목록이 비어 있습니다');
+      if (!t.blocks.length) e.push('블록 목록이 비어 있습니다');
+      for (const item of t.items) {
+        if (!ITEM_ID.test(item)) { e.push(`아이템 '${item}' 은(는) 올바른 id 가 아닙니다`); continue; }
+        const o = owner.get(item);
+        if (o === undefined) owner.set(item, t.id);
+        else if (o !== t.id) e.push(`아이템 ${item} 은(는) 앞의 대상 ${o} 이(가) 이미 씁니다`);
+      }
+      for (const block of t.blocks) {
+        if (!ITEM_ID.test(block)) e.push(`블록 '${block}' 은(는) 올바른 id 가 아닙니다`);
+      }
+    });
+    return out;
+  }
+
+  function validateDetector(bundle) {
+    const d = bundle.detector;
+    if (!d) return [];
+    const out = [];
+    for (const f of DETECTOR_NUMS) {
+      if (!detectorNumOk(d, f)) out.push(`탐지기 ${f[1]}: ${f[2]}~${f[3]} 정수여야 합니다`);
+    }
+    detectorRowErrors(d.targets).forEach((errs, i) => {
+      for (const m of errs) out.push(`탐지 대상 ${i + 1}번 (${d.targets[i].id || '빈 id'}): ${m}`);
+    });
+    return out;
+  }
+
+  const detectorTab = {
+    id: 'detector',
+    title: '탐지기',
+    validate: validateDetector,
+    render(container) {
+      const d = S.bundle.detector;
+      const targets = d.targets;
+      let rowChecks = makeChecks();
+      const numChecks = makeChecks();
+      const rowError = (i) => { const e = detectorRowErrors(targets)[i]; return e ? e.join(' · ') : ''; };
+      const csv = (text) => text.split(',').map((x) => x.trim()).filter(Boolean);
+
+      const nums = DETECTOR_NUMS.map((f) => h('label', { class: 'field' }, f[1] + ' ',
+        numChecks.add(h('input', { type: 'number', min: f[2], max: f[3], step: 1, style: 'width:6rem', 'aria-label': f[1],
+          value: Number.isNaN(d[f[0]]) ? '' : d[f[0]],
+          oninput: (e) => { d[f[0]] = e.target.value.trim() === '' ? NaN : Number(e.target.value); changed(); } }),
+        () => (detectorNumOk(d, f) ? '' : `${f[2]}~${f[3]} 정수`))));
+      const tags = h('input', { type: 'text', style: 'width:28rem', 'aria-label': '자기 자신을 찾는 블록 태그',
+        value: d.selfBlockTags.join(', '), placeholder: 'minecraft:small_flowers, minecraft:tall_flowers',
+        oninput: (e) => { d.selfBlockTags = csv(e.target.value); changed(); } });
+
+      const tbody = h('tbody');
+      const draw = () => {
+        rowChecks = makeChecks();
+        tbody.replaceChildren(...targets.map((t, i) => {
+          const err = h('div', { class: 'id', style: 'color:var(--bad)' });
+          rowChecks.add(err, () => { err.textContent = rowError(i); return ''; });
+          const idIn = rowChecks.add(h('input', { type: 'text', style: 'width:8rem', 'aria-label': '대상 id', value: t.id,
+            oninput: (e) => { t.id = e.target.value; changed(); } }), () => (rowError(i) ? '확인이 필요합니다' : ''));
+          const listIn = (key, label) => h('textarea', { rows: 3, style: 'width:20rem', 'aria-label': label, value: t[key].join(', '),
+            oninput: (e) => { t[key] = csv(e.target.value); changed(); } });
+          return h('tr', null,
+            h('td', null, idIn, err),
+            h('td', null, listIn('items', '아이템 목록 (쉼표로 구분)')),
+            h('td', null, listIn('blocks', '블록 목록 (쉼표로 구분)')),
+            h('td', null, h('input', { type: 'checkbox', checked: t.ore, 'aria-label': '광석 여부',
+              onchange: (e) => { t.ore = e.target.checked; changed(); } })),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': '대상 삭제', onclick: () => {
+              targets.splice(i, 1); changed(); draw();
+            } }, '삭제')));
+        }));
+        rowChecks.paint();
+      };
+      const add = h('button', { onclick: () => {
+        targets.push({ id: '', items: [], blocks: [], ore: true });
+        changed(); draw();
+      } }, '대상 추가');
+
+      container.append(h('div', { class: 'card' }, h('h2', null, '탐지기'),
+        h('p', { class: 'muted' }, '광맥 탐지 인챈트 수치는 config/gettcore/enchant.json 의 prospect'),
+        h('p', { class: 'muted' }, '탐지기에 넣은 아이템이 어떤 블록을 찾는지 정합니다. 아이템·블록은 id 를 쉼표로 구분해 적습니다 (예: minecraft:coal, minecraft:coal_ore). 한 아이템은 한 대상에만 쓸 수 있고, 목록에 없는 블록은 찾지 못합니다.'),
+        h('div', { class: 'field' }, ...nums),
+        h('div', { class: 'field' }, h('span', null, '자기 자신을 찾는 블록 태그 (쉼표로 구분) '), tags),
+        h('div', { class: 'field' }, add, h('span', { class: 'muted' }, `${targets.length}개 대상`)),
+        h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, ['id', '아이템 목록', '블록 목록', '광석', ''].map((t) => h('th', null, t)))), tbody))));
+      draw();
+      numChecks.paint();
+      return () => { numChecks.paint(); rowChecks.paint(); };
+    },
+  };
+  registerTab(detectorTab);
 
   /* ----- 총 탭 · 등장 탭 (서버 월드의 데이터팩 gett_balance 에 모드 원본 파일의 사본을 씀) ----- */
 
