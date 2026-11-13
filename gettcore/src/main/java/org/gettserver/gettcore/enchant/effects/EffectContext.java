@@ -4,7 +4,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
@@ -37,7 +36,7 @@ public final class EffectContext {
      */
     public static int activeLevel(Player player, Ability ability, ItemStack tool) {
         if (!(player instanceof ServerPlayer sp) || player instanceof FakePlayer) return 0;
-        if (!SpecialEnchants.toolOf(tool).equals(Optional.of(ability.tool()))) return 0;
+        if (!SpecialEnchants.toolOf(tool).map(ability::fits).orElse(false)) return 0;
         if (isBlockAbility(ability) && !AbilityToggle.enabled(sp)) return 0;
         return SpecialEnchants.level(tool, ability, sp.registryAccess());
     }

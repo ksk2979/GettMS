@@ -26,7 +26,6 @@ public final class AbilityTooltip {
         Optional<Rolled> special = SpecialEnchants.current(event.getItemStack(), level.registryAccess());
         if (special.isEmpty()) return;
         Ability ability = special.get().ability();
-        double value = ClientEnchantConfig.get().value(ability, special.get().level());
 
         List<Component> lines = event.getToolTip();
         String name = Component.translatable("enchantment.gettcore." + ability.id()).getString();
@@ -39,11 +38,8 @@ public final class AbilityTooltip {
         }
         EnchantConfig config = ClientEnchantConfig.get();
         int lvl = special.get().level();
-        // 광맥 탐지는 표시 시간·쿨타임도 레벨마다 다르다 (%2$s, %3$s)
-        Object[] args = ability == Ability.PROSPECT
-                ? new Object[] {format(value), format(config.prospectDurationSeconds().get(lvl)),
-                        format(config.prospectCooldownSeconds().get(lvl))}
-                : new Object[] {format(value)};
+        Object[] args = java.util.Arrays.stream(config.descArgs(ability, lvl))
+                .mapToObj(AbilityTooltip::format).toArray();
         lines.add(at++, Component.translatable("enchantment.gettcore." + ability.id() + ".desc", args)
                 .withStyle(ChatFormatting.GRAY));
         if (isBlockAbility(ability)) {

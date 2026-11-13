@@ -7,6 +7,9 @@
     "PlayerListMixin",
     "ServerGamePacketListenerImplMixin"
   ],
+  "client": [
+    "MinecraftMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

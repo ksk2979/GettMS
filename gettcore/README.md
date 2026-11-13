@@ -87,11 +87,24 @@ Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 | 도구 | 능력 id (최대 레벨) |
 | --- | --- |
 | 괭이 | `harvest` 수확(3), `replant` 재심기(1), `bounty` 풍작(3) |
-| 곡괭이 | `vein` 광맥(3), `area` 광역(1), `smelt` 제련(1) |
+| 곡괭이 | `vein` 광맥(3), `prospect` 광맥 탐지(3), `area` 광역(1), `smelt` 제련(1) |
 | 도끼 | `timber` 벌목(3), `resapling` 벌목 재심기(1), `lumber` 목재 보너스(3) |
 | 검 | `sweep` 연격(3), `leech` 흡혈(3), `wisdom` 경험(3), `execute` 처형(3), `plunder` 전리품(3) |
 | 활 | `volley` 다발(1), `quickdraw` 속사(3), `homing` 추적(1) |
 | 낚싯대 | `lure` 손맛(3), `bigcatch` 대어(3), `treasure` 월척(3) |
+| 투구 | `goggles` 물안경(1), `sense` 감지(3), `nightvision` 야간 투시(1) |
+| 흉갑 | `vitality` 활력(3), `regen` 재생(3), `undying` 불굴(3) |
+| 바지 | `leap` 도약(3), `steadfast` 버티기(3), `dodge` 회피(3) |
+| 신발 | `farmstep` 농부의 걸음(1), `climb` 등산(1), `landing` 착지(3) |
+| 방어구 공통 | `swift` 이속 증가(3) |
+
+방어구 특수 능력(1.13.0~)은 입고 있는 동안 적용됩니다.
+
+- 뽑는 방법은 도구와 같습니다(마법부여사). 다만 능력마다 뽑힐 확률이 다르고(`armor.abilityWeights`, 기본 40/30/20/10), 레벨 확률도 따로입니다(`armor.levelWeights`, 기본 75/20/5).
+- 이속 증가는 네 부위 모두에 붙지만 가장 높은 레벨 하나만 적용됩니다.
+- 불굴은 죽을 피해를 체력 반 칸으로 버티고 잠깐 무적이 됩니다. 공허와 `/kill` 은 막지 않고, 쿨타임은 서버를 재시작하면 초기화됩니다.
+- 감지는 쓴 사람 화면에만 보입니다. 회피는 직접 맞는 근접 공격에만 적용됩니다(화살·폭발 제외).
+- 수치는 모두 `enchant.json` 의 `armor` 에 있습니다. 특수 능력 책은 없습니다(크리에이티브 탭에서도 뺌).
 
 아이템을 바로 주려면 `/give @s gettcore:enchant_stone 16` (마법부여석), `/give @s gettcore:reinforce_stone 64` (강화석), `/give @s gettcore:capture_ball_gold` (금 포획틀) 처럼 씁니다.
 

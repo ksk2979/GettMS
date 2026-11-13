@@ -18,7 +18,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                             double executeHealthPercent, Tiered executeBonus, Tiered plunder, double volleyAngle,
                             Tiered quickdraw, double homingRange, double homingCone, double homingSteer,
                             boolean homingTargetPlayers, Tiered lure, Tiered bigcatch, Tiered treasure,
-                            Tiered prospectRange, Tiered prospectDurationSeconds, Tiered prospectCooldownSeconds) {
+                            Tiered prospectRange, Tiered prospectDurationSeconds, Tiered prospectCooldownSeconds,
+                            ArmorConfig armor) {
 
     /** 레벨 I/II/III 값. JSON은 길이 3 배열; 길이가 다르면 NaN으로 읽혀 {@link #sanitized}가 기본값으로 바꾼다. */
     public record Tiered(double one, double two, double three) {
@@ -54,7 +55,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
             new Tiered(10, 20, 35), new Tiered(1.5, 2.0, 2.5), 50, new Tiered(5, 10, 15), new Tiered(25, 50, 100),
             20, new Tiered(30, 60, 100), new Tiered(10, 20, 35), 10, new Tiered(15, 30, 45),
             8, 30, 0.1, false, new Tiered(15, 30, 45), new Tiered(10, 20, 35), new Tiered(15, 30, 45),
-            new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60));
+            new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60), ArmorConfig.DEFAULT);
 
     private static final Codec<LevelWeights> WEIGHTS_CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.optionalFieldOf("1", LevelWeights.DEFAULT.one()).forGetter(LevelWeights::one),
@@ -63,7 +64,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
     ).apply(i, LevelWeights::new));
 
     /** 값 하나짜리 섹션 {@code {"<key>": [a, b, c]}}을 {@code name} 필드로. */
-    private static MapCodec<Tiered> tieredSection(String name, String key, Tiered def) {
+    static MapCodec<Tiered> tieredSection(String name, String key, Tiered def) {
         return Tiered.CODEC.optionalFieldOf(key, def).codec().optionalFieldOf(name, def);
     }
 
@@ -108,7 +109,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
 
     /** levelWeights + 괭이·곡괭이·도끼. RecordCodecBuilder 필드 수 제한(16) 때문에 둘로 나눈다. */
     private record Tools(LevelWeights levelWeights, Tiered harvest, Tiered bounty, Tiered vein, Tiered timber,
-                         Tiered lumber, Prospect prospect) {
+                         Tiered lumber, Prospect prospect, ArmorConfig armor) {
         static final MapCodec<Tools> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                 WEIGHTS_CODEC.optionalFieldOf("levelWeights", DEFAULT.levelWeights()).forGetter(Tools::levelWeights),
                 tieredSection("harvest", "radius", DEFAULT.harvest()).forGetter(Tools::harvest),
@@ -116,7 +117,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tieredSection("vein", "maxBlocks", DEFAULT.vein()).forGetter(Tools::vein),
                 tieredSection("timber", "maxBlocks", DEFAULT.timber()).forGetter(Tools::timber),
                 tieredSection("lumber", "chance", DEFAULT.lumber()).forGetter(Tools::lumber),
-                Prospect.CODEC.optionalFieldOf("prospect", Prospect.DEFAULT_PROSPECT).forGetter(Tools::prospect)
+                Prospect.CODEC.optionalFieldOf("prospect", Prospect.DEFAULT_PROSPECT).forGetter(Tools::prospect),
+                ArmorConfig.CODEC.optionalFieldOf("armor", ArmorConfig.DEFAULT).forGetter(Tools::armor)
         ).apply(i, Tools::new));
     }
 
@@ -153,12 +155,12 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 c.execute().healthPercent(), c.execute().bonusPercent(), c.plunder(), c.volleyAngle(), c.quickdraw(),
                 c.homing().range(), c.homing().coneDegrees(), c.homing().steer(), c.homing().targetPlayers(),
                 c.lure(), c.bigcatch(), c.treasure(),
-                t.prospect().range(), t.prospect().durationSeconds(), t.prospect().cooldownSeconds());
+                t.prospect().range(), t.prospect().durationSeconds(), t.prospect().cooldownSeconds(), t.armor());
     }
 
     private Pair<Tools, Combat> toParts() {
         return Pair.of(new Tools(levelWeights, harvest, bounty, vein, timber, lumber,
-                        new Prospect(prospectRange, prospectDurationSeconds, prospectCooldownSeconds)),
+                        new Prospect(prospectRange, prospectDurationSeconds, prospectCooldownSeconds), armor),
                 new Combat(new Sweep(sweepRadius, sweepDamagePercent), leech, wisdom,
                         new Execute(executeHealthPercent, executeBonus), plunder, volleyAngle, quickdraw,
                         new Homing(homingRange, homingCone, homingSteer, homingTargetPlayers),
@@ -198,17 +200,18 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tiered("treasure.chance", treasure, d.treasure, errors),
                 tiered("prospect.range", prospectRange, d.prospectRange, errors),
                 tiered("prospect.durationSeconds", prospectDurationSeconds, d.prospectDurationSeconds, errors),
-                tiered("prospect.cooldownSeconds", prospectCooldownSeconds, d.prospectCooldownSeconds, errors));
+                tiered("prospect.cooldownSeconds", prospectCooldownSeconds, d.prospectCooldownSeconds, errors),
+                armor.sanitized(errors));
     }
 
-    private static Tiered tiered(String name, Tiered v, Tiered def, List<String> errors) {
+    static Tiered tiered(String name, Tiered v, Tiered def, List<String> errors) {
         if (v.valid()) return v;
         errors.add("enchant.json: " + name + " must be 3 non-negative numbers, using default ["
                 + def.one + ", " + def.two + ", " + def.three + "]");
         return def;
     }
 
-    private static double scalar(String name, double v, double def, List<String> errors) {
+    static double scalar(String name, double v, double def, List<String> errors) {
         if (Tiered.valid(v)) return v;
         errors.add("enchant.json: " + name + " " + v + " invalid, using default " + def);
         return def;
@@ -234,7 +237,30 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
             case PROSPECT -> prospectRange.get(level);
             case VOLLEY -> volleyAngle;
             case HOMING -> homingRange;
-            case REPLANT, AREA, SMELT, RESAPLING -> 0;
+            case SWIFT -> armor.swift().get(level);
+            case GOGGLES -> armor.gogglesSeconds();
+            case SENSE -> armor.sense().get(level);
+            case VITALITY -> armor.vitality().get(level);
+            case REGEN -> armor.regen().intervalSeconds().get(level);
+            case UNDYING -> armor.undying().invulnerableSeconds().get(level);
+            case DODGE -> armor.dodge().get(level);
+            case LEAP -> armor.leap().get(level);
+            case STEADFAST -> armor.steadfast().get(level);
+            case LANDING -> armor.landing().percent().get(level);
+            case REPLANT, AREA, SMELT, RESAPLING, NIGHTVISION, FARMSTEP, CLIMB -> 0;
+        };
+    }
+
+    /** 설명 줄의 %1$s, %2$s… 에 들어갈 수치. 대부분은 {@link #value} 하나. */
+    public double[] descArgs(Ability a, int level) {
+        return switch (a) {
+            case PROSPECT -> new double[] {prospectRange.get(level), prospectDurationSeconds.get(level),
+                    prospectCooldownSeconds.get(level)};
+            case VITALITY -> new double[] {armor.vitality().get(level) / 2.0};
+            case REGEN -> new double[] {armor.regen().idleSeconds(), armor.regen().intervalSeconds().get(level)};
+            case UNDYING -> new double[] {armor.undying().invulnerableSeconds().get(level),
+                    armor.undying().cooldownSeconds().get(level) / 60.0};
+            default -> new double[] {value(a, level)};
         };
     }
 }

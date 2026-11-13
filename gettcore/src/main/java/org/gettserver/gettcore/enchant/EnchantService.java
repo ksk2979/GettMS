@@ -61,8 +61,12 @@ public final class EnchantService {
         if (gold > 0) eco.changed(id);
         player.getInventory().setChanged();
         // (4) roll
-        SpecialEnchants.Rolled rolled = SpecialEnchants.roll(kind.get(),
-                GettData.get().enchant().levelWeights(), player.getRandom());
+        EnchantConfig config = GettData.get().enchant();
+        SpecialEnchants.Tool target = kind.get();
+        SpecialEnchants.Rolled rolled = target.isArmor()
+                ? SpecialEnchants.roll(target, config.armor().levelWeights(),
+                        a -> config.armor().weight(target, a), player.getRandom())
+                : SpecialEnchants.roll(target, config.levelWeights(), player.getRandom());
         // (5) drop every special enchant, then add the rolled one (vanilla enchants stay)
         SpecialEnchants.set(tool, rolled, player.registryAccess());
         menu.broadcastChanges();

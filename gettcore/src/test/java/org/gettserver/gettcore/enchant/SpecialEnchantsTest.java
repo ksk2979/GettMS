@@ -22,6 +22,11 @@ class SpecialEnchantsTest {
         assertEquals(5, SpecialEnchants.pool(Tool.SWORD).size());
         assertEquals(3, SpecialEnchants.pool(Tool.BOW).size());
         assertEquals(3, SpecialEnchants.pool(Tool.FISHING_ROD).size());
+        // 방어구: 부위 전용 3개 + 공통(이속 증가)
+        for (Tool armor : new Tool[] {Tool.HELMET, Tool.CHESTPLATE, Tool.LEGGINGS, Tool.BOOTS}) {
+            assertEquals(4, SpecialEnchants.pool(armor).size(), armor.toString());
+            assertTrue(SpecialEnchants.pool(armor).contains(Ability.SWIFT), armor.toString());
+        }
 
         Map<Ability, Integer> memberships = new EnumMap<>(Ability.class);
         for (Tool tool : Tool.values()) {
@@ -29,9 +34,10 @@ class SpecialEnchantsTest {
                 memberships.merge(a, 1, Integer::sum);
             }
         }
-        assertEquals(21, Ability.values().length);
+        assertEquals(34, Ability.values().length);
         for (Ability a : Ability.values()) {
-            assertEquals(1, memberships.getOrDefault(a, 0), a + " must be in exactly one pool");
+            assertEquals(a == Ability.SWIFT ? 4 : 1, memberships.getOrDefault(a, 0), a + " pool count");
+            assertEquals(a.tools().size(), memberships.getOrDefault(a, 0), a + " tools()");
         }
     }
 
@@ -64,6 +70,36 @@ class SpecialEnchantsTest {
         }
         double ratio = (double) levelThree / threeLevel;
         assertTrue(ratio >= 0.03 && ratio <= 0.07, "level III ratio " + ratio);
+    }
+
+    @Test
+    void armorRollFollowsAbilityWeights() {
+        RandomSource r = RandomSource.create(11);
+        ArmorConfig cfg = ArmorConfig.DEFAULT;
+        Map<Ability, Integer> counts = new EnumMap<>(Ability.class);
+        int n = 20000;
+        for (int i = 0; i < n; i++) {
+            Rolled rolled = SpecialEnchants.roll(Tool.CHESTPLATE, cfg.levelWeights(),
+                    a -> cfg.weight(Tool.CHESTPLATE, a), r);
+            assertTrue(rolled.ability().fits(Tool.CHESTPLATE), rolled.toString());
+            counts.merge(rolled.ability(), 1, Integer::sum);
+        }
+        // 기본 가중치 40 / 30 / 20 / 10
+        assertEquals(0.40, counts.get(Ability.SWIFT) / (double) n, 0.02);
+        assertEquals(0.30, counts.get(Ability.VITALITY) / (double) n, 0.02);
+        assertEquals(0.20, counts.get(Ability.REGEN) / (double) n, 0.02);
+        assertEquals(0.10, counts.get(Ability.UNDYING) / (double) n, 0.02);
+    }
+
+    @Test
+    void pickIndexIgnoresNegativesAndFallsBackToUniform() {
+        RandomSource r = RandomSource.create(3);
+        for (int i = 0; i < 200; i++) {
+            assertEquals(1, SpecialEnchants.pickIndex(new int[] {0, 5, -3}, r));
+        }
+        boolean[] seen = new boolean[3];
+        for (int i = 0; i < 200; i++) seen[SpecialEnchants.pickIndex(new int[] {0, 0, -1}, r)] = true;
+        assertTrue(seen[0] && seen[1] && seen[2]);
     }
 
     @Test

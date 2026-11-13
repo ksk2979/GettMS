@@ -135,6 +135,9 @@ public class GettCore {
         org.gettserver.gettcore.pet.command.CommandArgumentTypes.register(modBus);
         org.gettserver.gettcore.balance.ScaleSpawnsModifier.register(modBus);
         modBus.addListener(GettNetwork::register);
+        // 특수 능력 책은 크리에이티브 탭에서 뺀다(바닐라 책 생성 뒤에 돌도록 LOWEST).
+        modBus.addListener(net.neoforged.bus.api.EventPriority.LOWEST,
+                org.gettserver.gettcore.enchant.SpecialBookFilter::onBuildTabs);
         ShopService.registerReloadHook();
         EnchantService.registerReloadHook();
         ReinforceService.registerReloadHook();

@@ -16,5 +16,24 @@
   "homing":    { "range": 8, "coneDegrees": 30, "steer": 0.1, "targetPlayers": false },
   "lure":      { "percent": [15, 30, 45] },
   "bigcatch":  { "chance": [10, 20, 35] },
-  "treasure":  { "chance": [15, 30, 45] }
+  "treasure":  { "chance": [15, 30, 45] },
+  "armor": {
+    "levelWeights": { "1": 75, "2": 20, "3": 5 },
+    "abilityWeights": {
+      "helmet":     { "swift": 40, "goggles": 30, "sense": 20, "nightvision": 10 },
+      "chestplate": { "swift": 40, "vitality": 30, "regen": 20, "undying": 10 },
+      "leggings":   { "swift": 40, "leap": 30, "steadfast": 20, "dodge": 10 },
+      "boots":      { "swift": 40, "farmstep": 30, "climb": 20, "landing": 10 }
+    },
+    "swift":     { "percent": [5, 10, 20] },
+    "goggles":   { "seconds": 10 },
+    "sense":     { "range": [8, 12, 16] },
+    "vitality":  { "health": [2, 4, 6] },
+    "regen":     { "idleSeconds": 5, "intervalSeconds": [3, 2, 1] },
+    "undying":   { "invulnerableSeconds": [2, 3, 5], "cooldownSeconds": [300, 300, 300] },
+    "leap":      { "level": [1, 2, 3] },
+    "steadfast": { "percent": [20, 40, 60] },
+    "dodge":     { "chance": [5, 10, 15] },
+    "landing":   { "percent": [30, 60, 100], "radius": 3 }
+  }
 }

@@ -82,6 +82,40 @@ class EnchantConfigTest {
     }
 
     @Test
+    void armorDefaultsWeightsAndSanitize() {
+        ArmorConfig d = EnchantConfig.DEFAULT.armor();
+        assertEquals(new LevelWeights(75, 20, 5), d.levelWeights());
+        assertEquals(new EnchantConfig.Tiered(5, 10, 20), d.swift());
+        assertEquals(new EnchantConfig.Tiered(2, 3, 5), d.undying().invulnerableSeconds());
+        assertEquals(new EnchantConfig.Tiered(300, 300, 300), d.undying().cooldownSeconds());
+        assertEquals(d, parse("{\"armor\":{}}").armor());
+        assertEquals(40, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.SWIFT));
+        assertEquals(10, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.LANDING));
+        assertEquals(0, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.UNDYING));
+
+        // 일부만 적으면 나머지는 기본 가중치, 음수는 기본값 + 오류 한 줄
+        ArmorConfig c = parse("{\"armor\":{\"abilityWeights\":{\"helmet\":{\"nightvision\":0,\"sense\":-4}},"
+                + "\"undying\":{\"cooldownSeconds\":120},\"swift\":{\"percent\":[1,2]},"
+                + "\"levelWeights\":{\"1\":0,\"2\":0,\"3\":0}}}").armor();
+        List<String> errors = new ArrayList<>();
+        ArmorConfig s = c.sanitized(errors);
+        assertEquals(0, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.NIGHTVISION));
+        assertEquals(20, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.SENSE));
+        assertEquals(30, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.GOGGLES));
+        assertEquals(new EnchantConfig.Tiered(120, 120, 120), s.undying().cooldownSeconds());
+        assertEquals(d.swift(), s.swift());
+        assertEquals(d.levelWeights(), s.levelWeights());
+        assertEquals(3, errors.size(), errors.toString());
+
+        // 설명 줄 수치: 활력은 하트 칸, 불굴 쿨타임은 분
+        EnchantConfig all = EnchantConfig.DEFAULT;
+        assertEquals(2.0, all.descArgs(SpecialEnchants.Ability.VITALITY, 2)[0]);
+        assertEquals(5.0, all.descArgs(SpecialEnchants.Ability.UNDYING, 3)[0]);
+        assertEquals(5.0, all.descArgs(SpecialEnchants.Ability.UNDYING, 3)[1]);
+        assertEquals(3, all.descArgs(SpecialEnchants.Ability.PROSPECT, 1).length);
+    }
+
+    @Test
     void prospectDefaultsAndSanitize() {
         EnchantConfig d = EnchantConfig.DEFAULT;
         assertEquals(new EnchantConfig.Tiered(8, 12, 16), d.prospectRange());

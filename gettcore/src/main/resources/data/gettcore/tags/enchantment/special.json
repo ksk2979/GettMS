@@ -20,6 +20,19 @@
     "gettcore:homing",
     "gettcore:lure",
     "gettcore:bigcatch",
-    "gettcore:treasure"
+    "gettcore:treasure",
+    "gettcore:swift",
+    "gettcore:goggles",
+    "gettcore:sense",
+    "gettcore:nightvision",
+    "gettcore:vitality",
+    "gettcore:regen",
+    "gettcore:undying",
+    "gettcore:leap",
+    "gettcore:steadfast",
+    "gettcore:dodge",
+    "gettcore:farmstep",
+    "gettcore:climb",
+    "gettcore:landing"
   ]
 }
