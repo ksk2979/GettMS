@@ -45,14 +45,15 @@
     "epic-knights-shields-armor-and-weapons",
     "epic-fight",
     "weapons-of-miracles",
-    "tide"
+    "tide",
+    "dreamdisplays"
   ],
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.9.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.9.0/gettcore-1.9.0.jar",
-      "sha512": "60a82fc3dd8b1b1e4ca400150054e0af87a35cdb3dfc9776340a639b8f783f8f1b0187a9c944baea8fbfafcc552ca6146fa433681192021a1bd0fd1feb3aa9d0",
+      "file": "gettcore-1.10.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.10.0/gettcore-1.10.0.jar",
+      "sha512": "fb4b5092ca7a48a06d6324128f54eae3f6ee32d07c2469e4c7b8398599a538ead9759677fbe4b4ae1d8dcc6a9d9b66922151e454429c9298e5410388d2593672",
       "side": "both"
     },
     {
@@ -218,6 +219,14 @@
       "side": "both"
     },
     {
+      "slug": "dreamdisplays",
+      "file": "dreamdisplays-neoforge-1.21.1-1.10.9.jar",
+      "url": "https://cdn.modrinth.com/data/4IIKQyBu/versions/yKZXGbDX/dreamdisplays-neoforge-1.21.1-1.10.9.jar",
+      "sha512": "762eb52878ff665448521b541267608a275308cd3a2fffd50b137b2aa6ce6185eeddbf6bfdd6051f798bc1e81ec021deacaefa62573c5470d1818a0dfc583196",
+      "size": 26553600,
+      "side": "both"
+    },
+    {
       "slug": "easy-npc",
       "file": "easy_npc_bundle-neoforge-1.21.1-7.18.0.jar",
       "url": "https://cdn.modrinth.com/data/CgGEe1h3/versions/bVaYwkNt/easy_npc_bundle-neoforge-1.21.1-7.18.0.jar",
@@ -315,10 +324,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.9.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.9.0/gettcore-1.9.0.jar",
-      "sha512": "60a82fc3dd8b1b1e4ca400150054e0af87a35cdb3dfc9776340a639b8f783f8f1b0187a9c944baea8fbfafcc552ca6146fa433681192021a1bd0fd1feb3aa9d0",
-      "size": 1681427,
+      "file": "gettcore-1.10.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.10.0/gettcore-1.10.0.jar",
+      "sha512": "fb4b5092ca7a48a06d6324128f54eae3f6ee32d07c2469e4c7b8398599a538ead9759677fbe4b4ae1d8dcc6a9d9b66922151e454429c9298e5410388d2593672",
+      "size": 1753691,
       "side": "both"
     },
     {
@@ -562,5 +571,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "f166a91c53df1de4fc51edd0625db2e9ae4650fb7b994e336bc3242a941f407e"
+  "lockSource": "b0c1ce6d6a351db806a896a930360788a2a255394663b6ca4b60351a3db4db05"
 }
