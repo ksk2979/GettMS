@@ -106,8 +106,8 @@ public final class BossState {
         return skills;
     }
 
+    /** The bar is added by distance in {@link BossBehavior#serverTick}, not by entity tracking (160 blocks). */
     public void startSeenBy(ServerPlayer player) {
-        bossEvent().addPlayer(player);
     }
 
     public void stopSeenBy(ServerPlayer player) {

@@ -48,7 +48,36 @@ public final class BossBehavior {
     static final double FALLBACK_FLYING_SIZE_SCALE = 2.5;
     static final double ATTACK_SPEED_MODIFIER = 1.2;
 
+    static final int BAR_SYNC_TICKS = 10;
+
     private BossBehavior() {}
+
+    /** Boss bar distance: a little past the range at which the boss gives up its target, at least 32 blocks. */
+    static double barRange(double releaseRange) {
+        return Math.max(32.0, releaseRange + 8.0);
+    }
+
+    /** A player sees the bar while alive, in the boss's level and within {@code range} blocks. */
+    static boolean showsBar(boolean alive, boolean sameLevel, double distance, double range) {
+        return alive && sameLevel && distance <= range;
+    }
+
+    /**
+     * The bar follows distance, not entity tracking: tracking reaches 160 blocks and a player who died near the
+     * boss kept the bar after respawning far away.
+     */
+    private static void syncBossBar(Mob boss, BossState state, double range) {
+        if (!(boss.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+        var bar = state.bossEvent();
+        for (ServerPlayer p : List.copyOf(bar.getPlayers())) {
+            if (!showsBar(p.isAlive() && !p.hasDisconnected(), p.level() == level, p.distanceTo(boss), range)) {
+                bar.removePlayer(p);
+            }
+        }
+        for (ServerPlayer p : level.players()) {
+            if (showsBar(p.isAlive(), true, p.distanceTo(boss), range)) bar.addPlayer(p);
+        }
+    }
 
     /** The boss's species from pets.json (keyed by its own entity id, e.g. gettcore:boss_lion), or the fallback. */
     public static PetSpecies species(Mob boss) {
@@ -95,6 +124,7 @@ public final class BossBehavior {
         float max = boss.getMaxHealth();
         state.bossEvent().setProgress(max > 0 ? Mth.clamp(boss.getHealth() / max, 0.0F, 1.0F) : 0.0F);
         BossConfig.Boss cfg = GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType()));
+        if (boss.tickCount % BAR_SYNC_TICKS == 0) syncBossBar(boss, state, barRange(cfg.releaseRange()));
         BossAggro.serverTick(boss, state, cfg);
         state.skills().tick(cfg.skills(), boss.getTarget(), cfg.enrageBelow(), cfg.enrageCooldownMult(), cfg.shoutRange());
         if (state.skills().casting()) return; // a dash is not pulled home mid-way

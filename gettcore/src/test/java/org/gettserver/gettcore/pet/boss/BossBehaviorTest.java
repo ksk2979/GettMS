@@ -10,6 +10,16 @@ import org.junit.jupiter.api.Test;
 
 class BossBehaviorTest {
     @Test
+    void bossBarFollowsDistanceAndLife() {
+        assertEquals(48.0, BossBehavior.barRange(40));
+        assertEquals(32.0, BossBehavior.barRange(0));
+        assertTrue(BossBehavior.showsBar(true, true, 48, 48));
+        assertFalse(BossBehavior.showsBar(true, true, 48.1, 48));
+        assertFalse(BossBehavior.showsBar(false, true, 5, 48), "a dead player loses the bar at once");
+        assertFalse(BossBehavior.showsBar(true, false, 5, 48));
+    }
+
+    @Test
     void leashAllowsTwiceTheRadius() {
         assertFalse(BossBehavior.outsideLeash(32, 0, 16));
         assertFalse(BossBehavior.outsideLeash(20, 20, 16));
