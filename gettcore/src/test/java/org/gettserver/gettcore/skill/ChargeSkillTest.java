@@ -134,7 +134,7 @@ class ChargeSkillTest {
         Dash d = new Dash(w);
         d.carveHeight = 5;
         assertEquals(8, d.run(1, 8, true));
-        for (int y = 64; y <= 67; y++) assertFalse(w.solid(4, y, 1), "log at y=" + y + " removed");
+        for (int y = 64; y <= 66; y++) assertFalse(w.solid(4, y, 1), "log at y=" + y + " removed");
         assertTrue(w.solid(4, 63, 1), "floor intact");
         assertEquals(64, d.feet);
     }
@@ -157,13 +157,23 @@ class ChargeSkillTest {
         assertTrue(w.solid(5, 64, 1));
     }
 
-    @Test void carveHeightAboveTheBodyIsClearedForTallObstaclesOnly() {
-        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12).column(3, 0, 64, 69);
+    @Test void sideMassIsCarvedOnlyToBodyHeight() {
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12).column(3, 1, 64, 71); // 8 high
         Dash d = new Dash(w);
         d.carveHeight = 5;
         d.run(1, 4, true);
-        for (int y = 64; y <= 68; y++) assertFalse(w.solid(3, y, 0), "y=" + y);
-        assertTrue(w.solid(3, 69, 0), "above carve height stays");
+        for (int y = 64; y <= 66; y++) assertFalse(w.solid(3, y, 1), "y=" + y);
+        for (int y = 67; y <= 71; y++) assertTrue(w.solid(3, y, 1), "stays y=" + y);
+        assertEquals(64, d.feet);
+    }
+
+    @Test void wallAcrossThePathIsStillCleared() {
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12);
+        for (int z = -12; z <= 12; z++) w.column(3, z, 64, 69);
+        Dash d = new Dash(w);
+        d.carveHeight = 5;
+        d.run(1, 4, true);
+        for (int y = 64; y <= 66; y++) assertFalse(w.solid(3, y, 0));
     }
 
     @Test void unbreakableWallEndsTheDashAtThePreviousColumn() {

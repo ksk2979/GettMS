@@ -144,7 +144,7 @@ public final class ChargeSkill implements SkillType {
             for (int[] col : footprint) {
                 if (col[0] == cx && col[1] == cz) continue;
                 if (tallObstacle(col[0], col[1], base, bodyHeight, blocks)) {
-                    addColumn(tall, col[0], col[1], base, carveHeight, blocks);
+                    addColumn(tall, col[0], col[1], base, bodyHeight, blocks);
                 }
             }
             if (!tall.isEmpty()) breaker.accept(tall);
