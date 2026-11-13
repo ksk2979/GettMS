@@ -84,15 +84,25 @@ public final class DetectorService {
         if (COOLDOWNS.remainingTicks(player.getUUID(), key, now) > 0) return;
 
         EnchantConfig enchant = GettData.get().enchant();
-        int range = (int) enchant.prospectRange().get(lvl);
+        int range = prospectRange(enchant.prospectRange().get(lvl));
         long[] found = DetectorScan.find(level, broken, range, DetectorTargets.blocks(resolved.get()),
                 config.maxBlocks(), broken);
         // 주변에 없어도 쿨타임은 돈다.
         COOLDOWNS.start(player.getUUID(), key, now, Math.round(enchant.prospectCooldownSeconds() * 20));
         if (found.length == 0) return;
         PacketDistributor.sendToPlayer(player, new DetectorHighlightPayload(key, found,
-                (int) Math.round(enchant.prospectDurationSeconds() * 20)));
+                prospectTicks(enchant.prospectDurationSeconds())));
         chime(player);
+    }
+
+    /** 설정값이 무엇이든 탐지기 자체 범위와 같은 1..64 로 제한한다. */
+    static int prospectRange(double configured) {
+        return (int) Math.max(1, Math.min(64, configured));
+    }
+
+    /** 0 이하면 클라이언트가 표시를 지우므로 최소 1틱, 최대 1시간. */
+    static int prospectTicks(double seconds) {
+        return (int) Math.max(1, Math.min(72000, Math.round(seconds * 20)));
     }
 
     @SubscribeEvent
@@ -121,7 +131,9 @@ public final class DetectorService {
 
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) endSession(player);
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        endSession(player);
+        reapplyDetectorCooldown(player);
     }
 
     @SubscribeEvent
@@ -132,6 +144,10 @@ public final class DetectorService {
     @SubscribeEvent
     public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        reapplyDetectorCooldown(player);
+    }
+
+    private static void reapplyDetectorCooldown(ServerPlayer player) {
         long remaining = COOLDOWNS.remainingTicks(player.getUUID(), DetectorHighlightPayload.DETECTOR_KEY, now(player));
         if (remaining > 0) player.getCooldowns().addCooldown(GettCore.DETECTOR.get(), (int) remaining);
     }

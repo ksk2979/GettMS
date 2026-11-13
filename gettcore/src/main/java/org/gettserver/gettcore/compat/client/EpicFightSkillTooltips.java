@@ -25,6 +25,7 @@ public final class EpicFightSkillTooltips {
     private static final String ROW_CLASS = "yesman.epicfight.client.gui.screen.SkillEditScreen$EquipSkillButton";
 
     private static boolean disabled;
+    private static boolean rowFailureLogged;
     private static Field skillField;
     private static Method translationKey;
     private static Method tooltipArgs;
@@ -59,8 +60,17 @@ public final class EpicFightSkillTooltips {
                 if (!(child instanceof AbstractWidget widget)) continue;
                 if (!widget.getClass().getName().equals(ROW_CLASS)) continue;
                 if (widget.getTooltip() != null || !judged.add(widget)) continue;
-                Component text = describe(widget);
-                if (text != null) widget.setTooltip(Tooltip.create(text));
+                resolveReflection(widget);
+                try {
+                    Component text = describe(widget);
+                    if (text != null) widget.setTooltip(Tooltip.create(text));
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+                    // 이 줄만 설명 없음으로 판정(이미 judged). 세션당 한 번만 기록.
+                    if (!rowFailureLogged) {
+                        rowFailureLogged = true;
+                        GettCore.LOGGER.warn("gettcore: Epic Fight 스킬 설명 툴팁 한 줄 생성 실패(이후 같은 오류는 생략): {}", e.toString());
+                    }
+                }
             }
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             disabled = true;
@@ -69,7 +79,8 @@ public final class EpicFightSkillTooltips {
         }
     }
 
-    private static Component describe(AbstractWidget row) throws ReflectiveOperationException {
+    /** 리플렉션 대상(Field/Method) 해석. 실패하면 호출한 쪽에서 기능 전체를 끈다. */
+    private static void resolveReflection(AbstractWidget row) throws ReflectiveOperationException {
         if (skillField == null) {
             Field f = row.getClass().getDeclaredField("skill");
             f.setAccessible(true);
@@ -78,6 +89,9 @@ public final class EpicFightSkillTooltips {
             tooltipArgs = skillClass.getMethod("getTooltipArgsOfScreen", List.class);
             skillField = f;
         }
+    }
+
+    private static Component describe(AbstractWidget row) throws ReflectiveOperationException {
         Object skill = skillField.get(row);
         if (skill == null) return null;
         String key = tooltipKey((String) translationKey.invoke(skill));

@@ -86,6 +86,8 @@ public final class DetectorItem extends Item {
     }
 
     private static void playSound(Player player, boolean insert) {
+        // 서버의 player.playSound 는 주변 모두에게 들리므로 본인 클라이언트에서만 재생한다.
+        if (!player.level().isClientSide) return;
         player.playSound(insert ? SoundEvents.BUNDLE_INSERT : SoundEvents.BUNDLE_REMOVE_ONE, 0.8F,
                 0.8F + player.level().getRandom().nextFloat() * 0.4F);
     }
