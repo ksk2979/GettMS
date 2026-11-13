@@ -6,11 +6,71 @@
       "releaseRange": 40.0,
       "reaggroRange": 16.0,
       "calmSeconds": 300,
+      "speed": 0.14,
       "preferredDistance": 0.0,
       "shoutRange": 24.0,
       "enrageBelow": 0.3,
       "enrageCooldownMult": 0.6,
-      "skills": []
+      "skills": [
+        {
+          "id": "gomlatense",
+          "type": "shockwave",
+          "enabled": true,
+          "shout": true,
+          "shoutText": "곰라텐세",
+          "damage": 16.0,
+          "knockback": 3.0,
+          "minRange": 0.0,
+          "maxRange": 8.0,
+          "chargeSeconds": 1.0,
+          "cooldownSeconds": 12.0,
+          "shape": {
+            "length": 0.0,
+            "width": 0.0,
+            "radius": 12.0,
+            "speed": 24.0
+          },
+          "aftershock": {
+            "damage": 0.0,
+            "delaySeconds": 0.0,
+            "width": 0.0
+          },
+          "terrain": {
+            "enabled": true,
+            "depth": 0,
+            "width": 0
+          }
+        },
+        {
+          "id": "dolgyeok",
+          "type": "charge",
+          "enabled": true,
+          "shout": false,
+          "shoutText": "돌격",
+          "damage": 14.0,
+          "knockback": 1.5,
+          "minRange": 0.0,
+          "maxRange": 32.0,
+          "chargeSeconds": 0.7,
+          "cooldownSeconds": 8.0,
+          "shape": {
+            "length": 24.0,
+            "width": 3.0,
+            "radius": 0.0,
+            "speed": 30.0
+          },
+          "aftershock": {
+            "damage": 0.0,
+            "delaySeconds": 0.0,
+            "width": 0.0
+          },
+          "terrain": {
+            "enabled": true,
+            "depth": 0,
+            "width": 0
+          }
+        }
+      ]
     },
     "gettcore:boss_elephant": {
       "aggro": "first",
@@ -50,7 +110,8 @@
           "shape": {
             "length": 30.0,
             "width": 3.0,
-            "radius": 0.0
+            "radius": 0.0,
+            "speed": 0.0
           },
           "aftershock": {
             "damage": 8.0,
@@ -78,7 +139,8 @@
           "shape": {
             "length": 0.0,
             "width": 0.0,
-            "radius": 6.0
+            "radius": 6.0,
+            "speed": 0.0
           },
           "aftershock": {
             "damage": 0.0,

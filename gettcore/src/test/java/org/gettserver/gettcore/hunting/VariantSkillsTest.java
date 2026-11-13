@@ -22,7 +22,7 @@ class VariantSkillsTest {
     @Test
     void runnerForVariantWithSkills() {
         SkillSpec s = new SkillSpec("s", SkillSpec.STOMP, true, false, "", 10, 1, 0, 20, 1, 10,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(0, 0, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
         assertTrue(VariantSkills.wantsRunner(entry(List.of(s))));
     }
 

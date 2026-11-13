@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class SkillRunnerTest {
     private static SkillSpec spec(String id, double chargeSeconds) {
         return new SkillSpec(id, SkillSpec.STOMP, true, false, "", 10, 1, 0, 6, chargeSeconds, 12,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(0, 0, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
     }
 
     /** Records every call; active() keeps going for {@code activeTicks} ticks. */

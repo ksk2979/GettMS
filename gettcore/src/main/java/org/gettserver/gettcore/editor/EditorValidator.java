@@ -219,11 +219,14 @@ public final class EditorValidator {
             within(sp, "chargeSeconds", s.chargeSeconds(), 0.2, 10, errors);
             within(sp, "cooldownSeconds", s.cooldownSeconds(), 0.5, 600, errors);
             // Only the shape fields the type uses (a stomp has no length, a line no radius).
-            if (SkillSpec.WIND_LINE.equals(s.type())) {
+            if (SkillSpec.WIND_LINE.equals(s.type()) || SkillSpec.CHARGE.equals(s.type())) {
                 within(sp, "shape.length", s.shape().length(), 1, 64, errors);
                 within(sp, "shape.width", s.shape().width(), 0.5, 32, errors);
             } else {
                 within(sp, "shape.radius", s.shape().radius(), 0.5, 32, errors);
+            }
+            if (SkillSpec.SHOCKWAVE.equals(s.type()) || SkillSpec.CHARGE.equals(s.type())) {
+                within(sp, "shape.speed", s.shape().speed(), 1, 100, errors);
             }
             within(sp, "aftershock.damage", s.aftershock().damage(), 0, 2048, errors);
             within(sp, "aftershock.delaySeconds", s.aftershock().delaySeconds(), 0, 10, errors);

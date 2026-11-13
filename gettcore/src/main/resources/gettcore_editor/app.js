@@ -384,11 +384,17 @@
   /** 종류별 기본 스킬 (BossConfig.DEFAULT 기린의 람각·내려찍기와 같아야 한다). "스킬 추가"는 이것의 복사본. */
   const SKILL_TEMPLATES = {
     wind_line: { id: 'ramgak', type: 'wind_line', enabled: true, shout: true, shoutText: '람각', damage: 14, knockback: 2.5,
-      minRange: 0, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 10, shape: { length: 30, width: 3, radius: 0 },
+      minRange: 0, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 10, shape: { length: 30, width: 3, radius: 0, speed: 0 },
       aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 0, width: 2 } },
     stomp: { id: 'stomp', type: 'stomp', enabled: true, shout: false, shoutText: '쿠웅', damage: 18, knockback: 1.6,
-      minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 6, shape: { length: 0, width: 0, radius: 6 },
+      minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 6, shape: { length: 0, width: 0, radius: 6, speed: 0 },
       aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 1, width: 6 } },
+    shockwave: { id: 'gomlatense', type: 'shockwave', enabled: true, shout: true, shoutText: '곰라텐세', damage: 16, knockback: 3,
+      minRange: 0, maxRange: 8, chargeSeconds: 1, cooldownSeconds: 12, shape: { length: 0, width: 0, radius: 12, speed: 24 },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 0, width: 0 } },
+    charge: { id: 'dolgyeok', type: 'charge', enabled: true, shout: false, shoutText: '돌격', damage: 14, knockback: 1.5,
+      minRange: 0, maxRange: 32, chargeSeconds: 0.7, cooldownSeconds: 8, shape: { length: 24, width: 3, radius: 0, speed: 30 },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 0, width: 0 } },
   };
   const BOSS_IDS = ['lion', 'tiger', 'bear', 'elephant', 'mammoth', 'vulture', 'giraffe'].map((n) => 'gettcore:boss_' + n);
   const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -399,12 +405,15 @@
     if (id === 'gettcore:boss_giraffe') {
       Object.assign(b, { aggro: 'after', preferredDistance: 0, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
     }
+    if (id === 'gettcore:boss_bear') {   // BossConfig.DEFAULT 곰: 선공, 이동속도 BEAR_SPEED, 곰라텐세·돌격
+      Object.assign(b, { speed: 0.14, skills: [clone(SKILL_TEMPLATES.shockwave), clone(SKILL_TEMPLATES.charge)] });
+    }
     return b;
   }
 
   function normalizeSkill(s) {
     return Object.assign({}, SKILL_CODEC_DEFAULTS, s, {
-      shape: Object.assign({ length: 0, width: 0, radius: 0 }, s.shape),
+      shape: Object.assign({ length: 0, width: 0, radius: 0, speed: 0 }, s.shape),
       aftershock: Object.assign({ damage: 0, delaySeconds: 0, width: 0 }, s.aftershock),
       terrain: Object.assign({ enabled: false, depth: 0, width: 0 }, s.terrain),
     });
@@ -2560,16 +2569,19 @@
   };
   const SKILL_LIMITS = {
     damage: [0, 2048], knockback: [0, 10], minRange: [0, 64], maxRange: [0, 64], chargeSeconds: [0.2, 10],
-    cooldownSeconds: [0.5, 600], 'shape.length': [1, 64], 'shape.width': [0.5, 32], 'shape.radius': [0.5, 32],
+    cooldownSeconds: [0.5, 600], 'shape.length': [1, 64], 'shape.width': [0.5, 32], 'shape.radius': [0.5, 32], 'shape.speed': [1, 100],
     'aftershock.damage': [0, 2048], 'aftershock.delaySeconds': [0, 10], 'aftershock.width': [0, 32],
     'terrain.depth': [0, 16, true], 'terrain.width': [0, 32, true],
   };
-  const SKILL_TYPE_LABEL = { wind_line: '람각', stomp: '내려찍기' };
+  const SKILL_TYPE_LABEL = { wind_line: '람각', stomp: '내려찍기', shockwave: '충격파 (원형으로 퍼짐)', charge: '돌격 (지점으로 돌진)' };
+  // 서버 SkillSpec.sanitized 와 같이: 어느 종류가 그 범위 칸을 쓰는가.
+  const SHAPE_FIELD_TYPES = { 'shape.length': ['wind_line', 'charge'], 'shape.width': ['wind_line', 'charge'],
+    'shape.radius': ['stomp', 'shockwave'], 'shape.speed': ['shockwave', 'charge'] };
   const SHOUT_TEXT_MAX = 24;   // SkillSpec.MAX_SHOUT_TEXT
   const BOSS_NUM_LABEL = { searchRange: '탐색 범위', releaseRange: '해제 거리', reaggroRange: '다시 잡히는 거리', calmSeconds: '진정 시간(초)',
     speed: '이동속도', armor: '방어', preferredDistance: '선호 거리', shoutRange: '외침 범위', enrageBelow: '광폭화 체력', enrageCooldownMult: '쿨타임 배율' };
   const SKILL_NUM_LABEL = { damage: '피해', knockback: '밀쳐내기', minRange: '최소 거리', maxRange: '최대 거리', chargeSeconds: '모으기(초)',
-    cooldownSeconds: '쿨타임(초)', 'shape.length': '길이', 'shape.width': '폭', 'shape.radius': '반경', 'aftershock.damage': '후폭풍 피해',
+    cooldownSeconds: '쿨타임(초)', 'shape.length': '길이', 'shape.width': '폭', 'shape.radius': '반경', 'shape.speed': '속도', 'aftershock.damage': '후폭풍 피해',
     'aftershock.delaySeconds': '후폭풍 지연', 'aftershock.width': '후폭풍 폭', 'terrain.depth': '파괴 깊이', 'terrain.width': '파괴 폭' };
 
   const fmtNum = (v) => String(Math.round(v * 1000) / 1000);
@@ -2604,9 +2616,10 @@
       return skills.some((x, j) => j < i && x.id === id) ? '같은 스킬 id가 있습니다' : '';
     },
     shoutText(s) { return s.shout && !String(s.shoutText || '').trim() ? '외침이 켜져 있으면 외칠 글자가 필요합니다' : ''; },
-    /** 그 종류가 쓰지 않는 범위 칸(람각의 반경, 내려찍기의 길이·폭)은 검사하지 않는다. */
+    /** 그 종류가 쓰지 않는 범위 칸(람각의 반경, 내려찍기의 길이·폭, 속도는 충격파·돌격만)은 검사하지 않는다. */
     skillNum(s, key) {
-      if (key === 'shape.radius' ? s.type !== 'stomp' : key.startsWith('shape.') && s.type !== 'wind_line') return '';
+      const used = SHAPE_FIELD_TYPES[key];
+      if (used && !used.includes(s.type)) return '';
       const [o, k] = fieldRef(s, key);
       return limitRule(SKILL_LIMITS, key, o ? o[k] : undefined);
     },
@@ -2701,6 +2714,8 @@
       typeSel.value = s.type;
       const line = s.type === 'wind_line';
       const stomp = s.type === 'stomp';
+      const wave = s.type === 'shockwave';
+      const dash = s.type === 'charge';
       return h('tr', null,
         h('td', null, chk(s, 'enabled', `${w} 켜기`)),
         h('td', null, typeSel),
@@ -2715,11 +2730,15 @@
         h('td', null, num(s, 'chargeSeconds')),
         h('td', null, num(s, 'cooldownSeconds')),
         h('td', nowrap, line ? [sep('길이 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width')]
-          : stomp ? [sep('반경 '), num(s, 'shape.radius')] : null),
+          : stomp ? [sep('반경 '), num(s, 'shape.radius')]
+          : wave ? [sep('반경 '), num(s, 'shape.radius'), sep(' 퍼지는 속도 '), num(s, 'shape.speed')]
+          : dash ? [sep('최대 거리 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width'), sep(' 돌진 속도 '), num(s, 'shape.speed')]
+          : null),
         h('td', nowrap, line ? [sep('피해 '), num(s, 'aftershock.damage'), sep(' 지연 '), num(s, 'aftershock.delaySeconds'),
           sep(' 폭 '), num(s, 'aftershock.width')] : sep('—')),
         h('td', nowrap, chk(s.terrain, 'enabled', `${w} 지형 파괴`),
-          line ? [h('span', { title: '막힌 곳을 뚫는 굵기' }, ' 굵기 '), num(s, 'terrain.width'),
+          wave || dash ? h('span', { title: '막혀서 못 지나가는 블록만 부순다 (바닥은 그대로)' }, ' 못 지나가는 것만')
+          : line ? [h('span', { title: '막힌 곳을 뚫는 굵기' }, ' 굵기 '), num(s, 'terrain.width'),
             h('span', { title: '후폭풍이 파는 구덩이 깊이. 0 = 바닥은 안 팜' }, ' 구덩이 깊이 '), num(s, 'terrain.depth')]
           : [sep(' 깊이 '), num(s, 'terrain.depth'), sep(' 폭 '), num(s, 'terrain.width')]),
         h('td', null, h('button', { class: 'danger small', 'aria-label': `${w} 삭제`, onclick: () => {

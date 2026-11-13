@@ -13,14 +13,20 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
                         Shape shape, Aftershock aftershock, Terrain terrain) {
     public static final String WIND_LINE = "wind_line";
     public static final String STOMP = "stomp";
+    public static final String SHOCKWAVE = "shockwave";
+    public static final String CHARGE = "charge";
     public static final int MAX_SHOUT_TEXT = 24;
 
-    /** {@code length}/{@code width} for a line, {@code radius} for a circle. */
-    public record Shape(double length, double width, double radius) {
+    /**
+     * {@code length}/{@code width} for a line, {@code radius} for a circle; {@code speed} (blocks per second) is the
+     * spread speed of a shockwave and the dash speed of a charge, 0 (unused) for the other types.
+     */
+    public record Shape(double length, double width, double radius, double speed) {
         public static final Codec<Shape> CODEC = RecordCodecBuilder.create(i -> i.group(
                 opt(Codec.DOUBLE, "length", 0.0).forGetter(Shape::length),
                 opt(Codec.DOUBLE, "width", 0.0).forGetter(Shape::width),
-                opt(Codec.DOUBLE, "radius", 0.0).forGetter(Shape::radius)
+                opt(Codec.DOUBLE, "radius", 0.0).forGetter(Shape::radius),
+                opt(Codec.DOUBLE, "speed", 0.0).forGetter(Shape::speed)
         ).apply(i, Shape::new));
     }
 
@@ -53,7 +59,7 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
             opt(Codec.DOUBLE, "maxRange", 24.0).forGetter(SkillSpec::maxRange),
             opt(Codec.DOUBLE, "chargeSeconds", 1.0).forGetter(SkillSpec::chargeSeconds),
             opt(Codec.DOUBLE, "cooldownSeconds", 10.0).forGetter(SkillSpec::cooldownSeconds),
-            opt(Shape.CODEC, "shape", new Shape(0, 0, 0)).forGetter(SkillSpec::shape),
+            opt(Shape.CODEC, "shape", new Shape(0, 0, 0, 0)).forGetter(SkillSpec::shape),
             opt(Aftershock.CODEC, "aftershock", new Aftershock(0, 0, 0)).forGetter(SkillSpec::aftershock),
             opt(Terrain.CODEC, "terrain", new Terrain(false, 0, 0)).forGetter(SkillSpec::terrain)
     ).apply(i, SkillSpec::new));
@@ -64,7 +70,7 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
     }
 
     public boolean knownType() {
-        return WIND_LINE.equals(type) || STOMP.equals(type);
+        return WIND_LINE.equals(type) || STOMP.equals(type) || SHOCKWAVE.equals(type) || CHARGE.equals(type);
     }
 
     public int chargeTicks() {
@@ -82,12 +88,14 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
             warnings.add(BossConfig.FILE + ": " + where + " shoutText cut to " + MAX_SHOUT_TEXT + " chars");
         }
         // Only the shape fields the skill type uses are range-checked (a stomp has no length, a line no radius).
-        boolean line = WIND_LINE.equals(type);
-        boolean circle = STOMP.equals(type);
+        boolean line = WIND_LINE.equals(type) || CHARGE.equals(type);
+        boolean circle = STOMP.equals(type) || SHOCKWAVE.equals(type);
+        boolean fast = SHOCKWAVE.equals(type) || CHARGE.equals(type);
         Shape sh = new Shape(
                 line ? clamp(where, "shape.length", shape.length, 1, 64, warnings) : shape.length,
                 line ? clamp(where, "shape.width", shape.width, 0.5, 32, warnings) : shape.width,
-                circle ? clamp(where, "shape.radius", shape.radius, 0.5, 32, warnings) : shape.radius);
+                circle ? clamp(where, "shape.radius", shape.radius, 0.5, 32, warnings) : shape.radius,
+                fast ? clamp(where, "shape.speed", shape.speed, 1, 100, warnings) : shape.speed);
         Aftershock af = new Aftershock(
                 clamp(where, "aftershock.damage", aftershock.damage, 0, 2048, warnings),
                 clamp(where, "aftershock.delaySeconds", aftershock.delaySeconds, 0, 10, warnings),

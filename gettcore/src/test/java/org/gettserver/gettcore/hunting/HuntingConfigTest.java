@@ -116,7 +116,7 @@ class HuntingConfigTest {
 
     private static org.gettserver.gettcore.skill.SkillSpec skill(String id, String type) {
         return new org.gettserver.gettcore.skill.SkillSpec(id, type, true, false, "", 10, 1, 0, 20, 1, 10,
-                new org.gettserver.gettcore.skill.SkillSpec.Shape(10, 2, 6),
+                new org.gettserver.gettcore.skill.SkillSpec.Shape(10, 2, 6, 0),
                 new org.gettserver.gettcore.skill.SkillSpec.Aftershock(0, 0, 0),
                 new org.gettserver.gettcore.skill.SkillSpec.Terrain(false, 0, 0));
     }

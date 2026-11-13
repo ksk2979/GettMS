@@ -73,20 +73,34 @@ public record BossConfig(Map<String, Boss> bosses) {
         }
     }
 
+    /**
+     * The bear's chase speed: base MOVEMENT_SPEED (bosses.json {@code speed} sets it) times MeleeAttackGoal's 1.2
+     * modifier times 43.17 = about 7.3 blocks/s, between a Speed I and a Speed II sprinting player.
+     */
+    public static final double BEAR_SPEED = 0.14;
+
     public static final BossConfig DEFAULT;
 
     static {
         SkillSpec ramgak = new SkillSpec("ramgak", SkillSpec.WIND_LINE, true, true, "람각", 14, 2.5, 0, 32, 1.0, 10,
-                new SkillSpec.Shape(30, 3, 0), new SkillSpec.Aftershock(8, 0.5, 4), new SkillSpec.Terrain(true, 0, 2));
+                new SkillSpec.Shape(30, 3, 0, 0), new SkillSpec.Aftershock(8, 0.5, 4), new SkillSpec.Terrain(true, 0, 2));
         SkillSpec stomp = new SkillSpec("stomp", SkillSpec.STOMP, true, false, "쿠웅", 18, 1.6, 0, 6, 0.8, 6,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 1, 6));
+                new SkillSpec.Shape(0, 0, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 1, 6));
         Boss d = Boss.DEFAULT;
         Boss giraffe = new Boss(Aggro.AFTER, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds, d.speed,
                 d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult, List.of(ramgak, stomp));
+        SkillSpec roar = new SkillSpec("gomlatense", SkillSpec.SHOCKWAVE, true, true, "곰라텐세", 16, 3.0, 0, 8, 1.0, 12,
+                new SkillSpec.Shape(0, 0, 12, 24), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0));
+        SkillSpec rush = new SkillSpec("dolgyeok", SkillSpec.CHARGE, true, false, "돌격", 14, 1.5, 0, 32, 0.7, 8,
+                new SkillSpec.Shape(24, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0));
+        Boss bear = new Boss(Aggro.FIRST, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds,
+                Optional.of(BEAR_SPEED), d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult,
+                List.of(roar, rush));
         Map<String, Boss> m = new TreeMap<>();
-        for (String n : List.of("lion", "tiger", "bear", "elephant", "mammoth", "vulture")) {
+        for (String n : List.of("lion", "tiger", "elephant", "mammoth", "vulture")) {
             m.put("gettcore:boss_" + n, d);
         }
+        m.put("gettcore:boss_bear", bear);
         m.put("gettcore:boss_giraffe", giraffe);
         DEFAULT = new BossConfig(m);
     }

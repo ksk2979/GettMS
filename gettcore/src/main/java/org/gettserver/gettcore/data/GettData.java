@@ -66,6 +66,9 @@ public final class GettData {
     static final String NPC_CHIEF_UPGRADE = "npcs.json@chief";
     static final String PETS_BOSS_GIRAFFE_UPGRADE = "pets.json@boss_giraffe";
     private static final String BOSS_GIRAFFE_KEY = "gettcore:boss_giraffe";
+    /** One-shot upgrade (1.11.0): fills an empty skill list of the boss bear in an installed bosses.json. */
+    static final String BOSSES_BEAR_UPGRADE = "bosses.json@bear_skills";
+    private static final String BOSS_BEAR_KEY = "gettcore:boss_bear";
     /** One-shot upgrade (reinforce): adds only the 대장장이 -> blacksmith name mapping to an earlier npcs.json. */
     static final String NPC_BLACKSMITH_UPGRADE = "npcs.json@blacksmith";
 
@@ -841,6 +844,7 @@ public final class GettData {
         applyNpcUpgrade(dir, marker, installed, NPC_CHIEF_UPGRADE, "이장", "chief", errors);
         applyNpcUpgrade(dir, marker, installed, NPC_BLACKSMITH_UPGRADE, "대장장이", "blacksmith", errors);
         applyBossGiraffeUpgrade(dir, marker, installed, errors);
+        applyBearSkillsUpgrade(dir, marker, installed, errors);
     }
 
     /**
@@ -875,6 +879,60 @@ public final class GettData {
         } catch (IOException | RuntimeException e) {
             errors.add(PETS_FILE + ": adding boss_giraffe failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * One-shot bosses.json patch: the boss bear's entry gets the bundled skills (and speed, if unset) when the entry
+     * is missing or its skill list is empty. A bear with any skill is left alone, as are all other entries and
+     * fields. A freshly copied bosses.json already has them; a deleted bosses.json is not resurrected. An unreadable
+     * bosses.json is retried on the next load.
+     */
+    private static void applyBearSkillsUpgrade(Path dir, Path marker, Set<String> installed, List<String> errors) {
+        if (installed.contains(BOSSES_BEAR_UPGRADE)) return;
+        try {
+            Path file = dir.resolve(BossConfig.FILE);
+            if (Files.isRegularFile(file) && !addBearSkills(file)) return;
+            Files.writeString(marker, BOSSES_BEAR_UPGRADE + "\n", StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException | RuntimeException e) {
+            errors.add(BossConfig.FILE + ": adding boss bear skills failed: " + e.getMessage());
+        }
+    }
+
+    /** Edits the JSON tree so other bosses stay as the operator wrote them. False if the file is unreadable. */
+    private static boolean addBearSkills(Path file) throws IOException {
+        com.google.gson.JsonObject root;
+        try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            JsonElement json = JsonParser.parseReader(r);
+            if (!json.isJsonObject()) return false;
+            root = json.getAsJsonObject();
+        } catch (com.google.gson.JsonParseException e) {
+            return false;
+        }
+        JsonElement bossesElement = root.get("bosses");
+        if (bossesElement != null && !bossesElement.isJsonObject()) return false;
+        com.google.gson.JsonObject bosses = bossesElement == null ? new com.google.gson.JsonObject()
+                : bossesElement.getAsJsonObject();
+        JsonElement entry = bosses.get(BOSS_BEAR_KEY);
+        if (entry != null && !entry.isJsonObject()) return false;
+        com.google.gson.JsonObject bundled;
+        try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/" + BossConfig.FILE)) {
+            if (in == null) throw new IOException("missing bundled default: " + BossConfig.FILE);
+            bundled = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject()
+                    .getAsJsonObject("bosses").getAsJsonObject(BOSS_BEAR_KEY);
+        }
+        if (entry == null) {
+            bosses.add(BOSS_BEAR_KEY, bundled.deepCopy());
+        } else {
+            com.google.gson.JsonObject bear = entry.getAsJsonObject();
+            JsonElement skills = bear.get("skills");
+            if (skills != null && !(skills.isJsonArray() && skills.getAsJsonArray().isEmpty())) return true;
+            bear.add("skills", bundled.get("skills").deepCopy());
+            if (!bear.has("speed")) bear.add("speed", bundled.get("speed").deepCopy());
+        }
+        root.add("bosses", bosses);
+        writeJson(file, root);
+        return true;
     }
 
     /** Edits the JSON tree so other species stay as the operator wrote them. False if the file is unreadable. */

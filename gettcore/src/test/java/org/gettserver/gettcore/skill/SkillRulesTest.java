@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class SkillRulesTest {
     private static SkillSpec spec(String id, boolean enabled, double min, double max, double cooldownSeconds) {
         return new SkillSpec(id, SkillSpec.WIND_LINE, enabled, false, "", 10, 1, min, max, 1.0, cooldownSeconds,
-                new SkillSpec.Shape(30, 3, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(30, 3, 0, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
     }
 
     private static final SkillSpec RAMGAK = spec("ramgak", true, 8, 32, 8);

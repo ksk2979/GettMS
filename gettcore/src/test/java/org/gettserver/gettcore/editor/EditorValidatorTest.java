@@ -456,7 +456,7 @@ class EditorValidatorTest {
     @Test
     void huntingEntrySkillsGetTheBossSkillChecks() {
         SkillSpec ok = new SkillSpec("a", SkillSpec.STOMP, true, false, "", 10, 1, 0, 20, 1, 10,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(0, 0, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
         SkillSpec unknown = new SkillSpec("x", "laser", true, false, "", 10, 1, 0, 20, 1, 10,
                 ok.shape(), ok.aftershock(), ok.terrain());
         SkillSpec dup = new SkillSpec("a", SkillSpec.STOMP, true, true, " ", 10, 1, 12, 8, 1, 10,
@@ -471,6 +471,30 @@ class EditorValidatorTest {
                 p + "[2]: 스킬 id 'a' 가 겹칩니다",
                 p + "[2]: 외침이 켜져 있으면 외칠 글자가 필요합니다",
                 p + "[2]: 최소 거리 12 가 최대 거리 8 보다 큽니다"), r.errors());
+    }
+
+    @Test
+    void shockwaveAndChargeCheckTheirOwnShapeFields() {
+        SkillSpec.Aftershock a = new SkillSpec.Aftershock(0, 0, 0);
+        SkillSpec.Terrain t = new SkillSpec.Terrain(true, 0, 0);
+        SkillSpec wave = new SkillSpec("w", SkillSpec.SHOCKWAVE, true, false, "", 10, 1, 0, 8, 1, 10,
+                new SkillSpec.Shape(0, 0, 12, 24), a, t);
+        SkillSpec rush = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 32, 1, 10,
+                new SkillSpec.Shape(24, 3, 0, 30), a, t);
+        var good = new org.gettserver.gettcore.hunting.HuntingConfig.Entry("x", rl("minecraft:zombie"), 50, 5, 0.3, 2, 1,
+                1, 10, 1, List.of(wave, rush));
+        var bad = new org.gettserver.gettcore.hunting.HuntingConfig.Entry("y", rl("minecraft:zombie"), 50, 5, 0.3, 2, 1,
+                1, 10, 1, List.of(
+                new SkillSpec("w", SkillSpec.SHOCKWAVE, true, false, "", 10, 1, 0, 8, 1, 10,
+                        new SkillSpec.Shape(0, 0, 12, 0), a, t),
+                new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 32, 1, 10,
+                        new SkillSpec.Shape(24, 3, 0, 101), a, t)));
+        var h = new org.gettserver.gettcore.hunting.HuntingConfig(List.of(huntZone("숲", List.of(good, bad))));
+        var r = EditorValidator.validate(huntBundle(h, org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT),
+                RegistryChecks.ALL_EXIST);
+        assertEquals(2, r.errors().size(), r.errors().toString());
+        assertTrue(r.errors().get(0).contains("skills[0]: shape.speed 0 "), r.errors().toString());
+        assertTrue(r.errors().get(1).contains("skills[1]: shape.speed 101 "), r.errors().toString());
     }
 
     private static org.gettserver.gettcore.hunting.HuntingConfig.Entry huntEntry(String name, String entity, int weight) {
@@ -593,7 +617,7 @@ class EditorValidatorTest {
         SkillSpec s = g.skills().get(0);
         SkillSpec wild = new SkillSpec(s.id(), s.type(), s.enabled(), s.shout(), s.shoutText(), 3000, s.knockback(),
                 s.minRange(), s.maxRange(), s.chargeSeconds(), s.cooldownSeconds(),
-                new SkillSpec.Shape(100, s.shape().width(), 0), s.aftershock(),
+                new SkillSpec.Shape(100, s.shape().width(), 0, 0), s.aftershock(),
                 new SkillSpec.Terrain(true, 20, s.terrain().width()));
         var r = validateBosses(withGiraffe(new BossConfig.Boss(g.aggro(), g.searchRange(), g.releaseRange(),
                 g.reaggroRange(), g.calmSeconds(), Optional.empty(), Optional.of(31.0), g.preferredDistance(),

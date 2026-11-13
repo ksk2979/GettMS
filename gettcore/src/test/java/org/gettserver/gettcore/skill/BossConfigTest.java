@@ -18,7 +18,7 @@ class BossConfigTest {
 
     private static SkillSpec skill(String id, String type) {
         return new SkillSpec(id, type, true, false, "", 10, 1, 0, 20, 1, 10,
-                new SkillSpec.Shape(10, 2, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(10, 2, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
     }
 
     private static BossConfig.Boss bossWith(List<SkillSpec> skills) {
@@ -84,7 +84,7 @@ class BossConfigTest {
     @Test
     void numbersAreClamped() {
         SkillSpec bad = new SkillSpec("a", SkillSpec.STOMP, true, false, "", Double.NaN, 1, 0, 20, 0, 10,
-                new SkillSpec.Shape(0, 0, 6), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+                new SkillSpec.Shape(0, 0, 6, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
         BossConfig.Boss b = bossWith(List.of(bad));
         b = new BossConfig.Boss(b.aggro(), b.searchRange(), b.releaseRange(), b.reaggroRange(), -5, b.speed(),
                 b.armor(), b.preferredDistance(), b.shoutRange(), b.enrageBelow(), b.enrageCooldownMult(), b.skills());
@@ -106,6 +106,51 @@ class BossConfigTest {
                 .sanitized(warnings);
         assertEquals(List.of(first), s.boss(GIRAFFE).skills());
         assertFalse(warnings.isEmpty());
+    }
+
+    @Test
+    void defaultBearIsFirstWithRoarAndCharge() {
+        BossConfig.Boss bear = BossConfig.DEFAULT.boss(ResourceLocation.parse("gettcore:boss_bear"));
+        assertEquals(BossConfig.Aggro.FIRST, bear.aggro());
+        assertEquals(List.of("gomlatense", "dolgyeok"), bear.skills().stream().map(SkillSpec::id).toList());
+        assertEquals(java.util.Optional.of(BossConfig.BEAR_SPEED), bear.speed());
+        assertEquals(SkillSpec.SHOCKWAVE, bear.skills().get(0).type());
+        assertEquals(SkillSpec.CHARGE, bear.skills().get(1).type());
+        assertEquals(new SkillSpec.Shape(0, 0, 12, 24), bear.skills().get(0).shape());
+        assertEquals(new SkillSpec.Shape(24, 3, 0, 30), bear.skills().get(1).shape());
+    }
+
+    @Test
+    void newTypesAreKnownAndShapeSpeedRoundTrips() {
+        assertTrue(skill("a", SkillSpec.SHOCKWAVE).knownType());
+        assertTrue(skill("a", SkillSpec.CHARGE).knownType());
+        SkillSpec s = new SkillSpec("a", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(24, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0));
+        var json = SkillSpec.CODEC.encodeStart(JsonOps.INSTANCE, s).getOrThrow();
+        assertEquals(30.0, json.getAsJsonObject().getAsJsonObject("shape").get("speed").getAsDouble());
+        assertEquals(s, SkillSpec.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
+    }
+
+    @Test
+    void missingShapeSpeedIsZeroAndClampedUpForNewTypesOnly() {
+        var json = JsonParser.parseString("{\"id\":\"a\",\"type\":\"shockwave\",\"shape\":{\"radius\":10}}");
+        SkillSpec s = SkillSpec.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+        assertEquals(0, s.shape().speed());
+        List<String> warnings = new ArrayList<>();
+        assertEquals(1, s.sanitized("t", warnings).shape().speed());
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("shape.speed"), warnings.get(0));
+
+        List<String> w2 = new ArrayList<>();
+        SkillSpec wind = new SkillSpec("w", SkillSpec.WIND_LINE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(10, 2, 0, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+        assertEquals(wind, wind.sanitized("t", w2));
+        assertTrue(w2.isEmpty(), w2.toString());
+
+        List<String> w3 = new ArrayList<>();
+        SkillSpec fast = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(10, 2, 0, 500), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0));
+        assertEquals(100, fast.sanitized("t", w3).shape().speed());
     }
 
     @Test

@@ -550,6 +550,76 @@ class GettDataTest {
         assertFalse(data.pets().species().containsKey(GIRAFFE_KEY));
     }
 
+    private static final String BEAR_UPGRADE = "bosses.json@bear_skills";
+
+    private static Path bossesInstall(Path dir, String json, String... markerLines) throws IOException {
+        Path root = dir.resolve("gettcore");
+        Files.createDirectories(root);
+        Files.writeString(root.resolve("bosses.json"), json);
+        Files.write(root.resolve(GettData.MARKER), java.util.List.of(markerLines));
+        return root;
+    }
+
+    private static com.google.gson.JsonObject bear(Path root) throws IOException {
+        return com.google.gson.JsonParser.parseString(Files.readString(root.resolve("bosses.json")))
+                .getAsJsonObject().getAsJsonObject("bosses").getAsJsonObject("gettcore:boss_bear");
+    }
+
+    @Test
+    void bearSkillsUpgradeRunsOnceAndKeepsEdits(@TempDir Path dir) throws IOException {
+        // (a) empty bear skills: filled, other fields and other bosses untouched, marker written
+        Path a = bossesInstall(dir.resolve("a"), """
+                {"bosses":{"gettcore:boss_bear":{"aggro":"after","searchRange":10.0,"skills":[]},
+                "gettcore:boss_lion":{"aggro":"after","skills":[]}}}""", "bosses.json");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(a);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        com.google.gson.JsonObject b = bear(a);
+        assertEquals(2, b.getAsJsonArray("skills").size());
+        assertEquals("after", b.get("aggro").getAsString());
+        assertEquals(10.0, b.get("searchRange").getAsDouble());
+        assertEquals(org.gettserver.gettcore.skill.BossConfig.BEAR_SPEED, b.get("speed").getAsDouble());
+        assertEquals(2, data.bosses().boss(net.minecraft.resources.ResourceLocation.parse("gettcore:boss_bear")).skills().size());
+        assertEquals(0, com.google.gson.JsonParser.parseString(Files.readString(a.resolve("bosses.json")))
+                .getAsJsonObject().getAsJsonObject("bosses").getAsJsonObject("gettcore:boss_lion")
+                .getAsJsonArray("skills").size());
+        assertTrue(Files.readAllLines(a.resolve(GettData.MARKER)).contains(BEAR_UPGRADE));
+
+        // (b) a bear with a user skill: left exactly as is, marker written
+        String custom = """
+                {"bosses":{"gettcore:boss_bear":{"speed":0.2,"skills":[{"id":"mine","type":"stomp","shape":{"radius":4}}]}}}""";
+        Path c = bossesInstall(dir.resolve("b"), custom, "bosses.json");
+        new GettData().load(c);
+        assertEquals(custom, Files.readString(c.resolve("bosses.json")));
+        assertTrue(Files.readAllLines(c.resolve(GettData.MARKER)).contains(BEAR_UPGRADE));
+
+        // (c) marker present: an emptied skill list is not refilled
+        Path m = bossesInstall(dir.resolve("c"), "{\"bosses\":{\"gettcore:boss_bear\":{\"skills\":[]}}}",
+                "bosses.json", BEAR_UPGRADE);
+        new GettData().load(m);
+        assertEquals(0, bear(m).getAsJsonArray("skills").size());
+    }
+
+    @Test
+    void bearUpgradeAddsMissingEntryAndKeepsExistingSpeed(@TempDir Path dir) throws IOException {
+        Path a = bossesInstall(dir.resolve("a"), "{\"bosses\":{}}", "bosses.json");
+        new GettData().load(a);
+        assertEquals(2, bear(a).getAsJsonArray("skills").size());
+
+        Path b = bossesInstall(dir.resolve("b"), "{\"bosses\":{\"gettcore:boss_bear\":{\"speed\":0.2}}}", "bosses.json");
+        new GettData().load(b);
+        assertEquals(2, bear(b).getAsJsonArray("skills").size());
+        assertEquals(0.2, bear(b).get("speed").getAsDouble());
+    }
+
+    @Test
+    void freshInstallAlreadyHasBearSkillsAndMarker(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        data.load(dir);
+        assertEquals(2, bear(dir).getAsJsonArray("skills").size());
+        assertTrue(Files.readAllLines(dir.resolve(GettData.MARKER)).contains(BEAR_UPGRADE));
+    }
+
     @Test
     void detectorInstallsDefaultLoadsAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
         GettData data = new GettData();
