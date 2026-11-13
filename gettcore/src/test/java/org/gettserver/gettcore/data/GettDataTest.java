@@ -579,7 +579,7 @@ class GettDataTest {
         assertEquals("after", b.get("aggro").getAsString());
         assertEquals(10.0, b.get("searchRange").getAsDouble());
         assertEquals(org.gettserver.gettcore.skill.BossConfig.BEAR_SPEED, b.get("speed").getAsDouble());
-        assertEquals(0.10, b.get("speed").getAsDouble());
+        assertEquals(0.243, b.get("speed").getAsDouble());
         for (var sk : b.getAsJsonArray("skills")) {
             assertEquals(2, sk.getAsJsonObject().getAsJsonObject("terrain").get("depth").getAsInt());
         }

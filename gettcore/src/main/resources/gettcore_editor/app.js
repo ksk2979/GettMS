@@ -406,7 +406,7 @@
       Object.assign(b, { aggro: 'after', preferredDistance: 0, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
     }
     if (id === 'gettcore:boss_bear') {   // BossConfig.DEFAULT 곰: 선공, 이동속도 BEAR_SPEED, 곰라텐세·돌격
-      Object.assign(b, { speed: 0.1, skills: [clone(SKILL_TEMPLATES.shockwave), clone(SKILL_TEMPLATES.charge)] });
+      Object.assign(b, { speed: 0.243, skills: [clone(SKILL_TEMPLATES.shockwave), clone(SKILL_TEMPLATES.charge)] });
     }
     return b;
   }
@@ -2608,7 +2608,7 @@
       if ((key === 'speed' || key === 'armor') && b[key] === undefined) return '';   // 빈칸 = 원래 값
       return limitRule(BOSS_LIMITS, key, b[key]);
     },
-    /** 후공만 거리로 놓고 다시 잡는다(선공은 두 칸이 숨겨져 있다). */
+    /** 후공만 거리로 놓고 다시 잡는다(선공은 다시 잡히는 거리 칸이 숨겨져 있다). */
     release(b) {
       return b.aggro === 'after' && isNum(b.releaseRange) && isNum(b.reaggroRange) && b.releaseRange < b.reaggroRange
         ? `해제 거리는 다시 잡히는 거리(${fmtNum(b.reaggroRange)}) 이상이어야 합니다` : '';
@@ -2850,9 +2850,10 @@
         () => (bossSkillRules.bossNum(b, 'enrageBelow') ? '0~100 사이여야 합니다' : ''));
       const after = b.aggro === 'after';
       const aggroCard = h('div', { class: 'card' }, h('h2', null, '어그로'),
+        // 해제 거리: 후공은 이보다 멀면 놓는다. 선공도 이 거리(최소 종의 기본 추적 거리)까지 대상을 놓지 않는다.
         h('div', { class: 'field' }, aggroSel,
+          labeled('해제 거리', bossNum('releaseRange', () => bossSkillRules.release(b)), '블록'),
           after ? [labeled('탐색 범위', bossNum('searchRange'), '블록'),
-            labeled('해제 거리', bossNum('releaseRange', () => bossSkillRules.release(b)), '블록'),
             labeled('다시 잡히는 거리', bossNum('reaggroRange'), '블록'),
             labeled('진정 시간(초)', bossNum('calmSeconds'))] : null),
         h('div', { class: 'field' }, labeled('선호 거리', bossNum('preferredDistance'), '블록'),

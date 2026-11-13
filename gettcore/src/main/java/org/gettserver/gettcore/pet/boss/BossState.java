@@ -8,6 +8,7 @@ import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.skill.AggroRules;
 import org.gettserver.gettcore.skill.SkillRunner;
 
@@ -29,6 +30,10 @@ public final class BossState {
     private final EntityDataAccessor<CompoundTag> data;
     private ServerBossEvent bossEvent;
     private SkillRunner skills;
+    /** What the chase goal did last tick (for the dev log): idle, cast, attack, path, direct, hold. */
+    private String chaseMode = "idle";
+    /** Position at the last dev log line. */
+    private Vec3 debugPosition;
 
     public BossState(Mob mob, EntityDataAccessor<CompoundTag> data) {
         this.mob = mob;
@@ -126,5 +131,20 @@ public final class BossState {
     public void tick() {
         if (mob.level().isClientSide) return;
         BossBehavior.serverTick(mob, this);
+    }
+
+    String chaseMode() {
+        return chaseMode;
+    }
+
+    void setChaseMode(String mode) {
+        chaseMode = mode;
+    }
+
+    /** Stores {@code pos} for the next dev log line; returns the one stored before (null at first). */
+    Vec3 markDebugPosition(Vec3 pos) {
+        Vec3 last = debugPosition;
+        debugPosition = pos;
+        return last;
     }
 }

@@ -133,11 +133,11 @@ public final class BossAggro {
         }
         cfg.speed().ifPresent(v -> setBase(boss, Attributes.MOVEMENT_SPEED, v));
         cfg.armor().ifPresent(v -> setBase(boss, Attributes.ARMOR, v));
-        setBase(boss, Attributes.FOLLOW_RANGE, AggroRules.followRange(cfg.aggro(), cfg.releaseRange())
-                .orElseGet(() -> speciesBase(boss, Attributes.FOLLOW_RANGE)));
+        setBase(boss, Attributes.FOLLOW_RANGE, AggroRules.followRange(cfg.aggro(), cfg.releaseRange(),
+                speciesBase(boss, Attributes.FOLLOW_RANGE)));
     }
 
-    /** The species default (the boss type's registered attribute set), e.g. to undo a 후공 follow range on a switch to 선공. */
+    /** The species default (the boss type's registered attribute set): the range a 선공 boss acquires players at. */
     @SuppressWarnings("unchecked")
     private static double speciesBase(Mob boss, Holder<Attribute> attribute) {
         return DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>) boss.getType()).getBaseValue(attribute);

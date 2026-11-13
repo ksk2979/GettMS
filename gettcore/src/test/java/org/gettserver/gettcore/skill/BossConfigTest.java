@@ -118,7 +118,7 @@ class BossConfigTest {
         assertEquals(SkillSpec.CHARGE, bear.skills().get(1).type());
         assertEquals(new SkillSpec.Shape(0, 0, 12, 24), bear.skills().get(0).shape());
         assertEquals(new SkillSpec.Shape(24, 3, 0, 30), bear.skills().get(1).shape());
-        assertEquals(0.10, BossConfig.BEAR_SPEED);
+        assertEquals(0.243, BossConfig.BEAR_SPEED);
         assertEquals(2, bear.skills().get(0).terrain().depth());
         assertEquals(2, bear.skills().get(1).terrain().depth());
     }

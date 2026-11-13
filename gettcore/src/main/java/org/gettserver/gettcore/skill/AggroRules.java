@@ -1,7 +1,5 @@
 package org.gettserver.gettcore.skill;
 
-import java.util.OptionalDouble;
-
 /** Pure 선공/후공 rules for a boss; the entity glue is {@code pet.boss.BossAggro}. */
 public final class AggroRules {
     /** Seeing a player refreshes the timer at most this often (the memory is a synched tag; calm is minutes). */
@@ -49,11 +47,13 @@ public final class AggroRules {
     }
 
     /**
-     * The FOLLOW_RANGE base a boss should have: a 후공 boss holds its target out to {@code releaseRange} (vanilla target
-     * goals drop it beyond the follow range, 16 for most mobs); empty = keep the species' own value (선공).
+     * The FOLLOW_RANGE base a boss should have (vanilla target goals drop a target beyond it): a 후공 boss holds its
+     * target out to {@code releaseRange}. A 선공 boss acquires at its species' own range ({@code speciesRange}, 20 for
+     * the bear) and holds out to {@code releaseRange}, never less than it acquires at (a shooter 25 blocks away was
+     * dropped at once and never chased).
      */
-    public static OptionalDouble followRange(BossConfig.Aggro mode, double releaseRange) {
-        return mode == BossConfig.Aggro.AFTER ? OptionalDouble.of(releaseRange) : OptionalDouble.empty();
+    public static double followRange(BossConfig.Aggro mode, double releaseRange, double speciesRange) {
+        return mode == BossConfig.Aggro.AFTER ? releaseRange : Math.max(speciesRange, releaseRange);
     }
 
     /** Does the boss keep a target it cannot see? A 후공 boss does (its wind line goes through walls); 선공 is vanilla. */

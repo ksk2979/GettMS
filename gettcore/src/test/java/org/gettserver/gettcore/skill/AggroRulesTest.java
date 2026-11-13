@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.OptionalDouble;
 import org.gettserver.gettcore.skill.AggroRules.Memory;
 import org.gettserver.gettcore.skill.BossConfig.Aggro;
 import org.junit.jupiter.api.Test;
@@ -74,12 +73,19 @@ class AggroRulesTest {
     }
 
     @Test void afterBossFollowsUpToItsReleaseRange() {
-        assertEquals(OptionalDouble.of(40), AggroRules.followRange(Aggro.AFTER, 40));
-        assertEquals(OptionalDouble.of(64), AggroRules.followRange(Aggro.AFTER, 64));
+        assertEquals(40, AggroRules.followRange(Aggro.AFTER, 40, 20));
+        assertEquals(64, AggroRules.followRange(Aggro.AFTER, 64, 20));
+        assertEquals(10, AggroRules.followRange(Aggro.AFTER, 10, 20));
     }
 
-    @Test void firstBossKeepsItsOwnFollowRange() {
-        assertEquals(OptionalDouble.empty(), AggroRules.followRange(Aggro.FIRST, 40));
+    @Test void firstBossHoldsItsTargetOutToTheReleaseRange() {
+        // A shooter 25 blocks away is no longer dropped at the bear's own 20.
+        assertEquals(40, AggroRules.followRange(Aggro.FIRST, 40, 20));
+    }
+
+    @Test void firstBossNeverHoldsLessThanItsOwnRange() {
+        // It acquires at its own range; holding less would drop and re-pick the same player every tick.
+        assertEquals(20, AggroRules.followRange(Aggro.FIRST, 10, 20));
     }
 
     @Test void onlyAnAfterBossKeepsAnUnseenTarget() {
