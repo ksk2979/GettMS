@@ -64,6 +64,11 @@ public class GettCoreClient {
         } else {
             GettCore.LOGGER.info("gettcore: mob health bar off (mobHealthBar={}, epicfight={})", barSetting, epicFight);
         }
+        // Epic Fight 스킬 선택 창: 스킬 줄에 마우스를 올리면 설명 툴팁(리플렉션, 선택 의존).
+        if (epicFight) {
+            NeoForge.EVENT_BUS.addListener(
+                    org.gettserver.gettcore.compat.client.EpicFightSkillTooltips::onRenderPre);
+        }
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
         // 포획틀: 우클릭 유지 = 조준(줌 + 십자선 아래 포획률), 좌클릭 = 던지기(서버 판정).
         NeoForge.EVENT_BUS.addListener(CaptureAimClient::onClientTickPre);
