@@ -156,10 +156,20 @@ public final class BossBehavior {
                 .ifPresent(p -> tickLeash(boss, p.pos(), p.radius()));
     }
 
-    /** Every tick, so bosses spawned before this existed get it too: it walks up one-block ledges. */
+    /**
+     * Every tick, so bosses spawned before this existed get it too: hits do not push a boss (knockback and explosion
+     * knockback resistance 1; {@link BossKnockback} undoes pushes that bypass both), and it walks up one-block ledges.
+     */
     static void applyCombatBases(Mob boss) {
+        setBase(boss, Attributes.KNOCKBACK_RESISTANCE, 1.0);
+        setBase(boss, Attributes.EXPLOSION_KNOCKBACK_RESISTANCE, 1.0);
         AttributeInstance step = boss.getAttribute(Attributes.STEP_HEIGHT);
         if (step != null && step.getBaseValue() < MIN_STEP_HEIGHT) step.setBaseValue(MIN_STEP_HEIGHT);
+    }
+
+    private static void setBase(Mob boss, Holder<Attribute> attribute, double value) {
+        AttributeInstance instance = boss.getAttribute(attribute);
+        if (instance != null && instance.getBaseValue() != value) instance.setBaseValue(value);
     }
 
     /**

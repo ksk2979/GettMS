@@ -30,6 +30,8 @@ public final class BossState {
     private final EntityDataAccessor<CompoundTag> data;
     private ServerBossEvent bossEvent;
     private SkillRunner skills;
+    /** Velocity at the end of the boss's last server tick (null before the first). */
+    private Vec3 velocityAfterTick;
     /** What the chase goal did last tick (for the dev log): idle, cast, attack, path, direct, hold. */
     private String chaseMode = "idle";
     /** Position at the last dev log line. */
@@ -131,6 +133,18 @@ public final class BossState {
     public void tick() {
         if (mob.level().isClientSide) return;
         BossBehavior.serverTick(mob, this);
+        velocityAfterTick = mob.getDeltaMovement();
+    }
+
+    /**
+     * Server, before the boss's tick: puts back the velocity the boss had at the end of its last tick. Whatever
+     * changed it in between came from outside (a hit's knockback, an explosion, a shove, also those that bypass
+     * knockback resistance such as NTGL's explosions). The boss's own walking, skills and gravity run in its tick.
+     */
+    void undoOutsidePush() {
+        if (velocityAfterTick != null && !velocityAfterTick.equals(mob.getDeltaMovement())) {
+            mob.setDeltaMovement(velocityAfterTick);
+        }
     }
 
     String chaseMode() {
