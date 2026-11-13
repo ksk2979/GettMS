@@ -27,6 +27,7 @@ import org.gettserver.gettcore.pet.entity.GettPet;
 import org.gettserver.gettcore.quest.QuestService;
 import org.gettserver.gettcore.reinforce.ClientReinforceConfig;
 import org.gettserver.gettcore.equipment.ClientEquipmentConfig;
+import org.gettserver.gettcore.detector.ClientDetectorConfig;
 import org.gettserver.gettcore.upgrade.ClientUpgradeConfig;
 import org.gettserver.gettcore.reinforce.ReinforceScreen;
 import org.gettserver.gettcore.reinforce.ReinforceService;
@@ -40,7 +41,7 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("3");
+        PayloadRegistrar registrar = event.registrar("4");
         registrar.playToClient(BalanceSyncPayload.TYPE, BalanceSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
@@ -56,6 +57,8 @@ public final class GettNetwork {
                 (payload, ctx) -> ClientEquipmentConfig.set(payload.config()));
         registrar.playToClient(UpgradeConfigSyncPayload.TYPE, UpgradeConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientUpgradeConfig.set(payload.config()));
+        registrar.playToClient(DetectorConfigSyncPayload.TYPE, DetectorConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ClientDetectorConfig.set(payload.config()));
         registrar.playToClient(NpcMappingSyncPayload.TYPE, NpcMappingSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientNpcMappings.set(payload.byUuid(), payload.byName()));
         registrar.playToClient(ShopSyncPayload.TYPE, ShopSyncPayload.STREAM_CODEC,

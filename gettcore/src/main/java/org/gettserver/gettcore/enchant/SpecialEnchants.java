@@ -30,6 +30,7 @@ public final class SpecialEnchants {
         REPLANT("replant", Tool.HOE, 1),
         BOUNTY("bounty", Tool.HOE, 3),
         VEIN("vein", Tool.PICKAXE, 3),
+        PROSPECT("prospect", Tool.PICKAXE, 3),
         AREA("area", Tool.PICKAXE, 1),
         SMELT("smelt", Tool.PICKAXE, 1),
         TIMBER("timber", Tool.AXE, 3),

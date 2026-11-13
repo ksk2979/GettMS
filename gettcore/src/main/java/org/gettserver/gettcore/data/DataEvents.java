@@ -12,6 +12,7 @@ import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.network.ConfigSyncPayload;
 import org.gettserver.gettcore.network.EnchantConfigSyncPayload;
 import org.gettserver.gettcore.network.EquipmentConfigSyncPayload;
+import org.gettserver.gettcore.network.DetectorConfigSyncPayload;
 import org.gettserver.gettcore.network.UpgradeConfigSyncPayload;
 import org.gettserver.gettcore.network.PetConfigSyncPayload;
 import org.gettserver.gettcore.network.ReinforceConfigSyncPayload;
@@ -38,6 +39,7 @@ public final class DataEvents {
         PacketDistributor.sendToAllPlayers(new ReinforceConfigSyncPayload(GettData.get().reinforce()));
         PacketDistributor.sendToAllPlayers(new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToAllPlayers(new UpgradeConfigSyncPayload(GettData.get().upgrade()));
+        PacketDistributor.sendToAllPlayers(new DetectorConfigSyncPayload(GettData.get().detector()));
     }
 
     public static void syncConfig(ServerPlayer player) {
@@ -48,6 +50,7 @@ public final class DataEvents {
         PacketDistributor.sendToPlayer(player, new ReinforceConfigSyncPayload(GettData.get().reinforce()));
         PacketDistributor.sendToPlayer(player, new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToPlayer(player, new UpgradeConfigSyncPayload(GettData.get().upgrade()));
+        PacketDistributor.sendToPlayer(player, new DetectorConfigSyncPayload(GettData.get().detector()));
     }
 
     @SubscribeEvent

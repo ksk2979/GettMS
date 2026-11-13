@@ -44,7 +44,7 @@ public final class EffectContext {
 
     public static boolean isBlockAbility(Ability ability) {
         return switch (ability) {
-            case HARVEST, VEIN, AREA, TIMBER -> true;
+            case HARVEST, VEIN, AREA, TIMBER, PROSPECT -> true;
             default -> false;
         };
     }

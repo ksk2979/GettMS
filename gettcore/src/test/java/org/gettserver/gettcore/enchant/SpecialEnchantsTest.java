@@ -17,7 +17,7 @@ class SpecialEnchantsTest {
     @Test
     void poolSizesMatchSpec() {
         assertEquals(3, SpecialEnchants.pool(Tool.HOE).size());
-        assertEquals(3, SpecialEnchants.pool(Tool.PICKAXE).size());
+        assertEquals(4, SpecialEnchants.pool(Tool.PICKAXE).size());
         assertEquals(3, SpecialEnchants.pool(Tool.AXE).size());
         assertEquals(5, SpecialEnchants.pool(Tool.SWORD).size());
         assertEquals(3, SpecialEnchants.pool(Tool.BOW).size());
@@ -29,7 +29,7 @@ class SpecialEnchantsTest {
                 memberships.merge(a, 1, Integer::sum);
             }
         }
-        assertEquals(20, Ability.values().length);
+        assertEquals(21, Ability.values().length);
         for (Ability a : Ability.values()) {
             assertEquals(1, memberships.getOrDefault(a, 0), a + " must be in exactly one pool");
         }

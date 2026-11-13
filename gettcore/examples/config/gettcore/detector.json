@@ -1,0 +1,149 @@
+{
+  "range": 24,
+  "durationSeconds": 60,
+  "cooldownSeconds": 300,
+  "maxBlocks": 4096,
+  "selfBlockTags": [
+    "minecraft:small_flowers",
+    "minecraft:tall_flowers"
+  ],
+  "targets": [
+    {
+      "id": "coal",
+      "items": [
+        "minecraft:coal",
+        "minecraft:coal_ore",
+        "minecraft:deepslate_coal_ore"
+      ],
+      "blocks": [
+        "minecraft:coal_ore",
+        "minecraft:deepslate_coal_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "iron",
+      "items": [
+        "minecraft:raw_iron",
+        "minecraft:iron_ore",
+        "minecraft:deepslate_iron_ore"
+      ],
+      "blocks": [
+        "minecraft:iron_ore",
+        "minecraft:deepslate_iron_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "copper",
+      "items": [
+        "minecraft:raw_copper",
+        "minecraft:copper_ore",
+        "minecraft:deepslate_copper_ore"
+      ],
+      "blocks": [
+        "minecraft:copper_ore",
+        "minecraft:deepslate_copper_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "gold",
+      "items": [
+        "minecraft:raw_gold",
+        "minecraft:gold_ore",
+        "minecraft:deepslate_gold_ore"
+      ],
+      "blocks": [
+        "minecraft:gold_ore",
+        "minecraft:deepslate_gold_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "diamond",
+      "items": [
+        "minecraft:diamond",
+        "minecraft:diamond_ore",
+        "minecraft:deepslate_diamond_ore"
+      ],
+      "blocks": [
+        "minecraft:diamond_ore",
+        "minecraft:deepslate_diamond_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "emerald",
+      "items": [
+        "minecraft:emerald",
+        "minecraft:emerald_ore",
+        "minecraft:deepslate_emerald_ore"
+      ],
+      "blocks": [
+        "minecraft:emerald_ore",
+        "minecraft:deepslate_emerald_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "redstone",
+      "items": [
+        "minecraft:redstone",
+        "minecraft:redstone_ore",
+        "minecraft:deepslate_redstone_ore"
+      ],
+      "blocks": [
+        "minecraft:redstone_ore",
+        "minecraft:deepslate_redstone_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "lapis",
+      "items": [
+        "minecraft:lapis_lazuli",
+        "minecraft:lapis_ore",
+        "minecraft:deepslate_lapis_ore"
+      ],
+      "blocks": [
+        "minecraft:lapis_ore",
+        "minecraft:deepslate_lapis_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "quartz",
+      "items": [
+        "minecraft:quartz",
+        "minecraft:nether_quartz_ore"
+      ],
+      "blocks": [
+        "minecraft:nether_quartz_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "nether_gold",
+      "items": [
+        "minecraft:gold_nugget",
+        "minecraft:nether_gold_ore"
+      ],
+      "blocks": [
+        "minecraft:nether_gold_ore"
+      ],
+      "ore": true
+    },
+    {
+      "id": "ancient_debris",
+      "items": [
+        "minecraft:netherite_scrap",
+        "minecraft:ancient_debris"
+      ],
+      "blocks": [
+        "minecraft:ancient_debris"
+      ],
+      "ore": true
+    }
+  ]
+}

@@ -3,6 +3,7 @@
   "harvest":   { "radius": [1, 2, 3] },
   "bounty":    { "chance": [10, 20, 35] },
   "vein":      { "maxBlocks": [8, 16, 32] },
+  "prospect":  { "range": [8, 12, 16], "durationSeconds": 20, "cooldownSeconds": 60 },
   "timber":    { "maxBlocks": [16, 32, 64] },
   "lumber":    { "chance": [10, 20, 35] },
   "sweep":     { "radius": [1.5, 2.0, 2.5], "damagePercent": 50 },

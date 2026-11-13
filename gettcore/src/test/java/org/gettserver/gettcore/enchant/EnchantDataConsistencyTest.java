@@ -41,7 +41,7 @@ class EnchantDataConsistencyTest {
         }
         Set<String> expected = new HashSet<>();
         for (Ability a : Ability.values()) expected.add("gettcore:" + a.id());
-        assertEquals(20, expected.size());
+        assertEquals(21, expected.size());
         assertEquals(expected, values);
     }
 

@@ -103,6 +103,8 @@
   "enchantment.gettcore.bounty.desc": "%s%% chance to get 1 extra crop when harvesting",
   "enchantment.gettcore.vein": "Vein Miner",
   "enchantment.gettcore.vein.desc": "Mining an ore also mines up to %s connected ores of the same kind",
+  "enchantment.gettcore.prospect": "Prospecting",
+  "enchantment.gettcore.prospect.desc": "Mining an ore briefly reveals the same ore within %s blocks",
   "enchantment.gettcore.area": "Area Mining",
   "enchantment.gettcore.area.desc": "Mines a 3×3 area facing the clicked side",
   "enchantment.gettcore.smelt": "Auto Smelt",

@@ -616,4 +616,32 @@ class EditorValidatorTest {
         return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
                 b.reinforce(), b.hunting(), b.mobs(), e);
     }
+
+    @Test
+    void detectorErrorsBlockAndUnknownIdsWarn() {
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        RegistryChecks checks = new RegistryChecks(rl -> rl.getNamespace().equals("minecraft"), rl -> true,
+                rl -> rl.getNamespace().equals("minecraft"));
+        var d = org.gettserver.gettcore.detector.DetectorConfig.DEFAULT;
+        var ok = new org.gettserver.gettcore.detector.DetectorConfig(d.range(), d.durationSeconds(), d.cooldownSeconds(),
+                d.maxBlocks(), d.selfBlockTags(), List.of(new org.gettserver.gettcore.detector.DetectorConfig.Target(
+                "ruby", List.of("gone:ruby"), List.of("gone:ruby_ore"), true)));
+        var good = EditorValidator.validate(withDetector(b, ok), checks);
+        assertTrue(good.errors().isEmpty(), good.errors().toString());
+        assertEquals(List.of("detector: gone:ruby is not a registered item",
+                "detector: gone:ruby_ore is not a registered block"), good.warnings());
+        assertEquals(ok, good.cleaned().detector(), "unknown ids are kept (mod may come back)");
+
+        var bad = new org.gettserver.gettcore.detector.DetectorConfig(d.range(), d.durationSeconds(), d.cooldownSeconds(),
+                d.maxBlocks(), d.selfBlockTags(), List.of(new org.gettserver.gettcore.detector.DetectorConfig.Target(
+                "x", List.of("minecraft:coal"), List.of(), true)));
+        var r = EditorValidator.validate(withDetector(b, bad), checks);
+        assertEquals(1, r.errors().size(), r.errors().toString());
+        assertTrue(r.errors().get(0).startsWith("detector.targets[0] x: "), r.errors().toString());
+    }
+
+    private static EditorBundle withDetector(EditorBundle b, org.gettserver.gettcore.detector.DetectorConfig d) {
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), b.bosses(), d);
+    }
 }

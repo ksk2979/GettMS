@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import org.gettserver.gettcore.data.DialogDefinition;
 import org.gettserver.gettcore.data.NpcMapping;
+import org.gettserver.gettcore.detector.DetectorConfig;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.equipment.EquipmentConfig;
 import org.gettserver.gettcore.hunting.HuntingConfig;
@@ -45,6 +46,7 @@ public final class EditorJson {
         root.add("equipment", EquipmentConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.equipment()).getOrThrow());
         root.add("upgrade", UpgradeConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.upgrade()).getOrThrow());
         root.add("bosses", BossConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.bosses()).getOrThrow());
+        root.add("detector", DetectorConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.detector()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -72,6 +74,11 @@ public final class EditorJson {
      * existed); a save passes the config currently loaded, so a stale page never resets bosses.json.
      */
     public static EditorBundle decode(String json, BossConfig bossesIfAbsent) {
+        return decode(json, bossesIfAbsent, DetectorConfig.DEFAULT);
+    }
+
+    /** {@code detectorIfAbsent}: as {@code bossesIfAbsent}, for a page from before detector.json existed. */
+    public static EditorBundle decode(String json, BossConfig bossesIfAbsent, DetectorConfig detectorIfAbsent) {
         JsonElement parsed;
         try {
             parsed = JsonParser.parseString(json);
@@ -96,7 +103,9 @@ public final class EditorJson {
                 decodeSection(root, "upgrade", UpgradeConfig.CODEC),
                 // Optional for a payload from before bosses.json existed (every other section is required).
                 root.has("bosses") && !root.get("bosses").isJsonNull()
-                        ? decodeSection(root, "bosses", BossConfig.CODEC) : bossesIfAbsent);
+                        ? decodeSection(root, "bosses", BossConfig.CODEC) : bossesIfAbsent,
+                root.has("detector") && !root.get("detector").isJsonNull()
+                        ? decodeSection(root, "detector", DetectorConfig.CODEC) : detectorIfAbsent);
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

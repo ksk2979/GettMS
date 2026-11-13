@@ -39,6 +39,7 @@ import org.gettserver.gettcore.pet.boss.BossPoint;
 import org.gettserver.gettcore.protect.ProtectConfig;
 import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.gettserver.gettcore.upgrade.UpgradeConfig;
+import org.gettserver.gettcore.detector.DetectorConfig;
 import org.gettserver.gettcore.quest.QuestLine;
 import org.gettserver.gettcore.quest.QuestPrune;
 import org.slf4j.Logger;
@@ -52,7 +53,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "bosses.json", "equipment.json", "upgrade.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "bosses.json", "equipment.json", "upgrade.json", "detector.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -95,6 +96,7 @@ public final class GettData {
     private volatile FieldGoldConfig fieldGold = FieldGoldConfig.DEFAULT;
     private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile UpgradeConfig upgrade = UpgradeConfig.DEFAULT;
+    private volatile DetectorConfig detector = DetectorConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -221,6 +223,11 @@ public final class GettData {
         UpgradeConfig newUpgrade = Files.isRegularFile(upgradeFile)
                 ? read(upgradeFile, UpgradeConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(upgrade)
                 : UpgradeConfig.DEFAULT;
+        // An unreadable detector.json keeps the config already loaded.
+        Path detectorFile = dir.resolve(DetectorConfig.FILE);
+        DetectorConfig newDetector = Files.isRegularFile(detectorFile)
+                ? read(detectorFile, DetectorConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(detector)
+                : DetectorConfig.DEFAULT;
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -242,6 +249,7 @@ public final class GettData {
         fieldGold = newFieldGold;
         equipment = newEquipment;
         upgrade = newUpgrade;
+        detector = newDetector;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -395,7 +403,7 @@ public final class GettData {
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
                 new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs,
-                equipment, upgrade, bosses);
+                equipment, upgrade, bosses, detector);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -474,6 +482,8 @@ public final class GettData {
                     b.upgrade()).getOrThrow(IOException::new));
             writes.put(dir.resolve(BossConfig.FILE), BossConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.bosses()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(DetectorConfig.FILE), DetectorConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.detector()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -590,7 +600,7 @@ public final class GettData {
             }
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
-                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE)) {
+                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE, DetectorConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -707,6 +717,11 @@ public final class GettData {
     /** Equipment tier upgrade steps from upgrade.json (sanitized). */
     public UpgradeConfig upgrade() {
         return upgrade;
+    }
+
+    /** Detector range, durations and the item-to-ore target list from detector.json (sanitized). */
+    public DetectorConfig detector() {
+        return detector;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */

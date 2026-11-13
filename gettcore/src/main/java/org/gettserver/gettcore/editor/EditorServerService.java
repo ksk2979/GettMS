@@ -82,7 +82,7 @@ public final class EditorServerService {
         List<String> warnings = List.of();
         try {
             // A payload without bosses.json's section (a stale page) keeps the config currently loaded.
-            EditorBundle bundle = EditorJson.decode(text, GettData.get().bosses());
+            EditorBundle bundle = EditorJson.decode(text, GettData.get().bosses(), GettData.get().detector());
             // Balance data pack (guns / spawns / Epic Fight): checked before anything is written, applied after the bundle saved.
             JsonObject balance = BalanceService.desiredOf(text);
             List<String> balanceErrors = balance == null ? List.of()

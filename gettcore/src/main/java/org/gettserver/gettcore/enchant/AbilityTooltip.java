@@ -46,7 +46,8 @@ public final class AbilityTooltip {
     }
 
     private static boolean isBlockAbility(Ability a) {
-        return a == Ability.HARVEST || a == Ability.VEIN || a == Ability.AREA || a == Ability.TIMBER;
+        return a == Ability.HARVEST || a == Ability.VEIN || a == Ability.AREA || a == Ability.TIMBER
+                || a == Ability.PROSPECT;
     }
 
     private static String format(double v) {

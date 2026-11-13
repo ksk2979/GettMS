@@ -287,4 +287,25 @@ class EditorJsonTest {
         String json = EditorJson.encode(EditorJson.decode(FULL, BossConfig.DEFAULT), null);
         assertEquals(BossConfig.DEFAULT, EditorJson.decode(json, current).bosses());
     }
+
+    @Test
+    void detectorSectionRoundTripsAndIsOptional() {
+        var custom = new org.gettserver.gettcore.detector.DetectorConfig(10, 30, 0, 100, List.of(),
+                List.of(new org.gettserver.gettcore.detector.DetectorConfig.Target("a", List.of("a:x"), List.of("a:y"),
+                        true)));
+        EditorBundle base = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of());
+        EditorBundle b = new EditorBundle(base.shops(), base.dialogs(), base.npcs(), base.quests(), base.bossPoints(),
+                base.pets(), base.protect(), base.reinforce(), base.hunting(), base.mobs(), base.equipment(),
+                base.upgrade(), BossConfig.DEFAULT, custom);
+        String json = EditorJson.encode(b, null);
+        assertEquals(b, EditorJson.decode(json));
+        assertEquals(10, com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("detector")
+                .get("range").getAsInt());
+
+        // A page from before detector.json existed: default, or the config currently loaded.
+        assertEquals(org.gettserver.gettcore.detector.DetectorConfig.DEFAULT, EditorJson.decode(FULL).detector());
+        assertEquals(custom, EditorJson.decode(FULL, BossConfig.DEFAULT, custom).detector());
+        assertEquals(custom, EditorJson.decode(FULL.substring(0, FULL.length() - 1) + ",\"detector\":null}",
+                BossConfig.DEFAULT, custom).detector());
+    }
 }

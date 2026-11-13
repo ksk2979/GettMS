@@ -431,4 +431,26 @@ class GettDataSaveBundleTest {
                 .getAsJsonObject("gettcore:boss_giraffe").getAsJsonArray("skills").get(0).getAsJsonObject()
                 .get("damage").getAsDouble();
     }
+
+    @Test
+    void savesDetectorWithBackup(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(org.gettserver.gettcore.detector.DetectorConfig.DEFAULT, raw.detector());
+        var d = org.gettserver.gettcore.detector.DetectorConfig.DEFAULT;
+        var changed = new org.gettserver.gettcore.detector.DetectorConfig(12, d.durationSeconds(), d.cooldownSeconds(),
+                d.maxBlocks(), d.selfBlockTags(), d.targets());
+        GettData.SaveResult r = data.saveBundle(new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(),
+                raw.bossPoints(), raw.pets(), raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(),
+                raw.equipment(), raw.upgrade(), raw.bosses(), changed), RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(changed, data.detector());
+        assertTrue(Files.readString(dir.resolve("detector.json")).contains("\"range\": 12"));
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.readString(latest.resolve("detector.json")).contains("\"range\": 24"),
+                "backup holds the old file");
+    }
 }

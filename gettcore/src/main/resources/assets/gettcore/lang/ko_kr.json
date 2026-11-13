@@ -103,6 +103,8 @@
   "enchantment.gettcore.bounty.desc": "수확 시 %s%% 확률로 수확물을 1개 더 얻습니다",
   "enchantment.gettcore.vein": "광맥",
   "enchantment.gettcore.vein.desc": "광석을 캐면 붙어 있는 같은 광석을 최대 %s개까지 함께 캡니다",
+  "enchantment.gettcore.prospect": "광맥 탐지",
+  "enchantment.gettcore.prospect.desc": "광석을 캐면 주변 %s칸 안의 같은 광석 위치가 잠깐 보입니다",
   "enchantment.gettcore.area": "광역",
   "enchantment.gettcore.area.desc": "바라보는 면을 기준으로 3×3 범위를 캡니다",
   "enchantment.gettcore.smelt": "제련",

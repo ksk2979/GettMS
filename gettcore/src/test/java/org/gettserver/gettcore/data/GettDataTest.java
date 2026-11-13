@@ -549,4 +549,30 @@ class GettDataTest {
         data.load(root);
         assertFalse(data.pets().species().containsKey(GIRAFFE_KEY));
     }
+
+    @Test
+    void detectorInstallsDefaultLoadsAndKeepsPreviousOnBrokenFile(@TempDir Path dir) throws IOException {
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(dir);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertTrue(r.warnings().stream().noneMatch(w -> w.contains("detector.json")), r.warnings().toString());
+        assertTrue(Files.isRegularFile(dir.resolve("detector.json")));
+        assertEquals(org.gettserver.gettcore.detector.DetectorConfig.DEFAULT, data.detector());
+
+        Files.writeString(dir.resolve("detector.json"), "{\"range\":10,\"maxBlocks\":0}");
+        GettData.LoadReport warn = data.load(dir);
+        assertEquals(10, data.detector().range());
+        assertEquals(4096, data.detector().maxBlocks());
+        assertEquals(1, warn.warnings().stream().filter(w -> w.contains("detector.json")).count(),
+                warn.warnings().toString());
+
+        Files.writeString(dir.resolve("detector.json"), "{\"range\":\"far\"}");
+        GettData.LoadReport bad = data.load(dir);
+        assertTrue(bad.errors().stream().anyMatch(e -> e.contains("detector.json")), bad.errors().toString());
+        assertEquals(10, data.detector().range());
+
+        Files.delete(dir.resolve("detector.json"));
+        data.load(dir);
+        assertEquals(org.gettserver.gettcore.detector.DetectorConfig.DEFAULT, data.detector());
+    }
 }

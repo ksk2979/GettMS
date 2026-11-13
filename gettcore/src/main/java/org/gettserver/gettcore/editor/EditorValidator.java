@@ -31,6 +31,7 @@ import org.gettserver.gettcore.reinforce.ReinforceConfig;
 import org.gettserver.gettcore.skill.BossConfig;
 import org.gettserver.gettcore.skill.SkillSpec;
 import org.gettserver.gettcore.upgrade.UpgradeConfig;
+import org.gettserver.gettcore.detector.DetectorConfig;
 
 /** Server-side gate for every editor save. Errors block the save; warnings are reported and cleaned away. */
 public final class EditorValidator {
@@ -140,6 +141,26 @@ public final class EditorValidator {
         });
         UpgradeConfig upgrade = b.upgrade().sanitized(new ArrayList<>());
 
+        // Same for detector.json: bad targets block the save, an unregistered item/block only warns.
+        for (String e : b.detector().errors()) errors.add("detector." + e);
+        b.detector().targets().forEach(t -> {
+            for (String key : t.items()) {
+                ResourceLocation id = ResourceLocation.tryParse(key);
+                if (id != null && !checks.itemExists().test(id)) {
+                    warnings.add("detector: " + key + " is not a registered item");
+                }
+            }
+            for (String key : t.blocks()) {
+                ResourceLocation id = ResourceLocation.tryParse(key);
+                if (id != null && !checks.blockExists().test(id)) {
+                    warnings.add("detector: " + key + " is not a registered block");
+                }
+            }
+        });
+        List<String> detectorWarnings = new ArrayList<>();
+        DetectorConfig detector = b.detector().sanitized(detectorWarnings);
+        addPrefixed(detectorWarnings, DetectorConfig.FILE, "detector", warnings);
+
         // Anything the load path would drop or clamp blocks the save here.
         b.bosses().bosses().forEach((key, boss) -> validateBoss("bosses." + key, boss, errors));
         List<String> bossWarnings = new ArrayList<>();
@@ -148,7 +169,7 @@ public final class EditorValidator {
 
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs, equipment, upgrade, bosses));
+                        hunting, mobs, equipment, upgrade, bosses, detector));
     }
 
     /** Ranges as in {@link BossConfig.Boss}'s / {@link SkillSpec}'s sanitizing, plus the cross-field rules. */
