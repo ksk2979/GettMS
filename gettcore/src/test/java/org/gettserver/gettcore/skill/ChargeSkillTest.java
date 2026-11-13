@@ -59,7 +59,7 @@ class ChargeSkillTest {
         boolean advance(int nx, boolean terrain) {
             WalkCarve.Step step = WalkCarve.step(nx, feet, 0, 3, w);
             if (!step.walkable()) return false;
-            OptionalInt h = ChargeSkill.fit(step.feetY(), terrain, y -> free(nx, y), minY -> carveFrom(nx, minY));
+            OptionalInt h = ChargeSkill.fit(step.feetY(), feet, terrain, y -> free(nx, y), minY -> carveFrom(nx, minY));
             if (h.isEmpty()) return false;
             feet = h.getAsInt();
             return true;
@@ -136,5 +136,33 @@ class ChargeSkillTest {
         }
         assertEquals(3, d.run(1, 8, true));
         assertTrue(d.carved.isEmpty());
+    }
+
+    @Test void twoBlockDropIsWalkedDownWithoutCarving() {
+        Dash d = new Dash(new WalkCarveTest.World().floor(63, -12, 2).floor(61, 3, 12));
+        assertEquals(10, d.run(1, 10, true));
+        assertEquals(62, d.feet);
+        assertTrue(d.carved.isEmpty());
+    }
+
+    @Test void twoBlockDropWithTerrainOffContinues() {
+        Dash d = new Dash(new WalkCarveTest.World().floor(63, -12, 2).floor(61, 3, 12));
+        assertEquals(10, d.run(1, 10, false));
+        assertEquals(62, d.feet);
+        assertTrue(d.carved.isEmpty());
+    }
+
+    @Test void downhillStaircaseThenUphillCarvesNothing() {
+        Dash d = new Dash(new WalkCarveTest.World().floor(63, -12, 1).floor(62, 2, 3).floor(61, 4, 5)
+                .floor(60, 6, 7).floor(61, 8, 9).floor(62, 10, 12));
+        assertEquals(12, d.run(1, 12, true));
+        assertEquals(63, d.feet);
+        assertTrue(d.carved.isEmpty());
+    }
+
+    @Test void threeBlockDropWithTerrainOffContinues() {
+        Dash d = new Dash(new WalkCarveTest.World().floor(63, -12, 2).floor(60, 3, 12));
+        assertEquals(10, d.run(1, 10, false));
+        assertEquals(61, d.feet);
     }
 }

@@ -121,21 +121,22 @@ public final class ChargeSkill implements SkillType {
     }
 
     /**
-     * Pure: the feet height at which the wide body fits when the centre column is walkable at {@code g}. The body
-     * rides up onto a step it overlaps (g, then g + 1; the lowest free height wins). Only when neither fits and
-     * {@code terrain} is on is everything from {@code g + 1} up broken (never the feet layer of the side columns,
-     * never the floor) and both heights tried again. Empty: the dash ends where it is.
+     * Pure: the feet height at which the wide body fits when the centre column is walkable at {@code g} and the body
+     * stood at {@code prevFeet}. Candidates run from g up to max(g + 1, prevFeet), the lowest free one wins: it rides
+     * up onto a step it overlaps, and on a drop stays at the old height until the box has cleared the ledge. Only when
+     * none is free and {@code terrain} is on is everything from that top height up broken (never anything below the
+     * previous feet height, so never a floor) and the candidates tried again. Empty: the dash ends where it is.
      */
-    static OptionalInt fit(int g, boolean terrain, IntPredicate freeAt, IntConsumer carveFrom) {
-        OptionalInt h = lowestFree(g, freeAt);
+    static OptionalInt fit(int g, int prevFeet, boolean terrain, IntPredicate freeAt, IntConsumer carveFrom) {
+        int top = Math.max(g + 1, prevFeet);
+        OptionalInt h = lowestFree(g, top, freeAt);
         if (h.isPresent() || !terrain) return h;
-        carveFrom.accept(g + 1);
-        return lowestFree(g, freeAt);
+        carveFrom.accept(top);
+        return lowestFree(g, top, freeAt);
     }
 
-    private static OptionalInt lowestFree(int g, IntPredicate freeAt) {
-        if (freeAt.test(g)) return OptionalInt.of(g);
-        if (freeAt.test(g + 1)) return OptionalInt.of(g + 1);
+    private static OptionalInt lowestFree(int from, int to, IntPredicate freeAt) {
+        for (int y = from; y <= to; y++) if (freeAt.test(y)) return OptionalInt.of(y);
         return OptionalInt.empty();
     }
 
@@ -166,8 +167,8 @@ public final class ChargeSkill implements SkillType {
         AABB base = caster.getBoundingBox();
         int g = step.feetY();
         if (terrain) SkillWorld.carveNow(level, positions(step.carve()), from, MAX_DEBRIS_PER_STEP);
-        OptionalInt fit = fit(g, terrain, y -> level.noCollision(caster, boxAt(caster, base, nx, y, nz)),
-                minY -> SkillWorld.carveNow(level, bodyBlocks(boxAt(caster, base, nx, g + 1, nz), minY, blocks), from,
+        OptionalInt fit = fit(g, d.feetY, terrain, y -> level.noCollision(caster, boxAt(caster, base, nx, y, nz)),
+                minY -> SkillWorld.carveNow(level, bodyBlocks(boxAt(caster, base, nx, minY, nz), minY, blocks), from,
                         MAX_DEBRIS_PER_STEP));
         if (fit.isEmpty()) return false;
         step = new WalkCarve.Step(true, fit.getAsInt(), step.carve());
