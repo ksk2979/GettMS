@@ -20,6 +20,8 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.pet.boss.BossBear;
+import org.gettserver.gettcore.pet.boss.BossBehavior;
+import org.gettserver.gettcore.pet.boss.GettBoss;
 
 /**
  * {@code charge} (돌격): after a short stance the caster rushes in a straight line through where its target stood at
@@ -52,7 +54,8 @@ public final class ChargeSkill implements SkillType {
         Vec3 aimPoint = target != null && target.isAlive()
                 ? target.position()
                 : from.add(caster.getLookAngle().multiply(1, 0, 1).normalize().scale(spec.shape().length()));
-        Vec3 goal = dashTarget(from, aimPoint, spec.shape().radius(), spec.shape().length());
+        Vec3 goal = withinLeash(caster, from,
+                dashTarget(from, aimPoint, spec.shape().radius(), spec.shape().length()));
         cast.aim()[0] = goal;
         Vec3 flat = new Vec3(goal.x - from.x, 0, goal.z - from.z);
         boolean moves = flat.lengthSqr() >= 1.0E-6;
@@ -108,6 +111,36 @@ public final class ChargeSkill implements SkillType {
         if (len < 1.0E-9) return from;
         double travel = Math.min(len + Math.max(0, overshoot), maxLength);
         return new Vec3(from.x + dx / len * travel, from.y, from.z + dz / len * travel);
+    }
+
+    /** A boss of a boss point ends its dash inside the point's leash, or it would be put back home right after. */
+    private static Vec3 withinLeash(Mob caster, Vec3 from, Vec3 goal) {
+        if (!(caster instanceof GettBoss boss)) return goal;
+        String id = boss.bossState().pointId();
+        if (id.isEmpty()) return goal;
+        return BossBehavior.point(id).filter(p -> p.dimension().equals(caster.level().dimension()))
+                .map(p -> keepInside(from, goal, p.pos().getX() + 0.5, p.pos().getZ() + 0.5,
+                        p.radius() * 2.0 - LEASH_MARGIN))
+                .orElse(goal);
+    }
+
+    /** Blocks a dash stops short of the leash edge. */
+    static final double LEASH_MARGIN = 1.0;
+
+    /**
+     * Pure: {@code goal}, or the last point of the line from {@code from} to {@code goal} that is horizontally
+     * within {@code maxDist} of ({@code cx}, {@code cz}). A {@code from} already outside gives {@code goal} unchanged.
+     */
+    static Vec3 keepInside(Vec3 from, Vec3 goal, double cx, double cz, double maxDist) {
+        double fx = from.x - cx, fz = from.z - cz;
+        double gx = goal.x - cx, gz = goal.z - cz;
+        double max2 = maxDist * maxDist;
+        if (maxDist <= 0 || fx * fx + fz * fz > max2 || gx * gx + gz * gz <= max2) return goal;
+        double dx = goal.x - from.x, dz = goal.z - from.z;
+        double a = dx * dx + dz * dz, b = 2 * (fx * dx + fz * dz), c = fx * fx + fz * fz - max2;
+        double t = (-b + Math.sqrt(Math.max(0, b * b - 4 * a * c))) / (2 * a);
+        t = Math.max(0, Math.min(1, t));
+        return new Vec3(from.x + dx * t, goal.y, from.z + dz * t);
     }
 
     /** Unit steps to take this tick and the fraction of a step carried to the next tick. */

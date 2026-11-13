@@ -184,12 +184,13 @@ public final class BossBehavior {
         double moved = last == null ? 0 : Math.hypot(pos.x - last.x, pos.z - last.z);
         PathNavigation nav = boss.getNavigation();
         GettCore.LOGGER.info("[boss-debug] type={} dist={} speedAttr={} sprint={} navDone={} pathNull={} wantedSpeed={}"
-                        + " moveSpeed={} expect={} moved={} casting={} goal={} onGround={} target={}",
+                        + " moveSpeed={} expect={} moved={} casting={} goal={} onGround={} inWater={} dy={} target={}",
                 BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType()).getPath(), fmt(boss.distanceTo(target)),
                 fmt(boss.getAttributeValue(Attributes.MOVEMENT_SPEED)), boss.isSprinting(), nav.isDone(),
                 nav.getPath() == null, fmt(boss.getMoveControl().getSpeedModifier()), fmt(boss.getSpeed()),
                 fmt(ChaseRules.groundBlocksPerSecond(boss.getSpeed())), fmt(moved), state.skills().casting(),
-                state.chaseMode(), boss.onGround(), target.getName().getString());
+                state.chaseMode(), boss.onGround(), boss.isInWater(), fmt(target.getY() - boss.getY()),
+                target.getName().getString());
     }
 
     private static String fmt(double v) {

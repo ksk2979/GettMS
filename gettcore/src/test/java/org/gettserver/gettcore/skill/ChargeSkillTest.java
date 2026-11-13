@@ -14,6 +14,20 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.Test;
 
 class ChargeSkillTest {
+    @Test void dashEndsInsideTheLeash() {
+        Vec3 from = new Vec3(0, 64, 0);
+        // goal inside: unchanged
+        assertEquals(new Vec3(10, 64, 0), ChargeSkill.keepInside(from, new Vec3(10, 64, 0), 0, 0, 31));
+        // goal outside: cut at the edge
+        Vec3 cut = ChargeSkill.keepInside(new Vec3(20, 64, 0), new Vec3(50, 64, 0), 0, 0, 31);
+        assertEquals(31.0, cut.x, 1.0E-9);
+        assertEquals(0.0, cut.z, 1.0E-9);
+        // dashing back towards the centre from near the edge is never cut
+        assertEquals(new Vec3(0, 64, 0), ChargeSkill.keepInside(new Vec3(30, 64, 0), from, 0, 0, 31));
+        // already outside: left alone
+        assertEquals(new Vec3(60, 64, 0), ChargeSkill.keepInside(new Vec3(40, 64, 0), new Vec3(60, 64, 0), 0, 0, 31));
+    }
+
     @Test void dashTargetIsHorizontalAndCapped() {
         assertEquals(new Vec3(10, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(10, 70, 0), 0, 24));
         assertEquals(new Vec3(24, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(40, 64, 0), 0, 24));
