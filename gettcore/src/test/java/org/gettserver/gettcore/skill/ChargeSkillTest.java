@@ -55,11 +55,17 @@ class ChargeSkillTest {
             this.w = w;
         }
 
+        int body = 3;
+        int carveHeight = 3;
+
         /** One advance to column nx; false when the dash ends there. */
         boolean advance(int nx, boolean terrain) {
-            WalkCarve.Step step = WalkCarve.step(nx, feet, 0, 3, w);
+            WalkCarve.Step step = WalkCarve.step(nx, feet, 0, body, carveHeight, w);
             if (!step.walkable()) return false;
-            OptionalInt h = ChargeSkill.fit(step.feetY(), feet, terrain, y -> free(nx, y), minY -> carveFrom(nx, minY));
+            List<int[]> footprint = new ArrayList<>();
+            for (int x = nx - 1; x <= nx + 1; x++) for (int z = -1; z <= 1; z++) footprint.add(new int[] {x, z});
+            OptionalInt h = ChargeSkill.fit(step.feetY(), feet, terrain, body, carveHeight, footprint, nx, 0, w,
+                    y -> free(nx, y), this::breakAll);
             if (h.isEmpty()) return false;
             feet = h.getAsInt();
             return true;
@@ -68,22 +74,18 @@ class ChargeSkillTest {
         boolean free(int nx, int y) {
             for (int x = nx - 1; x <= nx + 1; x++) {
                 for (int z = -1; z <= 1; z++) {
-                    for (int yy = y; yy < y + 3; yy++) if (w.solid(x, yy, z)) return false;
+                    for (int yy = y; yy < y + body; yy++) if (w.solid(x, yy, z)) return false;
                 }
             }
             return true;
         }
 
-        void carveFrom(int nx, int minY) {
-            for (int x = nx - 1; x <= nx + 1; x++) {
-                for (int z = -1; z <= 1; z++) {
-                    for (int yy = minY; yy < minY + 3; yy++) {
-                        String k = WalkCarveTest.World.k(x, yy, z);
-                        if (w.solid.contains(k) && !unbreakable.contains(k)) {
-                            w.solid.remove(k);
-                            carved.add(new int[] {x, yy, z});
-                        }
-                    }
+        void breakAll(List<int[]> triples) {
+            for (int[] t : triples) {
+                String k = WalkCarveTest.World.k(t[0], t[1], t[2]);
+                if (w.solid.contains(k) && !unbreakable.contains(k)) {
+                    w.solid.remove(k);
+                    carved.add(t);
                 }
             }
         }
@@ -115,14 +117,53 @@ class ChargeSkillTest {
         assertEquals(64, d.feet, "back at ground level");
     }
 
-    @Test void threeHighWallIsCarvedAboveTheFeetLayerOnly() {
+    @Test void threeHighWallIsFullyCarvedIncludingItsBaseButNeverTheFloor() {
         WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12);
         for (int z = -12; z <= 12; z++) w.column(3, z, 64, 66);
         Dash d = new Dash(w);
         assertEquals(8, d.run(1, 8, true));
         assertFalse(d.carved.isEmpty());
-        for (int[] c : d.carved) assertTrue(c[1] == 65 || c[1] == 66, "carved y=" + c[1]);
+        for (int[] c : d.carved) assertTrue(c[1] >= 64 && c[1] <= 66, "carved y=" + c[1]);
+        assertTrue(d.carved.stream().anyMatch(c -> c[1] == 64), "the base block goes too");
+        assertEquals(64, d.feet, "no stump to ride over");
         for (int x = -12; x <= 12; x++) assertTrue(w.solid(x, 63, 0), "floor intact");
+    }
+
+    @Test void treeBesideThePathLeavesNoStump() {
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12).column(4, 1, 64, 67);
+        Dash d = new Dash(w);
+        d.carveHeight = 5;
+        assertEquals(8, d.run(1, 8, true));
+        for (int y = 64; y <= 67; y++) assertFalse(w.solid(4, y, 1), "log at y=" + y + " removed");
+        assertTrue(w.solid(4, 63, 1), "floor intact");
+        assertEquals(64, d.feet);
+    }
+
+    @Test void sidePlateauIsLeftAlone() {
+        // a one-block-high ledge only beside the path (z=1): the body steps over it rather than digging it
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12);
+        for (int x = 3; x <= 6; x++) w.column(x, 1, 64, 64);
+        Dash d = new Dash(w);
+        assertEquals(10, d.run(1, 10, true));
+        assertTrue(d.carved.isEmpty());
+        for (int x = 3; x <= 6; x++) assertTrue(w.solid(x, 64, 1));
+    }
+
+    @Test void unbreakableTallObstacleBesideThePathEndsTheDash() {
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12).column(5, 1, 64, 67);
+        Dash d = new Dash(w);
+        for (int y = 64; y <= 67; y++) d.unbreakable.add(WalkCarveTest.World.k(5, y, 1));
+        assertEquals(3, d.run(1, 10, true));
+        assertTrue(w.solid(5, 64, 1));
+    }
+
+    @Test void carveHeightAboveTheBodyIsClearedForTallObstaclesOnly() {
+        WalkCarveTest.World w = new WalkCarveTest.World().floor(63, -12, 12).column(3, 0, 64, 69);
+        Dash d = new Dash(w);
+        d.carveHeight = 5;
+        d.run(1, 4, true);
+        for (int y = 64; y <= 68; y++) assertFalse(w.solid(3, y, 0), "y=" + y);
+        assertTrue(w.solid(3, 69, 0), "above carve height stays");
     }
 
     @Test void unbreakableWallEndsTheDashAtThePreviousColumn() {

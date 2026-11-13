@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.function.IntConsumer;
+import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -24,7 +24,7 @@ import org.gettserver.gettcore.pet.boss.BossBear;
 /**
  * {@code charge} (돌격): after a short stance the caster rushes in a straight line to where its target stood at
  * release, at most {@code shape.length} blocks, {@code shape.speed} blocks per second, one block per step. With
- * {@code terrain} on it breaks what it could not walk through (never the floor); a wall it cannot break (obsidian,
+ * {@code terrain} on it breaks what it could not walk through up to {@code terrain.depth} blocks above the body height (never the floor); a wall it cannot break (obsidian,
  * protected ground, block entities) ends the rush, as do a cliff and an unloaded chunk. Everyone the body sweeps
  * past is hit once and thrown aside.
  */
@@ -58,7 +58,7 @@ public final class ChargeSkill implements SkillType {
         Vec3 dir = moves ? flat.normalize() : Vec3.ZERO;
         if (moves) face(caster, dir);
         dashes.put(cast, new Dash(from, dir, goal, Mth.floor(from.y + 1.0E-3),
-                Mth.ceil(caster.getBbHeight()), spec.shape().speed()));
+                Mth.ceil(caster.getBbHeight()), spec.terrain().depth(), spec.shape().speed()));
     }
 
     @Override
@@ -121,18 +121,52 @@ public final class ChargeSkill implements SkillType {
     }
 
     /**
-     * Pure: the feet height at which the wide body fits when the centre column is walkable at {@code g} and the body
-     * stood at {@code prevFeet}. Candidates run from g up to max(g + 1, prevFeet), the lowest free one wins: it rides
-     * up onto a step it overlaps, and on a drop stays at the old height until the box has cleared the ledge. Only when
-     * none is free and {@code terrain} is on is everything from that top height up broken (never anything below the
-     * previous feet height, so never a floor) and the candidates tried again. Empty: the dash ends where it is.
+     * Pure: the feet height at which the wide body fits when the centre column (cx, cz) is walkable at {@code g} and the
+     * body stood at {@code prevFeet}; {@code footprint} lists the (x, z) columns the body box covers.
+     *
+     * <p>With {@code terrain} on, first every TALL OBSTACLE among the other columns is broken: a column with a solid
+     * block anywhere from base + 1 up to the top of the body (base = max(g, prevFeet)) is cleared from base up to
+     * {@code carveHeight} blocks (its base block included, so no stump is left to ride over). A column solid only at
+     * base is a genuine one-block step and stays. Nothing below base is ever broken, so never the floor of the cell
+     * just left.
+     *
+     * <p>Then candidates run from g up to max(g + 1, prevFeet) and the lowest free one wins: it rides up onto a step
+     * it overlaps, and on a drop stays at the old height until the box has cleared the ledge. Only when none is free
+     * and {@code terrain} is on is everything from that top height up broken and the candidates tried again. Empty:
+     * the dash ends where it is. {@code breaker} receives {x, y, z} triples to break.
      */
-    static OptionalInt fit(int g, int prevFeet, boolean terrain, IntPredicate freeAt, IntConsumer carveFrom) {
+    static OptionalInt fit(int g, int prevFeet, boolean terrain, int bodyHeight, int carveHeight,
+                           List<int[]> footprint, int cx, int cz, WalkCarve.Blocks blocks, IntPredicate freeAt,
+                           Consumer<List<int[]>> breaker) {
+        if (terrain) {
+            int base = Math.max(g, prevFeet);
+            List<int[]> tall = new ArrayList<>();
+            for (int[] col : footprint) {
+                if (col[0] == cx && col[1] == cz) continue;
+                if (tallObstacle(col[0], col[1], base, bodyHeight, blocks)) {
+                    addColumn(tall, col[0], col[1], base, carveHeight, blocks);
+                }
+            }
+            if (!tall.isEmpty()) breaker.accept(tall);
+        }
         int top = Math.max(g + 1, prevFeet);
         OptionalInt h = lowestFree(g, top, freeAt);
         if (h.isPresent() || !terrain) return h;
-        carveFrom.accept(top);
+        List<int[]> all = new ArrayList<>();
+        for (int[] col : footprint) addColumn(all, col[0], col[1], top, carveHeight, blocks);
+        breaker.accept(all);
         return lowestFree(g, top, freeAt);
+    }
+
+    private static boolean tallObstacle(int x, int z, int base, int bodyHeight, WalkCarve.Blocks blocks) {
+        for (int y = base + 1; y < base + bodyHeight; y++) if (blocks.solid(x, y, z)) return true;
+        return false;
+    }
+
+    private static void addColumn(List<int[]> out, int x, int z, int fromY, int height, WalkCarve.Blocks blocks) {
+        for (int y = fromY; y < fromY + height; y++) {
+            if (blocks.solid(x, y, z) || blocks.light(x, y, z)) out.add(new int[] {x, y, z});
+        }
     }
 
     private static OptionalInt lowestFree(int from, int to, IntPredicate freeAt) {
@@ -154,22 +188,24 @@ public final class ChargeSkill implements SkillType {
         if (!level.hasChunk(cx >> 4, cz >> 4)) return false;
         boolean terrain = cast.spec().terrain().enabled();
         Vec3 from = new Vec3(d.x, d.y, d.z);
-        WalkCarve.Step step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, blocks);
+        WalkCarve.Step step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, d.carveHeight, blocks);
         if (!step.walkable()) {
             if (!terrain) return false;
             // Dug at once (the queued carve would leave the wall standing this tick), then looked at again: what
             // could not be broken is still there and ends the rush.
             SkillWorld.carveNow(level, positions(step.carve()), from, MAX_DEBRIS_PER_STEP);
-            step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, blocks);
+            step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, d.carveHeight, blocks);
             if (!step.walkable()) return false;
         }
         // The whole body, not just the cell centre: it rides up onto a step it overlaps, and breaks what it cannot ride.
-        AABB base = caster.getBoundingBox();
+        AABB box = caster.getBoundingBox();
         int g = step.feetY();
         if (terrain) SkillWorld.carveNow(level, positions(step.carve()), from, MAX_DEBRIS_PER_STEP);
-        OptionalInt fit = fit(g, d.feetY, terrain, y -> level.noCollision(caster, boxAt(caster, base, nx, y, nz)),
-                minY -> SkillWorld.carveNow(level, bodyBlocks(boxAt(caster, base, nx, minY, nz), minY, blocks), from,
-                        MAX_DEBRIS_PER_STEP));
+        int base = Math.max(g, d.feetY);
+        List<int[]> footprint = footprint(boxAt(caster, box, nx, base, nz));
+        OptionalInt fit = fit(g, d.feetY, terrain, d.bodyHeight, d.carveHeight, footprint, cx, cz, blocks,
+                y -> level.noCollision(caster, boxAt(caster, box, nx, y, nz)),
+                triples -> SkillWorld.carveNow(level, positions(triples), from, MAX_DEBRIS_PER_STEP));
         if (fit.isEmpty()) return false;
         step = new WalkCarve.Step(true, fit.getAsInt(), step.carve());
         d.x = nx;
@@ -189,16 +225,11 @@ public final class ChargeSkill implements SkillType {
         return base.move(nx - caster.getX(), feetY - caster.getY(), nz - caster.getZ());
     }
 
-    /** Every solid or light block inside {@code box} from {@code feetY} up (never the floor under it). */
-    static List<BlockPos> bodyBlocks(AABB box, int feetY, WalkCarve.Blocks blocks) {
-        List<BlockPos> out = new ArrayList<>();
-        int top = Mth.floor(box.maxY - 1.0E-7);
+    /** The (x, z) block columns {@code box} covers. */
+    static List<int[]> footprint(AABB box) {
+        List<int[]> out = new ArrayList<>();
         for (int x = Mth.floor(box.minX + 1.0E-7); x <= Mth.floor(box.maxX - 1.0E-7); x++) {
-            for (int z = Mth.floor(box.minZ + 1.0E-7); z <= Mth.floor(box.maxZ - 1.0E-7); z++) {
-                for (int y = feetY; y <= top; y++) {
-                    if (blocks.solid(x, y, z) || blocks.light(x, y, z)) out.add(new BlockPos(x, y, z));
-                }
-            }
+            for (int z = Mth.floor(box.minZ + 1.0E-7); z <= Mth.floor(box.maxZ - 1.0E-7); z++) out.add(new int[] {x, z});
         }
         return out;
     }
@@ -237,6 +268,7 @@ public final class ChargeSkill implements SkillType {
         final Vec3 dir;
         final Vec3 goal;
         final int bodyHeight;
+        final int carveHeight;
         final Set<Integer> hit = new HashSet<>();
         double x;
         double y;
@@ -244,12 +276,13 @@ public final class ChargeSkill implements SkillType {
         double budget;
         int feetY;
 
-        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight, double speed) {
+        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight, int extraHeight, double speed) {
             this.origin = origin;
             this.dir = dir;
             this.goal = goal;
             this.feetY = feetY;
             this.bodyHeight = bodyHeight;
+            this.carveHeight = bodyHeight + extraHeight;
             this.x = origin.x;
             this.y = origin.y;
             this.budget = initialStepBudget(speed);

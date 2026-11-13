@@ -74,10 +74,15 @@ public record BossConfig(Map<String, Boss> bosses) {
     }
 
     /**
-     * The bear's chase speed: base MOVEMENT_SPEED (bosses.json {@code speed} sets it) times MeleeAttackGoal's 1.2
-     * modifier times 43.17 = about 7.3 blocks/s, between a Speed I and a Speed II sprinting player.
+     * The bear's chase speed: base MOVEMENT_SPEED (bosses.json {@code speed} sets it) times the sprint factor 1.3
+     * (Naturalist's Bear sprints when the chase modifier is at least 1.25) times the bear's chase modifier 1.3
+     * ({@code BossBehavior.BEAR_CHASE_MODIFIER}) times 43.17 = 0.10 x 1.69 x 43.17 = about 7.3 blocks/s, between a
+     * Speed I (6.7) and a Speed II (7.9) sprinting player.
      */
-    public static final double BEAR_SPEED = 0.14;
+    public static final double BEAR_SPEED = 0.10;
+
+    /** How many blocks above the body height the bear's roar and dash clear (skill {@code terrain.depth}). */
+    public static final int BEAR_EXTRA_HEIGHT = 2;
 
     public static final BossConfig DEFAULT;
 
@@ -90,9 +95,11 @@ public record BossConfig(Map<String, Boss> bosses) {
         Boss giraffe = new Boss(Aggro.AFTER, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds, d.speed,
                 d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult, List.of(ramgak, stomp));
         SkillSpec roar = new SkillSpec("gomlatense", SkillSpec.SHOCKWAVE, true, true, "곰라텐세", 16, 3.0, 0, 8, 1.0, 12,
-                new SkillSpec.Shape(0, 0, 12, 24), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0));
+                new SkillSpec.Shape(0, 0, 12, 24), new SkillSpec.Aftershock(0, 0, 0),
+                new SkillSpec.Terrain(true, BEAR_EXTRA_HEIGHT, 0));
         SkillSpec rush = new SkillSpec("dolgyeok", SkillSpec.CHARGE, true, false, "돌격", 14, 1.5, 0, 32, 0.7, 8,
-                new SkillSpec.Shape(24, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0));
+                new SkillSpec.Shape(24, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0),
+                new SkillSpec.Terrain(true, BEAR_EXTRA_HEIGHT, 0));
         Boss bear = new Boss(Aggro.FIRST, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds,
                 Optional.of(BEAR_SPEED), d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult,
                 List.of(roar, rush));

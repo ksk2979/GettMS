@@ -111,7 +111,7 @@ public class BossBear extends Bear implements GettBoss {
 
     @Override
     protected void registerGoals() {
-        BossBehavior.registerGroundGoals(this, goalSelector, targetSelector);
+        BossBehavior.registerGroundGoals(this, goalSelector, targetSelector, BossBehavior.BEAR_CHASE_MODIFIER);
     }
 
     @Override

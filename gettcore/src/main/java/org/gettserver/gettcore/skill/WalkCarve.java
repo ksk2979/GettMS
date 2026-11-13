@@ -62,13 +62,16 @@ public final class WalkCarve {
         return out;
     }
 
-    /** Entering cell (x, z) from feet height {@code feetY}. */
-    public static Step step(int x, int feetY, int z, int bodyHeight, Blocks blocks) {
+    /**
+     * Entering cell (x, z) from feet height {@code feetY}. Passability is judged with {@code bodyHeight}; a blocked
+     * cell is cleared from the feet level up to {@code carveHeight} (bodyHeight plus the extra the owner asked for).
+     */
+    public static Step step(int x, int feetY, int z, int bodyHeight, int carveHeight, Blocks blocks) {
         for (int g : candidates(feetY)) {
             if (standable(x, g, z, bodyHeight, blocks)) return new Step(true, g, body(x, g, z, bodyHeight, blocks, false));
         }
         boolean edge = cliff(x, feetY, z, bodyHeight, blocks);
-        return new Step(false, feetY, body(x, feetY, z, bodyHeight, blocks, !edge));
+        return new Step(false, feetY, body(x, feetY, z, Math.max(bodyHeight, carveHeight), blocks, !edge));
     }
 
     /** A wall this many cells thick is pierced; a thicker mass (a hill) is not hollowed out. */
@@ -77,9 +80,11 @@ public final class WalkCarve {
     /**
      * The plan for a disc of {@code radius} around (cx, feetY, cz): breadth-first over the four neighbours, each cell
      * once, spreading through blocked cells (they are broken) but not past a cliff, and not through more than
-     * {@link #MAX_BLOCKED_RUN} blocked cells in a row. Sorted by distance.
+     * {@link #MAX_BLOCKED_RUN} blocked cells in a row. Sorted by distance. Blocked cells are cleared up to
+     * {@code carveHeight} (see {@link #step}).
      */
-    public static List<Carve> disc(int cx, int feetY, int cz, double radius, int bodyHeight, Blocks blocks) {
+    public static List<Carve> disc(int cx, int feetY, int cz, double radius, int bodyHeight, int carveHeight,
+                                   Blocks blocks) {
         List<Carve> out = new ArrayList<>();
         for (int[] b : body(cx, feetY, cz, bodyHeight, blocks, false)) out.add(new Carve(b[0], b[1], b[2], 0, true));
         Set<Long> seen = new HashSet<>();
@@ -93,7 +98,7 @@ public final class WalkCarve {
                 int x = cur[0] + d[0], z = cur[1] + d[1];
                 double dist = Math.hypot(x - cx, z - cz);
                 if (dist > radius || !seen.add(key(x, z))) continue;
-                Step s = step(x, cur[2], z, bodyHeight, blocks);
+                Step s = step(x, cur[2], z, bodyHeight, carveHeight, blocks);
                 int run = s.walkable() ? 0 : cur[3] + 1;
                 if (run > MAX_BLOCKED_RUN) continue;
                 for (int[] b : s.carve()) out.add(new Carve(b[0], b[1], b[2], dist, !blocks.solid(b[0], b[1], b[2])));

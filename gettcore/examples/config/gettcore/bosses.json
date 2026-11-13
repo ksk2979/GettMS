@@ -6,7 +6,7 @@
       "releaseRange": 40.0,
       "reaggroRange": 16.0,
       "calmSeconds": 300,
-      "speed": 0.14,
+      "speed": 0.1,
       "preferredDistance": 0.0,
       "shoutRange": 24.0,
       "enrageBelow": 0.3,
@@ -37,7 +37,7 @@
           },
           "terrain": {
             "enabled": true,
-            "depth": 0,
+            "depth": 2,
             "width": 0
           }
         },
@@ -66,7 +66,7 @@
           },
           "terrain": {
             "enabled": true,
-            "depth": 0,
+            "depth": 2,
             "width": 0
           }
         }

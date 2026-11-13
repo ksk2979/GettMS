@@ -579,6 +579,10 @@ class GettDataTest {
         assertEquals("after", b.get("aggro").getAsString());
         assertEquals(10.0, b.get("searchRange").getAsDouble());
         assertEquals(org.gettserver.gettcore.skill.BossConfig.BEAR_SPEED, b.get("speed").getAsDouble());
+        assertEquals(0.10, b.get("speed").getAsDouble());
+        for (var sk : b.getAsJsonArray("skills")) {
+            assertEquals(2, sk.getAsJsonObject().getAsJsonObject("terrain").get("depth").getAsInt());
+        }
         assertEquals(2, data.bosses().boss(net.minecraft.resources.ResourceLocation.parse("gettcore:boss_bear")).skills().size());
         assertEquals(0, com.google.gson.JsonParser.parseString(Files.readString(a.resolve("bosses.json")))
                 .getAsJsonObject().getAsJsonObject("bosses").getAsJsonObject("gettcore:boss_lion")

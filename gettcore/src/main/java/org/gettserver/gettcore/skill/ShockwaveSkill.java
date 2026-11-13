@@ -55,7 +55,8 @@ public final class ShockwaveSkill implements SkillType {
         List<WalkCarve.Carve> plan = List.of();
         if (spec.terrain().enabled()) {
             plan = WalkCarve.disc(Mth.floor(center.x), Mth.floor(center.y + 1.0E-3), Mth.floor(center.z),
-                    spec.shape().radius(), Mth.ceil(caster.getBbHeight()), SkillWorld.walkBlocks(level));
+                    spec.shape().radius(), Mth.ceil(caster.getBbHeight()),
+                    Mth.ceil(caster.getBbHeight()) + spec.terrain().depth(), SkillWorld.walkBlocks(level));
         }
         waves.put(cast, new Wave(center, plan));
     }

@@ -41,24 +41,24 @@ class WalkCarveTest {
     @Test
     void flatGroundCarvesNothingSolid() {
         World w = new World().floor(63, -12, 12);
-        assertTrue(solids(WalkCarve.disc(0, 64, 0, 6, 3, w)).isEmpty());
+        assertTrue(solids(WalkCarve.disc(0, 64, 0, 6, 3, 3, w)).isEmpty());
     }
 
     @Test
     void oneBlockStepsAreWalked() {
         World w = new World().floor(63, -12, 12).floor(64, 3, 12);
         w.light.add(World.k(5, 65, 0)); // grass on top of the step
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, 3, w);
         assertTrue(solids(out).isEmpty(), out.toString());
         assertTrue(out.stream().anyMatch(c -> c.x() == 5 && c.y() == 65 && c.z() == 0 && c.light()));
-        assertEquals(65, WalkCarve.step(3, 64, 0, 3, w).feetY());
+        assertEquals(65, WalkCarve.step(3, 64, 0, 3, 3, w).feetY());
     }
 
     @Test
     void wallIsCarvedAtBodyHeightOnly() {
         World w = new World().floor(63, -12, 12);
         for (int z = -12; z <= 12; z++) w.column(3, z, 64, 68);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, 3, w);
         List<WalkCarve.Carve> wall = out.stream().filter(c -> c.x() == 3).toList();
         assertFalse(wall.isEmpty());
         for (WalkCarve.Carve c : wall) assertTrue(c.y() >= 64 && c.y() <= 66, c.toString());
@@ -66,7 +66,7 @@ class WalkCarveTest {
         assertTrue(wall.stream().anyMatch(c -> c.z() == 0 && c.y() == 66));
         assertTrue(out.stream().noneMatch(c -> c.y() == 63 || c.y() == 67 || c.y() == 68));
         // the plan continues through the wall: x=4 is open ground again
-        assertTrue(WalkCarve.step(4, 64, 0, 3, w).walkable());
+        assertTrue(WalkCarve.step(4, 64, 0, 3, 3, w).walkable());
     }
 
     @Test
@@ -76,14 +76,14 @@ class WalkCarveTest {
             w.column(3, z, 64, 68);
             w.column(5, z, 64, 68);
         }
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, 3, w);
         assertTrue(out.stream().anyMatch(c -> c.x() == 5 && c.z() == 0), "second wall must be planned too");
     }
 
     @Test
     void lowCeilingIsCarved() {
         World w = new World().floor(63, -12, 12).floor(66, -12, 12);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 3, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 3, 3, 3, w);
         assertFalse(out.isEmpty());
         for (WalkCarve.Carve c : out) assertEquals(66, c.y());
     }
@@ -91,7 +91,7 @@ class WalkCarveTest {
     @Test
     void treeTrunkCarved() {
         World w = new World().floor(63, -12, 12).column(2, 0, 64, 69);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 4, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 4, 3, 3, w);
         assertEquals(3, out.size(), out.toString());
         assertTrue(out.stream().allMatch(c -> c.x() == 2 && c.z() == 0 && c.y() >= 64 && c.y() <= 66));
     }
@@ -100,7 +100,7 @@ class WalkCarveTest {
     void lightThingsSwept() {
         World w = new World().floor(63, -12, 12);
         w.light.add(World.k(2, 64, 1));
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 5, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 5, 3, 3, w);
         assertEquals(1, out.size());
         assertTrue(out.get(0).light());
     }
@@ -109,7 +109,7 @@ class WalkCarveTest {
     void startCellLightIncluded() {
         World w = new World().floor(63, -12, 12);
         w.light.add(World.k(0, 65, 0));
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 2, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 2, 3, 3, w);
         assertEquals(1, out.size());
         assertEquals(0.0, out.get(0).distance());
     }
@@ -118,15 +118,15 @@ class WalkCarveTest {
     void deepDropBlocks() {
         // x>=3 is five blocks lower (ground at y=58), nothing solid within 3 below the feet
         World w = new World().floor(63, -12, 2).floor(58, 3, 12);
-        assertFalse(WalkCarve.step(3, 64, 0, 3, w).walkable());
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, w);
+        assertFalse(WalkCarve.step(3, 64, 0, 3, 3, w).walkable());
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, 3, w);
         assertTrue(out.stream().noneMatch(c -> c.x() >= 4));
     }
 
     @Test
     void threeBlockDropIsWalked() {
         World w = new World().floor(63, -12, 2).floor(60, 3, 12);
-        WalkCarve.Step down = WalkCarve.step(3, 64, 0, 3, w);
+        WalkCarve.Step down = WalkCarve.step(3, 64, 0, 3, 3, w);
         assertTrue(down.walkable());
         assertEquals(61, down.feetY());
         assertTrue(down.carve().isEmpty());
@@ -136,7 +136,7 @@ class WalkCarveTest {
     void deepDropStillSweepsLight() {
         World w = new World().floor(63, -12, 2);
         w.light.add(World.k(3, 65, 0));
-        WalkCarve.Step s = WalkCarve.step(3, 64, 0, 3, w);
+        WalkCarve.Step s = WalkCarve.step(3, 64, 0, 3, 3, w);
         assertFalse(s.walkable());
         assertEquals(1, s.carve().size());
     }
@@ -145,7 +145,7 @@ class WalkCarveTest {
     void nothingOutsideRadius() {
         World w = new World().floor(63, -12, 12);
         for (int x = -12; x <= 12; x++) for (int z = -12; z <= 12; z++) w.column(x, z, 64, 66);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 5, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 5, 3, 3, w);
         assertFalse(out.isEmpty());
         for (WalkCarve.Carve c : out) assertTrue(Math.hypot(c.x(), c.z()) <= 5.0 + 1e-9, c.toString());
     }
@@ -154,7 +154,7 @@ class WalkCarveTest {
     void sortedByDistance() {
         World w = new World().floor(63, -12, 12);
         for (int x = -12; x <= 12; x++) for (int z = -12; z <= 12; z++) w.column(x, z, 64, 65);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, 3, w);
         assertFalse(out.isEmpty());
         for (int i = 1; i < out.size(); i++) assertTrue(out.get(i - 1).distance() <= out.get(i).distance());
     }
@@ -164,7 +164,7 @@ class WalkCarveTest {
         // a solid 4-high slab on the far side: every cell's floor (y-1 of its first body cell) stays
         World w = new World().floor(63, -12, 12);
         for (int x = 4; x <= 12; x++) for (int z = -12; z <= 12; z++) w.column(x, z, 64, 67);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, 3, w);
         assertFalse(out.isEmpty());
         for (WalkCarve.Carve c : out) assertTrue(c.y() >= 64 && c.y() <= 66, c.toString());
     }
@@ -173,7 +173,7 @@ class WalkCarveTest {
     void solidHillCarvesOnlyTwoDeep() {
         World w = new World().floor(63, -12, 12);
         for (int x = 3; x <= 12; x++) for (int z = -12; z <= 12; z++) w.column(x, z, 64, 69);
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 10, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 10, 3, 3, w);
         assertFalse(out.isEmpty());
         for (WalkCarve.Carve c : out) {
             assertTrue(c.x() == 3 || c.x() == 4, c.toString());
@@ -190,9 +190,29 @@ class WalkCarveTest {
             w.column(4, z, 64, 68);
         }
         w.light.add(World.k(6, 64, 0));
-        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, w);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, 3, w);
         assertTrue(out.stream().anyMatch(c -> c.x() == 3 && c.z() == 0 && c.y() == 64));
         assertTrue(out.stream().anyMatch(c -> c.x() == 4 && c.z() == 0 && c.y() == 66));
         assertTrue(out.stream().anyMatch(c -> c.x() == 6 && c.z() == 0 && c.light()), "far side planned");
+    }
+
+    @Test
+    void tallWallIsClearedUpToTheCarveHeight() {
+        World w = new World().floor(63, -12, 12);
+        for (int z = -12; z <= 12; z++) w.column(3, z, 64, 69); // 6 high
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 6, 3, 5, w);
+        List<WalkCarve.Carve> wall = out.stream().filter(c -> c.x() == 3 && c.z() == 0).toList();
+        for (int y = 64; y <= 68; y++) {
+            int yy = y;
+            assertTrue(wall.stream().anyMatch(c -> c.y() == yy), "y=" + y + " must be cleared");
+        }
+        assertTrue(out.stream().noneMatch(c -> c.y() == 69 || c.y() == 63), "above the carve height and the floor stay");
+    }
+
+    @Test
+    void fourHighTunnelIsWalkedNotCarvedEvenWithExtraHeight() {
+        World w = new World().floor(63, -12, 12).floor(68, -12, 12); // ceiling at 68: free y 64..67 (4 high)
+        assertTrue(solids(WalkCarve.disc(0, 64, 0, 6, 3, 5, w)).isEmpty());
+        assertTrue(WalkCarve.step(3, 64, 0, 3, 5, w).carve().isEmpty());
     }
 }

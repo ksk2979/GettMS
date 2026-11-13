@@ -391,10 +391,10 @@
       aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 1, width: 6 } },
     shockwave: { id: 'gomlatense', type: 'shockwave', enabled: true, shout: true, shoutText: '곰라텐세', damage: 16, knockback: 3,
       minRange: 0, maxRange: 8, chargeSeconds: 1, cooldownSeconds: 12, shape: { length: 0, width: 0, radius: 12, speed: 24 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 0, width: 0 } },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 } },
     charge: { id: 'dolgyeok', type: 'charge', enabled: true, shout: false, shoutText: '돌격', damage: 14, knockback: 1.5,
       minRange: 0, maxRange: 32, chargeSeconds: 0.7, cooldownSeconds: 8, shape: { length: 24, width: 3, radius: 0, speed: 30 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 0, width: 0 } },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 } },
   };
   const BOSS_IDS = ['lion', 'tiger', 'bear', 'elephant', 'mammoth', 'vulture', 'giraffe'].map((n) => 'gettcore:boss_' + n);
   const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -406,7 +406,7 @@
       Object.assign(b, { aggro: 'after', preferredDistance: 0, skills: [clone(SKILL_TEMPLATES.wind_line), clone(SKILL_TEMPLATES.stomp)] });
     }
     if (id === 'gettcore:boss_bear') {   // BossConfig.DEFAULT 곰: 선공, 이동속도 BEAR_SPEED, 곰라텐세·돌격
-      Object.assign(b, { speed: 0.14, skills: [clone(SKILL_TEMPLATES.shockwave), clone(SKILL_TEMPLATES.charge)] });
+      Object.assign(b, { speed: 0.1, skills: [clone(SKILL_TEMPLATES.shockwave), clone(SKILL_TEMPLATES.charge)] });
     }
     return b;
   }
@@ -2577,6 +2577,10 @@
   // 서버 SkillSpec.sanitized 와 같이: 어느 종류가 그 범위 칸을 쓰는가.
   const SHAPE_FIELD_TYPES = { 'shape.length': ['wind_line', 'charge'], 'shape.width': ['wind_line', 'charge'],
     'shape.radius': ['stomp', 'shockwave'], 'shape.speed': ['shockwave', 'charge'] };
+  // 충격파·돌격은 terrain.depth 를 "몸 높이 위로 더 부수는 높이"로 쓴다 (서버 ShockwaveSkill/ChargeSkill).
+  const EXTRA_HEIGHT_LABEL = '위로 더 부수는 높이 (칸)';
+  const skillNumLabel = (s, key) => (key === 'terrain.depth' && (s.type === 'shockwave' || s.type === 'charge')
+    ? EXTRA_HEIGHT_LABEL : SKILL_NUM_LABEL[key]);
   const SHOUT_TEXT_MAX = 24;   // SkillSpec.MAX_SHOUT_TEXT
   const BOSS_NUM_LABEL = { searchRange: '탐색 범위', releaseRange: '해제 거리', reaggroRange: '다시 잡히는 거리', calmSeconds: '진정 시간(초)',
     speed: '이동속도', armor: '방어', preferredDistance: '선호 거리', shoutRange: '외침 범위', enrageBelow: '광폭화 체력', enrageCooldownMult: '쿨타임 배율' };
@@ -2639,7 +2643,7 @@
       if (!SKILL_TYPE_LABEL[s.type]) return;
       add(bossSkillRules.id(skills, i), 'id');
       add(bossSkillRules.shoutText(s), '외침');
-      for (const key of Object.keys(SKILL_LIMITS)) add(bossSkillRules.skillNum(s, key), SKILL_NUM_LABEL[key]);
+      for (const key of Object.keys(SKILL_LIMITS)) add(bossSkillRules.skillNum(s, key), skillNumLabel(s, key));
       add(bossSkillRules.range(s), '쓰는 거리');
     });
     return out;
@@ -2688,7 +2692,7 @@
       const [o, k] = fieldRef(s, key);
       const [lo, hi, int] = SKILL_LIMITS[key];
       return checks.add(h('input', { type: 'number', step: int ? 1 : 'any', min: lo, max: hi, style: 'width:4.5rem',
-        'aria-label': `${where} ${s.id} ${SKILL_NUM_LABEL[key]}`, value: shownNum(o[k]),
+        'aria-label': `${where} ${s.id} ${skillNumLabel(s, key)}`, value: shownNum(o[k]),
         oninput: (e) => set(o, k, numOf(e)) }), () => bossSkillRules.skillNum(s, key) || (extraCheck ? extraCheck() : ''));
     };
     const chk = (obj, key, label) => h('input', { type: 'checkbox', checked: !!obj[key], 'aria-label': label,
@@ -2737,7 +2741,9 @@
         h('td', nowrap, line ? [sep('피해 '), num(s, 'aftershock.damage'), sep(' 지연 '), num(s, 'aftershock.delaySeconds'),
           sep(' 폭 '), num(s, 'aftershock.width')] : sep('—')),
         h('td', nowrap, chk(s.terrain, 'enabled', `${w} 지형 파괴`),
-          wave || dash ? h('span', { title: '막혀서 못 지나가는 블록만 부순다 (바닥은 그대로)' }, ' 못 지나가는 것만')
+          wave || dash ? [h('span', { title: '막혀서 못 지나가는 블록만 부순다 (바닥은 그대로)' }, ' 못 지나가는 것만 '),
+            h('span', { title: '막힌 곳은 몸 높이에 이 칸 수를 더한 높이까지 부순다. 지나갈 수 있는 곳은 부수지 않는다' },
+              ` ${EXTRA_HEIGHT_LABEL} `), num(s, 'terrain.depth')]
           : line ? [h('span', { title: '막힌 곳을 뚫는 굵기' }, ' 굵기 '), num(s, 'terrain.width'),
             h('span', { title: '후폭풍이 파는 구덩이 깊이. 0 = 바닥은 안 팜' }, ' 구덩이 깊이 '), num(s, 'terrain.depth')]
           : [sep(' 깊이 '), num(s, 'terrain.depth'), sep(' 폭 '), num(s, 'terrain.width')]),

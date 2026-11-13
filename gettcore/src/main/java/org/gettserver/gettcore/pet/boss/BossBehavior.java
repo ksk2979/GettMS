@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -47,6 +48,11 @@ public final class BossBehavior {
     static final double FALLBACK_SIZE_SCALE = 1.6;
     static final double FALLBACK_FLYING_SIZE_SCALE = 2.5;
     static final double ATTACK_SPEED_MODIFIER = 1.2;
+    /**
+     * The boss bear's chase modifier. Naturalist's Bear sprints (run animation, +30% speed) only while its move
+     * control's speed modifier is at least 1.25 (Bear.customServerAiStep), so the bear needs more than 1.2.
+     */
+    static final double BEAR_CHASE_MODIFIER = 1.3;
 
     static final int BAR_SYNC_TICKS = 10;
 
@@ -173,10 +179,16 @@ public final class BossBehavior {
 
     /** Ground bosses: melee whoever hurts them and nearby players, wander, look around. */
     public static void registerGroundGoals(PathfinderMob boss, GoalSelector goals, GoalSelector targets) {
+        registerGroundGoals(boss, goals, targets, ATTACK_SPEED_MODIFIER);
+    }
+
+    /** Like {@link #registerGroundGoals(PathfinderMob, GoalSelector, GoalSelector)} with its own chase speed modifier. */
+    public static void registerGroundGoals(PathfinderMob boss, GoalSelector goals, GoalSelector targets,
+                                           double chaseModifier) {
         goals.removeAllGoals(g -> true);
         targets.removeAllGoals(g -> true);
         goals.addGoal(0, new FloatGoal(boss));
-        goals.addGoal(1, new BossMeleeGoal(boss));
+        goals.addGoal(1, new BossMeleeGoal(boss, chaseModifier));
         goals.addGoal(5, new WaterAvoidingRandomStrollGoal(boss, 1.0));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));
@@ -186,10 +198,13 @@ public final class BossBehavior {
     /** The plain chase-and-bite goal, holding still while the boss casts a skill (a cast owns the boss's movement). */
     private static final class BossMeleeGoal extends MeleeAttackGoal {
         private final PathfinderMob boss;
+        private final double chaseModifier;
+        private boolean wasCasting;
 
-        BossMeleeGoal(PathfinderMob boss) {
-            super(boss, ATTACK_SPEED_MODIFIER, true);
+        BossMeleeGoal(PathfinderMob boss, double chaseModifier) {
+            super(boss, chaseModifier, true);
             this.boss = boss;
+            this.chaseModifier = chaseModifier;
         }
 
         private boolean casting() {
@@ -201,7 +216,15 @@ public final class BossBehavior {
         public void tick() {
             if (casting()) {
                 boss.getNavigation().stop();
+                wasCasting = true;
                 return;
+            }
+            if (wasCasting) {
+                // The cast cleared the path; vanilla would re-path only once the target moved a block (else 5% a
+                // tick), so a target standing still stalled the boss for about a second. Path again at once.
+                wasCasting = false;
+                LivingEntity target = boss.getTarget();
+                if (target != null) boss.getNavigation().moveTo(target, chaseModifier);
             }
             super.tick();
         }
@@ -212,7 +235,7 @@ public final class BossBehavior {
         goals.removeAllGoals(g -> true);
         targets.removeAllGoals(g -> true);
         goals.addGoal(0, new FloatGoal(boss));
-        goals.addGoal(1, new BossMeleeGoal(boss));
+        goals.addGoal(1, new BossMeleeGoal(boss, ATTACK_SPEED_MODIFIER));
         goals.addGoal(5, new FlyingWanderGoal(boss));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));
