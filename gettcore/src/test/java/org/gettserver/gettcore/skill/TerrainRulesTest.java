@@ -18,21 +18,25 @@ class TerrainRulesTest {
     private static final int MAX_Y = 319;
 
     private static boolean stone(Optional<Flags> region) {
-        return TerrainRules.breakable(false, 1.5F, 6F, false, region);
+        return TerrainRules.breakable(false, 1.5F, 6F, false, false, region);
     }
 
     @Test void airIsNotBroken() {
-        assertFalse(TerrainRules.breakable(true, 0F, 0F, false, Optional.empty()));
+        assertFalse(TerrainRules.breakable(true, 0F, 0F, false, false, Optional.empty()));
     }
 
     @Test void bedrockAndObsidianStay() {
-        assertFalse(TerrainRules.breakable(false, -1F, 3_600_000F, false, Optional.empty()), "bedrock");
-        assertFalse(TerrainRules.breakable(false, 50F, 1200F, false, Optional.empty()), "obsidian");
+        assertFalse(TerrainRules.breakable(false, -1F, 3_600_000F, false, false, Optional.empty()), "bedrock");
+        assertFalse(TerrainRules.breakable(false, 50F, 1200F, false, false, Optional.empty()), "obsidian");
         assertTrue(stone(Optional.empty()), "stone");
     }
 
     @Test void blockEntitiesStay() {
-        assertFalse(TerrainRules.breakable(false, 2.5F, 2.5F, true, Optional.empty()), "chest");
+        assertFalse(TerrainRules.breakable(false, 2.5F, 2.5F, true, false, Optional.empty()), "chest");
+    }
+
+    @Test void blocksBesideABlockEntityStay() {
+        assertFalse(TerrainRules.breakable(false, 1.5F, 6F, false, true, Optional.empty()), "wall sign / banner / chest neighbour");
     }
 
     @Test void protectedRegionStays() {

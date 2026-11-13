@@ -16,10 +16,13 @@ public final class TerrainRules {
 
     private TerrainRules() {}
 
-    /** regionFlags: the protect region at the block, if any. */
+    /**
+     * regionFlags: the protect region at the block, if any. {@code neighbourHasBlockEntity}: a block next to a block
+     * entity (wall sign, banner, chest, ...) stays, so nothing attached to those is knocked off or destroyed.
+     */
     public static boolean breakable(boolean air, float destroySpeed, float explosionResistance, boolean hasBlockEntity,
-                                    Optional<ProtectConfig.Flags> regionFlags) {
-        if (air || hasBlockEntity) return false;
+                                    boolean neighbourHasBlockEntity, Optional<ProtectConfig.Flags> regionFlags) {
+        if (air || hasBlockEntity || neighbourHasBlockEntity) return false;
         if (destroySpeed < 0 || explosionResistance >= MAX_BLAST_RESISTANCE) return false;
         return regionFlags.map(ProtectConfig.Flags::bossGrief).orElse(true);
     }

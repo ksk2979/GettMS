@@ -168,4 +168,31 @@ class WalkCarveTest {
         assertFalse(out.isEmpty());
         for (WalkCarve.Carve c : out) assertTrue(c.y() >= 64 && c.y() <= 66, c.toString());
     }
+
+    @Test
+    void solidHillCarvesOnlyTwoDeep() {
+        World w = new World().floor(63, -12, 12);
+        for (int x = 3; x <= 12; x++) for (int z = -12; z <= 12; z++) w.column(x, z, 64, 69);
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 10, 3, w);
+        assertFalse(out.isEmpty());
+        for (WalkCarve.Carve c : out) {
+            assertTrue(c.x() == 3 || c.x() == 4, c.toString());
+            assertTrue(c.y() >= 64 && c.y() <= 66, c.toString());
+        }
+        assertTrue(out.stream().anyMatch(c -> c.x() == 4 && c.z() == 0));
+    }
+
+    @Test
+    void twoThickWallIsPiercedAndFarSideReached() {
+        World w = new World().floor(63, -12, 12);
+        for (int z = -12; z <= 12; z++) {
+            w.column(3, z, 64, 68);
+            w.column(4, z, 64, 68);
+        }
+        w.light.add(World.k(6, 64, 0));
+        List<WalkCarve.Carve> out = WalkCarve.disc(0, 64, 0, 8, 3, w);
+        assertTrue(out.stream().anyMatch(c -> c.x() == 3 && c.z() == 0 && c.y() == 64));
+        assertTrue(out.stream().anyMatch(c -> c.x() == 4 && c.z() == 0 && c.y() == 66));
+        assertTrue(out.stream().anyMatch(c -> c.x() == 6 && c.z() == 0 && c.light()), "far side planned");
+    }
 }

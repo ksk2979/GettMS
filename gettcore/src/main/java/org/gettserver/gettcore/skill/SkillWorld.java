@@ -8,9 +8,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -206,12 +208,22 @@ public final class SkillWorld {
         BlockState state = level.getBlockState(pos);
         if (state.getBlock() instanceof LiquidBlock) return null;
         boolean ok = TerrainRules.breakable(state.isAir(), state.getDestroySpeed(level, pos),
-                state.getBlock().getExplosionResistance(), state.hasBlockEntity(),
+                state.getBlock().getExplosionResistance(), state.hasBlockEntity(), besideBlockEntity(level, pos),
                 protect.regionAt(level.dimension(), pos).map(ProtectConfig.Region::flags));
         if (!ok) return null;
         FluidState fluid = state.getFluidState();
-        level.setBlock(pos, fluid.isEmpty() ? Blocks.AIR.defaultBlockState() : fluid.createLegacyBlock(), 3);
+        level.setBlock(pos, fluid.isEmpty() ? Blocks.AIR.defaultBlockState() : fluid.createLegacyBlock(),
+                Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
         return state;
+    }
+
+    /** Whether any of the six neighbours (in loaded chunks) holds a block entity. */
+    private static boolean besideBlockEntity(ServerLevel level, BlockPos pos) {
+        for (Direction d : Direction.values()) {
+            BlockPos n = pos.relative(d);
+            if (level.hasChunkAt(n) && level.getBlockState(n).hasBlockEntity()) return true;
+        }
+        return false;
     }
 
     /** Debris left in a chunk by a crash or a stop mid-flight is thrown away when the chunk loads again. */

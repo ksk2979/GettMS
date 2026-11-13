@@ -97,6 +97,7 @@ public final class BossBehavior {
         BossConfig.Boss cfg = GettData.get().bosses().boss(BuiltInRegistries.ENTITY_TYPE.getKey(boss.getType()));
         BossAggro.serverTick(boss, state, cfg);
         state.skills().tick(cfg.skills(), boss.getTarget(), cfg.enrageBelow(), cfg.enrageCooldownMult(), cfg.shoutRange());
+        if (state.skills().casting()) return; // a dash is not pulled home mid-way
         String id = state.pointId();
         if (id.isEmpty()) return;
         point(id).filter(p -> p.dimension().equals(boss.level().dimension()))
@@ -152,7 +153,7 @@ public final class BossBehavior {
         BossAggro.registerTargets(boss, targets);
     }
 
-    /** The plain chase-and-bite goal, standing down while the boss casts a skill (a cast owns the boss's movement). */
+    /** The plain chase-and-bite goal, holding still while the boss casts a skill (a cast owns the boss's movement). */
     private static final class BossMeleeGoal extends MeleeAttackGoal {
         private final PathfinderMob boss;
 
@@ -165,14 +166,14 @@ public final class BossBehavior {
             return boss instanceof GettBoss b && b.bossState().skills().casting();
         }
 
+        /** Keeps running through a cast (so the wander goal cannot take the MOVE flag) but neither moves nor bites. */
         @Override
-        public boolean canUse() {
-            return !casting() && super.canUse();
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return !casting() && super.canContinueToUse();
+        public void tick() {
+            if (casting()) {
+                boss.getNavigation().stop();
+                return;
+            }
+            super.tick();
         }
     }
 

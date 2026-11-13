@@ -4,8 +4,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.IntConsumer;
+import java.util.function.IntPredicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -55,7 +58,7 @@ public final class ChargeSkill implements SkillType {
         Vec3 dir = moves ? flat.normalize() : Vec3.ZERO;
         if (moves) face(caster, dir);
         dashes.put(cast, new Dash(from, dir, goal, Mth.floor(from.y + 1.0E-3),
-                Mth.ceil(caster.getBbHeight())));
+                Mth.ceil(caster.getBbHeight()), spec.shape().speed()));
     }
 
     @Override
@@ -70,8 +73,11 @@ public final class ChargeSkill implements SkillType {
         caster.moveTo(dash.x, dash.y, dash.z, caster.getYRot(), 0);
         WalkCarve.Blocks blocks = SkillWorld.walkBlocks(level);
         boolean finished = false;
-        int steps = stepsPerTick(cast.spec().shape().speed());
-        for (int i = 0; i < steps && !finished; i++) {
+        double speed = cast.spec().shape().speed();
+        Steps steps = stepsThisTick(dash.budget, speed);
+        dash.budget = steps.rest();
+        double startX = dash.x, startZ = dash.z;
+        for (int i = 0; i < steps.steps() && !finished; i++) {
             if (advance(cast, dash, blocks)) sweep(cast, dash);
             else finished = true;
         }
@@ -85,7 +91,7 @@ public final class ChargeSkill implements SkillType {
             return false;
         }
         // Only for the client's interpolation: the next tick snaps the caster back to the cursor before moving on.
-        caster.setDeltaMovement(dash.dir.scale(cast.spec().shape().speed() / 20.0));
+        caster.setDeltaMovement(dash.x - startX, 0, dash.z - startZ);
         caster.hasImpulse = true;
         return true;
     }
@@ -99,9 +105,38 @@ public final class ChargeSkill implements SkillType {
         return new Vec3(from.x + dx / len * maxLength, from.y, from.z + dz / len * maxLength);
     }
 
-    /** Pure: blocks to advance per tick at {@code speedPerSecond}, at least one. */
-    static int stepsPerTick(double speedPerSecond) {
-        return Math.max(1, (int) Math.round(speedPerSecond / 20.0));
+    /** Unit steps to take this tick and the fraction of a step carried to the next tick. */
+    record Steps(int steps, double rest) {}
+
+    /** Pure: the carry before the first tick; makes the very first tick take a step even at a slow speed. */
+    static double initialStepBudget(double speedPerSecond) {
+        return Math.max(0, 1.0 - speedPerSecond / 20.0);
+    }
+
+    /** Pure: {@code budget} plus this tick's share of {@code speedPerSecond}; whole blocks are walked, the rest carried. */
+    static Steps stepsThisTick(double budget, double speedPerSecond) {
+        double total = budget + speedPerSecond / 20.0;
+        int whole = (int) Math.floor(total + 1.0E-9);
+        return new Steps(whole, Math.max(0, total - whole));
+    }
+
+    /**
+     * Pure: the feet height at which the wide body fits when the centre column is walkable at {@code g}. The body
+     * rides up onto a step it overlaps (g, then g + 1; the lowest free height wins). Only when neither fits and
+     * {@code terrain} is on is everything from {@code g + 1} up broken (never the feet layer of the side columns,
+     * never the floor) and both heights tried again. Empty: the dash ends where it is.
+     */
+    static OptionalInt fit(int g, boolean terrain, IntPredicate freeAt, IntConsumer carveFrom) {
+        OptionalInt h = lowestFree(g, freeAt);
+        if (h.isPresent() || !terrain) return h;
+        carveFrom.accept(g + 1);
+        return lowestFree(g, freeAt);
+    }
+
+    private static OptionalInt lowestFree(int g, IntPredicate freeAt) {
+        if (freeAt.test(g)) return OptionalInt.of(g);
+        if (freeAt.test(g + 1)) return OptionalInt.of(g + 1);
+        return OptionalInt.empty();
     }
 
     /**
@@ -127,10 +162,15 @@ public final class ChargeSkill implements SkillType {
             step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, blocks);
             if (!step.walkable()) return false;
         }
-        // The whole body, not just the cell centre: moved there, it must touch no block.
-        AABB moved = caster.getBoundingBox().move(nx - caster.getX(), step.feetY() - caster.getY(), nz - caster.getZ());
-        if (terrain) SkillWorld.carveNow(level, bodyBlocks(moved, step.feetY(), blocks), from, MAX_DEBRIS_PER_STEP);
-        if (!level.noCollision(caster, moved)) return false;
+        // The whole body, not just the cell centre: it rides up onto a step it overlaps, and breaks what it cannot ride.
+        AABB base = caster.getBoundingBox();
+        int g = step.feetY();
+        if (terrain) SkillWorld.carveNow(level, positions(step.carve()), from, MAX_DEBRIS_PER_STEP);
+        OptionalInt fit = fit(g, terrain, y -> level.noCollision(caster, boxAt(caster, base, nx, y, nz)),
+                minY -> SkillWorld.carveNow(level, bodyBlocks(boxAt(caster, base, nx, g + 1, nz), minY, blocks), from,
+                        MAX_DEBRIS_PER_STEP));
+        if (fit.isEmpty()) return false;
+        step = new WalkCarve.Step(true, fit.getAsInt(), step.carve());
         d.x = nx;
         d.y = step.feetY();
         d.z = nz;
@@ -141,6 +181,11 @@ public final class ChargeSkill implements SkillType {
         SkillFx.footDust(level, feet, 4, caster.getBbWidth() * 0.5);
         SkillFx.particles(level, ParticleTypes.CAMPFIRE_COSY_SMOKE, feet.add(0, 0.3, 0), 1, 0.3, 0.01);
         return true;
+    }
+
+    /** The caster's box moved so that its centre column is (nx, nz) and its bottom is at {@code feetY}. */
+    private static AABB boxAt(Mob caster, AABB base, double nx, int feetY, double nz) {
+        return base.move(nx - caster.getX(), feetY - caster.getY(), nz - caster.getZ());
     }
 
     /** Every solid or light block inside {@code box} from {@code feetY} up (never the floor under it). */
@@ -195,9 +240,10 @@ public final class ChargeSkill implements SkillType {
         double x;
         double y;
         double z;
+        double budget;
         int feetY;
 
-        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight) {
+        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight, double speed) {
             this.origin = origin;
             this.dir = dir;
             this.goal = goal;
@@ -205,6 +251,7 @@ public final class ChargeSkill implements SkillType {
             this.bodyHeight = bodyHeight;
             this.x = origin.x;
             this.y = origin.y;
+            this.budget = initialStepBudget(speed);
             this.z = origin.z;
         }
     }

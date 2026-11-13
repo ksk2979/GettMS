@@ -71,9 +71,13 @@ public final class WalkCarve {
         return new Step(false, feetY, body(x, feetY, z, bodyHeight, blocks, !edge));
     }
 
+    /** A wall this many cells thick is pierced; a thicker mass (a hill) is not hollowed out. */
+    public static final int MAX_BLOCKED_RUN = 2;
+
     /**
      * The plan for a disc of {@code radius} around (cx, feetY, cz): breadth-first over the four neighbours, each cell
-     * once, spreading through blocked cells (they are broken) but not past a cliff. Sorted by distance.
+     * once, spreading through blocked cells (they are broken) but not past a cliff, and not through more than
+     * {@link #MAX_BLOCKED_RUN} blocked cells in a row. Sorted by distance.
      */
     public static List<Carve> disc(int cx, int feetY, int cz, double radius, int bodyHeight, Blocks blocks) {
         List<Carve> out = new ArrayList<>();
@@ -81,7 +85,7 @@ public final class WalkCarve {
         Set<Long> seen = new HashSet<>();
         seen.add(key(cx, cz));
         ArrayDeque<int[]> queue = new ArrayDeque<>();
-        queue.add(new int[] {cx, cz, feetY});
+        queue.add(new int[] {cx, cz, feetY, 0});
         int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         while (!queue.isEmpty()) {
             int[] cur = queue.poll();
@@ -90,9 +94,11 @@ public final class WalkCarve {
                 double dist = Math.hypot(x - cx, z - cz);
                 if (dist > radius || !seen.add(key(x, z))) continue;
                 Step s = step(x, cur[2], z, bodyHeight, blocks);
+                int run = s.walkable() ? 0 : cur[3] + 1;
+                if (run > MAX_BLOCKED_RUN) continue;
                 for (int[] b : s.carve()) out.add(new Carve(b[0], b[1], b[2], dist, !blocks.solid(b[0], b[1], b[2])));
                 if (!s.walkable() && cliff(x, cur[2], z, bodyHeight, blocks)) continue;
-                queue.add(new int[] {x, z, s.feetY()});
+                queue.add(new int[] {x, z, s.feetY(), run});
             }
         }
         out.sort(Comparator.comparingDouble(Carve::distance));
