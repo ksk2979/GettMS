@@ -47,6 +47,20 @@ class DetectorCooldownsTest {
     }
 
     @Test
+    void forgetClearsEveryKeyOfThatPlayerOnly() {
+        DetectorCooldowns c = new DetectorCooldowns();
+        c.start(alice, "detector", 0, 1200);
+        c.start(alice, "ore:iron", 0, 1200);
+        c.start(alice, "ore:copper", 0, 1200);
+        c.start(bob, "detector", 0, 1200);
+        c.forget(alice);
+        assertEquals(0, c.remainingTicks(alice, "detector", 10));
+        assertEquals(0, c.remainingTicks(alice, "ore:iron", 10));
+        assertEquals(0, c.remainingTicks(alice, "ore:copper", 10));
+        assertEquals(1190, c.remainingTicks(bob, "detector", 10));
+    }
+
+    @Test
     void clearResets() {
         DetectorCooldowns c = new DetectorCooldowns();
         c.start(alice, "detector", 0, 1200);

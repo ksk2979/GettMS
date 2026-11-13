@@ -7,6 +7,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ExtraCodecs;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -21,6 +22,7 @@ import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import org.gettserver.gettcore.detector.DetectingEffect;
 import org.gettserver.gettcore.detector.DetectorItem;
 import org.gettserver.gettcore.economy.CheckItem;
 import org.gettserver.gettcore.enchant.EnchantMenu;
@@ -50,6 +52,11 @@ public class GettCore {
     public static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, MOD_ID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MOD_ID);
     public static final DeferredRegister.DataComponents DATA_COMPONENTS = DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
+    public static final DeferredRegister<MobEffect> MOB_EFFECTS = DeferredRegister.create(Registries.MOB_EFFECT, MOD_ID);
+
+    /** 탐지 표시가 남은 시간을 HUD 효과 목록에 보여 주기 위한 표시용 효과(동작 없음). */
+    public static final DeferredHolder<MobEffect, MobEffect> DETECTING =
+            MOB_EFFECTS.register("detecting", DetectingEffect::new);
 
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Long>> CHECK_AMOUNT =
             DATA_COMPONENTS.registerComponentType("check_amount",
@@ -123,6 +130,7 @@ public class GettCore {
         CREATIVE_TABS.register(modBus);
         MENUS.register(modBus);
         DATA_COMPONENTS.register(modBus);
+        MOB_EFFECTS.register(modBus);
         PetRegistry.register(modBus);
         org.gettserver.gettcore.pet.command.CommandArgumentTypes.register(modBus);
         org.gettserver.gettcore.balance.ScaleSpawnsModifier.register(modBus);

@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -69,6 +70,7 @@ public final class DetectorService {
                 now + durationTicks, config.range(), config.maxBlocks(), new long[1][]);
         SESSIONS.put(player.getUUID(), session);
         scanAndSend(player, session, now, true);
+        showDetecting(player, (int) Math.max(1, Math.min(Integer.MAX_VALUE, durationTicks)));
 
         COOLDOWNS.start(player.getUUID(), DetectorHighlightPayload.DETECTOR_KEY, now, cooldownTicks);
         if (cooldownTicks > 0) player.getCooldowns().addCooldown(GettCore.DETECTOR.get(), (int) cooldownTicks);
@@ -90,9 +92,21 @@ public final class DetectorService {
         // 주변에 없어도 쿨타임은 돈다.
         COOLDOWNS.start(player.getUUID(), key, now, Math.round(enchant.prospectCooldownSeconds() * 20));
         if (found.length == 0) return;
-        PacketDistributor.sendToPlayer(player, new DetectorHighlightPayload(key, found,
-                prospectTicks(enchant.prospectDurationSeconds())));
+        int displayTicks = prospectTicks(enchant.prospectDurationSeconds());
+        PacketDistributor.sendToPlayer(player, new DetectorHighlightPayload(key, found, displayTicks));
+        showDetecting(player, displayTicks);
         chime(player);
+    }
+
+    /** 남은 표시 시간을 HUD 에 보이는 효과. 더 짧은 새 적용이 긴 기존 효과를 줄이지 않는다(addEffect 가 긴 쪽 유지). */
+    private static void showDetecting(ServerPlayer player, int ticks) {
+        player.addEffect(new MobEffectInstance(GettCore.DETECTING, ticks, 0, false, false, true));
+    }
+
+    /** 관리자 명령용: 이 플레이어의 탐지 쿨타임(탐지기·광물별)과 아이템 쿨타임 표시를 모두 지운다. 세션은 유지. */
+    public static void resetCooldowns(ServerPlayer player) {
+        COOLDOWNS.forget(player.getUUID());
+        player.getCooldowns().removeCooldown(GettCore.DETECTOR.get());
     }
 
     /** 설정값이 무엇이든 탐지기 자체 범위와 같은 1..64 로 제한한다. */
@@ -160,6 +174,7 @@ public final class DetectorService {
 
     private static void endSession(ServerPlayer player) {
         SESSIONS.remove(player.getUUID());
+        player.removeEffect(GettCore.DETECTING);
         PacketDistributor.sendToPlayer(player, new DetectorHighlightPayload("", new long[0], 0));
     }
 

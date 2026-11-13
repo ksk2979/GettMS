@@ -57,6 +57,8 @@
   "gettcore.detector.use": "Right-click: scan nearby",
   "gettcore.detector.empty": "Put an item to look for into the detector",
   "gettcore.detector.unknown": "This item can no longer be detected",
+  "gettcore.detector.reset": "Reset detector cooldowns for %s",
+  "effect.gettcore.detecting": "Detecting",
   "gettcore.detector.cooldown": "Detector ready in %ss",
   "gettcore.gui.enchant_title": "Enchanting",
   "gettcore.gui.enchant_apply": "Infuse",

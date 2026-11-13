@@ -57,6 +57,8 @@
   "gettcore.detector.use": "우클릭: 주변 탐지",
   "gettcore.detector.empty": "탐지기에 찾을 아이템을 넣어 주세요",
   "gettcore.detector.unknown": "이 아이템은 더 이상 찾을 수 없습니다",
+  "gettcore.detector.reset": "%s 의 탐지 쿨타임을 초기화했습니다",
+  "effect.gettcore.detecting": "탐지 중",
   "gettcore.detector.cooldown": "탐지기 재사용까지 %s초",
   "gettcore.gui.enchant_title": "마법부여",
   "gettcore.gui.enchant_apply": "부여",
