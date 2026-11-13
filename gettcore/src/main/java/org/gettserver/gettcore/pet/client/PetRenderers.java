@@ -111,12 +111,7 @@ public final class PetRenderers {
                 applyScale(entity, poseStack);
             }
         });
-        event.registerEntityRenderer(PetRegistry.BOSS_BEAR.get(), ctx -> new BearRenderer(ctx) {
-            @Override
-            protected void scale(Bear entity, PoseStack poseStack, float partialTick) {
-                applyScale(entity, poseStack);
-            }
-        });
+        event.registerEntityRenderer(PetRegistry.BOSS_BEAR.get(), BossBearRenderer::new);
         event.registerEntityRenderer(PetRegistry.BOSS_ELEPHANT.get(), ctx -> new ElephantRenderer(ctx) {
             @Override
             protected void scale(Elephant entity, PoseStack poseStack, float partialTick) {

@@ -32,6 +32,22 @@ public class BossBear extends Bear implements GettBoss {
 
     private static final EntityDataAccessor<CompoundTag> BOSS_DATA =
             SynchedEntityData.defineId(BossBear.class, EntityDataSerializers.COMPOUND_TAG);
+    // Client pose timing (ticks) and angles (radians). Roar: raise 0.2 s, hold 0.8 s (the 1.0 s gather), lower 0.3 s.
+    // Rush: lower 0.2 s, hold 0.5 s (the 0.7 s wind-up), recover 0.2 s.
+    private static final float ROAR_HEAD_RAISE = -(float) Math.toRadians(32.0);
+    private static final float ROAR_RAISE_TICKS = 4.0F;
+    private static final float ROAR_HOLD_TICKS = 16.0F;
+    private static final float ROAR_LOWER_TICKS = 6.0F;
+    private static final float RUSH_HEAD_LOWER = (float) Math.toRadians(15.0);
+    private static final float RUSH_LOWER_TICKS = 4.0F;
+    private static final float RUSH_HOLD_TICKS = 10.0F;
+    private static final float RUSH_RECOVER_TICKS = 4.0F;
+    private static final int POSE_MAX_TICKS = 40;
+    private static final int POSE_NONE = 0;
+    private static final int POSE_ROAR = 1;
+    private static final int POSE_RUSH = 2;
+    private int poseKind = POSE_NONE;
+    private int poseStartTick;
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */
     private BossState boss;
 
@@ -99,8 +115,55 @@ public class BossBear extends Bear implements GettBoss {
     }
 
     @Override
+    public void handleEntityEvent(byte id) {
+        if (id == EVENT_ROAR) {
+            poseStartTick = tickCount;
+            poseKind = POSE_ROAR;
+        } else if (id == EVENT_RUSH) {
+            poseStartTick = tickCount;
+            poseKind = POSE_RUSH;
+        } else {
+            super.handleEntityEvent(id);
+        }
+    }
+
+    /**
+     * Client: extra head pitch in radians for the current roar or rush pose (negative raises the head, as in
+     * vanilla models); 0 when no pose is playing. Eases in and out, interpolated with the partial tick.
+     */
+    public float headPitchOffset(float partialTick) {
+        if (poseKind == POSE_NONE) return 0.0F;
+        float t = tickCount - poseStartTick + partialTick;
+        float target;
+        float up;
+        float hold;
+        float down;
+        if (poseKind == POSE_ROAR) {
+            target = ROAR_HEAD_RAISE;
+            up = ROAR_RAISE_TICKS;
+            hold = ROAR_HOLD_TICKS;
+            down = ROAR_LOWER_TICKS;
+        } else {
+            target = RUSH_HEAD_LOWER;
+            up = RUSH_LOWER_TICKS;
+            hold = RUSH_HOLD_TICKS;
+            down = RUSH_RECOVER_TICKS;
+        }
+        float k;
+        if (t < up) k = t / up;
+        else if (t < up + hold) k = 1.0F;
+        else k = 1.0F - (t - up - hold) / down;
+        k = Math.max(0.0F, Math.min(1.0F, k));
+        k = k * k * (3.0F - 2.0F * k);
+        return target * k;
+    }
+
+    @Override
     public void tick() {
         super.tick();
+        if (level().isClientSide && poseKind != POSE_NONE && tickCount - poseStartTick > POSE_MAX_TICKS) {
+            poseKind = POSE_NONE;
+        }
         bossState().tick();
     }
 
