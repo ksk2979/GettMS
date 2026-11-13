@@ -1,1 +1,1 @@
-{"parent":"minecraft:item/generated","textures":{"layer0":"minecraft:item/recovery_compass_16"}}
+{"parent":"minecraft:item/generated","textures":{"layer0":"gettcore:item/detector"}}
