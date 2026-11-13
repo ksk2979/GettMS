@@ -23,6 +23,7 @@
   "itemGroup.gettcore": "Gett",
   "item.gettcore.check": "Check",
   "gettcore.msg.sold": "Sold %2$d x %1$s (+%3$s gold)",
+  "gettcore.msg.sold_all": "Sold %d items (+%s gold)",
   "gettcore.msg.market_changed": "§6[Market]§r Shop sell prices have changed.",
   "gettcore.msg.bought": "Bought %2$d x %1$s (-%3$s gold)",
   "gettcore.msg.inventory_full": "Inventory is full",

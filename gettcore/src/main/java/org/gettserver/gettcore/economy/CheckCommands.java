@@ -25,7 +25,7 @@ public final class CheckCommands {
     @SubscribeEvent
     public static void register(RegisterCommandsEvent event) {
         CommandDispatcher<CommandSourceStack> d = event.getDispatcher();
-        d.register(root("수표발행"));
+        d.register(root("수표"));
         d.register(root("check"));
     }
 

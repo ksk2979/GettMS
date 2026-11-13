@@ -258,7 +258,7 @@ public final class ShopService {
             return;
         }
         if (req.mode() == ShopMode.SELL) {
-            if (sellEntry(player, entry, req.count()) < 0) msg(player, "gettcore.msg.nothing_to_sell");
+            if (sellEntry(player, entry, req.count(), true) == null) msg(player, "gettcore.msg.nothing_to_sell");
         } else {
             buy(player, entry, req.count());
         }
@@ -268,16 +268,24 @@ public final class ShopService {
         return BuiltInRegistries.ITEM.get(id).getDescription().getString();
     }
 
-    /** Returns gold earned, or -1 when nothing was sold. */
-    private static long sellEntry(ServerPlayer player, ShopEntry entry, int wanted) {
+    /** What one sale moved: item count and gold earned. */
+    private record Sold(int count, long gold) {
+        static final Sold FAILED = new Sold(0, 0);
+    }
+
+    /**
+     * Sells up to {@code wanted} of the entry's item. Null when the player has none; {@link Sold#FAILED} when the
+     * payout failed (already reported). {@code announce}: send the per-item "sold" line (sell-all sends one summary).
+     */
+    private static Sold sellEntry(ServerPlayer player, ShopEntry entry, int wanted, boolean announce) {
         List<ItemStack> inv = player.getInventory().items;
         int n = Math.min(wanted, TradeCalculator.countSellable(inv, entry.item()));
-        if (n <= 0) return -1;
+        if (n <= 0) return null;
         long total = TradeCalculator.total(entry.currentSellPrice(), n);
         EconomyData data = EconomyData.get(player.server);
         if (data.ledger().deposit(player.getUUID(), total) != Ledger.Result.OK) {
             msg(player, "gettcore.msg.invalid_trade");
-            return 0;
+            return Sold.FAILED;
         }
         int left = n;
         for (ItemStack s : inv) {
@@ -291,7 +299,7 @@ public final class ShopService {
         player.getInventory().setChanged();
         player.containerMenu.broadcastChanges();
         data.changed(player.getUUID());
-        msg(player, "gettcore.msg.sold", itemName(entry.item()), n, Gold.format(total));
+        if (announce) msg(player, "gettcore.msg.sold", itemName(entry.item()), n, Gold.format(total));
         PriceDynamicsConfig cfg = dynamics();
         if (cfg.enabled()) {
             // Re-read the live definition so consecutive entries in sellAll don't overwrite each other.
@@ -303,16 +311,27 @@ public final class ShopService {
                         Map.of(entry.item(), new GettData.CurrentPrices(entry.currentBuyPrice(), ns)));
             }
         }
-        return total;
+        return new Sold(n, total);
     }
 
+    /** Sells everything the shop buys; one summary line (total item count and gold) instead of a line per item. */
     private static void sellAll(ServerPlayer player, ShopDefinition shop) {
         boolean any = false;
+        long count = 0;
+        long gold = 0;
         for (ShopEntry e : shop.entries()) {
             if (!e.canSell()) continue;
-            if (sellEntry(player, e, MAX_TRADE) >= 0) any = true;
+            Sold sold = sellEntry(player, e, MAX_TRADE, false);
+            if (sold == null) continue;
+            any = true;
+            count += sold.count();
+            gold += sold.gold();
         }
-        if (!any) msg(player, "gettcore.msg.nothing_to_sell");
+        if (!any) {
+            msg(player, "gettcore.msg.nothing_to_sell");
+        } else if (count > 0) {
+            msg(player, "gettcore.msg.sold_all", count, Gold.format(gold));
+        }
     }
 
     private static void buy(ServerPlayer player, ShopEntry entry, int count) {
