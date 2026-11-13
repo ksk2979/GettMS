@@ -105,6 +105,10 @@ public final class GettNetwork {
         registrar.playToClient(SkillShoutPayload.TYPE, SkillShoutPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> org.gettserver.gettcore.skill.client.SkillShoutHud.show(payload.text())));
+        // DetectorHighlights (client-only, detector.client) is referenced only inside the client-bound handler.
+        registrar.playToClient(DetectorHighlightPayload.TYPE, DetectorHighlightPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.detector.client.DetectorHighlights
+                        .apply(payload, ctx.player().level().getGameTime())));
         registrar.playToServer(PetDexActionPayload.TYPE, PetDexActionPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> PetService.handleAction((ServerPlayer) ctx.player(), payload.index(), payload.action())));

@@ -28,6 +28,7 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.detector.DetectorService;
 import org.gettserver.gettcore.enchant.SpecialEnchants.Ability;
 
 /** 곡괭이 특수 능력: 광맥(이어진 같은 광석), 광역(바라보는 면 3×3), 제련(드롭을 화로 결과로). */
@@ -43,6 +44,9 @@ public final class PickaxeEffects {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         BlockState state = event.getState();
         BlockPos pos = event.getPos().immutable();
+
+        int prospect = EffectContext.activeLevel(player, Ability.PROSPECT);
+        if (prospect > 0) DetectorService.prospect(player, level, pos, state, prospect);
 
         int vein = EffectContext.activeLevel(player, Ability.VEIN);
         // 광맥: 도구 등급이 원래 광석을 캘 수 있을 때만(돌 곡괭이로 다이아 광맥을 없애지 않는다)

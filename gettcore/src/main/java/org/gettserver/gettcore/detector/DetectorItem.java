@@ -5,7 +5,11 @@ import java.util.Optional;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ClickAction;
@@ -18,7 +22,7 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
 
-/** 탐지기: 대상 칸(아이템 1개, 소모 없음)을 번들처럼 커서 우클릭으로 채우고 뺀다. 사용(탐지)은 별도 태스크. */
+/** 탐지기: 대상 칸(아이템 1개, 소모 없음)을 번들처럼 커서 우클릭으로 채우고 뺀다. 우클릭하면 주변을 탐지한다. */
 public final class DetectorItem extends Item {
     public DetectorItem(Item.Properties properties) {
         super(properties);
@@ -84,6 +88,13 @@ public final class DetectorItem extends Item {
     private static void playSound(Player player, boolean insert) {
         player.playSound(insert ? SoundEvents.BUNDLE_INSERT : SoundEvents.BUNDLE_REMOVE_ONE, 0.8F,
                 0.8F + player.level().getRandom().nextFloat() * 0.4F);
+    }
+
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player instanceof ServerPlayer sp) DetectorService.use(sp, stack);
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide);
     }
 
     @Override
