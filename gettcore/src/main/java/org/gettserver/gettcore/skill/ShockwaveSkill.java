@@ -28,7 +28,8 @@ public final class ShockwaveSkill implements SkillType {
     static final double VERTICAL_REACH = 6.0;     // victims further than this above/below the center are missed
     static final double FX_OVERSHOOT = 1.4;       // the ring effect spreads to radius x this
     private static final int GROWL_INTERVAL = 10; // ticks between charge growls
-    private static final int MAX_RING_POINTS = 48;
+    private static final int MAX_RING_POINTS = 24;
+    private static final int RING_SCAN = 4;       // blocks above/below the center searched for the ground
 
     /** The wave of each running cast, from release until its ring effect is done; weak so a cancelled cast is dropped. */
     private final Map<Cast, Wave> waves = new WeakHashMap<>();
@@ -115,16 +116,27 @@ public final class ShockwaveSkill implements SkillType {
         SkillWorld.carve(level, batch);
     }
 
-    /** Dust and sweep marks along the circle of {@code radius} at ground height, about a block apart. */
+    /** Dust and sweep marks along the circle of {@code radius} on the ground, about two blocks apart. */
     private static void ring(ServerLevel level, Vec3 center, double radius) {
-        int points = Mth.clamp(Mth.ceil(Mth.TWO_PI * radius), 8, MAX_RING_POINTS);
+        int points = Mth.clamp(Mth.ceil(Mth.TWO_PI * radius / 2.0), 8, MAX_RING_POINTS);
+        WalkCarve.Blocks blocks = SkillWorld.walkBlocks(level);
         for (int i = 0; i < points; i++) {
             double a = Mth.TWO_PI * i / points;
-            Vec3 p = new Vec3(center.x + Math.cos(a) * radius, center.y + 0.2, center.z + Math.sin(a) * radius);
-            if (!level.hasChunkAt(BlockPos.containing(p))) continue;
+            double x = center.x + Math.cos(a) * radius, z = center.z + Math.sin(a) * radius;
+            if (!level.hasChunk(Mth.floor(x) >> 4, Mth.floor(z) >> 4)) continue;
+            Vec3 p = new Vec3(x, groundY(blocks, x, center.y, z) + 0.2, z);
             SkillFx.particles(level, ParticleTypes.CLOUD, p, 1, 0.2, 0.02);
-            if (i % 2 == 0) SkillFx.particles(level, ParticleTypes.SWEEP_ATTACK, p, 1, 0.1, 0);
+            SkillFx.particles(level, ParticleTypes.SWEEP_ATTACK, p, 1, 0.1, 0);
         }
+    }
+
+    /** Top of the first solid block from a few blocks above {@code y} down to a few below; {@code y} when none. */
+    static double groundY(WalkCarve.Blocks blocks, double x, double y, double z) {
+        int bx = Mth.floor(x), bz = Mth.floor(z), by = Mth.floor(y);
+        for (int dy = RING_SCAN; dy >= -RING_SCAN; dy--) {
+            if (blocks.solid(bx, by + dy, bz) && !blocks.solid(bx, by + dy + 1, bz)) return by + dy + 1;
+        }
+        return y;
     }
 
     /** State of one cast: where it went off, what it will break, who it already hit. */

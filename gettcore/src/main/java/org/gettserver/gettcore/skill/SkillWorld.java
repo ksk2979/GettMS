@@ -107,10 +107,14 @@ public final class SkillWorld {
         int removedCount = 0;
         int debrisLeft = maxDebris;
         for (BlockPos p : positions) {
-            BlockState removed = dig(level, protect, p);
-            if (removed == null) continue;
-            removedCount++;
-            if (debrisLeft-- > 0) SkillFx.debris(level, p, removed, from);
+            try {
+                BlockState removed = dig(level, protect, p);
+                if (removed == null) continue;
+                removedCount++;
+                if (debrisLeft-- > 0) SkillFx.debris(level, p, removed, from);
+            } catch (RuntimeException e) {
+                GettCore.LOGGER.error("gettcore: skill terrain carve failed at {}", p, e);
+            }
         }
         return removedCount;
     }

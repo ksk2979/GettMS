@@ -145,11 +145,35 @@ public final class BossBehavior {
         goals.removeAllGoals(g -> true);
         targets.removeAllGoals(g -> true);
         goals.addGoal(0, new FloatGoal(boss));
-        goals.addGoal(1, new MeleeAttackGoal(boss, ATTACK_SPEED_MODIFIER, true));
+        goals.addGoal(1, new BossMeleeGoal(boss));
         goals.addGoal(5, new WaterAvoidingRandomStrollGoal(boss, 1.0));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));
         BossAggro.registerTargets(boss, targets);
+    }
+
+    /** The plain chase-and-bite goal, standing down while the boss casts a skill (a cast owns the boss's movement). */
+    private static final class BossMeleeGoal extends MeleeAttackGoal {
+        private final PathfinderMob boss;
+
+        BossMeleeGoal(PathfinderMob boss) {
+            super(boss, ATTACK_SPEED_MODIFIER, true);
+            this.boss = boss;
+        }
+
+        private boolean casting() {
+            return boss instanceof GettBoss b && b.bossState().skills().casting();
+        }
+
+        @Override
+        public boolean canUse() {
+            return !casting() && super.canUse();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return !casting() && super.canContinueToUse();
+        }
     }
 
     /** The vulture: Naturalist's flying wander (its flying navigation stays), melee chase through the air. */
@@ -157,7 +181,7 @@ public final class BossBehavior {
         goals.removeAllGoals(g -> true);
         targets.removeAllGoals(g -> true);
         goals.addGoal(0, new FloatGoal(boss));
-        goals.addGoal(1, new MeleeAttackGoal(boss, ATTACK_SPEED_MODIFIER, true));
+        goals.addGoal(1, new BossMeleeGoal(boss));
         goals.addGoal(5, new FlyingWanderGoal(boss));
         goals.addGoal(6, new LookAtPlayerGoal(boss, Player.class, 8.0F));
         goals.addGoal(7, new RandomLookAroundGoal(boss));

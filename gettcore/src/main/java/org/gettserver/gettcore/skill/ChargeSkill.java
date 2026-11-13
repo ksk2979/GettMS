@@ -55,7 +55,7 @@ public final class ChargeSkill implements SkillType {
         Vec3 dir = moves ? flat.normalize() : Vec3.ZERO;
         if (moves) face(caster, dir);
         dashes.put(cast, new Dash(from, dir, goal, Mth.floor(from.y + 1.0E-3),
-                Mth.ceil(caster.getBbHeight()), Mth.ceil(caster.getBbWidth() / 2.0)));
+                Mth.ceil(caster.getBbHeight())));
     }
 
     @Override
@@ -66,6 +66,8 @@ public final class ChargeSkill implements SkillType {
         ServerLevel level = cast.level();
         // The bear's melee goal keeps pathing while it casts; the dash owns the movement.
         caster.getNavigation().stop();
+        // BossBear.tick runs vanilla travel before this: whatever motion is left over is undone, the dash cursor rules.
+        caster.moveTo(dash.x, dash.y, dash.z, caster.getYRot(), 0);
         WalkCarve.Blocks blocks = SkillWorld.walkBlocks(level);
         boolean finished = false;
         int steps = stepsPerTick(cast.spec().shape().speed());
@@ -73,6 +75,7 @@ public final class ChargeSkill implements SkillType {
             if (advance(cast, dash, blocks)) sweep(cast, dash);
             else finished = true;
         }
+        caster.fallDistance = 0;
         if (age % STEP_SOUND_INTERVAL == 0) {
             SkillFx.sound(level, caster.position(), SoundEvents.RAVAGER_STEP, 2.5F, 0.7F);
         }
@@ -81,9 +84,9 @@ public final class ChargeSkill implements SkillType {
             dashes.remove(cast);
             return false;
         }
+        // Only for the client's interpolation: the next tick snaps the caster back to the cursor before moving on.
         caster.setDeltaMovement(dash.dir.scale(cast.spec().shape().speed() / 20.0));
         caster.hasImpulse = true;
-        caster.fallDistance = 0;
         return true;
     }
 
@@ -103,7 +106,8 @@ public final class ChargeSkill implements SkillType {
 
     /**
      * One block forward. False when the dash is over: the goal is reached, a chunk is unloaded, the way is blocked for
-     * good or it is a cliff. Otherwise the caster has been moved (breaking what was in its way when terrain is on).
+     * good, it is a cliff, or the body would not fit at the new spot. Otherwise the caster has been moved (breaking
+     * what was in its way when terrain is on).
      */
     private static boolean advance(Cast cast, Dash d, WalkCarve.Blocks blocks) {
         ServerLevel level = cast.level();
@@ -113,7 +117,7 @@ public final class ChargeSkill implements SkillType {
         int cx = Mth.floor(nx), cz = Mth.floor(nz);
         if (!level.hasChunk(cx >> 4, cz >> 4)) return false;
         boolean terrain = cast.spec().terrain().enabled();
-        Vec3 from = new Vec3(d.x, d.feetY, d.z);
+        Vec3 from = new Vec3(d.x, d.y, d.z);
         WalkCarve.Step step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, blocks);
         if (!step.walkable()) {
             if (!terrain) return false;
@@ -123,31 +127,30 @@ public final class ChargeSkill implements SkillType {
             step = WalkCarve.step(cx, d.feetY, cz, d.bodyHeight, blocks);
             if (!step.walkable()) return false;
         }
-        if (terrain) {
-            List<BlockPos> clear = positions(step.carve());
-            clear.addAll(sideBlocks(d, nx, nz, cx, cz, step.feetY(), blocks));
-            SkillWorld.carveNow(level, clear, from, MAX_DEBRIS_PER_STEP);
-        }
+        // The whole body, not just the cell centre: moved there, it must touch no block.
+        AABB moved = caster.getBoundingBox().move(nx - caster.getX(), step.feetY() - caster.getY(), nz - caster.getZ());
+        if (terrain) SkillWorld.carveNow(level, bodyBlocks(moved, step.feetY(), blocks), from, MAX_DEBRIS_PER_STEP);
+        if (!level.noCollision(caster, moved)) return false;
         d.x = nx;
+        d.y = step.feetY();
         d.z = nz;
         d.feetY = step.feetY();
         float yaw = face(caster, d.dir);
-        caster.moveTo(nx, d.feetY, nz, yaw, 0);
-        Vec3 feet = new Vec3(nx, d.feetY, nz);
+        caster.moveTo(nx, d.y, nz, yaw, 0);
+        Vec3 feet = new Vec3(nx, d.y, nz);
         SkillFx.footDust(level, feet, 4, caster.getBbWidth() * 0.5);
         SkillFx.particles(level, ParticleTypes.CAMPFIRE_COSY_SMOKE, feet.add(0, 0.3, 0), 1, 0.3, 0.01);
         return true;
     }
 
-    /** Body room beside the line (the bear is wider than a block): every block there at body height, solids included. */
-    private static List<BlockPos> sideBlocks(Dash d, double nx, double nz, int cx, int cz, int feetY, WalkCarve.Blocks blocks) {
+    /** Every solid or light block inside {@code box} from {@code feetY} up (never the floor under it). */
+    static List<BlockPos> bodyBlocks(AABB box, int feetY, WalkCarve.Blocks blocks) {
         List<BlockPos> out = new ArrayList<>();
-        for (int k = 1; k <= d.sideReach; k++) {
-            for (int sign = -1; sign <= 1; sign += 2) {
-                int sx = Mth.floor(nx - d.dir.z * k * sign), sz = Mth.floor(nz + d.dir.x * k * sign);
-                if (sx == cx && sz == cz) continue;
-                for (int y = feetY; y < feetY + d.bodyHeight; y++) {
-                    if (blocks.solid(sx, y, sz) || blocks.light(sx, y, sz)) out.add(new BlockPos(sx, y, sz));
+        int top = Mth.floor(box.maxY - 1.0E-7);
+        for (int x = Mth.floor(box.minX + 1.0E-7); x <= Mth.floor(box.maxX - 1.0E-7); x++) {
+            for (int z = Mth.floor(box.minZ + 1.0E-7); z <= Mth.floor(box.maxZ - 1.0E-7); z++) {
+                for (int y = feetY; y <= top; y++) {
+                    if (blocks.solid(x, y, z) || blocks.light(x, y, z)) out.add(new BlockPos(x, y, z));
                 }
             }
         }
@@ -188,20 +191,20 @@ public final class ChargeSkill implements SkillType {
         final Vec3 dir;
         final Vec3 goal;
         final int bodyHeight;
-        final int sideReach;
         final Set<Integer> hit = new HashSet<>();
         double x;
+        double y;
         double z;
         int feetY;
 
-        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight, int sideReach) {
+        Dash(Vec3 origin, Vec3 dir, Vec3 goal, int feetY, int bodyHeight) {
             this.origin = origin;
             this.dir = dir;
             this.goal = goal;
             this.feetY = feetY;
             this.bodyHeight = bodyHeight;
-            this.sideReach = sideReach;
             this.x = origin.x;
+            this.y = origin.y;
             this.z = origin.z;
         }
     }
