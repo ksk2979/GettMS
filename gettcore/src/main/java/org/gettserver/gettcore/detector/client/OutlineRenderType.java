@@ -9,7 +9,10 @@ import net.minecraft.client.renderer.RenderType;
 public final class OutlineRenderType extends RenderType {
     public static final float LINE_WIDTH = 2.0f;
 
-    /** 깊이 검사·깊이 기록 없음, 컬링 없음, 메인 타깃(기본 출력 상태). */
+    /**
+     * 깊이 기록 없음, 컬링 없음, 메인 타깃(기본 출력 상태). 주의: 바닐라 NO_DEPTH_TEST 는 깊이 검사를 끄지 않는다
+     * (아무것도 하지 않음). 실제로 끄는 일은 {@link OutlineRenderer} 가 그릴 때 직접 한다 — 그 코드를 지우면 벽 뒤가 안 보인다.
+     */
     public static final RenderType OUTLINE = create(
             "gettcore_outline",
             DefaultVertexFormat.POSITION_COLOR_NORMAL,

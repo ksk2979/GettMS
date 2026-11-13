@@ -42,7 +42,10 @@ public final class OutlineRenderer {
         // 바닐라 NO_DEPTH_TEST(func 519)는 설정 단계에서 아무것도 하지 않아, 이 단계에 켜져 있는 깊이 검사가 그대로 적용된다.
         // 벽 너머로 보이도록 그리는 동안만 직접 끄고, 원래대로 켠다.
         RenderSystem.disableDepthTest();
-        buffers.endBatch(OutlineRenderType.OUTLINE);
-        RenderSystem.enableDepthTest();
+        try {
+            buffers.endBatch(OutlineRenderType.OUTLINE);
+        } finally {
+            RenderSystem.enableDepthTest();
+        }
     }
 }

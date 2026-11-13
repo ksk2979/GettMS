@@ -190,7 +190,7 @@ public final class EpicFightSkillTooltips {
                 case "HEALTH" -> "attribute.name.epicfight.health.consume";
                 default -> null;
             };
-            if (amount > 0 && consumeKey != null) {
+            if (amount > 0 && consumeKey != null && I18n.exists(consumeKey)) {
                 lines.add(Component.translatable("gettcore.epicfight.cost",
                         Component.translatable(consumeKey, formatCost(amount))).withStyle(ChatFormatting.GOLD));
             }

@@ -158,6 +158,8 @@ public final class DetectorService {
     @SubscribeEvent
     public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        // 세션은 저장되지 않으므로, 로그아웃·서버 종료 전에 걸려 있던 "탐지 중" 효과만 남아 있으면 지운다.
+        player.removeEffect(GettCore.DETECTING);
         reapplyDetectorCooldown(player);
     }
 
