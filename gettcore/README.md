@@ -9,6 +9,7 @@ Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 - 탐지기: 아이템을 넣어 두고 쓰면 주변의 해당 블록(광석 등)을 벽 너머 윤곽선으로 쓴 사람에게만 보여 줍니다 (범위·시간·쿨타임은 `detector.json`)
 - 광맥 탐지: 곡괭이 인챈트 — 수치는 `enchant.json` 의 `prospect`
 - Epic Fight 스킬 선택 창에서 스킬 줄에 마우스를 올리면 설명이 보임
+- Dream Displays 한국어 번역(메뉴·툴팁) 동봉
 
 ## 빌드
 
