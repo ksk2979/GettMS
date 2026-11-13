@@ -30,6 +30,22 @@ public final class SkillRules {
         return alive && sameLevel && !creativeOrSpectator && isPlayerOrOwnedPet;
     }
 
+    /** A possible skill target: its entity id and distance from the caster. */
+    public record Candidate(int id, double distance) {}
+
+    /**
+     * The target a skill is cast at: the farthest of {@code candidates} when {@code roll} (uniform 0..1) is below
+     * {@code chance}, else {@code currentId}. No candidate keeps {@code currentId}.
+     */
+    public static int farTarget(List<Candidate> candidates, int currentId, double roll, double chance) {
+        if (!(roll < chance) || candidates.isEmpty()) return currentId;
+        Candidate far = candidates.get(0);
+        for (Candidate c : candidates) {
+            if (c.distance() > far.distance()) far = c;
+        }
+        return far.id();
+    }
+
     /** A player this far from the caster sees the skill-name shout; range 0 = nobody. */
     public static boolean hearsShout(double distance, double shoutRange) {
         return shoutRange > 0 && distance <= shoutRange;

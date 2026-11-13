@@ -222,6 +222,8 @@ public final class EditorValidator {
             if (SkillSpec.WIND_LINE.equals(s.type()) || SkillSpec.CHARGE.equals(s.type())) {
                 within(sp, "shape.length", s.shape().length(), 1, 64, errors);
                 within(sp, "shape.width", s.shape().width(), 0.5, 32, errors);
+                // A charge's radius is how far it runs past its aim point (0 = stops there).
+                if (SkillSpec.CHARGE.equals(s.type())) within(sp, "shape.radius", s.shape().radius(), 0, 32, errors);
             } else {
                 within(sp, "shape.radius", s.shape().radius(), 0.5, 32, errors);
             }
@@ -233,6 +235,7 @@ public final class EditorValidator {
             within(sp, "aftershock.width", s.aftershock().width(), 0, 32, errors);
             within(sp, "terrain.depth", s.terrain().depth(), 0, 16, errors);
             within(sp, "terrain.width", s.terrain().width(), 0, 32, errors);
+            within(sp, "farTargetChance", s.farTargetChance(), 0, 1, errors);
         }
     }
 

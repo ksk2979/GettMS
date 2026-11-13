@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.skill;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.gettserver.gettcore.network.SkillShoutPayload;
@@ -52,8 +54,32 @@ public final class SkillRunner {
     private Optional<Machine.Start> pick(ServerLevel level, List<SkillSpec> skills, @Nullable LivingEntity target, long now) {
         if (target == null || !SkillTargets.valid(mob, target)) return Optional.empty();
         return SkillRules.pick(skills, mob.distanceTo(target), machine.readyTick(), now)
-                .flatMap(s -> SkillTypes.get(s.type()).map(type ->
-                        new Machine.Start(type, new SkillType.Cast(level, mob, s, target.getId(), new Vec3[1]))));
+                .flatMap(s -> SkillTypes.get(s.type()).map(type -> {
+                    LivingEntity aim = aim(level, s, target);
+                    return new Machine.Start(type, new SkillType.Cast(level, mob, s, aim.getId(), new Vec3[1]));
+                }));
+    }
+
+    /**
+     * Whom a starting cast goes for: the current target, or with the skill's {@code farTargetChance} the farthest valid
+     * target the caster can see within the skill's range and its follow range (beyond which the target goals would
+     * drop it again). That one becomes the caster's target: the target goals keep {@code mob.getTarget()} and the
+     * chase follows it after the cast.
+     */
+    private LivingEntity aim(ServerLevel level, SkillSpec s, LivingEntity target) {
+        if (s.farTargetChance() <= 0) return target;
+        double reach = Math.min(s.maxRange(), mob.getAttributeValue(Attributes.FOLLOW_RANGE));
+        List<SkillRules.Candidate> candidates = new ArrayList<>();
+        for (LivingEntity e : SkillTargets.in(level, mob.getBoundingBox().inflate(reach), mob)) {
+            double d = mob.distanceTo(e);
+            if (d >= s.minRange() && d <= reach && mob.hasLineOfSight(e)) {
+                candidates.add(new SkillRules.Candidate(e.getId(), d));
+            }
+        }
+        int id = SkillRules.farTarget(candidates, target.getId(), mob.getRandom().nextDouble(), s.farTargetChance());
+        if (id == target.getId() || !(level.getEntity(id) instanceof LivingEntity far)) return target;
+        mob.setTarget(far);
+        return mob.getTarget() == far ? far : target;
     }
 
     private void shout(ServerLevel level, String text, double range) {

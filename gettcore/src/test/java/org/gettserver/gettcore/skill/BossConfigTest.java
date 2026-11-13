@@ -117,10 +117,50 @@ class BossConfigTest {
         assertEquals(SkillSpec.SHOCKWAVE, bear.skills().get(0).type());
         assertEquals(SkillSpec.CHARGE, bear.skills().get(1).type());
         assertEquals(new SkillSpec.Shape(0, 0, 12, 24), bear.skills().get(0).shape());
-        assertEquals(new SkillSpec.Shape(24, 3, 0, 30), bear.skills().get(1).shape());
+        // The dash runs 6 blocks past the player, 30 blocks at most; 30% of dashes go for the farthest player.
+        assertEquals(new SkillSpec.Shape(30, 3, 6, 30), bear.skills().get(1).shape());
+        assertEquals(0.3, bear.skills().get(1).farTargetChance());
+        assertEquals(0, bear.skills().get(0).farTargetChance());
         assertEquals(0.243, BossConfig.BEAR_SPEED);
         assertEquals(2, bear.skills().get(0).terrain().depth());
         assertEquals(2, bear.skills().get(1).terrain().depth());
+    }
+
+    @Test
+    void chargeOvershootAndFarTargetChanceAreClamped() {
+        List<String> w = new ArrayList<>();
+        SkillSpec dash = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(30, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0),
+                0.5);
+        assertEquals(dash, dash.sanitized("t", w));   // radius 0 = no overshoot is allowed for a charge
+        assertTrue(w.isEmpty(), w.toString());
+
+        SkillSpec wild = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(30, 3, 50, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0),
+                1.5);
+        SkillSpec clamped = wild.sanitized("t", w);
+        assertEquals(32, clamped.shape().radius());
+        assertEquals(1, clamped.farTargetChance());
+        assertEquals(2, w.size(), w.toString());
+
+        List<String> w2 = new ArrayList<>();
+        SkillSpec negative = new SkillSpec("w", SkillSpec.WIND_LINE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(10, 2, 0, 0), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(false, 0, 0),
+                -0.2);
+        assertEquals(0, negative.sanitized("t", w2).farTargetChance());
+        assertEquals(1, w2.size(), w2.toString());
+    }
+
+    @Test
+    void farTargetChanceIsOptionalInJsonAndRoundTrips() {
+        var old = JsonParser.parseString("{\"id\":\"a\",\"type\":\"charge\"}");
+        assertEquals(0, SkillSpec.CODEC.parse(JsonOps.INSTANCE, old).getOrThrow().farTargetChance());
+        SkillSpec s = new SkillSpec("a", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 20, 1, 10,
+                new SkillSpec.Shape(30, 3, 6, 30), new SkillSpec.Aftershock(0, 0, 0), new SkillSpec.Terrain(true, 0, 0),
+                0.3);
+        var json = SkillSpec.CODEC.encodeStart(JsonOps.INSTANCE, s).getOrThrow();
+        assertEquals(0.3, json.getAsJsonObject().get("farTargetChance").getAsDouble());
+        assertEquals(s, SkillSpec.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow());
     }
 
     @Test

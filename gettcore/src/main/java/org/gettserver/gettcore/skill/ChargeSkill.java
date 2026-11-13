@@ -22,8 +22,9 @@ import net.minecraft.world.phys.Vec3;
 import org.gettserver.gettcore.pet.boss.BossBear;
 
 /**
- * {@code charge} (돌격): after a short stance the caster rushes in a straight line to where its target stood at
- * release, at most {@code shape.length} blocks, {@code shape.speed} blocks per second, one block per step. With
+ * {@code charge} (돌격): after a short stance the caster rushes in a straight line through where its target stood at
+ * release and {@code shape.radius} blocks beyond it, at most {@code shape.length} blocks in all, {@code shape.speed}
+ * blocks per second, one block per step. With
  * {@code terrain} on it breaks what it could not walk through up to {@code terrain.depth} blocks above the body height (never the floor); a wall it cannot break (obsidian,
  * protected ground, block entities) ends the rush, as do a cliff and an unloaded chunk. Everyone the body sweeps
  * past is hit once and thrown aside.
@@ -51,7 +52,7 @@ public final class ChargeSkill implements SkillType {
         Vec3 aimPoint = target != null && target.isAlive()
                 ? target.position()
                 : from.add(caster.getLookAngle().multiply(1, 0, 1).normalize().scale(spec.shape().length()));
-        Vec3 goal = dashTarget(from, aimPoint, spec.shape().length());
+        Vec3 goal = dashTarget(from, aimPoint, spec.shape().radius(), spec.shape().length());
         cast.aim()[0] = goal;
         Vec3 flat = new Vec3(goal.x - from.x, 0, goal.z - from.z);
         boolean moves = flat.lengthSqr() >= 1.0E-6;
@@ -96,13 +97,17 @@ public final class ChargeSkill implements SkillType {
         return true;
     }
 
-    /** Pure: the horizontal point {@code aim} seen from {@code from}, cut to {@code maxLength}; at height {@code from.y}. */
-    static Vec3 dashTarget(Vec3 from, Vec3 aim, double maxLength) {
+    /**
+     * Pure: the end of the dash, at height {@code from.y}: on the horizontal line from {@code from} through
+     * {@code aim}, {@code overshoot} blocks past {@code aim}, at most {@code maxLength} from {@code from}. An aim
+     * straight above or below gives {@code from} (no direction).
+     */
+    static Vec3 dashTarget(Vec3 from, Vec3 aim, double overshoot, double maxLength) {
         double dx = aim.x - from.x, dz = aim.z - from.z;
         double len = Math.hypot(dx, dz);
         if (len < 1.0E-9) return from;
-        if (len <= maxLength) return new Vec3(aim.x, from.y, aim.z);
-        return new Vec3(from.x + dx / len * maxLength, from.y, from.z + dz / len * maxLength);
+        double travel = Math.min(len + Math.max(0, overshoot), maxLength);
+        return new Vec3(from.x + dx / len * travel, from.y, from.z + dz / len * travel);
     }
 
     /** Unit steps to take this tick and the fraction of a step carried to the next tick. */

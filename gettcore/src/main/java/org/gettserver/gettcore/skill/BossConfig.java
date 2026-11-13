@@ -82,6 +82,12 @@ public record BossConfig(Map<String, Boss> bosses) {
      */
     public static final double BEAR_SPEED = 0.243;
 
+    /** How many blocks the bear's dash runs on past the player it aimed at ({@code shape.radius} of a charge). */
+    public static final double BEAR_DASH_OVERSHOOT = 6;
+
+    /** How often the bear's dash goes for the farthest player instead of its current target. */
+    public static final double BEAR_DASH_FAR_TARGET_CHANCE = 0.3;
+
     /** How many blocks above the body height the bear's roar and dash clear (skill {@code terrain.depth}). */
     public static final int BEAR_EXTRA_HEIGHT = 2;
 
@@ -99,8 +105,8 @@ public record BossConfig(Map<String, Boss> bosses) {
                 new SkillSpec.Shape(0, 0, 12, 24), new SkillSpec.Aftershock(0, 0, 0),
                 new SkillSpec.Terrain(true, BEAR_EXTRA_HEIGHT, 0));
         SkillSpec rush = new SkillSpec("dolgyeok", SkillSpec.CHARGE, true, false, "돌격", 14, 1.5, 0, 32, 0.7, 8,
-                new SkillSpec.Shape(24, 3, 0, 30), new SkillSpec.Aftershock(0, 0, 0),
-                new SkillSpec.Terrain(true, BEAR_EXTRA_HEIGHT, 0));
+                new SkillSpec.Shape(30, 3, BEAR_DASH_OVERSHOOT, 30), new SkillSpec.Aftershock(0, 0, 0),
+                new SkillSpec.Terrain(true, BEAR_EXTRA_HEIGHT, 0), BEAR_DASH_FAR_TARGET_CHANCE);
         Boss bear = new Boss(Aggro.FIRST, d.searchRange, d.releaseRange, d.reaggroRange, d.calmSeconds,
                 Optional.of(BEAR_SPEED), d.armor, 0, d.shoutRange, d.enrageBelow, d.enrageCooldownMult,
                 List.of(roar, rush));

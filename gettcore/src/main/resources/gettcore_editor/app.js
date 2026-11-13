@@ -380,21 +380,24 @@
   const BOSS_ENTRY_DEFAULTS = { aggro: 'first', searchRange: 24, releaseRange: 40, reaggroRange: 16, calmSeconds: 300,
     preferredDistance: 0, shoutRange: 24, enrageBelow: 0.3, enrageCooldownMult: 0.6 };
   const SKILL_CODEC_DEFAULTS = { enabled: true, shout: false, shoutText: '', damage: 10, knockback: 1, minRange: 0, maxRange: 24,
-    chargeSeconds: 1, cooldownSeconds: 10 };
-  /** 종류별 기본 스킬 (BossConfig.DEFAULT 기린의 람각·내려찍기와 같아야 한다). "스킬 추가"는 이것의 복사본. */
+    chargeSeconds: 1, cooldownSeconds: 10, farTargetChance: 0 };
+  /**
+   * 종류별 기본 스킬 (BossConfig.DEFAULT 기린의 람각·내려찍기, 곰의 곰라텐세·돌격과 같아야 한다). "스킬 추가"는 이것의 복사본.
+   * 돌격의 shape.radius 는 노린 지점을 지나쳐 더 달리는 거리 (칸).
+   */
   const SKILL_TEMPLATES = {
     wind_line: { id: 'ramgak', type: 'wind_line', enabled: true, shout: true, shoutText: '람각', damage: 14, knockback: 2.5,
       minRange: 0, maxRange: 32, chargeSeconds: 1, cooldownSeconds: 10, shape: { length: 30, width: 3, radius: 0, speed: 0 },
-      aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 0, width: 2 } },
+      aftershock: { damage: 8, delaySeconds: 0.5, width: 4 }, terrain: { enabled: true, depth: 0, width: 2 }, farTargetChance: 0 },
     stomp: { id: 'stomp', type: 'stomp', enabled: true, shout: false, shoutText: '쿠웅', damage: 18, knockback: 1.6,
       minRange: 0, maxRange: 6, chargeSeconds: 0.8, cooldownSeconds: 6, shape: { length: 0, width: 0, radius: 6, speed: 0 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 1, width: 6 } },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 1, width: 6 }, farTargetChance: 0 },
     shockwave: { id: 'gomlatense', type: 'shockwave', enabled: true, shout: true, shoutText: '곰라텐세', damage: 16, knockback: 3,
       minRange: 0, maxRange: 8, chargeSeconds: 1, cooldownSeconds: 12, shape: { length: 0, width: 0, radius: 12, speed: 24 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 } },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 }, farTargetChance: 0 },
     charge: { id: 'dolgyeok', type: 'charge', enabled: true, shout: false, shoutText: '돌격', damage: 14, knockback: 1.5,
-      minRange: 0, maxRange: 32, chargeSeconds: 0.7, cooldownSeconds: 8, shape: { length: 24, width: 3, radius: 0, speed: 30 },
-      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 } },
+      minRange: 0, maxRange: 32, chargeSeconds: 0.7, cooldownSeconds: 8, shape: { length: 30, width: 3, radius: 6, speed: 30 },
+      aftershock: { damage: 0, delaySeconds: 0, width: 0 }, terrain: { enabled: true, depth: 2, width: 0 }, farTargetChance: 0.3 },
   };
   const BOSS_IDS = ['lion', 'tiger', 'bear', 'elephant', 'mammoth', 'vulture', 'giraffe'].map((n) => 'gettcore:boss_' + n);
   const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -2571,27 +2574,35 @@
     damage: [0, 2048], knockback: [0, 10], minRange: [0, 64], maxRange: [0, 64], chargeSeconds: [0.2, 10],
     cooldownSeconds: [0.5, 600], 'shape.length': [1, 64], 'shape.width': [0.5, 32], 'shape.radius': [0.5, 32], 'shape.speed': [1, 100],
     'aftershock.damage': [0, 2048], 'aftershock.delaySeconds': [0, 10], 'aftershock.width': [0, 32],
-    'terrain.depth': [0, 16, true], 'terrain.width': [0, 32, true],
+    'terrain.depth': [0, 16, true], 'terrain.width': [0, 32, true], farTargetChance: [0, 1],
   };
+  // 돌격은 반경 칸을 "지나쳐 가는 거리"로 쓰고 0(멈춤)도 된다 (서버 SkillSpec.sanitized / EditorValidator).
+  const CHARGE_OVERSHOOT_LIMIT = [0, 32];
+  const skillLimit = (s, key) => (key === 'shape.radius' && s.type === 'charge' ? CHARGE_OVERSHOOT_LIMIT : SKILL_LIMITS[key]);
   const SKILL_TYPE_LABEL = { wind_line: '람각', stomp: '내려찍기', shockwave: '충격파 (원형으로 퍼짐)', charge: '돌격 (지점으로 돌진)' };
   // 서버 SkillSpec.sanitized 와 같이: 어느 종류가 그 범위 칸을 쓰는가.
   const SHAPE_FIELD_TYPES = { 'shape.length': ['wind_line', 'charge'], 'shape.width': ['wind_line', 'charge'],
-    'shape.radius': ['stomp', 'shockwave'], 'shape.speed': ['shockwave', 'charge'] };
+    'shape.radius': ['stomp', 'shockwave', 'charge'], 'shape.speed': ['shockwave', 'charge'] };
   // 충격파·돌격은 terrain.depth 를 "몸 높이 위로 더 부수는 높이"로 쓴다 (서버 ShockwaveSkill/ChargeSkill).
   const EXTRA_HEIGHT_LABEL = '위로 더 부수는 높이 (칸)';
+  const OVERSHOOT_LABEL = '지나쳐 가는 거리 (칸)';
   const skillNumLabel = (s, key) => (key === 'terrain.depth' && (s.type === 'shockwave' || s.type === 'charge')
-    ? EXTRA_HEIGHT_LABEL : SKILL_NUM_LABEL[key]);
+    ? EXTRA_HEIGHT_LABEL : key === 'shape.radius' && s.type === 'charge' ? OVERSHOOT_LABEL : SKILL_NUM_LABEL[key]);
   const SHOUT_TEXT_MAX = 24;   // SkillSpec.MAX_SHOUT_TEXT
   const BOSS_NUM_LABEL = { searchRange: '탐색 범위', releaseRange: '해제 거리', reaggroRange: '다시 잡히는 거리', calmSeconds: '진정 시간(초)',
     speed: '이동속도', armor: '방어', preferredDistance: '선호 거리', shoutRange: '외침 범위', enrageBelow: '광폭화 체력', enrageCooldownMult: '쿨타임 배율' };
   const SKILL_NUM_LABEL = { damage: '피해', knockback: '밀쳐내기', minRange: '최소 거리', maxRange: '최대 거리', chargeSeconds: '모으기(초)',
     cooldownSeconds: '쿨타임(초)', 'shape.length': '길이', 'shape.width': '폭', 'shape.radius': '반경', 'shape.speed': '속도', 'aftershock.damage': '후폭풍 피해',
-    'aftershock.delaySeconds': '후폭풍 지연', 'aftershock.width': '후폭풍 폭', 'terrain.depth': '파괴 깊이', 'terrain.width': '파괴 폭' };
+    'aftershock.delaySeconds': '후폭풍 지연', 'aftershock.width': '후폭풍 폭', 'terrain.depth': '파괴 깊이', 'terrain.width': '파괴 폭',
+    farTargetChance: '먼 대상을 노릴 확률 (0~1)' };
 
   const fmtNum = (v) => String(Math.round(v * 1000) / 1000);
 
   function limitRule(limits, key, v) {
-    const [lo, hi, int] = limits[key];
+    return rangeRule(limits[key], v);
+  }
+
+  function rangeRule([lo, hi, int], v) {
     if (int ? !isInt(v) : !isNum(v)) return int ? '정수여야 합니다' : '숫자여야 합니다';
     return v >= lo && v <= hi ? '' : `${lo}~${hi} 사이여야 합니다`;
   }
@@ -2625,7 +2636,7 @@
       const used = SHAPE_FIELD_TYPES[key];
       if (used && !used.includes(s.type)) return '';
       const [o, k] = fieldRef(s, key);
-      return limitRule(SKILL_LIMITS, key, o ? o[k] : undefined);
+      return rangeRule(skillLimit(s, key), o ? o[k] : undefined);
     },
     range(s) {
       return isNum(s.minRange) && isNum(s.maxRange) && s.minRange > s.maxRange
@@ -2690,7 +2701,7 @@
     const set = (obj, key, v) => { obj[key] = v; onChange(false); };
     const num = (s, key, extraCheck) => {
       const [o, k] = fieldRef(s, key);
-      const [lo, hi, int] = SKILL_LIMITS[key];
+      const [lo, hi, int] = skillLimit(s, key);
       return checks.add(h('input', { type: 'number', step: int ? 1 : 'any', min: lo, max: hi, style: 'width:4.5rem',
         'aria-label': `${where} ${s.id} ${skillNumLabel(s, key)}`, value: shownNum(o[k]),
         oninput: (e) => set(o, k, numOf(e)) }), () => bossSkillRules.skillNum(s, key) || (extraCheck ? extraCheck() : ''));
@@ -2736,7 +2747,9 @@
         h('td', nowrap, line ? [sep('길이 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width')]
           : stomp ? [sep('반경 '), num(s, 'shape.radius')]
           : wave ? [sep('반경 '), num(s, 'shape.radius'), sep(' 퍼지는 속도 '), num(s, 'shape.speed')]
-          : dash ? [sep('최대 거리 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width'), sep(' 돌진 속도 '), num(s, 'shape.speed')]
+          : dash ? [sep('최대 거리 '), num(s, 'shape.length'), sep(' 폭 '), num(s, 'shape.width'), sep(' 돌진 속도 '), num(s, 'shape.speed'),
+            h('span', { class: 'muted', title: '노린 플레이어를 뚫고 이만큼 더 달린다 (전체는 최대 거리까지). 0 = 그 자리에서 멈춤' },
+              ` ${OVERSHOOT_LABEL} `), num(s, 'shape.radius')]
           : null),
         h('td', nowrap, line ? [sep('피해 '), num(s, 'aftershock.damage'), sep(' 지연 '), num(s, 'aftershock.delaySeconds'),
           sep(' 폭 '), num(s, 'aftershock.width')] : sep('—')),
@@ -2747,13 +2760,16 @@
           : line ? [h('span', { title: '막힌 곳을 뚫는 굵기' }, ' 굵기 '), num(s, 'terrain.width'),
             h('span', { title: '후폭풍이 파는 구덩이 깊이. 0 = 바닥은 안 팜' }, ' 구덩이 깊이 '), num(s, 'terrain.depth')]
           : [sep(' 깊이 '), num(s, 'terrain.depth'), sep(' 폭 '), num(s, 'terrain.width')]),
+        h('td', { title: '스킬을 쓸 때 이 확률로, 보이는 가장 먼 대상(쓰는 거리 안)을 새 어그로 대상으로 잡고 그쪽으로 쓴다' },
+          num(s, 'farTargetChance')),
         h('td', null, h('button', { class: 'danger small', 'aria-label': `${w} 삭제`, onclick: () => {
           skills.splice(i, 1); onChange(true);
         } }, '삭제')));
     });
     const addType = h('select', { 'aria-label': `${where} 추가할 스킬 종류` },
       Object.entries(SKILL_TYPE_LABEL).map(([v, t]) => h('option', { value: v }, t)));
-    const head = ['켜기', '종류', 'id', '외침', '피해', '밀쳐내기', '쓰는 거리(최소~최대)', '모으기(초)', '쿨타임(초)', '범위', '후폭풍', '지형 파괴', ''];
+    const head = ['켜기', '종류', 'id', '외침', '피해', '밀쳐내기', '쓰는 거리(최소~최대)', '모으기(초)', '쿨타임(초)', '범위', '후폭풍', '지형 파괴',
+      SKILL_NUM_LABEL.farTargetChance, ''];
     return h('div', null,
       skills.length ? h('div', { class: 'scroll-x' }, h('table', null,
         h('thead', null, h('tr', null, head.map((t) => h('th', null, t)))), h('tbody', null, rows)))

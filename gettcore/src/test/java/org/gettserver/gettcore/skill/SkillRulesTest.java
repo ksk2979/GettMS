@@ -72,4 +72,26 @@ class SkillRulesTest {
         assertFalse(SkillRules.hearsShout(24.1, 24));
         assertFalse(SkillRules.hearsShout(0, 0));
     }
+
+    private static final List<SkillRules.Candidate> THREE = List.of(
+            new SkillRules.Candidate(7, 5), new SkillRules.Candidate(8, 22), new SkillRules.Candidate(9, 14));
+
+    @Test void aSuccessfulRollAimsAtTheFarthest() {
+        assertEquals(8, SkillRules.farTarget(THREE, 7, 0.29, 0.3));
+        assertEquals(8, SkillRules.farTarget(THREE, 9, 0.0, 0.3));
+    }
+
+    @Test void aFailedRollKeepsTheCurrentTarget() {
+        assertEquals(7, SkillRules.farTarget(THREE, 7, 0.3, 0.3));
+        assertEquals(7, SkillRules.farTarget(THREE, 7, 0.99, 0.3));
+        assertEquals(7, SkillRules.farTarget(THREE, 7, 0.0, 0.0));   // chance 0 never switches
+    }
+
+    @Test void aSingleCandidateIsSimplyThatOne() {
+        assertEquals(7, SkillRules.farTarget(List.of(new SkillRules.Candidate(7, 5)), 7, 0.1, 0.3));
+    }
+
+    @Test void noCandidateKeepsTheCurrentTarget() {
+        assertEquals(7, SkillRules.farTarget(List.of(), 7, 0.1, 0.3));
+    }
 }

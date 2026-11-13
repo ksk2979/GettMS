@@ -39,7 +39,8 @@
             "enabled": true,
             "depth": 2,
             "width": 0
-          }
+          },
+          "farTargetChance": 0.0
         },
         {
           "id": "dolgyeok",
@@ -54,9 +55,9 @@
           "chargeSeconds": 0.7,
           "cooldownSeconds": 8.0,
           "shape": {
-            "length": 24.0,
+            "length": 30.0,
             "width": 3.0,
-            "radius": 0.0,
+            "radius": 6.0,
             "speed": 30.0
           },
           "aftershock": {
@@ -68,7 +69,8 @@
             "enabled": true,
             "depth": 2,
             "width": 0
-          }
+          },
+          "farTargetChance": 0.3
         }
       ]
     },
@@ -122,7 +124,8 @@
             "enabled": true,
             "depth": 0,
             "width": 2
-          }
+          },
+          "farTargetChance": 0.0
         },
         {
           "id": "stomp",
@@ -151,7 +154,8 @@
             "enabled": true,
             "depth": 1,
             "width": 6
-          }
+          },
+          "farTargetChance": 0.0
         }
       ]
     },

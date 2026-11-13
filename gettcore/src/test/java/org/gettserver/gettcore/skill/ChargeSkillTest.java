@@ -15,9 +15,25 @@ import org.junit.jupiter.api.Test;
 
 class ChargeSkillTest {
     @Test void dashTargetIsHorizontalAndCapped() {
-        assertEquals(new Vec3(10, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(10, 70, 0), 24));
-        assertEquals(new Vec3(24, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(40, 64, 0), 24));
-        assertEquals(new Vec3(0, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(0, 80, 0), 24));
+        assertEquals(new Vec3(10, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(10, 70, 0), 0, 24));
+        assertEquals(new Vec3(24, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(40, 64, 0), 0, 24));
+        assertEquals(new Vec3(0, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(0, 80, 0), 0, 24));
+    }
+
+    @Test void dashRunsThroughTheAimPoint() {
+        assertEquals(new Vec3(16, 64, 0), ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(10, 64, 0), 6, 30));
+        Vec3 diagonal = ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(3, 64, 4), 5, 30);
+        assertEquals(6, diagonal.x, 1e-9);
+        assertEquals(8, diagonal.z, 1e-9);
+    }
+
+    @Test void overshootIsStillCappedByTheLength() {
+        Vec3 far = ChargeSkill.dashTarget(new Vec3(0, 64, 0), new Vec3(0, 64, 28), 6, 30);
+        assertEquals(new Vec3(0, 64, 30), far);
+    }
+
+    @Test void zeroLengthAimStaysPut() {
+        assertEquals(new Vec3(1, 64, 1), ChargeSkill.dashTarget(new Vec3(1, 64, 1), new Vec3(1, 70, 1), 6, 30));
     }
 
     private static int[] stepsOver(double speed, int ticks) {

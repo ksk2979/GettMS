@@ -6,11 +6,15 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.List;
 import java.util.Optional;
 
-/** One boss skill from bosses.json. Which of {@code shape}/{@code aftershock}/{@code terrain} matter depends on {@code type}. */
+/**
+ * One boss skill from bosses.json. Which of {@code shape}/{@code aftershock}/{@code terrain} matter depends on
+ * {@code type}. {@code farTargetChance} (0..1): how often a cast goes for the farthest valid target instead of the
+ * current one (that target becomes the caster's target).
+ */
 public record SkillSpec(String id, String type, boolean enabled, boolean shout, String shoutText,
                         double damage, double knockback, double minRange, double maxRange,
                         double chargeSeconds, double cooldownSeconds,
-                        Shape shape, Aftershock aftershock, Terrain terrain) {
+                        Shape shape, Aftershock aftershock, Terrain terrain, double farTargetChance) {
     public static final String WIND_LINE = "wind_line";
     public static final String STOMP = "stomp";
     public static final String SHOCKWAVE = "shockwave";
@@ -19,7 +23,8 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
 
     /**
      * {@code length}/{@code width} for a line, {@code radius} for a circle; {@code speed} (blocks per second) is the
-     * spread speed of a shockwave and the dash speed of a charge, 0 (unused) for the other types.
+     * spread speed of a shockwave and the dash speed of a charge, 0 (unused) for the other types. A charge uses
+     * {@code radius} as its overshoot: how many blocks it runs on past the point it aimed at.
      */
     public record Shape(double length, double width, double radius, double speed) {
         public static final Codec<Shape> CODEC = RecordCodecBuilder.create(i -> i.group(
@@ -61,8 +66,18 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
             opt(Codec.DOUBLE, "cooldownSeconds", 10.0).forGetter(SkillSpec::cooldownSeconds),
             opt(Shape.CODEC, "shape", new Shape(0, 0, 0, 0)).forGetter(SkillSpec::shape),
             opt(Aftershock.CODEC, "aftershock", new Aftershock(0, 0, 0)).forGetter(SkillSpec::aftershock),
-            opt(Terrain.CODEC, "terrain", new Terrain(false, 0, 0)).forGetter(SkillSpec::terrain)
+            opt(Terrain.CODEC, "terrain", new Terrain(false, 0, 0)).forGetter(SkillSpec::terrain),
+            opt(Codec.DOUBLE, "farTargetChance", 0.0).forGetter(SkillSpec::farTargetChance)
     ).apply(i, SkillSpec::new));
+
+    /** A skill that never goes for a far target ({@code farTargetChance} 0). */
+    public SkillSpec(String id, String type, boolean enabled, boolean shout, String shoutText,
+                     double damage, double knockback, double minRange, double maxRange,
+                     double chargeSeconds, double cooldownSeconds,
+                     Shape shape, Aftershock aftershock, Terrain terrain) {
+        this(id, type, enabled, shout, shoutText, damage, knockback, minRange, maxRange, chargeSeconds,
+                cooldownSeconds, shape, aftershock, terrain, 0.0);
+    }
 
     /** Optional field that is always written back out (an operator sees every knob in the example file). */
     static <T> MapCodec<T> opt(Codec<T> codec, String name, T def) {
@@ -91,10 +106,12 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
         boolean line = WIND_LINE.equals(type) || CHARGE.equals(type);
         boolean circle = STOMP.equals(type) || SHOCKWAVE.equals(type);
         boolean fast = SHOCKWAVE.equals(type) || CHARGE.equals(type);
+        double radius = circle ? clamp(where, "shape.radius", shape.radius, 0.5, 32, warnings)
+                : CHARGE.equals(type) ? clamp(where, "shape.radius", shape.radius, 0, 32, warnings) : shape.radius;
         Shape sh = new Shape(
                 line ? clamp(where, "shape.length", shape.length, 1, 64, warnings) : shape.length,
                 line ? clamp(where, "shape.width", shape.width, 0.5, 32, warnings) : shape.width,
-                circle ? clamp(where, "shape.radius", shape.radius, 0.5, 32, warnings) : shape.radius,
+                radius,
                 fast ? clamp(where, "shape.speed", shape.speed, 1, 100, warnings) : shape.speed);
         Aftershock af = new Aftershock(
                 clamp(where, "aftershock.damage", aftershock.damage, 0, 2048, warnings),
@@ -110,7 +127,8 @@ public record SkillSpec(String id, String type, boolean enabled, boolean shout, 
                 clamp(where, "maxRange", maxRange, 0, 64, warnings),
                 clamp(where, "chargeSeconds", chargeSeconds, 0.2, 10, warnings),
                 clamp(where, "cooldownSeconds", cooldownSeconds, 0.5, 600, warnings),
-                sh, af, te);
+                sh, af, te,
+                clamp(where, "farTargetChance", farTargetChance, 0, 1, warnings));
         return out.equals(this) ? this : out;
     }
 

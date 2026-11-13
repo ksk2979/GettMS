@@ -497,6 +497,28 @@ class EditorValidatorTest {
         assertTrue(r.errors().get(1).contains("skills[1]: shape.speed 101 "), r.errors().toString());
     }
 
+    @Test
+    void chargeOvershootAndFarTargetChanceAreChecked() {
+        SkillSpec.Aftershock a = new SkillSpec.Aftershock(0, 0, 0);
+        SkillSpec.Terrain t = new SkillSpec.Terrain(true, 0, 0);
+        SkillSpec ok = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 32, 1, 10,
+                new SkillSpec.Shape(30, 3, 6, 30), a, t, 0.3);
+        SkillSpec far = new SkillSpec("c", SkillSpec.CHARGE, true, false, "", 10, 1, 0, 32, 1, 10,
+                new SkillSpec.Shape(30, 3, 33, 30), a, t, 0);
+        SkillSpec odds = new SkillSpec("w", SkillSpec.STOMP, true, false, "", 10, 1, 0, 6, 1, 10,
+                new SkillSpec.Shape(0, 0, 6, 0), a, t, 1.2);
+        var good = new org.gettserver.gettcore.hunting.HuntingConfig.Entry("x", rl("minecraft:zombie"), 50, 5, 0.3, 2, 1,
+                1, 10, 1, List.of(ok));
+        var bad = new org.gettserver.gettcore.hunting.HuntingConfig.Entry("y", rl("minecraft:zombie"), 50, 5, 0.3, 2, 1,
+                1, 10, 1, List.of(far, odds));
+        var h = new org.gettserver.gettcore.hunting.HuntingConfig(List.of(huntZone("숲", List.of(good, bad))));
+        var r = EditorValidator.validate(huntBundle(h, org.gettserver.gettcore.mobs.MobStatsConfig.DEFAULT),
+                RegistryChecks.ALL_EXIST);
+        assertEquals(2, r.errors().size(), r.errors().toString());
+        assertTrue(r.errors().get(0).contains("skills[0]: shape.radius 33 "), r.errors().toString());
+        assertTrue(r.errors().get(1).contains("skills[1]: farTargetChance 1.2 "), r.errors().toString());
+    }
+
     private static org.gettserver.gettcore.hunting.HuntingConfig.Entry huntEntry(String name, String entity, int weight) {
         return new org.gettserver.gettcore.hunting.HuntingConfig.Entry(name, rl(entity), 50, 5, 0.3, 2, 1, weight, 10, 1);
     }
