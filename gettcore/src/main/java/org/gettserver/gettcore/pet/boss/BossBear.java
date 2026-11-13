@@ -25,6 +25,11 @@ import net.minecraft.world.level.storage.loot.LootTable;
 
 /** Boss bear: a scaled-up wild bear that hunts players around its boss point. Not tamable. */
 public class BossBear extends Bear implements GettBoss {
+    /** Entity event: the bear starts gathering for the roar (client: raises its head). Bear itself uses 6 and 7. */
+    public static final byte EVENT_ROAR = 72;
+    /** Entity event: the bear takes its charge stance (client: optional pose). */
+    public static final byte EVENT_RUSH = 73;
+
     private static final EntityDataAccessor<CompoundTag> BOSS_DATA =
             SynchedEntityData.defineId(BossBear.class, EntityDataSerializers.COMPOUND_TAG);
     /** Created lazily: the Mob constructor already needs it (registerGoals) before field initializers run. */

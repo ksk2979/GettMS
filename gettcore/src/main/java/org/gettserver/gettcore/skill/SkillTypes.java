@@ -7,7 +7,9 @@ import java.util.Optional;
 public final class SkillTypes {
     private static final Map<String, SkillType> TYPES = Map.of(
             SkillSpec.WIND_LINE, new WindLineSkill(),
-            SkillSpec.STOMP, new StompSkill());
+            SkillSpec.STOMP, new StompSkill(),
+            SkillSpec.SHOCKWAVE, new ShockwaveSkill(),
+            SkillSpec.CHARGE, new ChargeSkill());
 
     private SkillTypes() {}
 

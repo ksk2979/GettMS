@@ -96,6 +96,46 @@ public final class SkillWorld {
         queue.jobs.add(new CarveJob(fresh.toLongArray(), new Vec3(x / n + 0.5, y / n + 0.5, z / n + 0.5)));
     }
 
+    /**
+     * Digs the given blocks right now (same exclusions as {@link #carve}) and returns how many were removed; at most
+     * {@code maxDebris} of them are thrown up as debris away from {@code from}. For a body that has to walk through
+     * the hole this very tick: the queued {@link #carve} would still leave the wall standing.
+     */
+    public static int carveNow(ServerLevel level, List<BlockPos> positions, Vec3 from, int maxDebris) {
+        if (positions.isEmpty() || !GettData.get().loaded()) return 0;
+        ProtectConfig protect = GettData.get().protect();
+        int removedCount = 0;
+        int debrisLeft = maxDebris;
+        for (BlockPos p : positions) {
+            BlockState removed = dig(level, protect, p);
+            if (removed == null) continue;
+            removedCount++;
+            if (debrisLeft-- > 0) SkillFx.debris(level, p, removed, from);
+        }
+        return removedCount;
+    }
+
+    /** The level as {@link WalkCarve.Blocks}; a block in an unloaded chunk counts as neither solid nor light. */
+    public static WalkCarve.Blocks walkBlocks(ServerLevel level) {
+        return new WalkCarve.Blocks() {
+            private final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+
+            @Override
+            public boolean solid(int x, int y, int z) {
+                pos.set(x, y, z);
+                return level.hasChunkAt(pos) && !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+            }
+
+            @Override
+            public boolean light(int x, int y, int z) {
+                pos.set(x, y, z);
+                if (!level.hasChunkAt(pos)) return false;
+                BlockState state = level.getBlockState(pos);
+                return state.getCollisionShape(level, pos).isEmpty() && !state.isAir() && state.getFluidState().isEmpty();
+            }
+        };
+    }
+
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         runLater(event);

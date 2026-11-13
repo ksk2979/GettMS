@@ -103,4 +103,18 @@ public final class SkillFx {
     public static void sound(ServerLevel level, Vec3 at, Holder<SoundEvent> sound, float volume) {
         level.playSound(null, at.x, at.y, at.z, sound, SoundSource.HOSTILE, volume, 1.0F);
     }
+
+    /** A sound with its own pitch (hostile category). */
+    public static void sound(ServerLevel level, Vec3 at, SoundEvent sound, float volume, float pitch) {
+        level.playSound(null, at.x, at.y, at.z, sound, SoundSource.HOSTILE, volume, pitch);
+    }
+
+    /** {@code count} chips of the block under {@code feet} kicked up around it (nothing over air or liquid). */
+    public static void footDust(ServerLevel level, Vec3 feet, int count, double spread) {
+        BlockPos below = BlockPos.containing(feet.x, feet.y - 0.5, feet.z);
+        if (!level.hasChunkAt(below)) return;
+        BlockState state = level.getBlockState(below);
+        if (state.isAir() || state.getBlock() instanceof LiquidBlock) return;
+        particles(level, new BlockParticleOption(ParticleTypes.BLOCK, state), feet.add(0, 0.1, 0), count, spread, 0.05);
+    }
 }
