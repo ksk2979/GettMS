@@ -37,7 +37,14 @@ public final class AbilityTooltip {
                 break;
             }
         }
-        lines.add(at++, Component.translatable("enchantment.gettcore." + ability.id() + ".desc", format(value))
+        EnchantConfig config = ClientEnchantConfig.get();
+        int lvl = special.get().level();
+        // 광맥 탐지는 표시 시간·쿨타임도 레벨마다 다르다 (%2$s, %3$s)
+        Object[] args = ability == Ability.PROSPECT
+                ? new Object[] {format(value), format(config.prospectDurationSeconds().get(lvl)),
+                        format(config.prospectCooldownSeconds().get(lvl))}
+                : new Object[] {format(value)};
+        lines.add(at++, Component.translatable("enchantment.gettcore." + ability.id() + ".desc", args)
                 .withStyle(ChatFormatting.GRAY));
         if (isBlockAbility(ability)) {
             lines.add(at, Component.translatable("gettcore.tooltip.ability_toggle", AbilityKey.keyName())

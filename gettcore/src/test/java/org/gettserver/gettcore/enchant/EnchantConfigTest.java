@@ -85,8 +85,8 @@ class EnchantConfigTest {
     void prospectDefaultsAndSanitize() {
         EnchantConfig d = EnchantConfig.DEFAULT;
         assertEquals(new EnchantConfig.Tiered(8, 12, 16), d.prospectRange());
-        assertEquals(20, d.prospectDurationSeconds());
-        assertEquals(60, d.prospectCooldownSeconds());
+        assertEquals(new EnchantConfig.Tiered(30, 35, 45), d.prospectDurationSeconds());
+        assertEquals(new EnchantConfig.Tiered(70, 65, 60), d.prospectCooldownSeconds());
         assertEquals(d, parse("{\"prospect\":{}}"));
         EnchantConfig c = parse("{\"prospect\":{\"range\":[1,2]}}");
         List<String> errors = new ArrayList<>();
@@ -99,10 +99,17 @@ class EnchantConfigTest {
         List<String> scalarErrors = new ArrayList<>();
         EnchantConfig neg = parse("{\"prospect\":{\"durationSeconds\":-1,\"cooldownSeconds\":-5}}")
                 .sanitized(scalarErrors);
-        assertEquals(20, neg.prospectDurationSeconds());
-        assertEquals(60, neg.prospectCooldownSeconds());
+        assertEquals(d.prospectDurationSeconds(), neg.prospectDurationSeconds());
+        assertEquals(d.prospectCooldownSeconds(), neg.prospectCooldownSeconds());
         assertEquals(2, scalarErrors.size(), scalarErrors.toString());
         assertTrue(scalarErrors.get(0).contains("prospect.durationSeconds"));
         assertTrue(scalarErrors.get(1).contains("prospect.cooldownSeconds"));
+
+        // 예전 형식(숫자 하나)은 세 레벨 모두 그 값; 새 형식은 레벨별 3개
+        EnchantConfig old = parse("{\"prospect\":{\"durationSeconds\":20,\"cooldownSeconds\":[90,80,0]}}");
+        assertEquals(new EnchantConfig.Tiered(20, 20, 20), old.prospectDurationSeconds());
+        assertEquals(new EnchantConfig.Tiered(90, 80, 0), old.prospectCooldownSeconds());
+        assertEquals(old, EnchantConfig.CODEC.parse(JsonOps.INSTANCE,
+                EnchantConfig.CODEC.encodeStart(JsonOps.INSTANCE, old).getOrThrow()).getOrThrow());
     }
 }

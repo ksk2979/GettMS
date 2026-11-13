@@ -1,5 +1,6 @@
 package org.gettserver.gettcore.enchant;
 
+import com.mojang.datafixers.util.Either;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -17,7 +18,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                             double executeHealthPercent, Tiered executeBonus, Tiered plunder, double volleyAngle,
                             Tiered quickdraw, double homingRange, double homingCone, double homingSteer,
                             boolean homingTargetPlayers, Tiered lure, Tiered bigcatch, Tiered treasure,
-                            Tiered prospectRange, double prospectDurationSeconds, double prospectCooldownSeconds) {
+                            Tiered prospectRange, Tiered prospectDurationSeconds, Tiered prospectCooldownSeconds) {
 
     /** 레벨 I/II/III 값. JSON은 길이 3 배열; 길이가 다르면 NaN으로 읽혀 {@link #sanitized}가 기본값으로 바꾼다. */
     public record Tiered(double one, double two, double three) {
@@ -26,6 +27,10 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
         public static final Codec<Tiered> CODEC = Codec.DOUBLE.listOf().xmap(
                 l -> l.size() == 3 ? new Tiered(l.get(0), l.get(1), l.get(2)) : INVALID,
                 t -> List.of(t.one, t.two, t.three));
+
+        /** 숫자 하나(세 레벨 모두 같은 값)도 받는다: 레벨별 값이 되기 전의 설정 파일. */
+        public static final Codec<Tiered> SCALAR_OR_LIST = Codec.either(Codec.DOUBLE, CODEC).xmap(
+                e -> e.map(v -> new Tiered(v, v, v), t -> t), Either::right);
 
         public double get(int level) {
             return switch (level) {
@@ -49,7 +54,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
             new Tiered(10, 20, 35), new Tiered(1.5, 2.0, 2.5), 50, new Tiered(5, 10, 15), new Tiered(25, 50, 100),
             20, new Tiered(30, 60, 100), new Tiered(10, 20, 35), 10, new Tiered(15, 30, 45),
             8, 30, 0.1, false, new Tiered(15, 30, 45), new Tiered(10, 20, 35), new Tiered(15, 30, 45),
-            new Tiered(8, 12, 16), 20, 60);
+            new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60));
 
     private static final Codec<LevelWeights> WEIGHTS_CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.optionalFieldOf("1", LevelWeights.DEFAULT.one()).forGetter(LevelWeights::one),
@@ -89,14 +94,14 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
         ).apply(i, Homing::new));
     }
 
-    private record Prospect(Tiered range, double durationSeconds, double cooldownSeconds) {
+    private record Prospect(Tiered range, Tiered durationSeconds, Tiered cooldownSeconds) {
         static final Prospect DEFAULT_PROSPECT = new Prospect(DEFAULT.prospectRange(), DEFAULT.prospectDurationSeconds(),
                 DEFAULT.prospectCooldownSeconds());
         static final Codec<Prospect> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Tiered.CODEC.optionalFieldOf("range", DEFAULT_PROSPECT.range).forGetter(Prospect::range),
-                Codec.DOUBLE.optionalFieldOf("durationSeconds", DEFAULT_PROSPECT.durationSeconds)
+                Tiered.SCALAR_OR_LIST.optionalFieldOf("durationSeconds", DEFAULT_PROSPECT.durationSeconds)
                         .forGetter(Prospect::durationSeconds),
-                Codec.DOUBLE.optionalFieldOf("cooldownSeconds", DEFAULT_PROSPECT.cooldownSeconds)
+                Tiered.SCALAR_OR_LIST.optionalFieldOf("cooldownSeconds", DEFAULT_PROSPECT.cooldownSeconds)
                         .forGetter(Prospect::cooldownSeconds)
         ).apply(i, Prospect::new));
     }
@@ -192,8 +197,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tiered("bigcatch.chance", bigcatch, d.bigcatch, errors),
                 tiered("treasure.chance", treasure, d.treasure, errors),
                 tiered("prospect.range", prospectRange, d.prospectRange, errors),
-                scalar("prospect.durationSeconds", prospectDurationSeconds, d.prospectDurationSeconds, errors),
-                scalar("prospect.cooldownSeconds", prospectCooldownSeconds, d.prospectCooldownSeconds, errors));
+                tiered("prospect.durationSeconds", prospectDurationSeconds, d.prospectDurationSeconds, errors),
+                tiered("prospect.cooldownSeconds", prospectCooldownSeconds, d.prospectCooldownSeconds, errors));
     }
 
     private static Tiered tiered(String name, Tiered v, Tiered def, List<String> errors) {

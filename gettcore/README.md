@@ -7,7 +7,7 @@ Gett Server용 경제·NPC 상점 모드입니다 (NeoForge 1.21.1).
 - NPC 대화 데이터 연동, 경험치 구슬, 귀환석과 귀환 지점
 - NPC 퀘스트: 메인 + 서브퀘스트, 보상 고르기, 함께 잡기, 퀘스트 목록 HUD
 - 탐지기: 아이템을 넣어 두고 쓰면 주변의 해당 블록(광석 등)을 벽 너머 윤곽선으로 쓴 사람에게만 보여 줍니다 (범위·시간·쿨타임은 `detector.json`)
-- 광맥 탐지: 곡괭이 인챈트 — 수치는 `enchant.json` 의 `prospect`
+- 광맥 탐지: 곡괭이 인챈트 — 수치는 `enchant.json` 의 `prospect` (`range`·`durationSeconds`·`cooldownSeconds` 모두 레벨 1/2/3 값 3개. 기본: 범위 8/12/16칸, 표시 30/35/45초, 쿨타임 70/65/60초)
 - Epic Fight 스킬 선택 창에서 스킬 줄에 마우스를 올리면 설명이 보임
 - Dream Displays 한국어 번역(메뉴·툴팁) 동봉
 

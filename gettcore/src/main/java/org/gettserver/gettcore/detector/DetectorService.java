@@ -90,9 +90,9 @@ public final class DetectorService {
         long[] found = DetectorScan.find(level, broken, range, DetectorTargets.blocks(resolved.get()),
                 config.maxBlocks(), broken);
         // 주변에 없어도 쿨타임은 돈다.
-        COOLDOWNS.start(player.getUUID(), key, now, Math.round(enchant.prospectCooldownSeconds() * 20));
+        COOLDOWNS.start(player.getUUID(), key, now, Math.round(enchant.prospectCooldownSeconds().get(lvl) * 20));
         if (found.length == 0) return;
-        int displayTicks = prospectTicks(enchant.prospectDurationSeconds());
+        int displayTicks = prospectTicks(enchant.prospectDurationSeconds().get(lvl));
         PacketDistributor.sendToPlayer(player, new DetectorHighlightPayload(key, found, displayTicks));
         showDetecting(player, displayTicks);
         chime(player);
