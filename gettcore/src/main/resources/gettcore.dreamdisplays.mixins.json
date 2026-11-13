@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "org.gettserver.gettcore.ddmixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "DisplayPlaybackHostMixin",
+    "DisplayScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

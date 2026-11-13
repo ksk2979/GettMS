@@ -53,6 +53,10 @@ Gett Server 경제·NPC 상점 모드
 [[mixins]]
 config="${mod_id}.mixins.json"
 
+# Dream Displays(선택 의존) 대상 믹스인: 그 모드가 없거나 버전이 달라도 실패하지 않는다(required=false).
+[[mixins]]
+config="${mod_id}.dreamdisplays.mixins.json"
+
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 [[accessTransformers]]

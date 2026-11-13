@@ -161,6 +161,14 @@ public class GettCore {
                 LOGGER.warn("gettcore: Curios 연동 비활성 (호환되지 않는 Curios 버전?): {}", e.toString());
             }
         }
+        // Dream Displays(화면) 도 선택 의존성: DisplayService 는 이 분기 안에서만 참조.
+        if (ModList.get().isLoaded("dreamdisplays")) {
+            try {
+                org.gettserver.gettcore.display.DisplayService.install();
+            } catch (LinkageError e) {
+                LOGGER.warn("gettcore: Dream Displays 연동 비활성 (호환되지 않는 버전?): {}", e.toString());
+            }
+        }
         PetService.registerReloadHook();
     }
 

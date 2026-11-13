@@ -41,7 +41,7 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("4");
+        PayloadRegistrar registrar = event.registrar("5");
         registrar.playToClient(BalanceSyncPayload.TYPE, BalanceSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
@@ -146,5 +146,22 @@ public final class GettNetwork {
                 (payload, ctx) -> ctx.enqueueWork(() -> AbilityToggle.toggle((ServerPlayer) ctx.player())));
         registrar.playToServer(ThrowCaptureBallPayload.TYPE, ThrowCaptureBallPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> CaptureService.throwBall((ServerPlayer) ctx.player())));
+        // Dream Displays helpers. ClientDisplayState touches no Dream Displays class; ClientDisplays and
+        // DisplayService do, and are only reached with that mod installed.
+        registrar.playToClient(DisplayLoopSyncPayload.TYPE, DisplayLoopSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> org.gettserver.gettcore.display.client.ClientDisplayState.setLoops(payload.loops()));
+        registrar.playToClient(DisplayPersonalPayload.TYPE, DisplayPersonalPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (net.neoforged.fml.ModList.get().isLoaded("dreamdisplays")) {
+                        org.gettserver.gettcore.display.client.ClientDisplays.applyPersonal(payload.display(), payload.url());
+                    }
+                }));
+        registrar.playToServer(DisplayActionPayload.TYPE, DisplayActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (net.neoforged.fml.ModList.get().isLoaded("dreamdisplays")) {
+                        org.gettserver.gettcore.display.DisplayService.handleAction((ServerPlayer) ctx.player(),
+                                payload.display(), payload.action(), payload.url());
+                    }
+                }));
     }
 }

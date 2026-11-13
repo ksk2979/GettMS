@@ -65,6 +65,11 @@ public class GettCoreClient {
             GettCore.LOGGER.info("gettcore: mob health bar off (mobHealthBar={}, epicfight={})", barSetting, epicFight);
         }
         // Epic Fight 스킬 선택 창: 스킬 줄에 마우스를 올리면 설명 툴팁(리플렉션, 선택 의존).
+        // Dream Displays 화면 메뉴(웅크리고 우클릭)에 영상 끄기·나만 보기·반복 버튼(선택 의존).
+        if (net.neoforged.fml.ModList.get().isLoaded("dreamdisplays")) {
+            NeoForge.EVENT_BUS.addListener(
+                    org.gettserver.gettcore.display.client.DisplayMenuButtons::onInit);
+        }
         if (epicFight) {
             NeoForge.EVENT_BUS.addListener(
                     org.gettserver.gettcore.compat.client.EpicFightSkillTooltips::onRenderPre);
