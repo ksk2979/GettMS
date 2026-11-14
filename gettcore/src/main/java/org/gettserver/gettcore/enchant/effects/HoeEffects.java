@@ -18,10 +18,12 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockDropsEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import org.gettserver.gettcore.GettCore;
 import org.gettserver.gettcore.data.GettData;
+import org.gettserver.gettcore.enchant.SpecialEnchants;
 import org.gettserver.gettcore.enchant.SpecialEnchants.Ability;
 
 /** 괭이 특수 능력: 수확(주변 다 자란 작물 함께 수확), 풍작(드롭 추가), 재심기(씨앗 1개로 다시 심기). */
@@ -33,9 +35,34 @@ public final class HoeEffects {
         return state.getBlock() instanceof CropBlock crop && crop.isMaxAge(state);
     }
 
+    /**
+     * 재심기 괭이를 들고 있으면 덜 자란 작물은 부서지지 않는다. 작물은 한 번에 부서지는 블록이라, 왼클릭을
+     * 누르고 있으면 다음 틱에 다시 심긴 싹이 곧바로 또 부서지기 때문. 클라이언트에서도 판정해야 하므로
+     * (서버만 막으면 싹이 깜빡인다) 서버 전용인 {@link EffectContext#activeLevel}을 쓰지 않는다.
+     */
+    private static boolean protectsSprout(Player player, BlockState state) {
+        if (!(state.getBlock() instanceof CropBlock crop) || crop.isMaxAge(state)) return false;
+        ItemStack tool = player.getMainHandItem();
+        return SpecialEnchants.toolOf(tool).filter(SpecialEnchants.Tool.HOE::equals).isPresent()
+                && SpecialEnchants.level(tool, Ability.REPLANT, player.registryAccess()) > 0;
+    }
+
+    /** 클라이언트·서버 양쪽에서 받는다: 클라이언트가 파괴를 예측하지 않게 하고, 서버도 파괴를 시작하지 않는다. */
+    @SubscribeEvent
+    public static void onLeftClick(PlayerInteractEvent.LeftClickBlock event) {
+        if (protectsSprout(event.getEntity(), event.getLevel().getBlockState(event.getPos()))) {
+            event.setCanceled(true);
+        }
+    }
+
     /** 수확: 보호 모드가 먼저 취소할 수 있도록 가장 늦게 받는다(취소된 이벤트는 오지 않는다). */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBreak(BlockEvent.BreakEvent event) {
+        // 모드가 없는 클라이언트 등 왼클릭 취소를 지나친 파괴도 서버에서 막는다
+        if (protectsSprout(event.getPlayer(), event.getState())) {
+            event.setCanceled(true);
+            return;
+        }
         if (EffectContext.inReentrant()) return;
         if (!(event.getPlayer() instanceof ServerPlayer player)) return;
         if (!(event.getLevel() instanceof ServerLevel level)) return;
