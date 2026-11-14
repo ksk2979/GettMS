@@ -19,7 +19,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                             Tiered quickdraw, double homingRange, double homingCone, double homingSteer,
                             boolean homingTargetPlayers, Tiered lure, Tiered bigcatch, Tiered treasure,
                             Tiered prospectRange, Tiered prospectDurationSeconds, Tiered prospectCooldownSeconds,
-                            ArmorConfig armor) {
+                            ArmorConfig armor, PoolConfig pool) {
 
     /** 레벨 I/II/III 값. JSON은 길이 3 배열; 길이가 다르면 NaN으로 읽혀 {@link #sanitized}가 기본값으로 바꾼다. */
     public record Tiered(double one, double two, double three) {
@@ -55,7 +55,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
             new Tiered(10, 20, 35), new Tiered(1.5, 2.0, 2.5), 50, new Tiered(5, 10, 15), new Tiered(25, 50, 100),
             20, new Tiered(30, 60, 100), new Tiered(10, 20, 35), 10, new Tiered(15, 30, 45),
             8, 30, 0.1, false, new Tiered(15, 30, 45), new Tiered(10, 20, 35), new Tiered(15, 30, 45),
-            new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60), ArmorConfig.DEFAULT);
+            new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60), ArmorConfig.DEFAULT,
+            PoolConfig.DEFAULT);
 
     private static final Codec<LevelWeights> WEIGHTS_CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.optionalFieldOf("1", LevelWeights.DEFAULT.one()).forGetter(LevelWeights::one),
@@ -109,7 +110,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
 
     /** levelWeights + 괭이·곡괭이·도끼. RecordCodecBuilder 필드 수 제한(16) 때문에 둘로 나눈다. */
     private record Tools(LevelWeights levelWeights, Tiered harvest, Tiered bounty, Tiered vein, Tiered timber,
-                         Tiered lumber, Prospect prospect, ArmorConfig armor) {
+                         Tiered lumber, Prospect prospect, ArmorConfig armor, PoolConfig pool) {
         static final MapCodec<Tools> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                 WEIGHTS_CODEC.optionalFieldOf("levelWeights", DEFAULT.levelWeights()).forGetter(Tools::levelWeights),
                 tieredSection("harvest", "radius", DEFAULT.harvest()).forGetter(Tools::harvest),
@@ -118,7 +119,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tieredSection("timber", "maxBlocks", DEFAULT.timber()).forGetter(Tools::timber),
                 tieredSection("lumber", "chance", DEFAULT.lumber()).forGetter(Tools::lumber),
                 Prospect.CODEC.optionalFieldOf("prospect", Prospect.DEFAULT_PROSPECT).forGetter(Tools::prospect),
-                ArmorConfig.CODEC.optionalFieldOf("armor", ArmorConfig.DEFAULT).forGetter(Tools::armor)
+                ArmorConfig.CODEC.optionalFieldOf("armor", ArmorConfig.DEFAULT).forGetter(Tools::armor),
+                PoolConfig.CODEC.optionalFieldOf("pool", PoolConfig.DEFAULT).forGetter(Tools::pool)
         ).apply(i, Tools::new));
     }
 
@@ -155,12 +157,13 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 c.execute().healthPercent(), c.execute().bonusPercent(), c.plunder(), c.volleyAngle(), c.quickdraw(),
                 c.homing().range(), c.homing().coneDegrees(), c.homing().steer(), c.homing().targetPlayers(),
                 c.lure(), c.bigcatch(), c.treasure(),
-                t.prospect().range(), t.prospect().durationSeconds(), t.prospect().cooldownSeconds(), t.armor());
+                t.prospect().range(), t.prospect().durationSeconds(), t.prospect().cooldownSeconds(), t.armor(),
+                t.pool());
     }
 
     private Pair<Tools, Combat> toParts() {
         return Pair.of(new Tools(levelWeights, harvest, bounty, vein, timber, lumber,
-                        new Prospect(prospectRange, prospectDurationSeconds, prospectCooldownSeconds), armor),
+                        new Prospect(prospectRange, prospectDurationSeconds, prospectCooldownSeconds), armor, pool),
                 new Combat(new Sweep(sweepRadius, sweepDamagePercent), leech, wisdom,
                         new Execute(executeHealthPercent, executeBonus), plunder, volleyAngle, quickdraw,
                         new Homing(homingRange, homingCone, homingSteer, homingTargetPlayers),
@@ -201,7 +204,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tiered("prospect.range", prospectRange, d.prospectRange, errors),
                 tiered("prospect.durationSeconds", prospectDurationSeconds, d.prospectDurationSeconds, errors),
                 tiered("prospect.cooldownSeconds", prospectCooldownSeconds, d.prospectCooldownSeconds, errors),
-                armor.sanitized(errors));
+                armor.sanitized(errors), pool.sanitized(errors));
     }
 
     static Tiered tiered(String name, Tiered v, Tiered def, List<String> errors) {

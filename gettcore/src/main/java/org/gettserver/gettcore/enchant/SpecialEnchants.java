@@ -115,6 +115,14 @@ public final class SpecialEnchants {
         public int maxLevel() { return maxLevel; }
         public ResourceKey<Enchantment> key() { return key; }
 
+        /** 설정 파일의 id로 찾는다. */
+        public static Optional<Ability> byId(String id) {
+            for (Ability a : values()) {
+                if (a.id.equals(id)) return Optional.of(a);
+            }
+            return Optional.empty();
+        }
+
         static Optional<Ability> byKey(ResourceKey<Enchantment> key) {
             for (Ability a : values()) {
                 if (a.key.equals(key)) return Optional.of(a);
@@ -135,7 +143,90 @@ public final class SpecialEnchants {
         }
     }
 
+    /**
+     * 뽑기 후보 하나: 단일 능력이거나 묶음.
+     *
+     * @param bundle 묶음이면 그 설정, 단일 능력이면 null
+     */
+    public record Candidate(List<Ability> abilities, int weight, PoolConfig.Bundle bundle) {}
+
+    /** 뽑힌 후보와 레벨. 레벨은 3레벨 능력에만 적용되고 1레벨 능력은 1이다. */
+    public record Pick(Candidate candidate, int level) {
+        public List<Rolled> parts() {
+            List<Rolled> parts = new ArrayList<>();
+            for (Ability a : candidate.abilities()) parts.add(new Rolled(a, a.maxLevel() < 3 ? 1 : level));
+            return List.copyOf(parts);
+        }
+    }
+
     private SpecialEnchants() {}
+
+    /** 이 도구의 후보: 단일 능력 전부(가중치는 {@code singleWeight}) 뒤에 묶음들. 음수 가중치는 0. */
+    public static List<Candidate> candidates(Tool tool, ToIntFunction<Ability> singleWeight,
+                                             List<PoolConfig.Bundle> bundles) {
+        List<Candidate> list = new ArrayList<>();
+        for (Ability a : pool(tool)) list.add(new Candidate(List.of(a), Math.max(0, singleWeight.applyAsInt(a)), null));
+        for (PoolConfig.Bundle b : bundles) {
+            list.add(new Candidate(b.abilityList(), Math.max(0, b.weight()), b));
+        }
+        return List.copyOf(list);
+    }
+
+    /** 가중치에 비례해 후보 하나를 고르고(합이 0 이하이면 균등), 3레벨 능력이 있으면 레벨도 뽑는다. */
+    public static Pick pick(List<Candidate> candidates, LevelWeights weights, RandomSource random) {
+        Candidate c = candidates.get(pickIndex(candidates.stream().mapToInt(Candidate::weight).toArray(), random));
+        return new Pick(c, leveled(c.abilities()) ? rollLevel(weights, random) : 1);
+    }
+
+    /** 3레벨 능력이 하나라도 있는가. */
+    public static boolean leveled(List<Ability> abilities) {
+        for (Ability a : abilities) {
+            if (a.maxLevel() >= 3) return true;
+        }
+        return false;
+    }
+
+    /** 레벨 가중치로 1~3을 고른다. 가중치 합이 0 이하이면 1. */
+    public static int rollLevel(LevelWeights weights, RandomSource random) {
+        int w1 = Math.max(0, weights.one());
+        int w2 = Math.max(0, weights.two());
+        int w3 = Math.max(0, weights.three());
+        int total = w1 + w2 + w3;
+        if (total <= 0) return 1;
+        int pick = random.nextInt(total);
+        return pick < w1 ? 1 : pick < w1 + w2 ? 2 : 3;
+    }
+
+    /** 능력 구성은 그대로, 3레벨 능력의 레벨만 {@code level}로 바꾼 사본. */
+    public static List<Rolled> withLevel(List<Rolled> parts, int level) {
+        List<Rolled> out = new ArrayList<>();
+        for (Rolled r : parts) out.add(new Rolled(r.ability(), r.ability().maxLevel() < 3 ? 1 : level));
+        return List.copyOf(out);
+    }
+
+    /** 표시 레벨: 3레벨 능력의 레벨(묶음이면 전부 같다). 3레벨 능력이 없으면 0. */
+    public static int bundleLevel(List<Rolled> parts) {
+        for (Rolled r : parts) {
+            if (r.ability().maxLevel() >= 3) return r.level();
+        }
+        return 0;
+    }
+
+    /** 능력 집합이 정확히 같은 묶음. 능력이 2개 미만이면 없음. */
+    public static Optional<PoolConfig.Bundle> bundleOf(Set<Ability> abilities, List<PoolConfig.Bundle> bundles) {
+        if (abilities.size() < 2) return Optional.empty();
+        for (PoolConfig.Bundle b : bundles) {
+            if (b.abilitySet().equals(abilities)) return Optional.of(b);
+        }
+        return Optional.empty();
+    }
+
+    /** {@link #bundleOf(Set, List)}의 편의형: 붙어 있는 능력 목록으로 찾는다. */
+    public static Optional<PoolConfig.Bundle> bundleOf(List<Rolled> parts, List<PoolConfig.Bundle> bundles) {
+        Set<Ability> set = EnumSet.noneOf(Ability.class);
+        for (Rolled r : parts) set.add(r.ability());
+        return bundleOf(set, bundles);
+    }
 
     public static List<Ability> pool(Tool tool) {
         List<Ability> list = new ArrayList<>();
@@ -170,14 +261,7 @@ public final class SpecialEnchants {
         List<Ability> pool = pool(tool);
         Ability ability = pool.get(pickIndex(pool.stream().mapToInt(abilityWeight).toArray(), random));
         if (ability.maxLevel < 3) return new Rolled(ability, 1);
-        int w1 = Math.max(0, weights.one());
-        int w2 = Math.max(0, weights.two());
-        int w3 = Math.max(0, weights.three());
-        int total = w1 + w2 + w3;
-        if (total <= 0) return new Rolled(ability, 1);
-        int pick = random.nextInt(total);
-        int level = pick < w1 ? 1 : pick < w1 + w2 ? 2 : 3;
-        return new Rolled(ability, level);
+        return new Rolled(ability, rollLevel(weights, random));
     }
 
     /** 가중치에 비례해 고른 위치. 음수는 0, 합이 0 이하이면 균등. */
@@ -205,12 +289,32 @@ public final class SpecialEnchants {
         return Optional.empty();
     }
 
+    /** 도구에 붙은 특수 능력 전부, {@link Ability} 선언 순서. 묶음이면 여러 개다. */
+    public static List<Rolled> all(ItemStack stack) {
+        ItemEnchantments enchantments = EnchantmentHelper.getEnchantmentsForCrafting(stack);
+        List<Rolled> list = new ArrayList<>();
+        for (Object2IntMap.Entry<Holder<Enchantment>> entry : enchantments.entrySet()) {
+            Holder<Enchantment> holder = entry.getKey();
+            if (!holder.is(SPECIAL)) continue;
+            Optional<Ability> ability = holder.unwrapKey().flatMap(Ability::byKey);
+            ability.ifPresent(a -> list.add(new Rolled(a, entry.getIntValue())));
+        }
+        list.sort(java.util.Comparator.comparing(Rolled::ability));
+        return List.copyOf(list);
+    }
+
     /** 특수 능력을 전부 지우고 {@code rolled}를 붙인다. 바닐라 인챈트는 유지. */
     public static void set(ItemStack stack, Rolled rolled, RegistryAccess registries) {
-        Holder<Enchantment> holder = holder(rolled.ability(), registries);
+        set(stack, List.of(rolled), registries);
+    }
+
+    /** 특수 능력을 전부 지우고 {@code parts}(묶음이면 여러 개)를 붙인다. 바닐라 인챈트는 유지. */
+    public static void set(ItemStack stack, List<Rolled> parts, RegistryAccess registries) {
+        List<Holder<Enchantment>> holders = new ArrayList<>();
+        for (Rolled r : parts) holders.add(holder(r.ability(), registries));
         EnchantmentHelper.updateEnchantments(stack, mutable -> {
             mutable.removeIf(h -> h.is(SPECIAL));
-            mutable.set(holder, rolled.level());
+            for (int i = 0; i < parts.size(); i++) mutable.set(holders.get(i), parts.get(i).level());
         });
     }
 

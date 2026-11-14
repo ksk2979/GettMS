@@ -17,13 +17,64 @@
   "lure":      { "percent": [15, 30, 45] },
   "bigcatch":  { "chance": [10, 20, 35] },
   "treasure":  { "chance": [15, 30, 45] },
+  "pool": {
+    "weights": {
+      "hoe":         { "harvest": 10, "replant": 10, "bounty": 10 },
+      "pickaxe":     { "vein": 10, "prospect": 10, "area": 10, "smelt": 10 },
+      "axe":         { "timber": 10, "resapling": 10, "lumber": 10 },
+      "sword":       { "sweep": 10, "leech": 10, "wisdom": 10, "execute": 10, "plunder": 10 },
+      "bow":         { "volley": 10, "quickdraw": 10, "homing": 10 },
+      "fishing_rod": { "lure": 10, "bigcatch": 10, "treasure": 10 }
+    },
+    "bundles": {
+      "hoe": [
+        { "id": "harvest_replant", "abilities": ["harvest", "replant"], "weight": 3, "name": "" },
+        { "id": "harvest_bounty", "abilities": ["harvest", "bounty"], "weight": 3, "name": "" },
+        { "id": "bounty_replant", "abilities": ["bounty", "replant"], "weight": 3, "name": "" },
+        { "id": "master_farmer", "abilities": ["harvest", "replant", "bounty"], "weight": 1, "name": "최강의 농부" }
+      ],
+      "pickaxe": [
+        { "id": "vein_prospect", "abilities": ["vein", "prospect"], "weight": 3, "name": "" },
+        { "id": "vein_smelt", "abilities": ["vein", "smelt"], "weight": 3, "name": "" },
+        { "id": "area_smelt", "abilities": ["area", "smelt"], "weight": 3, "name": "" },
+        { "id": "vein_prospect_area", "abilities": ["vein", "prospect", "area"], "weight": 2, "name": "" },
+        { "id": "master_miner", "abilities": ["vein", "prospect", "area", "smelt"], "weight": 1, "name": "최강의 광부" }
+      ],
+      "axe": [
+        { "id": "timber_resapling", "abilities": ["timber", "resapling"], "weight": 3, "name": "" },
+        { "id": "timber_lumber", "abilities": ["timber", "lumber"], "weight": 3, "name": "" },
+        { "id": "lumber_resapling", "abilities": ["lumber", "resapling"], "weight": 3, "name": "" },
+        { "id": "master_lumberjack", "abilities": ["timber", "resapling", "lumber"], "weight": 1, "name": "최강의 나무꾼" }
+      ],
+      "sword": [
+        { "id": "sweep_leech", "abilities": ["sweep", "leech"], "weight": 3, "name": "" },
+        { "id": "sweep_execute", "abilities": ["sweep", "execute"], "weight": 3, "name": "" },
+        { "id": "leech_execute", "abilities": ["leech", "execute"], "weight": 3, "name": "" },
+        { "id": "wisdom_plunder", "abilities": ["wisdom", "plunder"], "weight": 3, "name": "" },
+        { "id": "master_swordsman", "abilities": ["sweep", "leech", "execute"], "weight": 1, "name": "최강의 검사" }
+      ],
+      "bow": [
+        { "id": "volley_quickdraw", "abilities": ["volley", "quickdraw"], "weight": 3, "name": "" },
+        { "id": "volley_homing", "abilities": ["volley", "homing"], "weight": 3, "name": "" },
+        { "id": "quickdraw_homing", "abilities": ["quickdraw", "homing"], "weight": 3, "name": "" },
+        { "id": "master_archer", "abilities": ["volley", "quickdraw", "homing"], "weight": 1, "name": "최강의 궁수" }
+      ],
+      "fishing_rod": [
+        { "id": "lure_bigcatch", "abilities": ["lure", "bigcatch"], "weight": 3, "name": "" },
+        { "id": "lure_treasure", "abilities": ["lure", "treasure"], "weight": 3, "name": "" },
+        { "id": "bigcatch_treasure", "abilities": ["bigcatch", "treasure"], "weight": 3, "name": "" },
+        { "id": "master_angler", "abilities": ["lure", "bigcatch", "treasure"], "weight": 1, "name": "최강의 낚시꾼" }
+      ]
+    },
+    "levelReroll": { "enabled": false, "goldCost": 1000, "stoneCost": 1 }
+  },
   "armor": {
     "levelWeights": { "1": 75, "2": 20, "3": 5 },
     "abilityWeights": {
-      "helmet":     { "swift": 40, "goggles": 30, "sense": 20, "nightvision": 10 },
-      "chestplate": { "swift": 40, "vitality": 30, "regen": 20, "undying": 10 },
-      "leggings":   { "swift": 40, "leap": 30, "steadfast": 20, "dodge": 10 },
-      "boots":      { "swift": 40, "farmstep": 30, "climb": 20, "landing": 10 }
+      "helmet":     { "swift": 10, "goggles": 10, "sense": 10, "nightvision": 10 },
+      "chestplate": { "swift": 10, "vitality": 10, "regen": 10, "undying": 10 },
+      "leggings":   { "swift": 10, "leap": 10, "steadfast": 10, "dodge": 10 },
+      "boots":      { "swift": 10, "farmstep": 10, "climb": 10, "landing": 10 }
     },
     "swift":     { "percent": [5, 10, 20] },
     "goggles":   { "seconds": 10 },

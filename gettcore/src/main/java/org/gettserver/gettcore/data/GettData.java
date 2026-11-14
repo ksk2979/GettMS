@@ -69,6 +69,11 @@ public final class GettData {
     /** One-shot upgrade (1.11.0): fills an empty skill list of the boss bear in an installed bosses.json. */
     static final String BOSSES_BEAR_UPGRADE = "bosses.json@bear_skills";
     private static final String BOSS_BEAR_KEY = "gettcore:boss_bear";
+    /**
+     * One-shot upgrade (1.14.0): armor ability weights still at the old 40/30/20/10 default become equal (10 each).
+     */
+    private static final String ENCHANT_FILE = "enchant.json";
+    static final String ENCHANT_ARMOR_EQUAL = "enchant.json@armor_equal";
     /** One-shot upgrade (reinforce): adds only the 대장장이 -> blacksmith name mapping to an earlier npcs.json. */
     static final String NPC_BLACKSMITH_UPGRADE = "npcs.json@blacksmith";
 
@@ -406,7 +411,7 @@ public final class GettData {
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
                 new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs,
-                equipment, upgrade, bosses, detector);
+                equipment, upgrade, bosses, detector, enchant);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -423,7 +428,7 @@ public final class GettData {
 
     /**
      * Validates the whole bundle; if clean, backs up the current files, writes every shop/dialog/quest file,
-     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json, mobs.json, equipment.json, upgrade.json and bosses.json (all to .tmp first, then moved), deletes
+     * npcs.json, boss_points.json, pets.json, protect.json, reinforce.json, hunting.json, mobs.json, equipment.json, upgrade.json, bosses.json, detector.json and enchant.json (all to .tmp first, then moved), deletes
      * files of ids no longer present and reloads. Boss points, pets, protect and reinforce are replaced as a whole; the ids of boss points that are gone
      * afterwards are reported in {@link SaveResult#removedBossPoints} (the caller drops their runtime state).
      * Nothing is touched when validation fails.
@@ -487,6 +492,8 @@ public final class GettData {
                     b.bosses()).getOrThrow(IOException::new));
             writes.put(dir.resolve(DetectorConfig.FILE), DetectorConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.detector()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(ENCHANT_FILE), EnchantConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.enchant()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -603,7 +610,8 @@ public final class GettData {
             }
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
-                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE, DetectorConfig.FILE)) {
+                ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE, DetectorConfig.FILE,
+                ENCHANT_FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -845,6 +853,67 @@ public final class GettData {
         applyNpcUpgrade(dir, marker, installed, NPC_BLACKSMITH_UPGRADE, "대장장이", "blacksmith", errors);
         applyBossGiraffeUpgrade(dir, marker, installed, errors);
         applyBearSkillsUpgrade(dir, marker, installed, errors);
+        applyArmorEqualUpgrade(dir, marker, installed, errors);
+    }
+
+    /**
+     * One-shot enchant.json patch: an armor part whose ability weights are exactly the old default (40/30/20/10)
+     * gets 10 for each ability. A part the operator changed is left alone, as is everything else in the file. A
+     * freshly copied enchant.json is already equal; a deleted one is not resurrected. An unreadable enchant.json is
+     * retried on the next load.
+     */
+    private static void applyArmorEqualUpgrade(Path dir, Path marker, Set<String> installed, List<String> errors) {
+        if (installed.contains(ENCHANT_ARMOR_EQUAL)) return;
+        try {
+            Path file = dir.resolve("enchant.json");
+            if (Files.isRegularFile(file) && !equalizeArmorWeights(file)) return;
+            Files.writeString(marker, ENCHANT_ARMOR_EQUAL + "\n", StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException | RuntimeException e) {
+            errors.add("enchant.json: making armor ability weights equal failed: " + e.getMessage());
+        }
+    }
+
+    /** The armor ability weights shipped before 1.14.0, per part, in order of weight 40/30/20/10. */
+    private static final java.util.Map<String, List<String>> OLD_ARMOR_WEIGHTS = java.util.Map.of(
+            "helmet", List.of("swift", "goggles", "sense", "nightvision"),
+            "chestplate", List.of("swift", "vitality", "regen", "undying"),
+            "leggings", List.of("swift", "leap", "steadfast", "dodge"),
+            "boots", List.of("swift", "farmstep", "climb", "landing"));
+    private static final int[] OLD_ARMOR_VALUES = {40, 30, 20, 10};
+
+    /** Edits the JSON tree so the rest of the file stays as the operator wrote it. False if the file is unreadable. */
+    static boolean equalizeArmorWeights(Path file) throws IOException {
+        com.google.gson.JsonObject root;
+        try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            JsonElement json = JsonParser.parseReader(r);
+            if (!json.isJsonObject()) return false;
+            root = json.getAsJsonObject();
+        } catch (com.google.gson.JsonParseException e) {
+            return false;
+        }
+        JsonElement armor = root.get("armor");
+        if (armor == null || !armor.isJsonObject()) return true;
+        JsonElement weights = armor.getAsJsonObject().get("abilityWeights");
+        if (weights == null || !weights.isJsonObject()) return true;
+        boolean changed = false;
+        for (java.util.Map.Entry<String, List<String>> part : OLD_ARMOR_WEIGHTS.entrySet()) {
+            JsonElement element = weights.getAsJsonObject().get(part.getKey());
+            if (element == null || !element.isJsonObject()) continue;
+            com.google.gson.JsonObject byAbility = element.getAsJsonObject();
+            List<String> ids = part.getValue();
+            boolean old = byAbility.size() == ids.size();
+            for (int i = 0; old && i < ids.size(); i++) {
+                JsonElement v = byAbility.get(ids.get(i));
+                old = v != null && v.isJsonPrimitive() && v.getAsJsonPrimitive().isNumber()
+                        && v.getAsDouble() == OLD_ARMOR_VALUES[i];
+            }
+            if (!old) continue;
+            for (String id : ids) byAbility.addProperty(id, 10);
+            changed = true;
+        }
+        if (changed) writeJson(file, root);
+        return true;
     }
 
     /**

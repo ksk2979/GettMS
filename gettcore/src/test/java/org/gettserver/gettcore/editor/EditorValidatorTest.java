@@ -688,6 +688,75 @@ class EditorValidatorTest {
 
     private static EditorBundle withDetector(EditorBundle b, org.gettserver.gettcore.detector.DetectorConfig d) {
         return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
-                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), b.bosses(), d);
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), b.bosses(), d, b.enchant());
+    }
+
+    private static org.gettserver.gettcore.enchant.EnchantConfig enchant(String json) {
+        return org.gettserver.gettcore.enchant.EnchantConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                com.google.gson.JsonParser.parseString(json)).getOrThrow();
+    }
+
+    private static EditorBundle withEnchant(EditorBundle b, org.gettserver.gettcore.enchant.EnchantConfig e) {
+        return new EditorBundle(b.shops(), b.dialogs(), b.npcs(), b.quests(), b.bossPoints(), b.pets(), b.protect(),
+                b.reinforce(), b.hunting(), b.mobs(), b.equipment(), b.upgrade(), b.bosses(), b.detector(), e);
+    }
+
+    private static List<String> enchantErrors(String json) {
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        return EditorValidator.validate(withEnchant(b, enchant(json)), RegistryChecks.ALL_EXIST).errors();
+    }
+
+    @Test
+    void enchantDefaultsAndEditsPassAndNameEveryTool() {
+        EditorBundle b = bundle(Map.of(), NO_D, NpcMapping.EMPTY, NO_Q);
+        var defaults = EditorValidator.validate(b, RegistryChecks.ALL_EXIST);
+        assertTrue(defaults.errors().isEmpty(), defaults.errors().toString());
+        assertEquals(org.gettserver.gettcore.enchant.EnchantConfig.DEFAULT, defaults.cleaned().enchant());
+
+        // Only hoe is named: the cleaned copy still lists all six tools, hoe with no bundles and a zero weight kept.
+        var r = EditorValidator.validate(withEnchant(b, enchant(
+                "{\"pool\":{\"weights\":{\"hoe\":{\"harvest\":0}},\"bundles\":{\"hoe\":[]}}}")), RegistryChecks.ALL_EXIST);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        var pool = r.cleaned().enchant().pool();
+        assertEquals(java.util.Set.of("hoe", "pickaxe", "axe", "sword", "bow", "fishing_rod"), pool.bundles().keySet());
+        assertEquals(pool.bundles().keySet(), pool.weights().keySet());
+        assertEquals(List.of(), pool.bundles().get("hoe"));
+        assertEquals(0, pool.weights().get("hoe").get("harvest"));
+        assertEquals(10, pool.weights().get("hoe").get("bounty"));
+    }
+
+    /** Everything the load path would replace or drop is an error here, worded without the fallback note. */
+    @Test
+    void enchantProblemsBlockTheSave() {
+        assertEquals(List.of("enchant.pool.bundles.hoe.x names unknown ability nope"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"nope\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.hoe.x names vein, which does not go on a hoe"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"vein\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.hoe.x needs at least 2 abilities"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.hoe.x lists harvest twice"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"harvest\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.hoe.x repeats an id", "enchant.pool.bundles.hoe.y has the same abilities as an earlier bundle"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"replant\"]},{\"id\":\"x\",\"abilities\":[\"harvest\",\"bounty\"]},{\"id\":\"y\",\"abilities\":[\"replant\",\"harvest\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.helmet is not a tool that takes bundles"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"helmet\":[{\"id\":\"x\",\"abilities\":[\"swift\",\"sense\"]}]}}}"));
+        assertEquals(List.of("enchant.pool.bundles.hoe.x weight -1 is negative"),
+                enchantErrors("{\"pool\":{\"bundles\":{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"replant\"],\"weight\":-1}]}}}"));
+        assertEquals(List.of("enchant.pool.weights.hoe.harvest -3 is negative"),
+                enchantErrors("{\"pool\":{\"weights\":{\"hoe\":{\"harvest\":-3}}}}"));
+        assertEquals(List.of("enchant.armor.abilityWeights.helmet.swift -1 is negative"),
+                enchantErrors("{\"armor\":{\"abilityWeights\":{\"helmet\":{\"swift\":-1}}}}"));
+        assertEquals(List.of("enchant.levelWeights 0/0/0 invalid (negative or sum <= 0)"),
+                enchantErrors("{\"levelWeights\":{\"1\":0,\"2\":0,\"3\":0}}"));
+        assertEquals(List.of("enchant.armor.levelWeights 5/-1/5 invalid (negative or sum <= 0)"),
+                enchantErrors("{\"armor\":{\"levelWeights\":{\"1\":5,\"2\":-1,\"3\":5}}}"));
+        assertEquals(List.of("enchant.harvest.radius must be 3 non-negative numbers"),
+                enchantErrors("{\"harvest\":{\"radius\":[1,-2,3]}}"));
+        assertEquals(List.of("enchant.vein.maxBlocks must be 3 non-negative numbers"),
+                enchantErrors("{\"vein\":{\"maxBlocks\":[1,2]}}"));
+        assertEquals(List.of("enchant.sweep.damagePercent -5.0 invalid"),
+                enchantErrors("{\"sweep\":{\"damagePercent\":-5}}"));
+        assertEquals(List.of("enchant.pool.levelReroll costs must not be negative"),
+                enchantErrors("{\"pool\":{\"levelReroll\":{\"goldCost\":-1}}}"));
     }
 }

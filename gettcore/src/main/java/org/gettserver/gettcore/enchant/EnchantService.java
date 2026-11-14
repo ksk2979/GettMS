@@ -60,25 +60,82 @@ public final class EnchantService {
         }
         if (gold > 0) eco.changed(id);
         player.getInventory().setChanged();
-        // (4) roll
+        // (4) roll: single abilities and bundles share one weighted pool (armor has no bundles)
         EnchantConfig config = GettData.get().enchant();
         SpecialEnchants.Tool target = kind.get();
-        SpecialEnchants.Rolled rolled = target.isArmor()
-                ? SpecialEnchants.roll(target, config.armor().levelWeights(),
-                        a -> config.armor().weight(target, a), player.getRandom())
-                : SpecialEnchants.roll(target, config.levelWeights(), player.getRandom());
-        // (5) drop every special enchant, then add the rolled one (vanilla enchants stay)
-        SpecialEnchants.set(tool, rolled, player.registryAccess());
+        SpecialEnchants.Pick pick = SpecialEnchants.pick(candidates(config, target), levelWeights(config, target),
+                player.getRandom());
+        List<SpecialEnchants.Rolled> parts = pick.parts();
+        // (5) drop every special enchant, then add the rolled ones (vanilla enchants stay)
+        SpecialEnchants.set(tool, parts, player.registryAccess());
         menu.broadcastChanges();
         // (6) result packet, chat line, log line
-        String abilityId = rolled.ability().id();
-        int level = rolled.level();
-        PacketDistributor.sendToPlayer(player, new EnchantResultPayload(abilityId, level));
-        player.sendSystemMessage(Component.translatable("gettcore.msg.enchant_gained",
-                Component.translatable("enchantment.gettcore." + abilityId),
-                Component.translatable("enchantment.level." + level)).withStyle(ChatFormatting.GREEN));
-        GettCore.LOGGER.info("gettcore: {} enchanted {} with {} {} ({} gold)", player.getGameProfile().getName(),
-                BuiltInRegistries.ITEM.getKey(tool.getItem()), abilityId, level, gold);
+        announce(player, tool, parts, Optional.ofNullable(pick.candidate().bundle()), gold, "enchanted");
+    }
+
+    /** The weighted pool of one tool kind: every single ability, then the bundles from {@code pool}. */
+    public static List<SpecialEnchants.Candidate> candidates(EnchantConfig config, SpecialEnchants.Tool target) {
+        return target.isArmor()
+                ? SpecialEnchants.candidates(target, a -> config.armor().weight(target, a), List.of())
+                : SpecialEnchants.candidates(target, a -> config.pool().weight(target, a),
+                        config.pool().bundles(target));
+    }
+
+    private static SpecialEnchants.LevelWeights levelWeights(EnchantConfig config, SpecialEnchants.Tool target) {
+        return target.isArmor() ? config.armor().levelWeights() : config.levelWeights();
+    }
+
+    private static void announce(ServerPlayer player, ItemStack tool, List<SpecialEnchants.Rolled> parts,
+                                 Optional<PoolConfig.Bundle> bundle, long gold, String verb) {
+        PacketDistributor.sendToPlayer(player, new EnchantResultPayload(parts.get(0).ability().id(),
+                parts.get(0).level()));
+        Component shown = BundleNames.display(parts, bundle);
+        player.sendSystemMessage(Component.translatable("gettcore.msg.enchant_gained_one", shown)
+                .withStyle(ChatFormatting.GREEN));
+        GettCore.LOGGER.info("gettcore: {} {} {} with {} ({} gold)", player.getGameProfile().getName(), verb,
+                BuiltInRegistries.ITEM.getKey(tool.getItem()), parts, gold);
+    }
+
+    /** 레벨만 다시 뽑기 가능: 기능이 켜져 있고, 3레벨 특수 능력이 있고, 부여석과 골드가 비용 이상. */
+    public static boolean canReroll(boolean enabled, boolean hasLeveled, int stones, int stoneCost, long gold,
+                                    long goldCost) {
+        return enabled && hasLeveled && stones >= stoneCost && gold >= goldCost;
+    }
+
+    /** "레벨만 다시 뽑기": keeps the abilities on the tool and rolls only their level. Ignored while disabled. */
+    public static void rerollLevel(ServerPlayer player) {
+        if (!(player.containerMenu instanceof EnchantMenu menu)) return;
+        if (!LIMITER.tryAcquire(player.getUUID(), System.currentTimeMillis())) return;
+        EnchantConfig config = GettData.get().enchant();
+        PoolConfig.LevelReroll rule = config.pool().levelReroll();
+        ItemStack tool = menu.tool();
+        Optional<SpecialEnchants.Tool> kind = SpecialEnchants.toolOf(tool);
+        if (kind.isEmpty()) return;
+        List<SpecialEnchants.Rolled> current = SpecialEnchants.all(tool);
+        boolean leveled = SpecialEnchants.bundleLevel(current) > 0;
+        UUID id = player.getUUID();
+        EconomyData eco = EconomyData.get(player.server);
+        long gold = Math.max(0, rule.goldCost());
+        int stoneCost = Math.max(0, rule.stoneCost());
+        List<ItemStack> slots = StoneCounter.slots(player.getInventory());
+        if (!canReroll(rule.enabled(), leveled, StoneCounter.count(slots, EnchantMenu::isStone), stoneCost,
+                eco.ledger().get(id), gold)) {
+            return;
+        }
+        if (gold > 0 && eco.ledger().withdraw(id, gold) != Ledger.Result.OK) return;
+        if (stoneCost > 0 && !StoneCounter.consume(slots, EnchantMenu::isStone, stoneCost)) {
+            if (gold > 0) eco.ledger().deposit(id, gold);
+            return;
+        }
+        if (gold > 0) eco.changed(id);
+        player.getInventory().setChanged();
+        SpecialEnchants.Tool target = kind.get();
+        int level = SpecialEnchants.rollLevel(levelWeights(config, target), player.getRandom());
+        List<SpecialEnchants.Rolled> parts = SpecialEnchants.withLevel(current, level);
+        SpecialEnchants.set(tool, parts, player.registryAccess());
+        menu.broadcastChanges();
+        announce(player, tool, parts, SpecialEnchants.bundleOf(parts, config.pool().bundles(target)), gold,
+                "rerolled the level of");
     }
 
     /** Registered once at startup: /gett reload closes every open enchant menu. */

@@ -51,6 +51,8 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     private static final int COST_RIGHT = LEFT_W - 6;
 
     private Button applyButton;
+    /** "레벨만 다시 뽑기". Null while the server has the feature switched off. */
+    private Button rerollButton;
     private float angle;
     private float prevAngle;
     private int effectTicks;
@@ -77,12 +79,26 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
     protected void init() {
         super.init();
         applyButton = addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.enchant_apply"), b -> {
-            PacketDistributor.sendToServer(new EnchantApplyPayload());
+            PacketDistributor.sendToServer(new EnchantApplyPayload(false));
             cooldown = APPLY_COOLDOWN;
             b.active = false;
         }).bounds(leftPos + 10, topPos + 100, 60, 18).build());
         addRenderableWidget(Button.builder(Component.translatable("gettcore.gui.enchant_cancel"), b -> onClose())
                 .bounds(leftPos + 76, topPos + 100, 60, 18).build());
+        rerollButton = null;
+        PoolConfig.LevelReroll rule = ClientEnchantConfig.get().pool().levelReroll();
+        if (rule.enabled()) {
+            rerollButton = addRenderableWidget(Button.builder(
+                    Component.translatable("gettcore.gui.enchant_reroll_level"), b -> {
+                        PacketDistributor.sendToServer(new EnchantApplyPayload(true));
+                        cooldown = APPLY_COOLDOWN;
+                        b.active = false;
+                    }).bounds(leftPos + 10, topPos + 121, 126, 18)
+                    .tooltip(net.minecraft.client.gui.components.Tooltip.create(Component.translatable(
+                            "gettcore.gui.enchant_reroll_level.tip", Gold.format(Math.max(0, rule.goldCost())),
+                            Math.max(0, rule.stoneCost()))))
+                    .build());
+        }
         updateApplyButton();
     }
 
@@ -97,6 +113,12 @@ public class EnchantScreen extends AbstractContainerScreen<EnchantMenu> {
 
     private void updateApplyButton() {
         applyButton.active = cooldown == 0 && menu.canApply(heldStones(), ClientBalance.get(), goldCost());
+        if (rerollButton != null) {
+            PoolConfig.LevelReroll rule = ClientEnchantConfig.get().pool().levelReroll();
+            boolean leveled = SpecialEnchants.bundleLevel(SpecialEnchants.all(menu.tool())) > 0;
+            rerollButton.active = cooldown == 0 && EnchantService.canReroll(rule.enabled(), leveled, heldStones(),
+                    Math.max(0, rule.stoneCost()), ClientBalance.get(), Math.max(0, rule.goldCost()));
+        }
     }
 
     @Override

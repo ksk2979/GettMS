@@ -32,6 +32,7 @@ import org.gettserver.gettcore.skill.BossConfig;
 import org.gettserver.gettcore.skill.SkillSpec;
 import org.gettserver.gettcore.upgrade.UpgradeConfig;
 import org.gettserver.gettcore.detector.DetectorConfig;
+import org.gettserver.gettcore.enchant.EnchantConfig;
 
 /** Server-side gate for every editor save. Errors block the save; warnings are reported and cleaned away. */
 public final class EditorValidator {
@@ -167,9 +168,25 @@ public final class EditorValidator {
         BossConfig bosses = b.bosses().sanitized(bossWarnings);
         addPrefixed(bossWarnings, BossConfig.FILE, "bosses", warnings);
 
+        // enchant.json: anything the load path would replace or drop (negative weights, level weights summing to
+        // 0, bad numbers, an invalid bundle) blocks the save. The cleaned copy names every tool in pool.weights and
+        // pool.bundles, so a tool whose bundles were all deleted is written as [].
+        List<String> enchantProblems = new ArrayList<>();
+        EnchantConfig enchant = b.enchant().sanitized(enchantProblems);
+        for (String e : enchantProblems) errors.add(enchantError(e));
+
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs, equipment, upgrade, bosses, detector));
+                        hunting, mobs, equipment, upgrade, bosses, detector, enchant));
+    }
+
+    private static final Pattern ENCHANT_FALLBACK = Pattern.compile(", (using |ignored).*$");
+
+    /** A load-path line ("enchant.json: x is negative, using 10") as a save error: no file name, no fallback note. */
+    private static String enchantError(String line) {
+        String prefix = "enchant.json: ";
+        String body = line.startsWith(prefix) ? line.substring(prefix.length()) : line;
+        return "enchant." + ENCHANT_FALLBACK.matcher(body).replaceFirst("");
     }
 
     /** Ranges as in {@link BossConfig.Boss}'s / {@link SkillSpec}'s sanitizing, plus the cross-field rules. */

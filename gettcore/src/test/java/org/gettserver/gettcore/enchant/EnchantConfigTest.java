@@ -89,7 +89,7 @@ class EnchantConfigTest {
         assertEquals(new EnchantConfig.Tiered(2, 3, 5), d.undying().invulnerableSeconds());
         assertEquals(new EnchantConfig.Tiered(300, 300, 300), d.undying().cooldownSeconds());
         assertEquals(d, parse("{\"armor\":{}}").armor());
-        assertEquals(40, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.SWIFT));
+        assertEquals(10, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.SWIFT));
         assertEquals(10, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.LANDING));
         assertEquals(0, d.weight(SpecialEnchants.Tool.BOOTS, SpecialEnchants.Ability.UNDYING));
 
@@ -100,8 +100,8 @@ class EnchantConfigTest {
         List<String> errors = new ArrayList<>();
         ArmorConfig s = c.sanitized(errors);
         assertEquals(0, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.NIGHTVISION));
-        assertEquals(20, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.SENSE));
-        assertEquals(30, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.GOGGLES));
+        assertEquals(10, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.SENSE));
+        assertEquals(10, s.weight(SpecialEnchants.Tool.HELMET, SpecialEnchants.Ability.GOGGLES));
         assertEquals(new EnchantConfig.Tiered(120, 120, 120), s.undying().cooldownSeconds());
         assertEquals(d.swift(), s.swift());
         assertEquals(d.levelWeights(), s.levelWeights());

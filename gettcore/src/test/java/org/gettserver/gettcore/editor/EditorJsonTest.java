@@ -308,4 +308,37 @@ class EditorJsonTest {
         assertEquals(custom, EditorJson.decode(FULL.substring(0, FULL.length() - 1) + ",\"detector\":null}",
                 BossConfig.DEFAULT, custom).detector());
     }
+
+    private static org.gettserver.gettcore.enchant.EnchantConfig enchant(String json) {
+        return org.gettserver.gettcore.enchant.EnchantConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                com.google.gson.JsonParser.parseString(json)).getOrThrow();
+    }
+
+    @Test
+    void enchantSectionRoundTripsAndIsOptional() {
+        var custom = enchant("{\"levelWeights\":{\"1\":50,\"2\":30,\"3\":20},\"harvest\":{\"radius\":[2,3,4]},"
+                + "\"pool\":{\"weights\":{\"hoe\":{\"harvest\":7}},\"bundles\":{\"hoe\":[],\"bow\":[{\"id\":\"vq\","
+                + "\"abilities\":[\"volley\",\"quickdraw\"],\"weight\":4,\"name\":\"속사포\"}]},"
+                + "\"levelReroll\":{\"enabled\":true,\"goldCost\":500,\"stoneCost\":2}},"
+                + "\"armor\":{\"abilityWeights\":{\"helmet\":{\"swift\":1}},\"swift\":{\"percent\":[1,2,3]}}}");
+        EditorBundle base = bundle(Map.of(), Map.of(), NpcMapping.EMPTY, Map.of());
+        EditorBundle b = new EditorBundle(base.shops(), base.dialogs(), base.npcs(), base.quests(), base.bossPoints(),
+                base.pets(), base.protect(), base.reinforce(), base.hunting(), base.mobs(), base.equipment(),
+                base.upgrade(), BossConfig.DEFAULT, base.detector(), custom);
+        String json = EditorJson.encode(b, null);
+        assertEquals(b, EditorJson.decode(json));
+        var section = com.google.gson.JsonParser.parseString(json).getAsJsonObject().getAsJsonObject("enchant");
+        assertEquals(50, section.getAsJsonObject("levelWeights").get("1").getAsInt());
+        assertEquals(0, section.getAsJsonObject("pool").getAsJsonObject("bundles").getAsJsonArray("hoe").size(),
+                "a tool without bundles is sent as []");
+        assertEquals("속사포", section.getAsJsonObject("pool").getAsJsonObject("bundles").getAsJsonArray("bow").get(0)
+                .getAsJsonObject().get("name").getAsString());
+
+        // A page from before the 마법부여 tab existed: default, or the config currently loaded.
+        var d = org.gettserver.gettcore.detector.DetectorConfig.DEFAULT;
+        assertEquals(org.gettserver.gettcore.enchant.EnchantConfig.DEFAULT, EditorJson.decode(FULL).enchant());
+        assertEquals(custom, EditorJson.decode(FULL, BossConfig.DEFAULT, d, custom).enchant());
+        assertEquals(custom, EditorJson.decode(FULL.substring(0, FULL.length() - 1) + ",\"enchant\":null}",
+                BossConfig.DEFAULT, d, custom).enchant());
+    }
 }

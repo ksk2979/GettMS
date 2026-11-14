@@ -453,4 +453,67 @@ class GettDataSaveBundleTest {
         assertTrue(Files.readString(latest.resolve("detector.json")).contains("\"range\": 24"),
                 "backup holds the old file");
     }
+
+    private static org.gettserver.gettcore.enchant.EnchantConfig enchantWithPool(GettData data, String bundlesJson) {
+        // What the page sends: the whole file, here with a changed number, weight and bundle lists.
+        var json = org.gettserver.gettcore.enchant.EnchantConfig.CODEC.encodeStart(
+                com.mojang.serialization.JsonOps.INSTANCE, data.enchant()).getOrThrow().getAsJsonObject();
+        json.add("harvest", com.google.gson.JsonParser.parseString("{\"radius\":[2,3,4]}"));
+        var pool = new com.google.gson.JsonObject();
+        pool.add("bundles", com.google.gson.JsonParser.parseString(bundlesJson));
+        pool.add("weights", com.google.gson.JsonParser.parseString("{\"hoe\":{\"harvest\":0}}"));
+        json.add("pool", pool);
+        return org.gettserver.gettcore.enchant.EnchantConfig.CODEC.parse(
+                com.mojang.serialization.JsonOps.INSTANCE, json).getOrThrow();
+    }
+
+    private static EditorBundle withEnchant(EditorBundle raw, org.gettserver.gettcore.enchant.EnchantConfig e) {
+        return new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(),
+                raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(), raw.equipment(), raw.upgrade(),
+                raw.bosses(), raw.detector(), e);
+    }
+
+    @Test
+    void savesEnchantWithBackupAndKeepsEmptyBundleLists(@TempDir Path dir) throws IOException {
+        var hoe = org.gettserver.gettcore.enchant.SpecialEnchants.Tool.HOE;
+        var bow = org.gettserver.gettcore.enchant.SpecialEnchants.Tool.BOW;
+        var axe = org.gettserver.gettcore.enchant.SpecialEnchants.Tool.AXE;
+        GettData data = loaded(dir);
+        EditorBundle raw = data.rawBundle();
+        assertEquals(data.enchant(), raw.enchant());
+        assertEquals(4, data.enchant().pool().bundles(hoe).size());
+
+        var changed = enchantWithPool(data, "{\"hoe\":[],\"bow\":[{\"id\":\"vq\",\"abilities\":[\"volley\",\"quickdraw\"],\"weight\":4,\"name\":\"속사포\"}]}");
+        GettData.SaveResult r = data.saveBundle(withEnchant(raw, changed), RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+
+        assertEquals(2.0, data.enchant().harvest().one());
+        assertEquals(List.of(), data.enchant().pool().bundles(hoe), "deleting every bundle of a tool sticks");
+        assertEquals("속사포", data.enchant().pool().bundles(bow).get(0).name());
+        assertEquals(0, data.enchant().pool().weight(hoe, org.gettserver.gettcore.enchant.SpecialEnchants.Ability.HARVEST));
+        assertEquals(4, data.enchant().pool().bundles(axe).size(), "a tool the payload did not name keeps the default list");
+        assertEquals(data.enchant(), data.rawBundle().enchant());
+
+        var file = com.google.gson.JsonParser.parseString(Files.readString(dir.resolve("enchant.json")))
+                .getAsJsonObject().getAsJsonObject("pool");
+        assertEquals(java.util.Set.of("hoe", "pickaxe", "axe", "sword", "bow", "fishing_rod"),
+                file.getAsJsonObject("bundles").keySet(), "every tool is written explicitly");
+        assertEquals(0, file.getAsJsonObject("bundles").getAsJsonArray("hoe").size());
+        assertEquals(file.getAsJsonObject("bundles").keySet(), file.getAsJsonObject("weights").keySet());
+
+        Path latest;
+        try (Stream<Path> s = Files.list(dir.resolve(".backup"))) {
+            latest = s.sorted().reduce((x, y) -> y).orElseThrow();
+        }
+        assertTrue(Files.readString(latest.resolve("enchant.json")).contains("master_farmer"),
+                "backup holds the old file");
+
+        // An invalid bundle blocks the save and leaves the file alone.
+        String before = Files.readString(dir.resolve("enchant.json"));
+        var bad = enchantWithPool(data, "{\"hoe\":[{\"id\":\"x\",\"abilities\":[\"harvest\",\"vein\"]}]}");
+        GettData.SaveResult blocked = data.saveBundle(withEnchant(data.rawBundle(), bad), RegistryChecks.ALL_EXIST);
+        assertFalse(blocked.saved());
+        assertEquals(List.of("enchant.pool.bundles.hoe.x names vein, which does not go on a hoe"), blocked.errors());
+        assertEquals(before, Files.readString(dir.resolve("enchant.json")));
+    }
 }

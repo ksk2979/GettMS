@@ -51,10 +51,10 @@ public record ArmorConfig(LevelWeights levelWeights, Map<String, Map<String, Int
 
     private static Map<String, Map<String, Integer>> defaultWeights() {
         Map<String, Map<String, Integer>> m = new LinkedHashMap<>();
-        m.put("helmet", ordered("swift", 40, "goggles", 30, "sense", 20, "nightvision", 10));
-        m.put("chestplate", ordered("swift", 40, "vitality", 30, "regen", 20, "undying", 10));
-        m.put("leggings", ordered("swift", 40, "leap", 30, "steadfast", 20, "dodge", 10));
-        m.put("boots", ordered("swift", 40, "farmstep", 30, "climb", 20, "landing", 10));
+        m.put("helmet", ordered("swift", 10, "goggles", 10, "sense", 10, "nightvision", 10));
+        m.put("chestplate", ordered("swift", 10, "vitality", 10, "regen", 10, "undying", 10));
+        m.put("leggings", ordered("swift", 10, "leap", 10, "steadfast", 10, "dodge", 10));
+        m.put("boots", ordered("swift", 10, "farmstep", 10, "climb", 10, "landing", 10));
         return m;
     }
 

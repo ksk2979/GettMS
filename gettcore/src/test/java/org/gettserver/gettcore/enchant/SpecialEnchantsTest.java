@@ -84,11 +84,11 @@ class SpecialEnchantsTest {
             assertTrue(rolled.ability().fits(Tool.CHESTPLATE), rolled.toString());
             counts.merge(rolled.ability(), 1, Integer::sum);
         }
-        // 기본 가중치 40 / 30 / 20 / 10
-        assertEquals(0.40, counts.get(Ability.SWIFT) / (double) n, 0.02);
-        assertEquals(0.30, counts.get(Ability.VITALITY) / (double) n, 0.02);
-        assertEquals(0.20, counts.get(Ability.REGEN) / (double) n, 0.02);
-        assertEquals(0.10, counts.get(Ability.UNDYING) / (double) n, 0.02);
+        // 기본 가중치는 동률
+        assertEquals(0.25, counts.get(Ability.SWIFT) / (double) n, 0.02);
+        assertEquals(0.25, counts.get(Ability.VITALITY) / (double) n, 0.02);
+        assertEquals(0.25, counts.get(Ability.REGEN) / (double) n, 0.02);
+        assertEquals(0.25, counts.get(Ability.UNDYING) / (double) n, 0.02);
     }
 
     @Test

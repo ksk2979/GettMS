@@ -9,7 +9,7 @@
  *   6. 상점 탭
  *   7. NPC·대화 탭
   7b. 퀘스트 탭 (엔티티 선택기, 발전과제 선택기 포함)
- *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭, 강화 탭, 사냥터 탭, 보스·스킬 탭 (스킬 표 skillTable 은 다시 쓸 수 있음)
+ *   7c. 보스 지점 탭, 펫 설정 탭, 보호구역 탭, 강화 탭, 마법부여 탭, 사냥터 탭, 보스·스킬 탭 (스킬 표 skillTable 은 다시 쓸 수 있음)
  *   8. 화면 뼈대      머리글, 저장, 결과 패널, 임시 저장 복원
  */
 (function () {
@@ -112,7 +112,7 @@
   const EMPTY_NPCS = () => ({ byUuid: {}, byName: {} });
 
   const S = {
-    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment, upgrade, bosses, detector } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment·upgrade·detector만 기본값을 채움)
+    bundle: null,       // { shops, dialogs, npcs, quests, boss_points, pets, protect, reinforce, hunting, mobs, equipment, upgrade, bosses, detector, enchant } — 서버가 준 모양 그대로 (pets·boss_points·protect·reinforce·hunting·mobs·equipment·upgrade·detector·enchant만 기본값을 채움)
     refs: { advancements: [], missingItems: [], missingEntities: [] },
     baseline: '',       // 마지막으로 서버와 맞춘 상태의 직렬화
     catalog: { items: [], entities: [], itemTags: [], entityTags: [], bossTypes: [], petKinds: [], mobEffects: [], mobs: [], gear: [] },
@@ -131,7 +131,8 @@
     return JSON.stringify({ shops: bundle.shops, dialogs: bundle.dialogs, npcs: bundle.npcs, quests: bundle.quests,
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
       reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
-      upgrade: bundle.upgrade, bosses: bundle.bosses, detector: bundle.detector, datapack: bundle.datapack });
+      upgrade: bundle.upgrade, bosses: bundle.bosses, detector: bundle.detector, enchant: bundle.enchant,
+      datapack: bundle.datapack });
   }
 
   /** 저장·비교용 펫 설정: 비어 있는 종별 덮어쓰기(ballChance / obtainChance)는 키째 뺀다. 원본은 바꾸지 않는다. */
@@ -462,6 +463,7 @@
       upgrade: normalizeUpgrade(src.upgrade !== undefined ? src.upgrade : f.upgrade),
       bosses: normalizeBosses(src.bosses !== undefined ? src.bosses : f.bosses),
       detector: normalizeDetector(src.detector !== undefined ? src.detector : f.detector),
+      enchant: normalizeEnchant(src.enchant !== undefined ? src.enchant : f.enchant),
       datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {
@@ -2407,6 +2409,535 @@
     },
   };
   registerTab(reinforceTab);
+
+  /* ----- 마법부여 탭 (enchant.json: 뽑기 확률, 묶음, 능력 수치, 레벨만 다시 뽑기) ----- */
+
+  // [id, 이름, 최대 레벨, 붙는 장비] — 서버 SpecialEnchants.Ability 와 같은 순서·내용 (EditorEnchantTableTest 가 맞춰 본다).
+  const ENCHANT_ABILITIES = [
+    ['harvest', '수확', 3, ['hoe']],
+    ['replant', '재심기', 1, ['hoe']],
+    ['bounty', '풍작', 3, ['hoe']],
+    ['vein', '광맥', 3, ['pickaxe']],
+    ['prospect', '광맥 탐지', 3, ['pickaxe']],
+    ['area', '광역', 1, ['pickaxe']],
+    ['smelt', '제련', 1, ['pickaxe']],
+    ['timber', '벌목', 3, ['axe']],
+    ['resapling', '벌목 재심기', 1, ['axe']],
+    ['lumber', '목재 보너스', 3, ['axe']],
+    ['sweep', '연격', 3, ['sword']],
+    ['leech', '흡혈', 3, ['sword']],
+    ['wisdom', '경험', 3, ['sword']],
+    ['execute', '처형', 3, ['sword']],
+    ['plunder', '전리품', 3, ['sword']],
+    ['volley', '다발', 1, ['bow']],
+    ['quickdraw', '속사', 3, ['bow']],
+    ['homing', '추적', 1, ['bow']],
+    ['lure', '손맛', 3, ['fishing_rod']],
+    ['bigcatch', '대어', 3, ['fishing_rod']],
+    ['treasure', '월척', 3, ['fishing_rod']],
+    ['swift', '이속 증가', 3, ['helmet', 'chestplate', 'leggings', 'boots']],
+    ['goggles', '물안경', 1, ['helmet']],
+    ['sense', '감지', 3, ['helmet']],
+    ['nightvision', '야간 투시', 1, ['helmet']],
+    ['vitality', '활력', 3, ['chestplate']],
+    ['regen', '재생', 3, ['chestplate']],
+    ['undying', '불굴', 3, ['chestplate']],
+    ['leap', '도약', 3, ['leggings']],
+    ['steadfast', '버티기', 3, ['leggings']],
+    ['dodge', '회피', 3, ['leggings']],
+    ['farmstep', '농부의 걸음', 1, ['boots']],
+    ['climb', '등산', 1, ['boots']],
+    ['landing', '착지', 3, ['boots']],
+  ];
+  const ENCHANT_TOOLS = [['hoe', '괭이'], ['pickaxe', '곡괭이'], ['axe', '도끼'], ['sword', '검'], ['bow', '활'], ['fishing_rod', '낚싯대']];
+  const ENCHANT_ARMOR = [['helmet', '투구'], ['chestplate', '흉갑'], ['leggings', '레깅스'], ['boots', '부츠']];
+  const ENCHANT_LEVELS = [['1', 'I'], ['2', 'II'], ['3', 'III']];
+  const ENCHANT_SINGLE_WEIGHT = 10;   // PoolConfig.SINGLE_WEIGHT
+  const ENCHANT_MAX_INT = 2147483647;
+  /** 그 장비에 붙는 능력들 (서버 SpecialEnchants.pool). */
+  const enchantPool = (tool) => ENCHANT_ABILITIES.filter((a) => a[3].includes(tool));
+  const enchantAbility = (id) => ENCHANT_ABILITIES.find((a) => a[0] === id);
+  /** 3레벨 능력이 하나라도 있는가 (있어야 레벨을 뽑는다). */
+  const enchantLeveled = (ids) => ids.some((id) => { const a = enchantAbility(id); return !!a && a[2] >= 3; });
+
+  /** EnchantConfig.DEFAULT / ArmorConfig.DEFAULT 와 같은 값 (서버 코덱은 기본값과 같은 필드를 JSON에서 뺀다). 길이 3 배열 = 레벨 I/II/III. */
+  const ENCHANT_DEFAULTS = {
+    levelWeights: { 1: 70, 2: 25, 3: 5 },
+    harvest: { radius: [1, 2, 3] },
+    bounty: { chance: [10, 20, 35] },
+    vein: { maxBlocks: [8, 16, 32] },
+    prospect: { range: [8, 12, 16], durationSeconds: [30, 35, 45], cooldownSeconds: [70, 65, 60] },
+    timber: { maxBlocks: [16, 32, 64] },
+    lumber: { chance: [10, 20, 35] },
+    sweep: { radius: [1.5, 2, 2.5], damagePercent: 50 },
+    leech: { percent: [5, 10, 15] },
+    wisdom: { percent: [25, 50, 100] },
+    execute: { healthPercent: 20, bonusPercent: [30, 60, 100] },
+    plunder: { chance: [10, 20, 35] },
+    volley: { angleDegrees: 10 },
+    quickdraw: { percent: [15, 30, 45] },
+    homing: { range: 8, coneDegrees: 30, steer: 0.1, targetPlayers: false },
+    lure: { percent: [15, 30, 45] },
+    bigcatch: { chance: [10, 20, 35] },
+    treasure: { chance: [15, 30, 45] },
+    pool: { levelReroll: { enabled: false, goldCost: 1000, stoneCost: 1 } },   // weights·bundles 는 normalizeEnchant 가 채운다
+    armor: {
+      levelWeights: { 1: 75, 2: 20, 3: 5 },   // abilityWeights 는 normalizeEnchant 가 채운다
+      swift: { percent: [5, 10, 20] },
+      goggles: { seconds: 10 },
+      sense: { range: [8, 12, 16] },
+      vitality: { health: [2, 4, 6] },
+      regen: { idleSeconds: 5, intervalSeconds: [3, 2, 1] },
+      undying: { invulnerableSeconds: [2, 3, 5], cooldownSeconds: [300, 300, 300] },
+      leap: { level: [1, 2, 3] },
+      steadfast: { percent: [20, 40, 60] },
+      dodge: { chance: [5, 10, 15] },
+      landing: { percent: [30, 60, 100], radius: 3 },
+    },
+  };
+
+  /** PoolConfig.DEFAULT 의 묶음 목록: 도구 키가 파일에 아예 없을 때 쓴다 (빈 목록 [] 은 "묶음 없음"). */
+  function enchantDefaultBundles() {
+    const pair = (a, b) => ({ id: a + '_' + b, abilities: [a, b], weight: 3, name: '' });
+    const master = (id, name, ...abilities) => ({ id, abilities, weight: 1, name });
+    return {
+      hoe: [pair('harvest', 'replant'), pair('harvest', 'bounty'), pair('bounty', 'replant'),
+        master('master_farmer', '최강의 농부', 'harvest', 'replant', 'bounty')],
+      pickaxe: [pair('vein', 'prospect'), pair('vein', 'smelt'), pair('area', 'smelt'),
+        { id: 'vein_prospect_area', abilities: ['vein', 'prospect', 'area'], weight: 2, name: '' },
+        master('master_miner', '최강의 광부', 'vein', 'prospect', 'area', 'smelt')],
+      axe: [pair('timber', 'resapling'), pair('timber', 'lumber'), pair('lumber', 'resapling'),
+        master('master_lumberjack', '최강의 나무꾼', 'timber', 'resapling', 'lumber')],
+      sword: [pair('sweep', 'leech'), pair('sweep', 'execute'), pair('leech', 'execute'), pair('wisdom', 'plunder'),
+        master('master_swordsman', '최강의 검사', 'sweep', 'leech', 'execute')],
+      bow: [pair('volley', 'quickdraw'), pair('volley', 'homing'), pair('quickdraw', 'homing'),
+        master('master_archer', '최강의 궁수', 'volley', 'quickdraw', 'homing')],
+      fishing_rod: [pair('lure', 'bigcatch'), pair('lure', 'treasure'), pair('bigcatch', 'treasure'),
+        master('master_angler', '최강의 낚시꾼', 'lure', 'bigcatch', 'treasure')],
+    };
+  }
+
+  /** def 와 같은 모양으로 src 를 읽는다: 빠진 값은 기본값, 레벨별 값(길이 3 배열)에 숫자 하나가 오면 세 레벨 모두 그 값. */
+  function enchantFill(def, src) {
+    const s = src && typeof src === 'object' && !Array.isArray(src) ? src : {};
+    const out = {};
+    for (const [k, d] of Object.entries(def)) {
+      const v = s[k];
+      if (Array.isArray(d)) out[k] = Array.isArray(v) && v.length === 3 ? v.slice() : typeof v === 'number' ? [v, v, v] : d.slice();
+      else if (d && typeof d === 'object') out[k] = enchantFill(d, v);
+      else out[k] = v === undefined || v === null ? d : v;
+    }
+    return out;
+  }
+
+  /**
+   * enchant.json 전체. 모든 칸을 채우고, 도구·방어구 부위마다 가중치와 묶음 목록을 항상 명시한다
+   * (묶음을 다 지운 도구가 [] 로 저장되도록).
+   */
+  function normalizeEnchant(src) {
+    const s = src && typeof src === 'object' ? src : {};
+    const e = enchantFill(ENCHANT_DEFAULTS, s);
+    const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    const weightsOf = (given, tool) => {
+      const g = obj(obj(given)[tool]);
+      return Object.fromEntries(enchantPool(tool).map(([id]) => [id, g[id] === undefined || g[id] === null ? ENCHANT_SINGLE_WEIGHT : g[id]]));
+    };
+    const pool = obj(s.pool);
+    const defaults = enchantDefaultBundles();
+    e.pool.weights = {};
+    e.pool.bundles = {};
+    for (const [tool] of ENCHANT_TOOLS) {
+      e.pool.weights[tool] = weightsOf(pool.weights, tool);
+      const list = obj(pool.bundles)[tool];
+      e.pool.bundles[tool] = !Array.isArray(list) ? defaults[tool]
+        : list.filter((b) => b && typeof b === 'object').map((b) => ({ id: String(b.id || ''),
+          abilities: Array.isArray(b.abilities) ? b.abilities.filter((x) => typeof x === 'string') : [],
+          weight: b.weight === undefined || b.weight === null ? 3 : b.weight, name: typeof b.name === 'string' ? b.name : '' }));
+    }
+    e.armor.abilityWeights = {};
+    for (const [part] of ENCHANT_ARMOR) e.armor.abilityWeights[part] = weightsOf(obj(s.armor).abilityWeights, part);
+    return e;
+  }
+
+  /*
+   * 능력 수치: [능력 id, 설명, [[경로, 라벨, 단위, 종류], ...]]. 종류 'tier' = 레벨 I/II/III 값 3개, 'num' = 모든 레벨 공통 숫자,
+   * 'bool' = 켜기/끄기. 경로는 enchant.json 안의 위치.
+   */
+  const ENCHANT_STATS = [
+    ['harvest', '괭이로 다 자란 작물을 수확하면 이 반경 안의 다 자란 같은 작물을 한 번에 수확합니다.', [['harvest.radius', '반경', '칸', 'tier']]],
+    ['bounty', '수확할 때 이 확률로 수확물을 1개 더 얻습니다.', [['bounty.chance', '확률', '%', 'tier']]],
+    ['vein', '광석을 캐면 붙어 있는 같은 광석을 이 개수까지 함께 캡니다.', [['vein.maxBlocks', '최대 개수', '개', 'tier']]],
+    ['prospect', '광석을 캐면 주변 범위 안의 같은 광석 위치가 표시 시간 동안 보이고, 쿨타임이 지나야 다시 발동합니다. 어떤 블록을 찾는지는 탐지기 탭에서 정합니다.',
+      [['prospect.range', '범위', '칸', 'tier'], ['prospect.durationSeconds', '표시 시간', '초', 'tier'], ['prospect.cooldownSeconds', '쿨타임', '초', 'tier']]],
+    ['timber', '통나무를 찍으면 연결된 통나무를 이 개수까지 함께 벱니다.', [['timber.maxBlocks', '최대 개수', '개', 'tier']]],
+    ['lumber', '통나무를 캘 때 이 확률로 1개를 더 얻습니다.', [['lumber.chance', '확률', '%', 'tier']]],
+    ['sweep', '공격하면 맞은 대상에서 이 반경 안에 있는 다른 적에게도 피해를 줍니다. 주변 적이 받는 피해 = 준 피해 × 주변 피해 %.',
+      [['sweep.radius', '반경', '칸', 'tier'], ['sweep.damagePercent', '주변 피해', '% (모든 레벨 공통)', 'num']]],
+    ['leech', '준 피해의 이 %만큼 체력을 회복합니다.', [['leech.percent', '회복', '%', 'tier']]],
+    ['wisdom', '검으로 처치한 몹의 경험치를 이 %만큼 더 얻습니다.', [['wisdom.percent', '추가 경험치', '%', 'tier']]],
+    ['execute', '남은 체력이 최대 체력의 "발동 체력" % 이하인 대상에게 추가 피해를 줍니다.',
+      [['execute.healthPercent', '발동 체력', '% 이하 (모든 레벨 공통)', 'num'], ['execute.bonusPercent', '추가 피해', '%', 'tier']]],
+    ['plunder', '처치 시 이 확률로 드롭을 한 번 더 얻습니다.', [['plunder.chance', '확률', '%', 'tier']]],
+    ['volley', '화살 3발을 수평 부채꼴로 쏩니다. 양옆 화살이 가운데 화살에서 벌어지는 각도입니다.', [['volley.angleDegrees', '벌어지는 각도', '도', 'num']]],
+    ['quickdraw', '활을 당기는 시간이 이 %만큼 줄어듭니다 (100 이상이면 거의 바로 쏩니다).', [['quickdraw.percent', '단축', '%', 'tier']]],
+    ['homing', '화살이 날아가는 방향에서 시야각 안, 범위 안에 있는 가까운 몹 쪽으로 휩니다. 꺾는 세기는 틱마다 방향을 얼마나 돌리는지(0 = 안 휨, 1 = 곧바로 대상 쪽)입니다.',
+      [['homing.range', '범위', '칸', 'num'], ['homing.coneDegrees', '시야각', '도', 'num'], ['homing.steer', '꺾는 세기', '(0~1)', 'num'],
+        ['homing.targetPlayers', '플레이어도 추적', '', 'bool']]],
+    ['lure', '낚시의 입질 대기 시간이 이 %만큼 줄어듭니다.', [['lure.percent', '단축', '%', 'tier']]],
+    ['bigcatch', '이 확률로 낚은 물고기가 2배가 됩니다.', [['bigcatch.chance', '확률', '%', 'tier']]],
+    ['treasure', '이 확률로 보물을 하나 더 낚습니다.', [['treasure.chance', '확률', '%', 'tier']]],
+    ['swift', '이동 속도가 이 %만큼 빨라집니다. 여러 부위에 있으면 가장 높은 것만 적용됩니다.', [['armor.swift.percent', '이동 속도', '%', 'tier']]],
+    ['goggles', '물에 닿으면 야간 투시가 생기고, 물 밖으로 나와도 이 시간 동안 남습니다.', [['armor.goggles.seconds', '남는 시간', '초', 'num']]],
+    ['sense', '주변 이 범위 안의 적대 몹이 벽 너머로 보입니다.', [['armor.sense.range', '범위', '칸', 'tier']]],
+    ['vitality', '최대 체력이 늘어납니다. 체력 2 가 하트 1칸입니다 (4 = 하트 2칸).', [['armor.vitality.health', '추가 체력', '(2 = 하트 1칸)', 'tier']]],
+    ['regen', '대기 시간 동안 피해를 받지 않으면 회복 간격마다 체력을 반 칸 회복합니다. 간격이 짧을수록 빨리 찹니다.',
+      [['armor.regen.idleSeconds', '대기 시간', '초 (모든 레벨 공통)', 'num'], ['armor.regen.intervalSeconds', '회복 간격', '초', 'tier']]],
+    ['undying', '죽을 피해를 받으면 체력 반 칸으로 버티고 무적 시간 동안 피해를 받지 않습니다. 쿨타임은 초로 적습니다 (300 = 5분, 게임 안 설명에는 분으로 표시).',
+      [['armor.undying.invulnerableSeconds', '무적 시간', '초', 'tier'], ['armor.undying.cooldownSeconds', '쿨타임', '초', 'tier']]],
+    ['leap', '점프가 높아집니다. 1단계마다 점프가 약 반 칸 높아지고 안전하게 떨어질 수 있는 높이가 1칸 늘어납니다.', [['armor.leap.level', '점프 강화', '단계', 'tier']]],
+    ['steadfast', '공격에 밀려나는 거리가 이 %만큼 줄어듭니다 (100 이상이면 밀리지 않습니다).', [['armor.steadfast.percent', '밀림 감소', '%', 'tier']]],
+    ['dodge', '이 확률로 근접 공격을 피합니다.', [['armor.dodge.chance', '확률', '%', 'tier']]],
+    ['landing', '높은 곳에서 떨어지면 이 반경 안의 적에게 내가 받은 낙하 피해의 이 %를 줍니다.',
+      [['armor.landing.percent', '피해', '%', 'tier'], ['armor.landing.radius', '반경', '칸 (모든 레벨 공통)', 'num']]],
+  ];
+
+  /** 'sweep.radius' 같은 경로가 가리키는 [객체, 키]. */
+  function enchantAt(e, path) {
+    const keys = path.split('.');
+    let o = e;
+    for (const k of keys.slice(0, -1)) o = o[k];
+    return [o, keys[keys.length - 1]];
+  }
+
+  // 서버 EnchantConfig / ArmorConfig / PoolConfig 의 sanitized() 가 고치거나 버리는 값은 여기서 저장을 막는다.
+  const enchantRules = {
+    weight(v) { return isInt(v) && v >= 0 && v <= ENCHANT_MAX_INT ? '' : '0 이상의 정수여야 합니다'; },
+    nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
+    gold(v) { return Number.isSafeInteger(v) && v >= 0 ? '' : '0 이상의 정수여야 합니다'; },
+    /** 레벨 가중치 I/II/III 전체: 셋 다 올바른데 합이 0 이면 오류. */
+    levelSum(w) {
+      if (ENCHANT_LEVELS.some(([k]) => enchantRules.weight(w[k]))) return '';
+      return w[1] + w[2] + w[3] > 0 ? '' : '세 값의 합이 0 입니다 (하나는 0보다 커야 합니다)';
+    },
+  };
+
+  /** 묶음마다 오류 목록 (서버 PoolConfig.problem 과 같은 규칙 + 가중치). */
+  function enchantBundleErrors(tool, list) {
+    const fits = new Set(enchantPool(tool).map((a) => a[0]));
+    const ids = new Set();
+    const sets = new Set();
+    return list.map((b) => {
+      const out = [];
+      if (!b.id || !b.id.trim()) out.push('id 가 비어 있습니다');
+      else if (ids.has(b.id)) out.push('id 가 같은 도구 안에서 중복됩니다');
+      if (b.abilities.length < 2) out.push('능력을 2개 이상 골라야 합니다');
+      const seen = new Set();
+      for (const id of b.abilities) {
+        if (!enchantAbility(id)) out.push(`모르는 능력입니다: ${id}`);
+        else if (!fits.has(id)) out.push(`이 도구에 붙지 않는 능력입니다: ${enchantAbility(id)[1]}`);
+        else if (seen.has(id)) out.push(`같은 능력이 두 번 들어 있습니다: ${enchantAbility(id)[1]}`);
+        seen.add(id);
+      }
+      const key = Array.from(seen).sort().join(',');
+      if (!out.length && sets.has(key)) out.push('앞의 묶음과 능력 구성이 같습니다');
+      if (!out.length) { ids.add(b.id); sets.add(key); }   // 서버처럼 올바른 묶음만 "앞의 묶음"으로 친다
+      if (enchantRules.weight(b.weight)) out.push('가중치는 0 이상의 정수여야 합니다');
+      return out;
+    });
+  }
+
+  /** 게임 안 표시 이름: 이름이 있으면 그 이름, 없으면 능력 이름을 · 로 이은 것 (능력 순서는 서버와 같은 고정 순서). */
+  function enchantBundleName(b) {
+    if (typeof b.name === 'string' && b.name.trim()) return b.name.trim();
+    const names = ENCHANT_ABILITIES.filter((a) => b.abilities.includes(a[0])).map((a) => a[1]);
+    return names.length ? names.join('·') : '(능력 없음)';
+  }
+
+  /** 이 세션에서 새로 만든 묶음: 능력을 고르는 동안 id 가 능력 구성을 따라간다 (저장된 묶음의 id 는 그대로 둔다). */
+  const enchantFreshBundles = new WeakSet();
+  function enchantNewBundleId(list, b) {
+    const base = b.abilities.join('_') || 'bundle';
+    let id = base;
+    for (let n = 2; list.some((o) => o !== b && o.id === id); n++) id = base + '_' + n;
+    return id;
+  }
+
+  function validateEnchant(bundle) {
+    const e = bundle.enchant;
+    if (!e) return [];
+    const out = [];
+    const add = (m, where) => { if (m) out.push(`마법부여 › ${where}: ${m}`); };
+    for (const [w, label] of [[e.levelWeights, '도구 레벨 가중치'], [e.armor.levelWeights, '방어구 레벨 가중치']]) {
+      for (const [k, roman] of ENCHANT_LEVELS) add(enchantRules.weight(w[k]), `${label} ${roman}`);
+      add(enchantRules.levelSum(w), label);
+    }
+    for (const [tool, toolName] of ENCHANT_TOOLS) {
+      for (const [id, name] of enchantPool(tool)) add(enchantRules.weight(e.pool.weights[tool][id]), `${toolName} ${name} 가중치`);
+      enchantBundleErrors(tool, e.pool.bundles[tool]).forEach((errs, i) => {
+        for (const m of errs) add(m, `${toolName} 묶음 ${i + 1}번 (${enchantBundleName(e.pool.bundles[tool][i])})`);
+      });
+    }
+    for (const [part, partName] of ENCHANT_ARMOR) {
+      for (const [id, name] of enchantPool(part)) add(enchantRules.weight(e.armor.abilityWeights[part][id]), `${partName} ${name} 가중치`);
+    }
+    for (const [id, , stats] of ENCHANT_STATS) {
+      const name = enchantAbility(id)[1];
+      for (const [path, label, , kind] of stats) {
+        const [o, k] = enchantAt(e, path);
+        if (kind === 'num') add(enchantRules.nonNeg(o[k]), `${name} ${label}`);
+        else if (kind === 'tier') ENCHANT_LEVELS.forEach(([, roman], n) => add(enchantRules.nonNeg(o[k][n]), `${name} ${label} ${roman}`));
+      }
+    }
+    add(enchantRules.gold(e.pool.levelReroll.goldCost), '레벨만 다시 뽑기 골드');
+    add(enchantRules.weight(e.pool.levelReroll.stoneCost), '레벨만 다시 뽑기 마법부여석');
+    return out;
+  }
+
+  /** 확률 표시: 10% 이상은 소수 1자리, 그 아래는 2자리 (끝의 0 은 뺀다). */
+  function enchantPct(x) {
+    const p = x * 100;
+    return (p >= 10 ? p.toFixed(1) : p.toFixed(2)).replace(/\.?0+$/, '') + '%';
+  }
+
+  const ENCHANT_HELP = {
+    weight: '가중치는 %가 아니라 비율입니다. 같은 도구 안에서 "내 가중치 ÷ 전체 합"이 뽑힐 확률이고, 0 이면 나오지 않습니다.',
+    chance: '이 행이 뽑힐 확률 = 이 행의 가중치 ÷ 이 표의 가중치 합. 가중치를 고치면 바로 다시 계산됩니다.',
+    levels: '3레벨이 있는 행만: 이 행이 레벨 I / II / III 로 나올 최종 확률 (행 확률 × 레벨 가중치 비율).',
+    levelWeights: '레벨 I / II / III 가 나오는 비율입니다 (% 아님). 3레벨이 있는 능력·묶음에만 쓰이고, 1레벨뿐인 능력에는 쓰이지 않습니다.',
+    bundleLevel: '묶음은 레벨을 한 번만 뽑습니다. 그 레벨이 묶인 3레벨 능력 전부에 적용되고, 1레벨 능력은 그대로입니다.',
+  };
+
+  const enchantTab = {
+    id: 'enchant',
+    title: '마법부여',
+    validate: validateEnchant,
+    render(container) {
+      const e = S.bundle.enchant;
+      const checks = makeChecks();
+      const live = [];           // 탭이 열려 있는 동안 그대로인 칸의 다시 계산 (changed() 때마다)
+      const groups = [];         // 다시 그려지는 표: { checks, live, draw() }
+      const numIn = (chk, obj, key, label, rule, opts) => chk.add(h('input', Object.assign({ type: 'number', step: 'any', min: 0,
+        'aria-label': label, style: 'width:5rem', value: shownNum(obj[key]),
+        oninput: (ev) => { obj[key] = numOf(ev); changed(); } }, opts || {})), () => rule(obj[key]));
+      /** 같은 값을 보여 주는 칸이 둘일 때(묶음 가중치): 지금 입력 중이 아닌 칸을 값에 맞춘다. */
+      const syncInput = (el, v) => {
+        if (el === document.activeElement) return;
+        const text = String(shownNum(v));
+        if (el.value !== text) el.value = text;
+      };
+      const h3 = (text, title) => h('h3', { style: 'font-size:14px;margin:.75rem 0 .25rem', title }, text);
+      const help = (text) => h('p', { class: 'muted' }, text);
+      const small = (text, style) => h('div', { class: 'muted', style: 'font-size:11px;' + (style || '') }, text);
+
+      /* --- 뽑기 확률 --- */
+
+      const levelRow = (w, label) => {
+        const shares = h('span', { class: 'muted' });
+        live.push(() => {
+          const ok = !ENCHANT_LEVELS.some(([k]) => enchantRules.weight(w[k])) && !enchantRules.levelSum(w);
+          const sum = w[1] + w[2] + w[3];
+          shares.textContent = ok ? '→ ' + ENCHANT_LEVELS.map(([k, roman]) => `${roman} ${enchantPct(w[k] / sum)}`).join(' · ') : '';
+        });
+        return h('div', { class: 'field' }, h('label', { style: 'min-width:9rem', title: ENCHANT_HELP.levelWeights }, label),
+          ENCHANT_LEVELS.map(([k, roman]) => [h('span', null, roman), numIn(checks, w, k, `${label} ${roman}`,
+            (v) => enchantRules.weight(v) || enchantRules.levelSum(w), { step: 1 })]), shares);
+      };
+
+      /**
+       * 뽑기 표 하나 (도구 종류 또는 방어구 부위). rows() = [{name(), leveled(), obj, key, bundle}] — 가중치는 obj[key].
+       * 가중치 합이 0 이면 서버처럼 모든 행이 같은 확률.
+       */
+      const probGroup = (label, rows, levelWeights) => {
+        const tbody = h('tbody');
+        const note = small('');
+        const g = { checks: makeChecks(), live: [] };
+        g.draw = () => {
+          g.checks = makeChecks();
+          const cells = rows().map((r) => {
+            const nameEl = h('span', null, r.name());
+            const input = numIn(g.checks, r.obj, r.key, `${label} ${r.name()} 가중치`, enchantRules.weight, { step: 1 });
+            const pct = h('td');
+            const lv = h('td', { class: 'muted', style: 'white-space:nowrap' });
+            const tr = h('tr', null,
+              h('td', null, nameEl, r.bundle ? h('span', { class: 'tag gray', style: 'margin-left:.4rem' }, '묶음') : null),
+              h('td', null, input), pct, lv);
+            return { r, nameEl, input, pct, lv, tr };
+          });
+          g.live = [() => {
+            const ws = cells.map((c) => (enchantRules.weight(c.r.obj[c.r.key]) ? 0 : c.r.obj[c.r.key]));
+            const total = ws.reduce((a, b) => a + b, 0);
+            const w = levelWeights();
+            const levelsOk = !ENCHANT_LEVELS.some(([k]) => enchantRules.weight(w[k])) && !enchantRules.levelSum(w);
+            const levelSum = w[1] + w[2] + w[3];
+            cells.forEach((c, i) => {
+              const chance = total > 0 ? ws[i] / total : 1 / cells.length;
+              c.nameEl.textContent = c.r.name();
+              syncInput(c.input, c.r.obj[c.r.key]);
+              c.pct.textContent = enchantPct(chance);
+              c.lv.textContent = !c.r.leveled() ? '—' : !levelsOk ? '레벨 가중치를 확인하세요'
+                : ENCHANT_LEVELS.map(([k, roman]) => `${roman} ${enchantPct(chance * w[k] / levelSum)}`).join(' · ');
+            });
+            note.textContent = total > 0 ? `가중치 합 ${total}` : '가중치 합이 0 입니다 — 이때는 모든 행이 같은 확률로 나옵니다.';
+          }];
+          tbody.replaceChildren(...cells.map((c) => c.tr));
+        };
+        groups.push(g);
+        g.el = h('div', null, h3(label), h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, h('th', null, '뽑기 결과'), h('th', { title: ENCHANT_HELP.weight }, '가중치'),
+            h('th', { title: ENCHANT_HELP.chance }, '확률'), h('th', { title: ENCHANT_HELP.levels }, '레벨별 최종 확률'))), tbody)), note);
+        return g;
+      };
+
+      const single = (weights, [id, name, max]) => ({ name: () => name, leveled: () => max >= 3, obj: weights, key: id });
+      const toolGroups = {};
+      for (const [tool, toolName] of ENCHANT_TOOLS) {
+        toolGroups[tool] = probGroup(toolName, () => enchantPool(tool).map((a) => single(e.pool.weights[tool], a))
+          .concat(e.pool.bundles[tool].map((b) => ({ name: () => enchantBundleName(b), leveled: () => enchantLeveled(b.abilities),
+            obj: b, key: 'weight', bundle: true }))), () => e.levelWeights);
+      }
+      const armorGroups = ENCHANT_ARMOR.map(([part, partName]) => probGroup(partName,
+        () => enchantPool(part).map((a) => single(e.armor.abilityWeights[part], a)), () => e.armor.levelWeights));
+
+      const probCard = h('div', { class: 'card' }, h('h2', null, '뽑기 확률'),
+        help(ENCHANT_HELP.weight + ' 예: 가중치가 10, 10, 20 인 세 행은 25%, 25%, 50%.'),
+        help(ENCHANT_HELP.levelWeights + ' ' + ENCHANT_HELP.bundleLevel),
+        levelRow(e.levelWeights, '도구 레벨 가중치'),
+        levelRow(e.armor.levelWeights, '방어구 레벨 가중치'),
+        h3('도구', '행 = 단일 능력과 묶음. 묶음의 구성·이름은 아래 "묶음" 카드에서 바꿉니다.'),
+        help('마법부여 한 번에 아래 표의 행 하나가 뽑힙니다. 행은 단일 능력이거나 묶음(능력 여러 개가 한꺼번에 붙음)입니다.'),
+        h('div', { class: 'petcards' }, ENCHANT_TOOLS.map(([tool]) => toolGroups[tool].el)),
+        h3('방어구', '방어구에는 묶음이 없습니다.'),
+        help('방어구는 부위마다 그 부위의 능력 중 하나가 뽑힙니다 (묶음 없음). 레벨은 방어구 레벨 가중치를 씁니다.'),
+        h('div', { class: 'petcards' }, armorGroups.map((g) => g.el)));
+
+      /* --- 묶음 --- */
+
+      const bundleGroup = (tool, toolName) => {
+        const list = e.pool.bundles[tool];
+        const tbody = h('tbody');
+        const empty = small('묶음이 없습니다 — 이 도구는 단일 능력만 나옵니다.');
+        const g = { checks: makeChecks(), live: [] };
+        const redraw = () => { g.draw(); toolGroups[tool].draw(); };
+        g.draw = () => {
+          g.checks = makeChecks();
+          g.live = [];
+          tbody.replaceChildren(...list.map((b, i) => {
+            const where = `${toolName} 묶음 ${i + 1}번`;
+            const preview = h('strong');
+            const idEl = small('');
+            const err = small('', 'color:var(--bad)');
+            const boxes = enchantPool(tool).map(([id, name, max]) => h('label', { style: 'margin-right:.6rem;white-space:nowrap',
+              title: max >= 3 ? '3레벨 능력 — 묶음의 레벨을 따릅니다' : '1레벨 능력 — 레벨이 없습니다' },
+              h('input', { type: 'checkbox', checked: b.abilities.includes(id), 'aria-label': `${where} ${name}`,
+                onchange: (ev) => {
+                  const on = new Set(b.abilities);
+                  if (ev.target.checked) on.add(id); else on.delete(id);
+                  b.abilities = enchantPool(tool).map((a) => a[0]).filter((x) => on.has(x));
+                  if (enchantFreshBundles.has(b)) b.id = enchantNewBundleId(list, b);
+                  changed();
+                } }), ' ' + name + (max >= 3 ? '' : ' (1레벨)')));
+            const nameIn = h('input', { type: 'text', style: 'width:10rem', 'aria-label': `${where} 이름`, value: b.name,
+              placeholder: '(비우면 능력 나열)', oninput: (ev) => { b.name = ev.target.value; changed(); } });
+            const weightIn = numIn(g.checks, b, 'weight', `${where} 가중치`, enchantRules.weight, { step: 1 });
+            g.live.push(() => {
+              preview.textContent = enchantBundleName(b) + (enchantLeveled(b.abilities) ? ' II' : '');
+              idEl.textContent = 'id: ' + b.id;
+              err.textContent = (enchantBundleErrors(tool, list)[i] || []).join(' · ');
+              syncInput(weightIn, b.weight);
+            });
+            return h('tr', null,
+              h('td', null, preview, idEl, err),
+              h('td', null, boxes),
+              h('td', null, nameIn),
+              h('td', null, weightIn),
+              h('td', null, h('button', { class: 'danger small', 'aria-label': `${where} 삭제`, onclick: () => {
+                list.splice(i, 1); redraw(); changed();
+              } }, '삭제')));
+          }));
+          empty.classList.toggle('hidden', list.length > 0);
+        };
+        const add = h('button', { class: 'small', onclick: () => {
+          const b = { id: '', abilities: [], weight: 3, name: '' };
+          enchantFreshBundles.add(b);
+          list.push(b);
+          b.id = enchantNewBundleId(list, b);
+          redraw(); changed();
+        } }, '+ 묶음 추가');
+        groups.push(g);
+        return h('div', null, h3(toolName), h('div', { class: 'scroll-x' }, h('table', null,
+          h('thead', null, h('tr', null, h('th', { title: '게임 안에서 보이는 이름의 예 (레벨 II 로 뽑혔을 때). 3레벨 능력이 없으면 레벨이 붙지 않습니다.' }, '게임 안 표시 (예)'),
+            h('th', { title: '이 도구에 붙는 능력만 고를 수 있습니다. 2개 이상.' }, '능력 (2개 이상)'),
+            h('th', { title: '비우면 능력 이름을 · 로 이어 붙입니다 (예: 광맥·제련).' }, '이름 (선택)'),
+            h('th', { title: ENCHANT_HELP.weight }, '가중치'), h('th', null, ''))), tbody)), empty, add);
+      };
+
+      const bundleCard = h('div', { class: 'card' }, h('h2', null, '묶음'),
+        help('묶음은 능력 여러 개가 한 번에 붙는 뽑기 결과입니다. 그 도구에 붙는 능력 중에서 2개 이상을 고르고, 같은 도구 안에서 능력 구성이 같은 묶음은 하나만 둘 수 있습니다. 방어구에는 묶음이 없습니다.'),
+        help(ENCHANT_HELP.bundleLevel + ' 예: "광맥·제련 II" 는 광맥 II + 제련, "광역·제련" 은 둘 다 1레벨 능력이라 레벨이 없습니다.'),
+        help('이름을 비우면 능력 이름을 · 로 이어 보여 줍니다. 표의 첫 칸은 레벨 II 로 뽑혔을 때 게임 안에 보이는 이름입니다.'),
+        help('묶음을 지우거나 구성을 바꿔도 이미 뽑힌 도구의 능력은 그대로 남아 계속 동작하고, 이름만 능력 나열로 바뀝니다. ' + ENCHANT_HELP.weight),
+        ENCHANT_TOOLS.map(([tool, toolName]) => bundleGroup(tool, toolName)));
+
+      /* --- 능력 수치 --- */
+
+      const statField = ([path, label, unit, kind], abilityName) => {
+        const [o, k] = enchantAt(e, path);
+        const full = `${abilityName} ${label}`;
+        if (kind === 'bool') {
+          return h('div', { class: 'field' }, h('label', null, h('input', { type: 'checkbox', checked: !!o[k], 'aria-label': full,
+            onchange: (ev) => { o[k] = ev.target.checked; changed(); } }), ' ' + label));
+        }
+        const inputs = kind === 'tier'
+          ? ENCHANT_LEVELS.map(([, roman], n) => [h('span', { class: 'muted' }, roman), numIn(checks, o[k], n, `${full} ${roman}`, enchantRules.nonNeg)])
+          : numIn(checks, o, k, full, enchantRules.nonNeg);
+        return h('div', { class: 'field' }, h('label', { style: 'min-width:6.5rem' }, label), inputs, unit ? h('span', { class: 'muted' }, unit) : null);
+      };
+      const partNames = new Map(ENCHANT_TOOLS.concat(ENCHANT_ARMOR));
+      const statRows = (armor) => ENCHANT_STATS.filter(([id]) => ENCHANT_ARMOR.some(([part]) => enchantAbility(id)[3].includes(part)) === armor)
+        .map(([id, desc, stats]) => {
+          const [, name, max, tools] = enchantAbility(id);
+          return h('tr', null,
+            h('td', { style: 'white-space:nowrap;vertical-align:top' }, h('strong', null, name),
+              small(tools.length > 1 ? '방어구 전체' : partNames.get(tools[0])), small(max >= 3 ? '3레벨' : '1레벨')),
+            h('td', { style: 'vertical-align:top' }, stats.map((s) => statField(s, name))),
+            h('td', { class: 'muted', style: 'vertical-align:top;min-width:14rem' }, desc));
+        });
+      const statTable = (armor) => h('div', { class: 'scroll-x' }, h('table', null,
+        h('thead', null, h('tr', null, ['능력', '수치', '설명'].map((t) => h('th', null, t)))), h('tbody', null, statRows(armor))));
+      const noStats = ENCHANT_ABILITIES.filter(([id]) => !ENCHANT_STATS.some((s) => s[0] === id)).map((a) => a[1]).join(', ');
+      const statsCard = h('div', { class: 'card' }, h('h2', null, '능력 수치'),
+        help('I / II / III 는 그 능력의 레벨별 값입니다. 칸이 하나뿐인 수치는 모든 레벨에 똑같이 적용됩니다. 모든 값은 0 이상이어야 합니다.'),
+        help(`수치가 없는 능력: ${noStats}.`),
+        h3('도구 능력'), statTable(false), h3('방어구 능력'), statTable(true));
+
+      /* --- 레벨만 다시 뽑기 --- */
+
+      const lr = e.pool.levelReroll;
+      const rerollCard = h('div', { class: 'card' }, h('h2', null, '레벨만 다시 뽑기'),
+        h('div', { class: 'field' }, h('label', null, h('input', { type: 'checkbox', checked: !!lr.enabled, 'aria-label': '레벨만 다시 뽑기 켜기',
+          onchange: (ev) => { lr.enabled = ev.target.checked; changed(); } }), ' 켜기')),
+        h('div', { class: 'field' }, h('label', { style: 'min-width:6.5rem' }, '1회 골드'),
+          numIn(checks, lr, 'goldCost', '레벨만 다시 뽑기 골드', enchantRules.gold, { step: 1, style: 'width:7.5rem' }), h('span', { class: 'muted' }, '골드')),
+        h('div', { class: 'field' }, h('label', { style: 'min-width:6.5rem' }, '마법부여석'),
+          numIn(checks, lr, 'stoneCost', '레벨만 다시 뽑기 마법부여석', enchantRules.weight, { step: 1 }), h('span', { class: 'muted' }, '개')),
+        help('능력 구성(단일 능력이든 묶음이든)은 그대로 두고 레벨만 레벨 가중치로 다시 뽑습니다. 같은 레벨이 또 나올 수 있고, 3레벨 능력이 없는 도구에는 쓸 수 없습니다. 방어구는 방어구 레벨 가중치를 씁니다.'),
+        help('꺼져 있으면 게임의 마법부여 화면에 버튼이 보이지 않습니다.'));
+
+      const intro = h('div', { class: 'card' }, h('h2', null, '마법부여'),
+        help('특수 능력 뽑기(config/gettcore/enchant.json)를 정합니다. 저장하면 바로 적용됩니다 (열려 있는 마법부여 화면은 닫힙니다).'),
+        h('div', { class: 'field' }, h('span', { class: 'muted' }, '마법부여 1회 골드 비용은 강화 탭의 "마법부여 비용" 에서 정합니다.'),
+          h('button', { class: 'small', onclick: () => selectTab('reinforce') }, '강화 탭으로')));
+
+      for (const g of groups) g.draw();
+      container.append(h('div', { class: 'stack' }, intro, probCard, bundleCard, statsCard, rerollCard));
+      return () => {
+        checks.paint();
+        for (const fn of live) fn();
+        for (const g of groups) { g.checks.paint(); for (const fn of g.live) fn(); }
+      };
+    },
+  };
+  registerTab(enchantTab);
 
   /* ----- 사냥터 탭 ----- */
 

@@ -41,7 +41,7 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("7");
+        PayloadRegistrar registrar = event.registrar("8");
         registrar.playToClient(BalanceSyncPayload.TYPE, BalanceSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,
@@ -137,7 +137,10 @@ public final class GettNetwork {
         registrar.playToServer(ShopEditPayload.TYPE, ShopEditPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ShopService.edit((ServerPlayer) ctx.player(), payload)));
         registrar.playToServer(EnchantApplyPayload.TYPE, EnchantApplyPayload.STREAM_CODEC,
-                (payload, ctx) -> ctx.enqueueWork(() -> EnchantService.apply((ServerPlayer) ctx.player())));
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (payload.levelOnly()) EnchantService.rerollLevel((ServerPlayer) ctx.player());
+                    else EnchantService.apply((ServerPlayer) ctx.player());
+                }));
         registrar.playToServer(ReinforceApplyPayload.TYPE, ReinforceApplyPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> ReinforceService.apply((ServerPlayer) ctx.player())));
         registrar.playToServer(UpgradeApplyPayload.TYPE, UpgradeApplyPayload.STREAM_CODEC,
