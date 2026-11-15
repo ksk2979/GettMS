@@ -40,6 +40,7 @@ public final class DataEvents {
         PacketDistributor.sendToAllPlayers(new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToAllPlayers(new UpgradeConfigSyncPayload(GettData.get().upgrade()));
         PacketDistributor.sendToAllPlayers(new DetectorConfigSyncPayload(GettData.get().detector()));
+        PacketDistributor.sendToAllPlayers(new org.gettserver.gettcore.network.WebConfigSyncPayload(GettData.get().web()));
     }
 
     public static void syncConfig(ServerPlayer player) {
@@ -51,6 +52,7 @@ public final class DataEvents {
         PacketDistributor.sendToPlayer(player, new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToPlayer(player, new UpgradeConfigSyncPayload(GettData.get().upgrade()));
         PacketDistributor.sendToPlayer(player, new DetectorConfigSyncPayload(GettData.get().detector()));
+        PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.WebConfigSyncPayload(GettData.get().web()));
     }
 
     @SubscribeEvent

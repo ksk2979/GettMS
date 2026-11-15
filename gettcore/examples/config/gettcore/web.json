@@ -1,0 +1,28 @@
+{
+  "range": 32.0,
+  "shotSpeed": 120.0,
+  "reelSpeed": 8.0,
+  "minLength": 1.5,
+  "swingBoost": 0.03,
+  "maxSpeed": 30.0,
+  "cooldownSeconds": 0.0,
+  "landingDamagePercent": 50,
+  "rollMinFall": 3.0,
+  "wallCling": true,
+  "climbSpeed": 4.0,
+  "combat": {
+    "dualSpeedPercent": 15.0,
+    "shotDamage": 2.0,
+    "shotCooldownSeconds": 0.1,
+    "bindSeconds": 5.0,
+    "bindPlayerSeconds": 2.0,
+    "bindCooldownSeconds": 15.0,
+    "bindPlayers": true
+  },
+  "sling": {
+    "power": 70.0,
+    "chargeSeconds": 1.0,
+    "minPowerPercent": 30.0,
+    "glideSeconds": 0.6
+  }
+}

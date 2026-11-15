@@ -53,7 +53,7 @@ public final class GettData {
     private static final Logger LOGGER = LoggerFactory.getLogger("gettcore");
     private static final GettData INSTANCE = new GettData();
     private static final String[] DEFAULT_FILES = {
-            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "bosses.json", "equipment.json", "upgrade.json", "detector.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
+            "economy.json", "npcs.json", "enchant.json", "pets.json", "boss_points.json", "protect.json", "reinforce.json", "hunting.json", "mobs.json", "bosses.json", "equipment.json", "upgrade.json", "detector.json", "web.json", "field_gold.json", "shops/farmer.json", "dialogs/farmer.json",
             "dialogs/enchanter.json", "dialogs/chief.json", "dialogs/blacksmith.json", "quests/main.json"};
     /** Defaults shipped before the install marker existed (copied only into an empty dir). */
     private static final Set<String> LEGACY_FILES = Set.of(
@@ -110,6 +110,7 @@ public final class GettData {
     private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile UpgradeConfig upgrade = UpgradeConfig.DEFAULT;
     private volatile DetectorConfig detector = DetectorConfig.DEFAULT;
+    private volatile org.gettserver.gettcore.web.WebConfig web = org.gettserver.gettcore.web.WebConfig.DEFAULT;
     private volatile Path configDir;
 
     @VisibleForTesting
@@ -241,6 +242,12 @@ public final class GettData {
         DetectorConfig newDetector = Files.isRegularFile(detectorFile)
                 ? read(detectorFile, DetectorConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(detector)
                 : DetectorConfig.DEFAULT;
+        // An unreadable web.json keeps the config already loaded.
+        Path webFile = dir.resolve(org.gettserver.gettcore.web.WebConfig.FILE);
+        org.gettserver.gettcore.web.WebConfig newWeb = Files.isRegularFile(webFile)
+                ? read(webFile, org.gettserver.gettcore.web.WebConfig.CODEC, errors).map(c -> c.sanitized(warnings))
+                        .orElse(web)
+                : org.gettserver.gettcore.web.WebConfig.DEFAULT;
 
         validate(newShops, newDialogs, newNpcs);
         warnUnmappedQuestNpcs(newQuests, newNpcs, warnings);
@@ -263,6 +270,7 @@ public final class GettData {
         equipment = newEquipment;
         upgrade = newUpgrade;
         detector = newDetector;
+        web = newWeb;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
         if (!newEco.priceDynamics().enabled()) {
             for (Map.Entry<String, ShopDefinition> en : List.copyOf(newShops.entrySet())) {
@@ -738,6 +746,11 @@ public final class GettData {
     /** Detector range, durations and the item-to-ore target list from detector.json (sanitized). */
     public DetectorConfig detector() {
         return detector;
+    }
+
+    /** Web shooter numbers from web.json (sanitized). Edited in the file, applied by /gett reload. */
+    public org.gettserver.gettcore.web.WebConfig web() {
+        return web;
     }
 
     /** Writes the shop as pretty JSON (to its original file if known) and updates the in-memory copy. */

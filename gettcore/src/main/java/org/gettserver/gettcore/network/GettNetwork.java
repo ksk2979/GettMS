@@ -41,7 +41,44 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("8");
+        PayloadRegistrar registrar = event.registrar("9");
+        // Web shooter. WebClient (client-only, web.client) is referenced only inside the client-bound handlers.
+        registrar.playToClient(WebConfigSyncPayload.TYPE, WebConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> org.gettserver.gettcore.web.ClientWebConfig.set(payload.config()));
+        registrar.playToClient(WebSyncPayload.TYPE, WebSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.web.client.WebClient.onSync(payload)));
+        registrar.playToClient(WebRollPayload.TYPE, WebRollPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.web.client.WebClient.onRoll(payload.entityId())));
+        registrar.playToServer(WebFirePayload.TYPE, WebFirePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.web.WebService.fire((ServerPlayer) ctx.player(), payload)));
+        registrar.playToClient(WebClingSyncPayload.TYPE, WebClingSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.web.client.WebClient
+                        .onClingSync(payload.entityId(), payload.on())));
+        registrar.playToServer(WebClingPayload.TYPE, WebClingPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.web.WebService
+                        .cling((ServerPlayer) ctx.player(), payload.on())));
+        // Both shooters worn: web shot, web bind, slingshot.
+        registrar.playToClient(WebShotSyncPayload.TYPE, WebShotSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.web.client.WebCombatClient.onShotSync(payload)));
+        registrar.playToClient(WebBoundSyncPayload.TYPE, WebBoundSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.web.client.WebCombatClient
+                        .onBoundSync(payload.entityId(), payload.ticks())));
+        registrar.playToServer(WebAttackPayload.TYPE, WebAttackPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.web.WebCombat
+                        .attack((ServerPlayer) ctx.player(), payload.bind(), payload.offhand())));
+        registrar.playBidirectional(WebSlingPayload.TYPE, WebSlingPayload.STREAM_CODEC, (payload, ctx) -> {
+            if (ctx.flow().isServerbound()) {
+                ctx.enqueueWork(() -> org.gettserver.gettcore.web.WebCombat.sling((ServerPlayer) ctx.player(), payload));
+            } else {
+                ctx.enqueueWork(() -> org.gettserver.gettcore.web.client.WebCombatClient.onSlingSync(payload));
+            }
+        });
+        registrar.playToServer(WebReleasePayload.TYPE, WebReleasePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.web.WebService.release((ServerPlayer) ctx.player())));
         registrar.playToClient(BalanceSyncPayload.TYPE, BalanceSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ClientBalance.set(payload.balance()));
         registrar.playToClient(ConfigSyncPayload.TYPE, ConfigSyncPayload.STREAM_CODEC,

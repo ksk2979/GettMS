@@ -87,6 +87,10 @@ public class GettCore {
             ITEMS.registerItem("reinforce_stone", ReinforceStoneItem::new, new Item.Properties().stacksTo(64));
     public static final DeferredItem<DetectorItem> DETECTOR =
             ITEMS.registerItem("detector", DetectorItem::new, new Item.Properties().stacksTo(1));
+    /** 거미줄 발사기: 우클릭으로 지형에 줄을 붙여 매달려 다닌다. */
+    public static final DeferredItem<org.gettserver.gettcore.web.WebShooterItem> WEB_SHOOTER =
+            ITEMS.registerItem("web_shooter", org.gettserver.gettcore.web.WebShooterItem::new,
+                    new Item.Properties().stacksTo(1));
 
     /** 튼튼한 모루: 써도 금이 가지 않고 떨어지지 않음. 관리자 지급 전용(크리에이티브 탭·/give). */
     public static final net.neoforged.neoforge.registries.DeferredBlock<org.gettserver.gettcore.anvil.SturdyAnvilBlock> STURDY_ANVIL =
@@ -115,6 +119,7 @@ public class GettCore {
                         output.accept(ENCHANT_STONE.get());
                         output.accept(REINFORCE_STONE.get());
                         output.accept(DETECTOR.get());
+                        output.accept(WEB_SHOOTER.get());
                         output.accept(STURDY_ANVIL_ITEM.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());

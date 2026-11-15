@@ -42,10 +42,19 @@ public class GettCoreClient {
             event.register(QuestKeys.QUEST_HUD);
             event.register(QuestKeys.HUD_MOVE);
             event.register(org.gettserver.gettcore.pet.client.PetKeys.PET_DEX);
+            event.register(org.gettserver.gettcore.web.client.WebCombatClient.BIND);
         });
         modBus.addListener(EntityRenderersEvent.RegisterRenderers.class, event -> {
             event.registerEntityRenderer(PetRegistry.THROWN_CAPTURE_BALL.get(), ThrownItemRenderer::new);
             PetRenderers.register(event);
+        });
+        // 거미줄 발사기: 3인칭 손목 띠(일반·슬림 스킨 렌더러 모두).
+        modBus.addListener(EntityRenderersEvent.AddLayers.class, event -> {
+            for (net.minecraft.client.resources.PlayerSkin.Model skin : event.getSkins()) {
+                if (event.getSkin(skin) instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer r) {
+                    r.addLayer(new org.gettserver.gettcore.web.client.WristBandLayer(r));
+                }
+            }
         });
         // 지상 탈것 점프: 탑승자 클라이언트에서 점프 키를 읽어 즉시 점프(PetState.tickRidden).
         org.gettserver.gettcore.pet.entity.PetBehavior.RIDER_JUMP_INPUT =

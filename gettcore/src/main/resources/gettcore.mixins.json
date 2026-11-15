@@ -8,6 +8,7 @@
     "ServerGamePacketListenerImplMixin"
   ],
   "client": [
+    "HumanoidModelMixin",
     "MinecraftMixin"
   ],
   "injectors": {
