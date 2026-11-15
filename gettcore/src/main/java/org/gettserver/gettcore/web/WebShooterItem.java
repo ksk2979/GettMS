@@ -21,5 +21,6 @@ public class WebShooterItem extends Item {
         lines.add(Component.translatable("gettcore.web.use").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("gettcore.web.reel").withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("gettcore.web.dual").withStyle(ChatFormatting.DARK_AQUA));
+        lines.add(Component.translatable("gettcore.web.offhand").withStyle(ChatFormatting.DARK_AQUA));
     }
 }

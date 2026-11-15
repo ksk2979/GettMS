@@ -24,6 +24,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderHandEvent;
 import org.gettserver.gettcore.GettCore;
+import org.gettserver.gettcore.web.WebHands;
 
 /**
  * 거미줄 발사기는 손에 쥐는 대신 손목에 찬 모습으로 그린다: 팔 끝을 감싼 띠와 그 위의 발사 장치. 팔 파트의 좌표계
@@ -68,26 +69,36 @@ public final class WristBand {
         return player instanceof AbstractClientPlayer p && p.getSkin().model() == PlayerSkin.Model.SLIM;
     }
 
-    /** 1인칭: 아이템 대신 맨팔과 손목 장치를 그린다. */
+    /**
+     * 1인칭: 아이템 대신 맨팔과 손목 장치를 그린다. 주 손에 원거리·양손 무기를 들었으면 왼손 발사기는 그리지 않는다
+     * (그 무기가 두 손을 다 쓴다). 슬링샷을 모으는 동안에는 왼손에 든 것 대신 맨팔을 그린다.
+     */
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
-        if (!event.getItemStack().is(GettCore.WEB_SHOOTER.get())) return;
         Minecraft mc = Minecraft.getInstance();
         AbstractClientPlayer player = mc.player;
         if (player == null) return;
+        boolean shooter = event.getItemStack().is(GettCore.WEB_SHOOTER.get());
+        boolean off = event.getHand() == InteractionHand.OFF_HAND;
+        boolean slingArm = off && WebCombatClient.slinging(player.getId());
+        if (!shooter && !slingArm) return;
         event.setCanceled(true);
         if (player.isInvisible()) return;
+        if (off && !slingArm && WebHands.mainBlocksOffhand(player)) return;
         HumanoidArm side = event.getHand() == InteractionHand.MAIN_HAND ? player.getMainArm()
                 : player.getMainArm().getOpposite();
         boolean right = side == HumanoidArm.RIGHT;
         PoseStack pose = event.getPoseStack();
         pose.pushPose();
         mc.getEntityRenderDispatcher().getItemInHandRenderer().renderPlayerArm(pose, event.getMultiBufferSource(),
-                event.getPackedLight(), event.getEquipProgress(), event.getSwingProgress(), side);
+                event.getPackedLight(), slingArm ? 0f : event.getEquipProgress(),
+                slingArm ? 0f : event.getSwingProgress(), side);
         PlayerRenderer renderer = (PlayerRenderer) mc.getEntityRenderDispatcher().<AbstractClientPlayer>getRenderer(player);
         PlayerModel<AbstractClientPlayer> model = renderer.getModel();
-        (right ? model.rightArm : model.leftArm).translateAndRotate(pose);
-        render(pose, event.getMultiBufferSource(), event.getPackedLight(), right, slim(player));
+        if (shooter) {
+            (right ? model.rightArm : model.leftArm).translateAndRotate(pose);
+            render(pose, event.getMultiBufferSource(), event.getPackedLight(), right, slim(player));
+        }
         pose.popPose();
     }
 }

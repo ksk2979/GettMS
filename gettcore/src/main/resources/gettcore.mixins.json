@@ -9,6 +9,7 @@
   ],
   "client": [
     "HumanoidModelMixin",
+    "PlayerItemInHandLayerMixin",
     "MinecraftMixin"
   ],
   "injectors": {

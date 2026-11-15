@@ -7,12 +7,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.UseAnim;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -28,11 +30,13 @@ import org.gettserver.gettcore.network.WebReleasePayload;
 import org.gettserver.gettcore.network.WebSyncPayload;
 import org.gettserver.gettcore.web.ClientWebConfig;
 import org.gettserver.gettcore.web.WebConfig;
+import org.gettserver.gettcore.web.WebHands;
 import org.gettserver.gettcore.web.WebRules;
 
 /**
  * 거미줄 발사기의 클라이언트 쪽: 우클릭(눌렀을 때 한 번)으로 쏘기·떼기, 내 캐릭터의 진자 이동, 모든 플레이어의
- * 줄 상태 보관(그리기는 {@link WebRenderer}, 팔 자세는 {@link WebPose}).
+ * 줄 상태 보관(그리기는 {@link WebRenderer}, 팔 자세는 {@link WebPose}). 오른손에 찬 발사기는 우클릭을 먼저
+ * 가져가고, 왼손에 찬 발사기는 오른손 아이템이 우클릭을 쓰지 않았을 때만 줄을 쏜다({@link WebHands}).
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class WebClient {
@@ -63,7 +67,8 @@ public final class WebClient {
 
     private static final Map<Integer, Web> WEBS = new HashMap<>();
     private static final Map<Integer, Long> ROLLS = new HashMap<>();
-    private static boolean useWasDown;
+    /** False from a handled press until the use key is let go (holding it repeats the click). */
+    private static boolean useArmed = true;
     private static boolean jumpWasDown;
     private static boolean tautLastTick;
     private static long lastShot = Long.MIN_VALUE;
@@ -91,12 +96,12 @@ public final class WebClient {
     }
 
     /**
-     * 다른 손의 아이템이 우클릭을 가져가는 경우: 지금 먹을 수 있는 음식, 마실 것, 그리고 손이 닿는 블록을 보고 있을
-     * 때의 설치용 블록. 이때는 줄을 쏘지 않고 바닐라 동작에 맡긴다.
+     * 오른손 발사기가 우클릭을 양보하는 경우: 손이 닿는 곳의 적이 아닌 대상(NPC·동물 등, 말 걸기·상호작용), 왼손의
+     * 지금 먹을 수 있는 음식·마실 것, 손이 닿는 블록을 보고 있을 때 왼손의 설치용 블록. 이때는 바닐라 동작에 맡긴다.
      */
-    static boolean otherHandWins(Minecraft mc, Player player, InteractionHand shooterHand) {
-        ItemStack other = player.getItemInHand(shooterHand == InteractionHand.MAIN_HAND
-                ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND);
+    static boolean mainYields(Minecraft mc, Player player) {
+        if (mc.hitResult instanceof EntityHitResult hit && !(hit.getEntity() instanceof Enemy)) return true;
+        ItemStack other = player.getOffhandItem();
         if (other.isEmpty()) return false;
         FoodProperties food = other.getFoodProperties(player);
         if (food != null) return player.canEat(food.canAlwaysEat());
@@ -132,15 +137,30 @@ public final class WebClient {
 
     // ---- input ----
 
-    /** 발사기를 든 채 우클릭은 블록·아이템 사용으로 넘기지 않는다(상자를 열면서 줄이 나가지 않게). */
+    /**
+     * 우클릭은 손마다 한 번씩(주 손 먼저) 이 이벤트를 지난다. 오른손 발사기는 여기서 바로 가져간다(상자를 열면서
+     * 줄이 나가지 않게). 왼손 발사기는 주 손 차례를 바닐라에 맡기므로, 주 손이 무언가 했으면(NPC·상자·활·음식·총)
+     * 왼손 차례가 오지 않고, 아무 일도 없었을 때만 여기까지 와서 줄을 쏜다.
+     */
     @SubscribeEvent
     public static void onUseKey(InputEvent.InteractionKeyMappingTriggered event) {
         Minecraft mc = Minecraft.getInstance();
-        if (!event.isUseItem() || mc.player == null) return;
-        InteractionHand hand = shooterHand(mc.player);
-        if (hand == null || otherHandWins(mc, mc.player, hand)) return;
+        LocalPlayer player = mc.player;
+        if (!event.isUseItem() || player == null || mc.level == null) return;
+        InteractionHand hand = shooterHand(player);
+        if (hand == null || event.getHand() != hand) return;
+        if (hand == InteractionHand.MAIN_HAND ? mainYields(mc, player) : WebHands.mainBlocksOffhand(player)) return;
         event.setSwingHand(false);
         event.setCanceled(true);
+        if (!useArmed || player.isSpectator() || !player.isAlive()) return;
+        useArmed = false;
+        long now = mc.level.getGameTime();
+        Web mine = WEBS.get(player.getId());
+        boolean lineOut = mine != null && mine.hit;
+        // 슬링샷(오른손, 땅에서 앉아 우클릭)이 우클릭을 가져가면 줄은 쏘지 않는다.
+        if (WebCombatClient.startSling(mc, player, now, lineOut)) return;
+        if (lineOut) releaseMine(player);
+        else fire(mc, player, WebHands.dual(player) ? WebCombatClient.nextHand() : hand, now);
     }
 
     @SubscribeEvent
@@ -156,9 +176,10 @@ public final class WebClient {
         WebCombatClient.expire(mc, now);
 
         boolean down = mc.options.keyUse.isDown();
-        boolean pressed = down && !useWasDown && mc.screen == null;
-        useWasDown = down;
+        if (!down) useArmed = true;
         InteractionHand hand = shooterHand(player);
+        // 왼손에만 찼는데 주 손에 원거리·양손 무기를 들었으면 발사기는 없는 셈 친다(줄·벽 붙기 모두 쉼).
+        if (hand == InteractionHand.OFF_HAND && WebHands.mainBlocksOffhand(player)) hand = null;
         Web mine = WEBS.get(player.getId());
 
         if (hand == null || player.isSpectator() || !player.isAlive()) {
@@ -176,17 +197,7 @@ public final class WebClient {
             releaseMine(player);
             mine = null;
         }
-        boolean mayUse = !otherHandWins(mc, player, hand);
-        // 슬링샷(양손, 땅에서 앉아 우클릭)이 우클릭을 가져가면 줄은 쏘지 않는다.
-        boolean sling = WebCombatClient.tickSling(mc, player, now, pressed && mayUse, down, mine != null && mine.hit);
-        if (pressed && mayUse && !sling) {
-            if (mine != null && mine.hit) {
-                releaseMine(player);
-                mine = null;
-            } else {
-                mine = fire(mc, player, WebCombatClient.dual(player) ? WebCombatClient.nextHand() : hand, now);
-            }
-        }
+        WebCombatClient.tickSling(mc, player, now, down, mine != null && mine.hit);
         if (mine != null && mine.attached(now)) {
             swing(mc, player, mine);
         } else {
@@ -206,7 +217,7 @@ public final class WebClient {
         ROLLS.clear();
         WallCling.clear();
         WebCombatClient.clear();
-        useWasDown = false;
+        useArmed = true;
         tautLastTick = false;
         lastShot = Long.MIN_VALUE;
     }

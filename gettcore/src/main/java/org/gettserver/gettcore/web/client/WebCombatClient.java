@@ -33,12 +33,13 @@ import org.gettserver.gettcore.network.WebShotSyncPayload;
 import org.gettserver.gettcore.network.WebSlingPayload;
 import org.gettserver.gettcore.web.ClientWebConfig;
 import org.gettserver.gettcore.web.WebConfig;
+import org.gettserver.gettcore.web.WebHands;
 import org.gettserver.gettcore.web.WebRules;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * 발사기를 양손에 찼을 때의 클라이언트 쪽: 좌클릭 = 거미줄 쏘기, 묶기 키 = 거미줄 묶기, 앉아서 우클릭을 누르고 있다
- * 떼면 슬링샷. 날아가는 탄·묶인 대상·슬링샷 줄의 표시 상태도 여기서 들고 있다.
+ * 발사기를 오른손(주 손)에 찼을 때의 클라이언트 쪽: 좌클릭 = 거미줄 쏘기, 묶기 키 = 거미줄 묶기, 앉아서 우클릭을
+ * 누르고 있다 떼면 슬링샷. 날아가는 탄·묶인 대상·슬링샷 줄의 표시 상태도 여기서 들고 있다.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID, value = Dist.CLIENT)
 public final class WebCombatClient {
@@ -63,11 +64,6 @@ public final class WebCombatClient {
 
     private WebCombatClient() {}
 
-    static boolean dual(Player player) {
-        return player.getMainHandItem().is(GettCore.WEB_SHOOTER.get())
-                && player.getOffhandItem().is(GettCore.WEB_SHOOTER.get());
-    }
-
     /** With a shooter on each wrist the hands take turns. */
     static InteractionHand nextHand() {
         nextOffhand = !nextOffhand;
@@ -76,6 +72,11 @@ public final class WebCombatClient {
 
     static List<Shot> shots() {
         return SHOTS;
+    }
+
+    /** Is that player charging a slingshot (both arms on the lines)? */
+    public static boolean slinging(int entityId) {
+        return SLINGS.containsKey(entityId);
     }
 
     static Vec3[] sling(int entityId) {
@@ -134,7 +135,7 @@ public final class WebCombatClient {
     @SubscribeEvent
     public static void onAttackKey(InputEvent.InteractionKeyMappingTriggered event) {
         Minecraft mc = Minecraft.getInstance();
-        if (!event.isAttack() || mc.player == null || mc.level == null || !dual(mc.player)) return;
+        if (!event.isAttack() || mc.player == null || mc.level == null || !WebHands.main(mc.player)) return;
         if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK) return;
         event.setSwingHand(false);
         event.setCanceled(true);
@@ -145,7 +146,7 @@ public final class WebCombatClient {
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         while (BIND.consumeClick()) {
-            if (mc.player != null && mc.level != null && mc.screen == null && dual(mc.player)) shoot(mc, true);
+            if (mc.player != null && mc.level != null && mc.screen == null && WebHands.main(mc.player)) shoot(mc, true);
         }
     }
 
@@ -164,7 +165,9 @@ public final class WebCombatClient {
         }
         if (bind) lastBind = now;
         else lastShot = now;
-        PacketDistributor.sendToServer(new WebAttackPayload(bind, nextHand() == InteractionHand.OFF_HAND));
+        // 양손에 찼으면 번갈아, 아니면 오른손에서 나간다.
+        boolean offhand = WebHands.dual(mc.player) && nextHand() == InteractionHand.OFF_HAND;
+        PacketDistributor.sendToServer(new WebAttackPayload(bind, offhand));
     }
 
     // ---- slingshot ----
@@ -199,36 +202,43 @@ public final class WebCombatClient {
         PacketDistributor.sendToServer(WebSlingPayload.end(0, WebSlingPayload.CANCEL));
     }
 
+    private static boolean canSling(Minecraft mc, LocalPlayer player) {
+        return WebHands.main(player) && mc.options.keyShift.isDown() && ClientWebConfig.get().sling().power() > 0
+                && !player.isPassenger();
+    }
+
     /**
-     * One tick of the slingshot. Starts when {@code pressed} (use key just went down) while sneaking on the ground
-     * with both shooters and no line out; charges while the key stays down; launches along the view when it is
-     * let go. Returns true while it owns the use key (the press must not fire a line).
+     * The use key just went down. Starts the slingshot when sneaking on the ground with the shooter on the main
+     * hand and no line out. Returns true when the slingshot owns the press (it must not fire a line).
      */
-    static boolean tickSling(Minecraft mc, LocalPlayer player, long now, boolean pressed, boolean useDown,
-                             boolean lineOut) {
+    static boolean startSling(Minecraft mc, LocalPlayer player, long now, boolean lineOut) {
+        if (slingStart != Long.MIN_VALUE) return true;
+        if (!(canSling(mc, player) && player.onGround() && !lineOut)) return false;
+        Vec3[] a = anchors(player);
+        slingStart = now;
+        SLINGS.put(player.getId(), a);
+        PacketDistributor.sendToServer(new WebSlingPayload(0, WebSlingPayload.START, a[0].x, a[0].y, a[0].z,
+                a[1].x, a[1].y, a[1].z));
+        return true;
+    }
+
+    /** One tick of the slingshot: charges while the use key stays down, launches along the view when let go. */
+    static void tickSling(Minecraft mc, LocalPlayer player, long now, boolean useDown, boolean lineOut) {
         WebConfig.Sling cfg = ClientWebConfig.get().sling();
-        boolean sneak = mc.options.keyShift.isDown();
-        boolean can = dual(player) && sneak && cfg.power() > 0 && !player.isPassenger();
         if (slingStart == Long.MIN_VALUE) {
             glide(player, now, lineOut);
-            if (!(can && pressed && player.onGround() && !lineOut)) return false;
-            Vec3[] a = anchors(player);
-            slingStart = now;
-            SLINGS.put(player.getId(), a);
-            PacketDistributor.sendToServer(new WebSlingPayload(0, WebSlingPayload.START, a[0].x, a[0].y, a[0].z,
-                    a[1].x, a[1].y, a[1].z));
-            return true;
+            return;
         }
-        if (!can) {
+        if (!canSling(mc, player)) {
             cancelSling(player);
-            return true;
+            return;
         }
         double charge = WebRules.slingPower(now - slingStart, cfg.chargeSeconds() * 20, cfg.minPowerPercent());
         if (useDown) {
             int filled = (int) Math.round(charge * 10);
             player.displayClientMessage(Component.literal("§f" + "■".repeat(filled) + "§8" + "■".repeat(10 - filled)),
                     true);
-            return true;
+            return;
         }
         Vec3 dir = player.getViewVector(1.0f).add(0, 0.15, 0).normalize();
         player.setDeltaMovement(dir.scale(cfg.power() / 20.0 * charge));
@@ -237,7 +247,6 @@ public final class WebCombatClient {
         slingStart = Long.MIN_VALUE;
         SLINGS.remove(player.getId());
         PacketDistributor.sendToServer(WebSlingPayload.end(0, WebSlingPayload.LAUNCH));
-        return true;
     }
 
     /**

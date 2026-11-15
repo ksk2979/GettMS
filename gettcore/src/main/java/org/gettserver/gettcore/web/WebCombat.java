@@ -49,8 +49,8 @@ import org.gettserver.gettcore.network.WebSlingPayload;
 import org.gettserver.gettcore.pet.boss.GettBoss;
 
 /**
- * 발사기를 양손에 하나씩 찼을 때: 이동속도 증가, 거미줄 쏘기(원거리 피해), 거미줄 묶기(대상을 그 자리에 묶음),
- * 슬링샷(이동은 클라이언트가 하고 서버는 주변에 알리고 착지 판정만 이어 준다).
+ * 발사기를 오른손(주 손)에 찼을 때: 거미줄 쏘기(원거리 피해), 거미줄 묶기(대상을 그 자리에 묶음), 슬링샷(이동은
+ * 클라이언트가 하고 서버는 주변에 알리고 착지 판정만 이어 준다). 양손에 하나씩 차면 이동속도도 오른다.
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class WebCombat {
@@ -70,8 +70,7 @@ public final class WebCombat {
 
     /** A web shooter in each hand. */
     public static boolean dual(Player player) {
-        return player.getMainHandItem().is(GettCore.WEB_SHOOTER.get())
-                && player.getOffhandItem().is(GettCore.WEB_SHOOTER.get());
+        return WebHands.dual(player);
     }
 
     public static boolean isBound(Entity entity) {
@@ -90,7 +89,8 @@ public final class WebCombat {
     // ---- attacks ----
 
     public static void attack(ServerPlayer player, boolean bind, boolean offhand) {
-        if (!player.isAlive() || player.isSpectator() || !dual(player)) return;
+        if (!player.isAlive() || player.isSpectator() || !WebHands.main(player)) return;
+        offhand = offhand && dual(player);
         WebConfig cfg = GettData.get().web();
         WebConfig.Combat combat = cfg.combat();
         long now = player.server.getTickCount();
@@ -254,7 +254,7 @@ public final class WebCombat {
     // ---- slingshot ----
 
     public static void sling(ServerPlayer player, WebSlingPayload p) {
-        if (!player.isAlive() || player.isSpectator() || !dual(player)) return;
+        if (!player.isAlive() || player.isSpectator() || !WebHands.main(player)) return;
         PacketDistributor.sendToPlayersTrackingEntity(player, new WebSlingPayload(player.getId(), p.state(),
                 p.ax(), p.ay(), p.az(), p.bx(), p.by(), p.bz()));
         if (p.state() == WebSlingPayload.LAUNCH) {
