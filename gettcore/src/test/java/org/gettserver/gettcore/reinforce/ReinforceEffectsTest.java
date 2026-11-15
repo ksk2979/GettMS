@@ -118,6 +118,33 @@ class ReinforceEffectsTest {
     }
 
     @Test
+    void damageCurveReplacesThePerLevelPercents() {
+        java.util.List<String> warnings = new java.util.ArrayList<>();
+        // out of order, one bad point: sorted and dropped by sanitize
+        ReinforceConfig c = ReinforceConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                com.google.gson.JsonParser.parseString("{\"damageCurve\":[{\"level\":20,\"percent\":120},"
+                        + "{\"level\":10,\"percent\":50},{\"level\":30,\"percent\":200},{\"level\":0,\"percent\":9}]}"))
+                .getOrThrow().sanitized(warnings);
+        assertEquals(1, warnings.size());
+        assertEquals(3, c.damageCurve().size());
+        assertEquals(0, ReinforceEffects.tooltipValue(Target.GUN, 0, c), EPS);
+        assertEquals(5, ReinforceEffects.tooltipValue(Target.GUN, 1, c), EPS);
+        assertEquals(50, ReinforceEffects.tooltipValue(Target.MELEE, 10, c), EPS);
+        assertEquals(57, ReinforceEffects.tooltipValue(Target.RANGED, 11, c), EPS);
+        assertEquals(120, ReinforceEffects.tooltipValue(Target.GUN, 20, c), EPS);
+        assertEquals(200, ReinforceEffects.tooltipValue(Target.GUN, 30, c), EPS);
+        assertEquals(208, ReinforceEffects.tooltipValue(Target.GUN, 31, c), EPS); // keeps the last slope
+        assertEquals(3.0, ReinforceRules.gunMultiplier(30, c), EPS);
+        assertEquals(1.2, ReinforceRules.meleeFraction(20, c), EPS);
+        // shield and armor are not on the curve
+        assertEquals(5.1, ReinforceEffects.tooltipValue(Target.SHIELD, 3, c), EPS);
+        // survives a round trip; without a curve nothing changes
+        assertEquals(c, ReinforceConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                ReinforceConfig.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, c).getOrThrow()).getOrThrow());
+        assertEquals(30, ReinforceEffects.tooltipValue(Target.GUN, 3, D), EPS);
+    }
+
+    @Test
     void fmtDropsTrailingZero() {
         assertEquals("10", ReinforceEffects.fmt(10.0));
         assertEquals("0", ReinforceEffects.fmt(0.0));

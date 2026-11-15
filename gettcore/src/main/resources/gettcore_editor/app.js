@@ -2192,6 +2192,7 @@
     enchantGoldCost: 1000,
     elytra: { firstStoneCost: 32, firstGoldCost: 50000, speedPercentPerLevel: 2, fireworkBoostLevel: 15, fireworkBoostPercent: 50 },
     milestones: [],
+    damageCurve: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
   const REINFORCE_TARGETS = [['gun', '총'], ['melee', '근접'], ['ranged', '활·석궁·삼지창'], ['shield', '방패'], ['armor', '방어구']];
@@ -2236,10 +2237,32 @@
     // 단계 능력: 서버 코덱은 빠진 칸을 기본값(target·effect 빈 문자열, level·amplifier 0)으로 읽는다.
     r.milestones = (Array.isArray(r.milestones) ? r.milestones : []).map((m) => Object.assign(
       { target: '', level: 0, effect: '', amplifier: 0 }, m && typeof m === 'object' ? m : {}));
+    r.damageCurve = (Array.isArray(r.damageCurve) ? r.damageCurve : []).map((p) => Object.assign(
+      { level: 0, percent: 0 }, p && typeof p === 'object' ? p : {}));
     return r;
   }
 
+  /** 피해 곡선 글자 ↔ 점 목록: "10:50, 20:120, 30:200" (단계:합계 %). 읽을 수 없는 조각은 NaN 점이 되어 검사에 걸린다. */
+  const curveText = (curve) => curve.map((p) => `${p.level}:${p.percent}`).join(', ');
+  function parseCurve(text) {
+    return text.split(',').map((s) => s.trim()).filter((s) => s).map((s) => {
+      const m = /^(\d+)\s*:\s*(\d+(?:\.\d+)?)$/.exec(s);
+      return m ? { level: Number(m[1]), percent: Number(m[2]) } : { level: NaN, percent: NaN };
+    });
+  }
+
   const reinforceRules = {
+    curve(list) {
+      const seen = new Set();
+      for (const p of list) {
+        if (!isInt(p.level) || p.level < 1 || p.level > REINFORCE_MAX_LEVEL || !isNum(p.percent) || p.percent < 0) {
+          return `"단계:퍼센트" 를 쉼표로 이어 적으세요 (예: 10:50, 20:120, 30:200). 단계는 1~${REINFORCE_MAX_LEVEL}`;
+        }
+        if (seen.has(p.level)) return `${p.level}강이 두 번 나옵니다`;
+        seen.add(p.level);
+      }
+      return '';
+    },
     maxLevel(v) { return validMaxLevel(v) ? '' : `1~${REINFORCE_MAX_LEVEL} 사이의 정수여야 합니다`; },
     nonNeg(v) { return isNum(v) && v >= 0 ? '' : '0 이상의 숫자여야 합니다'; },
     percent(v) { return isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'; },
@@ -2271,6 +2294,7 @@
     r.successPercent.forEach((v, n) => add(reinforceRules.percent(v), `${reinforceStep(n)} 성공 확률`));
     r.stoneCost.forEach((v, n) => add(reinforceRules.stones(v), `${reinforceStep(n)} 강화석 개수`));
     r.goldCost.forEach((v, n) => add(reinforceRules.gold(v), `${reinforceStep(n)} 골드`));
+    add(reinforceRules.curve(r.damageCurve), '피해 곡선');
     add(reinforceRules.gold(r.enchantGoldCost), '마법부여 골드');
     add(reinforceRules.stones(r.elytra.firstStoneCost), '겉날개 1강 강화석');
     add(reinforceRules.gold(r.elytra.firstGoldCost), '겉날개 1강 골드');
@@ -2328,7 +2352,12 @@
         h('div', { class: 'field' }, labeled('최대 단계', maxIn, `(1~${REINFORCE_MAX_LEVEL})`)),
         REINFORCE_GLOBALS.map(([key, label, unit]) => h('div', { class: 'field' },
           labeled(label, numIn(checks, r, key, label, reinforceRules.nonNeg), unit))),
-        h('p', { class: 'muted' }, '각 수치에 강화 단계를 곱해 적용합니다 (예: 총 피해 10 이면 +3 무기는 +30%). 체력 상한 0 = 상한 없음.'));
+        h('p', { class: 'muted' }, '각 수치에 강화 단계를 곱해 적용합니다 (예: 총 피해 10 이면 +3 무기는 +30%). 체력 상한 0 = 상한 없음.'),
+        h('div', { class: 'field' }, labeled('피해 곡선', checks.add(h('input', { type: 'text', 'aria-label': '피해 곡선',
+          style: 'width:18rem', placeholder: '예: 10:50, 20:120, 30:200', value: curveText(r.damageCurve),
+          oninput: (e) => { r.damageCurve = parseCurve(e.target.value); changed(); } }),
+          () => reinforceRules.curve(r.damageCurve)), '(단계:합계 %)')),
+        h('p', { class: 'muted' }, '피해 곡선을 적으면 총·근접·활 피해는 위의 %/단계 대신 곡선을 따릅니다. 적은 단계에서 그 합계가 되고 사이 단계는 고르게 나뉩니다 (예: 10:50, 20:120, 30:200 → 1~10강 5%씩, 11~20강 7%씩, 21~30강 8%씩). 비우면 %/단계 방식.'));
       const stepCard = h('div', { class: 'card' }, h('h2', null, '단계별'),
         h('p', { class: 'muted' }, '최대 단계를 바꾸면 표가 따라 늘거나 줄어듭니다. 늘어난 칸은 마지막 값을 복사합니다.'),
         h('div', { class: 'scroll-x' }, h('table', null,

@@ -156,15 +156,15 @@ public class ReinforceScreen extends AbstractContainerScreen<ReinforceMenu> {
     private static Component effectLine(ReinforceRules.Target target, int next, ReinforceConfig config) {
         return switch (target) {
             case GUN -> Component.translatable("gettcore.screen.reinforce.effect.gun",
-                    fmt(next * config.gunDamagePercentPerLevel()));
+                    fmt(ReinforceRules.gunPercent(next, config)));
             case MELEE -> Component.translatable("gettcore.screen.reinforce.effect.melee",
-                    fmt(next * config.meleeDamagePercentPerLevel()));
+                    fmt(ReinforceRules.meleePercent(next, config)));
             case SHIELD -> Component.translatable("gettcore.screen.reinforce.effect.shield",
                     fmt(next * config.shieldSpeedPercentPerLevel()));
             case ARMOR -> Component.translatable("gettcore.screen.reinforce.effect.armor",
                     fmt(ReinforceRules.armorHealth(next, config)), fmt(ReinforceRules.armorDefense(next, config)));
             case RANGED -> Component.translatable("gettcore.screen.reinforce.effect.ranged",
-                    fmt(next * config.rangedDamagePercentPerLevel()));
+                    fmt(ReinforceRules.rangedPercent(next, config)));
             case ELYTRA -> Component.translatable(ReinforceEffects.elytraScreenKey(next),
                     fmt(ReinforceRules.elytraSpeedPercent(next, config)),
                     fmt(ReinforceRules.elytraFireworkPercent(next, config)));

@@ -17,6 +17,7 @@ import net.minecraft.resources.ResourceLocation;
 /**
  * {@code config/gettcore/reinforce.json}: 장비 강화 수치. {@code successPercent[N]}/{@code stoneCost[N]} 은 단계 N → N+1
  * 강화의 성공률(%)과 필요 강화석 수. 빠진 필드는 기본값; 범위 밖 값은 {@link #sanitized(List)} 가 고친다.
+ * {@code damageCurve} 가 비어 있지 않으면 총·근접·원거리 피해 증가는 단계당 고정값 대신 그 곡선을 따른다.
  */
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                               List<Long> goldCost,
@@ -24,7 +25,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                               double rangedDamagePercentPerLevel,
                               double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
                               double armorDefensePerLevel, long enchantGoldCost, Elytra elytra,
-                              List<Milestone> milestones) {
+                              List<Milestone> milestones, List<CurvePoint> damageCurve) {
 
     public static final String FILE = "reinforce.json";
 
@@ -141,11 +142,40 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         }
     }
 
+    /**
+     * 피해 곡선의 한 점: {@code level} 강에서 피해 증가 합계가 {@code percent} %. 점 사이는 직선으로 잇고(0강 = 0%),
+     * 마지막 점 뒤로는 마지막 구간의 기울기를 이어 간다. 예: 10강 50, 20강 120, 30강 200.
+     */
+    public record CurvePoint(int level, double percent) {
+        public static final Codec<CurvePoint> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Codec.INT.optionalFieldOf("level", 0).forGetter(CurvePoint::level),
+                Codec.DOUBLE.optionalFieldOf("percent", 0.0).forGetter(CurvePoint::percent)
+        ).apply(i, CurvePoint::new));
+    }
+
     public ReinforceConfig {
         successPercent = List.copyOf(successPercent);
         stoneCost = List.copyOf(stoneCost);
         goldCost = List.copyOf(goldCost);
         milestones = List.copyOf(milestones);
+        damageCurve = List.copyOf(damageCurve);
+    }
+
+    /** Without a damage curve (the per-level percents apply). */
+    public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost, List<Long> goldCost,
+                           double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
+                           double rangedDamagePercentPerLevel, double shieldSpeedPercentPerLevel,
+                           double armorHealthPerLevel, double armorHealthMax, double armorDefensePerLevel,
+                           long enchantGoldCost, Elytra elytra, List<Milestone> milestones) {
+        this(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax,
+                armorDefensePerLevel, enchantGoldCost, elytra, milestones, List.of());
+    }
+
+    public ReinforceConfig withDamageCurve(List<CurvePoint> curve) {
+        return new ReinforceConfig(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel,
+                meleeDamagePercentPerLevel, rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel,
+                armorHealthPerLevel, armorHealthMax, armorDefensePerLevel, enchantGoldCost, elytra, milestones, curve);
     }
 
     /** Without milestones (empty list), default armor defense. */
@@ -167,7 +197,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                 DEFAULT_ENCHANT_GOLD, Elytra.DEFAULT, milestones);
     }
 
-    public static final Codec<ReinforceConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
+    /** The 16 fields without the damage curve (a codec group holds at most 16). */
+    private static final com.mojang.serialization.MapCodec<ReinforceConfig> BASE_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.INT.optionalFieldOf("maxLevel", DEFAULT.maxLevel).forGetter(ReinforceConfig::maxLevel),
             Codec.DOUBLE.listOf().optionalFieldOf("successPercent", DEFAULT.successPercent)
                     .forGetter(ReinforceConfig::successPercent),
@@ -193,6 +224,12 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
             Milestone.CODEC.listOf().optionalFieldOf("milestones", DEFAULT.milestones)
                     .forGetter(ReinforceConfig::milestones)
     ).apply(i, ReinforceConfig::new));
+
+    public static final Codec<ReinforceConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
+            BASE_CODEC.forGetter(c -> c),
+            CurvePoint.CODEC.listOf().optionalFieldOf("damageCurve", List.of())
+                    .forGetter(ReinforceConfig::damageCurve)
+    ).apply(i, ReinforceConfig::withDamageCurve));
 
     /** Sent over the wire as the JSON text (the config is small; the client re-parses it). */
     public static final StreamCodec<ByteBuf, ReinforceConfig> STREAM_CODEC = ByteBufCodecs.stringUtf8(1 << 20).map(
@@ -269,7 +306,26 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                 nonNegative("armorHealthMax", armorHealthMax, DEFAULT.armorHealthMax, warnings),
                 nonNegative("armorDefensePerLevel", armorDefensePerLevel, DEFAULT_ARMOR_DEFENSE, warnings),
                 enchantGold, elytra.sanitized(warnings),
-                sanitizedMilestones(milestones, max, warnings));
+                sanitizedMilestones(milestones, max, warnings), sanitizedCurve(damageCurve, warnings));
+    }
+
+    /** Points with a level outside 1..50 or a percent that is not a number &gt;= 0 are dropped; sorted by level. */
+    private static List<CurvePoint> sanitizedCurve(List<CurvePoint> curve, List<String> warnings) {
+        List<CurvePoint> out = new ArrayList<>(curve.size());
+        for (int n = 0; n < curve.size(); n++) {
+            CurvePoint p = curve.get(n);
+            int level = p.level();
+            if (level < 1 || level > MAX_LEVEL_LIMIT || !Double.isFinite(p.percent()) || p.percent() < 0) {
+                warnings.add(FILE + ": damageCurve[" + n + "] needs a level within [1, " + MAX_LEVEL_LIMIT
+                        + "] and a percent >= 0, removed");
+            } else if (out.stream().anyMatch(o -> o.level() == level)) {
+                warnings.add(FILE + ": damageCurve[" + n + "] repeats level " + level + ", removed");
+            } else {
+                out.add(p);
+            }
+        }
+        out.sort(java.util.Comparator.comparingInt(CurvePoint::level));
+        return out.equals(curve) ? curve : out;
     }
 
     private static List<Milestone> sanitizedMilestones(List<Milestone> list, int max, List<String> warnings) {

@@ -134,12 +134,12 @@ public final class ReinforceEffects {
     public static double tooltipValue(Target target, int level, ReinforceConfig cfg) {
         int n = Math.max(0, level);
         return switch (target) {
-            case GUN -> n * cfg.gunDamagePercentPerLevel();
-            case MELEE -> n * cfg.meleeDamagePercentPerLevel();
+            case GUN -> ReinforceRules.gunPercent(n, cfg);
+            case MELEE -> ReinforceRules.meleePercent(n, cfg);
             case SHIELD -> n * cfg.shieldSpeedPercentPerLevel();
             case ARMOR -> ReinforceRules.armorHealth(n, cfg);
             case ELYTRA -> ReinforceRules.elytraSpeedPercent(n, cfg);
-            case RANGED -> n * cfg.rangedDamagePercentPerLevel();
+            case RANGED -> ReinforceRules.rangedPercent(n, cfg);
         };
     }
 

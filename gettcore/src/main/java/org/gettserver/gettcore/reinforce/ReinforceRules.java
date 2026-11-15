@@ -139,19 +139,53 @@ public final class ReinforceRules {
         return level >= config.elytra().fireworkBoostLevel() ? config.elytra().fireworkBoostPercent() : 0;
     }
 
-    /** 총 피해 배율 1 + N × gunDamagePercentPerLevel/100. */
+    /**
+     * 곡선 위의 피해 증가 %: (0강, 0%) 에서 시작해 점 사이를 직선으로 잇고, 마지막 점 뒤로는 마지막 구간의 기울기를
+     * 이어 간다. {@code curve} 는 단계 오름차순(sanitize 가 맞춘다).
+     */
+    public static double curvePercent(int level, List<ReinforceConfig.CurvePoint> curve) {
+        int n = Math.max(0, level);
+        double fromLevel = 0, fromPercent = 0, slope = 0;
+        for (ReinforceConfig.CurvePoint p : curve) {
+            slope = (p.percent() - fromPercent) / (p.level() - fromLevel);
+            if (n <= p.level()) break;
+            fromLevel = p.level();
+            fromPercent = p.percent();
+        }
+        return fromPercent + (n - fromLevel) * slope;
+    }
+
+    /** 피해 증가 %(합계): 곡선이 있으면 곡선, 없으면 N × perLevel. */
+    private static double damagePercent(int level, double perLevel, ReinforceConfig config) {
+        if (!config.damageCurve().isEmpty()) return curvePercent(level, config.damageCurve());
+        return Math.max(0, level) * perLevel;
+    }
+
+    public static double gunPercent(int level, ReinforceConfig config) {
+        return damagePercent(level, config.gunDamagePercentPerLevel(), config);
+    }
+
+    public static double meleePercent(int level, ReinforceConfig config) {
+        return damagePercent(level, config.meleeDamagePercentPerLevel(), config);
+    }
+
+    public static double rangedPercent(int level, ReinforceConfig config) {
+        return damagePercent(level, config.rangedDamagePercentPerLevel(), config);
+    }
+
+    /** 총 피해 배율 1 + 피해 증가 %/100 (기본 N × gunDamagePercentPerLevel). */
     public static double gunMultiplier(int level, ReinforceConfig config) {
-        return 1 + Math.max(0, level) * config.gunDamagePercentPerLevel() / 100;
+        return 1 + gunPercent(level, config) / 100;
     }
 
-    /** 활·석궁 화살, 삼지창(투척·찌르기) 피해 배율 1 + N × rangedDamagePercentPerLevel/100. */
+    /** 활·석궁 화살, 삼지창(투척·찌르기) 피해 배율 1 + 피해 증가 %/100. */
     public static double rangedMultiplier(int level, ReinforceConfig config) {
-        return 1 + Math.max(0, level) * config.rangedDamagePercentPerLevel() / 100;
+        return 1 + rangedPercent(level, config) / 100;
     }
 
-    /** 근접 공격력 ADD_MULTIPLIED_TOTAL 값 N × meleeDamagePercentPerLevel/100 (기본 10%/단계 → 0.1×N). */
+    /** 근접 공격력 ADD_MULTIPLIED_TOTAL 값 = 피해 증가 %/100 (기본 10%/단계 → 0.1×N). */
     public static double meleeFraction(int level, ReinforceConfig config) {
-        return Math.max(0, level) * config.meleeDamagePercentPerLevel() / 100;
+        return meleePercent(level, config) / 100;
     }
 
     /** 방패 이동속도 ADD_MULTIPLIED_TOTAL 값 N × shieldSpeedPercentPerLevel/100. */
