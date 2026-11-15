@@ -106,7 +106,7 @@
   "gettcore.screen.cost.upgrade_material": "%s x%s (have %s)",
   "gettcore.msg.upgrade.success": "Upgraded to %s!",
   "gettcore.msg.reinforce.success": "Reinforced to +%s!",
-  "gettcore.msg.reinforce.fail": "Reinforce failed… %s stone(s) and %s gold were lost",
+  "gettcore.msg.reinforce.fail": "Reinforce failed",
   "gettcore.msg.reinforce.set": "Set to +%s",
   "gettcore.msg.reinforce.not_target": "This item cannot be reinforced",
   "gettcore.tooltip.reinforce.gun": "Reinforce +%s: Weapon damage +%s%%",
