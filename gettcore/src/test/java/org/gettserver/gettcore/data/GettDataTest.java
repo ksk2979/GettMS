@@ -485,7 +485,7 @@ class GettDataTest {
         assertTrue(r.errors().isEmpty(), r.errors().toString());
         assertTrue(r.warnings().stream().noneMatch(w -> w.contains("upgrade.json")), r.warnings().toString());
         assertTrue(Files.isRegularFile(dir.resolve("upgrade.json")));
-        assertEquals(136, data.upgrade().steps().size());
+        assertEquals(148, data.upgrade().steps().size());
 
         Files.writeString(dir.resolve("upgrade.json"), "{\"steps\":[{\"from\":\"a:x\",\"to\":\"a:y\","
                 + "\"material\":\"minecraft:diamond\",\"count\":0},{\"from\":\"a:x\",\"to\":\"a:z\",\"material\":\"m:m\"}]}");
@@ -602,6 +602,50 @@ class GettDataTest {
                 "bosses.json", BEAR_UPGRADE);
         new GettData().load(m);
         assertEquals(0, bear(m).getAsJsonArray("skills").size());
+    }
+
+    private static final String ARMOR_UPGRADE = "upgrade.json@vanilla_armor";
+
+    private static Path upgradeInstall(Path dir, String json, String... markerLines) throws IOException {
+        Path root = dir.resolve("gettcore");
+        Files.createDirectories(root);
+        Files.writeString(root.resolve("upgrade.json"), json);
+        Files.write(root.resolve(GettData.MARKER), java.util.List.of(markerLines));
+        return root;
+    }
+
+    @Test
+    void vanillaArmorUpgradeAppendsOnceAndKeepsOperatorSteps(@TempDir Path dir) throws IOException {
+        // (a) an earlier install: the armor steps are appended, the operator's own diamond helmet step wins
+        Path a = upgradeInstall(dir.resolve("a"), """
+                {"steps":[{"from":"a:x","to":"a:y","material":"minecraft:stick","count":2,"gold":5},
+                {"from":"minecraft:diamond_helmet","to":"minecraft:netherite_helmet","material":"minecraft:diamond","count":9,"gold":0}],
+                "backpackTiers":[]}""", "upgrade.json");
+        GettData data = new GettData();
+        GettData.LoadReport r = data.load(a);
+        assertTrue(r.errors().isEmpty(), r.errors().toString());
+        assertEquals(2 + 11, data.upgrade().steps().size());
+        assertEquals(5, data.upgrade().step("a:x").orElseThrow().gold());
+        assertEquals(9, data.upgrade().step("minecraft:diamond_helmet").orElseThrow().count());
+        var chest = data.upgrade().step("minecraft:leather_chestplate").orElseThrow();
+        assertEquals("minecraft:iron_chestplate", chest.to());
+        assertEquals("minecraft:iron_ingot", chest.material());
+        assertEquals(8, chest.count());
+        assertEquals(4, data.upgrade().step("minecraft:diamond_boots").orElseThrow().count());
+        assertTrue(data.upgrade().backpackTiers().isEmpty());
+        assertTrue(Files.readAllLines(a.resolve(GettData.MARKER)).contains(ARMOR_UPGRADE));
+
+        // (b) marker present: steps the operator removed are not added back
+        String emptied = "{\"steps\":[]}";
+        Path b = upgradeInstall(dir.resolve("b"), emptied, "upgrade.json", ARMOR_UPGRADE);
+        new GettData().load(b);
+        assertEquals(emptied, Files.readString(b.resolve("upgrade.json")));
+
+        // (c) an unreadable file is left alone and retried later (no marker line)
+        Path c = upgradeInstall(dir.resolve("c"), "{\"steps\":3}", "upgrade.json");
+        new GettData().load(c);
+        assertEquals("{\"steps\":3}", Files.readString(c.resolve("upgrade.json")));
+        assertFalse(Files.readAllLines(c.resolve(GettData.MARKER)).contains(ARMOR_UPGRADE));
     }
 
     @Test

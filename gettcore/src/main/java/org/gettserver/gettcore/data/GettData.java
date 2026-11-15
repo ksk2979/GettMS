@@ -76,6 +76,11 @@ public final class GettData {
     static final String ENCHANT_ARMOR_EQUAL = "enchant.json@armor_equal";
     /** One-shot upgrade (reinforce): adds only the 대장장이 -> blacksmith name mapping to an earlier npcs.json. */
     static final String NPC_BLACKSMITH_UPGRADE = "npcs.json@blacksmith";
+    /**
+     * One-shot upgrade (1.15.0): adds the bundled vanilla armor steps (leather → iron → diamond → netherite) to an
+     * upgrade.json installed earlier.
+     */
+    static final String UPGRADE_VANILLA_ARMOR = "upgrade.json@vanilla_armor";
 
     /** Callbacks run by /gett reload after data was re-read (e.g. Task 8: close open ShopMenu screens). */
     private static final Set<Runnable> RELOAD_HOOKS = new CopyOnWriteArraySet<>();
@@ -854,6 +859,73 @@ public final class GettData {
         applyBossGiraffeUpgrade(dir, marker, installed, errors);
         applyBearSkillsUpgrade(dir, marker, installed, errors);
         applyArmorEqualUpgrade(dir, marker, installed, errors);
+        applyVanillaArmorUpgrade(dir, marker, installed, errors);
+    }
+
+    /**
+     * One-shot upgrade.json patch: appends the bundled vanilla armor steps. A step whose {@code from} the file
+     * already uses is not added, so the operator's own step wins; everything else in the file stays. A freshly
+     * copied upgrade.json already has them; a deleted one is not resurrected. An unreadable upgrade.json is retried
+     * on the next load.
+     */
+    private static void applyVanillaArmorUpgrade(Path dir, Path marker, Set<String> installed, List<String> errors) {
+        if (installed.contains(UPGRADE_VANILLA_ARMOR)) return;
+        try {
+            Path file = dir.resolve("upgrade.json");
+            if (Files.isRegularFile(file) && !addVanillaArmorSteps(file)) return;
+            Files.writeString(marker, UPGRADE_VANILLA_ARMOR + "\n", StandardCharsets.UTF_8,
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+        } catch (IOException | RuntimeException e) {
+            errors.add("upgrade.json: adding vanilla armor steps failed: " + e.getMessage());
+        }
+    }
+
+    /** A vanilla armor step start: minecraft:(leather|iron|diamond)_(helmet|chestplate|leggings|boots). */
+    private static boolean isVanillaArmorFrom(String from) {
+        if (!from.startsWith("minecraft:")) return false;
+        String[] p = from.substring("minecraft:".length()).split("_", 2);
+        return p.length == 2 && Set.of("leather", "iron", "diamond").contains(p[0])
+                && Set.of("helmet", "chestplate", "leggings", "boots").contains(p[1]);
+    }
+
+    /** Edits the JSON tree so the operator's steps stay as written. False if the file is unreadable. */
+    private static boolean addVanillaArmorSteps(Path file) throws IOException {
+        com.google.gson.JsonObject root;
+        try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            JsonElement json = JsonParser.parseReader(r);
+            if (!json.isJsonObject()) return false;
+            root = json.getAsJsonObject();
+        } catch (com.google.gson.JsonParseException e) {
+            return false;
+        }
+        JsonElement stepsElement = root.get("steps");
+        if (stepsElement != null && !stepsElement.isJsonArray()) return false;
+        com.google.gson.JsonArray steps = stepsElement == null ? new com.google.gson.JsonArray()
+                : stepsElement.getAsJsonArray();
+        Set<String> used = new java.util.HashSet<>();
+        for (JsonElement e : steps) {
+            if (e.isJsonObject() && e.getAsJsonObject().get("from") instanceof com.google.gson.JsonPrimitive f) {
+                used.add(f.getAsString());
+            }
+        }
+        com.google.gson.JsonArray bundled;
+        try (InputStream in = GettData.class.getResourceAsStream("/gettcore_defaults/upgrade.json")) {
+            if (in == null) throw new IOException("missing bundled default: upgrade.json");
+            bundled = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject()
+                    .getAsJsonArray("steps");
+        }
+        boolean changed = false;
+        for (JsonElement e : bundled) {
+            String from = e.getAsJsonObject().get("from").getAsString();
+            if (!isVanillaArmorFrom(from) || !used.add(from)) continue;
+            steps.add(e.deepCopy());
+            changed = true;
+        }
+        if (changed) {
+            root.add("steps", steps);
+            writeJson(file, root);
+        }
+        return true;
     }
 
     /**

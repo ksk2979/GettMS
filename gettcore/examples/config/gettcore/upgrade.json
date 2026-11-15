@@ -951,6 +951,90 @@
       "material": "minecraft:netherite_ingot",
       "count": 1,
       "gold": 0
+    },
+    {
+      "from": "minecraft:leather_helmet",
+      "to": "minecraft:iron_helmet",
+      "material": "minecraft:iron_ingot",
+      "count": 5,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:iron_helmet",
+      "to": "minecraft:diamond_helmet",
+      "material": "minecraft:diamond",
+      "count": 5,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:diamond_helmet",
+      "to": "minecraft:netherite_helmet",
+      "material": "minecraft:netherite_ingot",
+      "count": 5,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:leather_chestplate",
+      "to": "minecraft:iron_chestplate",
+      "material": "minecraft:iron_ingot",
+      "count": 8,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:iron_chestplate",
+      "to": "minecraft:diamond_chestplate",
+      "material": "minecraft:diamond",
+      "count": 8,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:diamond_chestplate",
+      "to": "minecraft:netherite_chestplate",
+      "material": "minecraft:netherite_ingot",
+      "count": 8,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:leather_leggings",
+      "to": "minecraft:iron_leggings",
+      "material": "minecraft:iron_ingot",
+      "count": 7,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:iron_leggings",
+      "to": "minecraft:diamond_leggings",
+      "material": "minecraft:diamond",
+      "count": 7,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:diamond_leggings",
+      "to": "minecraft:netherite_leggings",
+      "material": "minecraft:netherite_ingot",
+      "count": 7,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:leather_boots",
+      "to": "minecraft:iron_boots",
+      "material": "minecraft:iron_ingot",
+      "count": 4,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:iron_boots",
+      "to": "minecraft:diamond_boots",
+      "material": "minecraft:diamond",
+      "count": 4,
+      "gold": 0
+    },
+    {
+      "from": "minecraft:diamond_boots",
+      "to": "minecraft:netherite_boots",
+      "material": "minecraft:netherite_ingot",
+      "count": 4,
+      "gold": 0
     }
   ],
   "backpackTiers": [
