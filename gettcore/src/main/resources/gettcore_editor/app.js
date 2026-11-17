@@ -2193,6 +2193,7 @@
     elytra: { firstStoneCost: 32, firstGoldCost: 50000, speedPercentPerLevel: 2, fireworkBoostLevel: 15, fireworkBoostPercent: 50 },
     milestones: [],
     damageCurve: [],
+    rangedDamageCurve: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
   const REINFORCE_TARGETS = [['gun', '총'], ['melee', '근접'], ['ranged', '활·석궁·삼지창'], ['shield', '방패'], ['armor', '방어구']];
@@ -2237,8 +2238,10 @@
     // 단계 능력: 서버 코덱은 빠진 칸을 기본값(target·effect 빈 문자열, level·amplifier 0)으로 읽는다.
     r.milestones = (Array.isArray(r.milestones) ? r.milestones : []).map((m) => Object.assign(
       { target: '', level: 0, effect: '', amplifier: 0 }, m && typeof m === 'object' ? m : {}));
-    r.damageCurve = (Array.isArray(r.damageCurve) ? r.damageCurve : []).map((p) => Object.assign(
-      { level: 0, percent: 0 }, p && typeof p === 'object' ? p : {}));
+    for (const key of ['damageCurve', 'rangedDamageCurve']) {
+      r[key] = (Array.isArray(r[key]) ? r[key] : []).map((p) => Object.assign(
+        { level: 0, percent: 0 }, p && typeof p === 'object' ? p : {}));
+    }
     return r;
   }
 
@@ -2295,6 +2298,7 @@
     r.stoneCost.forEach((v, n) => add(reinforceRules.stones(v), `${reinforceStep(n)} 강화석 개수`));
     r.goldCost.forEach((v, n) => add(reinforceRules.gold(v), `${reinforceStep(n)} 골드`));
     add(reinforceRules.curve(r.damageCurve), '피해 곡선');
+    add(reinforceRules.curve(r.rangedDamageCurve), '원거리 피해 곡선');
     add(reinforceRules.gold(r.enchantGoldCost), '마법부여 골드');
     add(reinforceRules.stones(r.elytra.firstStoneCost), '겉날개 1강 강화석');
     add(reinforceRules.gold(r.elytra.firstGoldCost), '겉날개 1강 골드');
@@ -2357,6 +2361,10 @@
           style: 'width:18rem', placeholder: '예: 10:50, 20:120, 30:200', value: curveText(r.damageCurve),
           oninput: (e) => { r.damageCurve = parseCurve(e.target.value); changed(); } }),
           () => reinforceRules.curve(r.damageCurve)), '(단계:합계 %)')),
+        h('div', { class: 'field' }, labeled('원거리 피해 곡선', checks.add(h('input', { type: 'text', 'aria-label': '원거리 피해 곡선',
+          style: 'width:18rem', placeholder: '비우면 위 곡선을 따름. 예: 10:30, 20:70, 30:120', value: curveText(r.rangedDamageCurve),
+          oninput: (e) => { r.rangedDamageCurve = parseCurve(e.target.value); changed(); } }),
+          () => reinforceRules.curve(r.rangedDamageCurve)), '(단계:합계 %, 활·석궁·삼지창만)')),
         h('p', { class: 'muted' }, '피해 곡선을 적으면 총·근접·활 피해는 위의 %/단계 대신 곡선을 따릅니다. 적은 단계에서 그 합계가 되고 사이 단계는 고르게 나뉩니다 (예: 10:50, 20:120, 30:200 → 1~10강 5%씩, 11~20강 7%씩, 21~30강 8%씩). 비우면 %/단계 방식.'));
       const stepCard = h('div', { class: 'card' }, h('h2', null, '단계별'),
         h('p', { class: 'muted' }, '최대 단계를 바꾸면 표가 따라 늘거나 줄어듭니다. 늘어난 칸은 마지막 값을 복사합니다.'),
@@ -2458,7 +2466,7 @@
     ['wisdom', '경험', 3, ['sword']],
     ['execute', '처형', 3, ['sword']],
     ['plunder', '전리품', 3, ['sword']],
-    ['volley', '다발', 1, ['bow']],
+    ['volley', '연발', 3, ['bow']],
     ['quickdraw', '속사', 3, ['bow']],
     ['homing', '추적', 1, ['bow']],
     ['lure', '손맛', 3, ['fishing_rod']],
@@ -2503,7 +2511,7 @@
     wisdom: { percent: [25, 50, 100] },
     execute: { healthPercent: 20, bonusPercent: [30, 60, 100] },
     plunder: { chance: [10, 20, 35] },
-    volley: { angleDegrees: 10 },
+    volley: { extraArrows: [1, 2, 4], intervalTicks: 3, extraDamagePercent: 50 },
     quickdraw: { percent: [15, 30, 45] },
     homing: { range: 8, coneDegrees: 30, steer: 0.1, targetPlayers: false },
     lure: { percent: [15, 30, 45] },
@@ -2607,7 +2615,9 @@
     ['execute', '남은 체력이 최대 체력의 "발동 체력" % 이하인 대상에게 추가 피해를 줍니다.',
       [['execute.healthPercent', '발동 체력', '% 이하 (모든 레벨 공통)', 'num'], ['execute.bonusPercent', '추가 피해', '%', 'tier']]],
     ['plunder', '처치 시 이 확률로 드롭을 한 번 더 얻습니다.', [['plunder.chance', '확률', '%', 'tier']]],
-    ['volley', '화살 3발을 수평 부채꼴로 쏩니다. 양옆 화살이 가운데 화살에서 벌어지는 각도입니다.', [['volley.angleDegrees', '벌어지는 각도', '도', 'num']]],
+    ['volley', '한 번 쏘면 같은 방향으로 화살이 연달아 나갑니다 (쏘는 화살 = 1 + 추가 화살). 추가 화살은 화살을 소모하지 않고 주울 수 없으며, 같은 몹에 연달아 맞아도 피해가 들어갑니다. 추가 화살 피해 50 = 원래 화살의 절반.',
+      [['volley.extraArrows', '추가 화살', '발', 'tier'], ['volley.intervalTicks', '화살 간격', '틱 (20틱 = 1초, 모든 레벨 공통)', 'num'],
+        ['volley.extraDamagePercent', '추가 화살 피해', '% (모든 레벨 공통)', 'num']]],
     ['quickdraw', '활을 당기는 시간이 이 %만큼 줄어듭니다 (100 이상이면 거의 바로 쏩니다).', [['quickdraw.percent', '단축', '%', 'tier']]],
     ['homing', '화살이 날아가는 방향에서 시야각 안, 범위 안에 있는 가까운 몹 쪽으로 휩니다. 꺾는 세기는 틱마다 방향을 얼마나 돌리는지(0 = 안 휨, 1 = 곧바로 대상 쪽)입니다.',
       [['homing.range', '범위', '칸', 'num'], ['homing.coneDegrees', '시야각', '도', 'num'], ['homing.steer', '꺾는 세기', '(0~1)', 'num'],

@@ -169,7 +169,9 @@ public final class ReinforceRules {
         return damagePercent(level, config.meleeDamagePercentPerLevel(), config);
     }
 
+    /** 원거리 전용 곡선이 있으면 그것, 없으면 공용 곡선, 그것도 없으면 N × perLevel. */
     public static double rangedPercent(int level, ReinforceConfig config) {
+        if (!config.rangedDamageCurve().isEmpty()) return curvePercent(level, config.rangedDamageCurve());
         return damagePercent(level, config.rangedDamagePercentPerLevel(), config);
     }
 

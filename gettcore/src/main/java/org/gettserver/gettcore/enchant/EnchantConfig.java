@@ -15,7 +15,7 @@ import org.gettserver.gettcore.enchant.SpecialEnchants.LevelWeights;
  */
 public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bounty, Tiered vein, Tiered timber,
                             Tiered lumber, Tiered sweepRadius, double sweepDamagePercent, Tiered leech, Tiered wisdom,
-                            double executeHealthPercent, Tiered executeBonus, Tiered plunder, double volleyAngle,
+                            double executeHealthPercent, Tiered executeBonus, Tiered plunder, Volley volley,
                             Tiered quickdraw, double homingRange, double homingCone, double homingSteer,
                             boolean homingTargetPlayers, Tiered lure, Tiered bigcatch, Tiered treasure,
                             Tiered prospectRange, Tiered prospectDurationSeconds, Tiered prospectCooldownSeconds,
@@ -50,10 +50,29 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
         }
     }
 
+    /**
+     * 연발: 한 번 쏘면 같은 방향으로 화살이 연달아 나간다. {@code extraArrows} = 레벨별 추가 화살 수,
+     * {@code intervalTicks} = 화살 사이 간격(틱), {@code extraDamagePercent} = 추가 화살의 피해(원래 화살 대비 %).
+     */
+    public record Volley(Tiered extraArrows, double intervalTicks, double extraDamagePercent) {
+        static final Volley DEFAULT_VOLLEY = new Volley(new Tiered(1, 2, 4), 3, 50);
+        static final Codec<Volley> CODEC = RecordCodecBuilder.create(i -> i.group(
+                Tiered.CODEC.optionalFieldOf("extraArrows", DEFAULT_VOLLEY.extraArrows).forGetter(Volley::extraArrows),
+                Codec.DOUBLE.optionalFieldOf("intervalTicks", DEFAULT_VOLLEY.intervalTicks).forGetter(Volley::intervalTicks),
+                Codec.DOUBLE.optionalFieldOf("extraDamagePercent", DEFAULT_VOLLEY.extraDamagePercent)
+                        .forGetter(Volley::extraDamagePercent)
+        ).apply(i, Volley::new));
+
+        /** 레벨의 추가 화살 수(소수는 버림). */
+        public int extra(int level) {
+            return (int) Math.floor(extraArrows.get(level));
+        }
+    }
+
     public static final EnchantConfig DEFAULT = new EnchantConfig(LevelWeights.DEFAULT,
             new Tiered(1, 2, 3), new Tiered(10, 20, 35), new Tiered(8, 16, 32), new Tiered(16, 32, 64),
             new Tiered(10, 20, 35), new Tiered(1.5, 2.0, 2.5), 50, new Tiered(5, 10, 15), new Tiered(25, 50, 100),
-            20, new Tiered(30, 60, 100), new Tiered(10, 20, 35), 10, new Tiered(15, 30, 45),
+            20, new Tiered(30, 60, 100), new Tiered(10, 20, 35), Volley.DEFAULT_VOLLEY, new Tiered(15, 30, 45),
             8, 30, 0.1, false, new Tiered(15, 30, 45), new Tiered(10, 20, 35), new Tiered(15, 30, 45),
             new Tiered(8, 12, 16), new Tiered(30, 35, 45), new Tiered(70, 65, 60), ArmorConfig.DEFAULT,
             PoolConfig.DEFAULT);
@@ -125,7 +144,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
     }
 
     /** 검·활·낚싯대. */
-    private record Combat(Sweep sweep, Tiered leech, Tiered wisdom, Execute execute, Tiered plunder, double volleyAngle,
+    private record Combat(Sweep sweep, Tiered leech, Tiered wisdom, Execute execute, Tiered plunder, Volley volley,
                           Tiered quickdraw, Homing homing, Tiered lure, Tiered bigcatch, Tiered treasure) {
         static final MapCodec<Combat> CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
                 Sweep.CODEC.optionalFieldOf("sweep", Sweep.DEFAULT_SWEEP).forGetter(Combat::sweep),
@@ -133,9 +152,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tieredSection("wisdom", "percent", DEFAULT.wisdom()).forGetter(Combat::wisdom),
                 Execute.CODEC.optionalFieldOf("execute", Execute.DEFAULT_EXECUTE).forGetter(Combat::execute),
                 tieredSection("plunder", "chance", DEFAULT.plunder()).forGetter(Combat::plunder),
-                Codec.DOUBLE.optionalFieldOf("angleDegrees", DEFAULT.volleyAngle()).codec()
-                        .optionalFieldOf("volley", DEFAULT.volleyAngle())
-                        .forGetter(Combat::volleyAngle),
+                Volley.CODEC.optionalFieldOf("volley", Volley.DEFAULT_VOLLEY).forGetter(Combat::volley),
                 tieredSection("quickdraw", "percent", DEFAULT.quickdraw()).forGetter(Combat::quickdraw),
                 Homing.CODEC.optionalFieldOf("homing", Homing.DEFAULT_HOMING).forGetter(Combat::homing),
                 tieredSection("lure", "percent", DEFAULT.lure()).forGetter(Combat::lure),
@@ -154,7 +171,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
         Combat c = p.getSecond();
         return new EnchantConfig(t.levelWeights(), t.harvest(), t.bounty(), t.vein(), t.timber(), t.lumber(),
                 c.sweep().radius(), c.sweep().damagePercent(), c.leech(), c.wisdom(),
-                c.execute().healthPercent(), c.execute().bonusPercent(), c.plunder(), c.volleyAngle(), c.quickdraw(),
+                c.execute().healthPercent(), c.execute().bonusPercent(), c.plunder(), c.volley(), c.quickdraw(),
                 c.homing().range(), c.homing().coneDegrees(), c.homing().steer(), c.homing().targetPlayers(),
                 c.lure(), c.bigcatch(), c.treasure(),
                 t.prospect().range(), t.prospect().durationSeconds(), t.prospect().cooldownSeconds(), t.armor(),
@@ -165,7 +182,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
         return Pair.of(new Tools(levelWeights, harvest, bounty, vein, timber, lumber,
                         new Prospect(prospectRange, prospectDurationSeconds, prospectCooldownSeconds), armor, pool),
                 new Combat(new Sweep(sweepRadius, sweepDamagePercent), leech, wisdom,
-                        new Execute(executeHealthPercent, executeBonus), plunder, volleyAngle, quickdraw,
+                        new Execute(executeHealthPercent, executeBonus), plunder, volley, quickdraw,
                         new Homing(homingRange, homingCone, homingSteer, homingTargetPlayers),
                         lure, bigcatch, treasure));
     }
@@ -192,7 +209,10 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 scalar("execute.healthPercent", executeHealthPercent, d.executeHealthPercent, errors),
                 tiered("execute.bonusPercent", executeBonus, d.executeBonus, errors),
                 tiered("plunder.chance", plunder, d.plunder, errors),
-                scalar("volley.angleDegrees", volleyAngle, d.volleyAngle, errors),
+                new Volley(tiered("volley.extraArrows", volley.extraArrows(), d.volley.extraArrows(), errors),
+                        scalar("volley.intervalTicks", volley.intervalTicks(), d.volley.intervalTicks(), errors),
+                        scalar("volley.extraDamagePercent", volley.extraDamagePercent(), d.volley.extraDamagePercent(),
+                                errors)),
                 tiered("quickdraw.percent", quickdraw, d.quickdraw, errors),
                 scalar("homing.range", homingRange, d.homingRange, errors),
                 scalar("homing.coneDegrees", homingCone, d.homingCone, errors),
@@ -238,7 +258,7 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
             case BIGCATCH -> bigcatch.get(level);
             case TREASURE -> treasure.get(level);
             case PROSPECT -> prospectRange.get(level);
-            case VOLLEY -> volleyAngle;
+            case VOLLEY -> 1 + volley.extra(level); // 쏘는 화살 수(원래 화살 포함)
             case HOMING -> homingRange;
             case SWIFT -> armor.swift().get(level);
             case GOGGLES -> armor.gogglesSeconds();

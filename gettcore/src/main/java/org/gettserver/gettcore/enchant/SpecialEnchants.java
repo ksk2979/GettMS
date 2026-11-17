@@ -67,7 +67,7 @@ public final class SpecialEnchants {
         WISDOM("wisdom", Tool.SWORD, 3),
         EXECUTE("execute", Tool.SWORD, 3),
         PLUNDER("plunder", Tool.SWORD, 3),
-        VOLLEY("volley", Tool.BOW, 1),
+        VOLLEY("volley", Tool.BOW, 3),
         QUICKDRAW("quickdraw", Tool.BOW, 3),
         HOMING("homing", Tool.BOW, 1),
         LURE("lure", Tool.FISHING_ROD, 3),

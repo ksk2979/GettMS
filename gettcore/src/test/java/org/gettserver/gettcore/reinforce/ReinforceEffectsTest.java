@@ -118,6 +118,26 @@ class ReinforceEffectsTest {
     }
 
     @Test
+    void rangedCurveOverridesTheSharedCurveForRangedOnly() {
+        java.util.List<String> warnings = new java.util.ArrayList<>();
+        ReinforceConfig c = ReinforceConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                com.google.gson.JsonParser.parseString("{\"damageCurve\":[{\"level\":10,\"percent\":50}],"
+                        + "\"rangedDamageCurve\":[{\"level\":10,\"percent\":20},{\"level\":99,\"percent\":1}]}"))
+                .getOrThrow().sanitized(warnings);
+        assertEquals(1, warnings.size());
+        assertTrue(warnings.get(0).contains("rangedDamageCurve"));
+        assertEquals(20, ReinforceEffects.tooltipValue(Target.RANGED, 10, c), EPS);
+        assertEquals(1.1, ReinforceRules.rangedMultiplier(5, c), EPS);
+        assertEquals(50, ReinforceEffects.tooltipValue(Target.MELEE, 10, c), EPS);
+        assertEquals(50, ReinforceEffects.tooltipValue(Target.GUN, 10, c), EPS);
+        // the ranged curve survives a round trip; without it the shared curve applies
+        ReinforceConfig back = ReinforceConfig.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                ReinforceConfig.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, c).getOrThrow()).getOrThrow();
+        assertEquals(c, back);
+        assertEquals(50, ReinforceEffects.tooltipValue(Target.RANGED, 10, c.withRangedDamageCurve(java.util.List.of())), EPS);
+    }
+
+    @Test
     void damageCurveReplacesThePerLevelPercents() {
         java.util.List<String> warnings = new java.util.ArrayList<>();
         // out of order, one bad point: sorted and dropped by sanitize

@@ -147,7 +147,7 @@
   "enchantment.gettcore.plunder": "Plunder",
   "enchantment.gettcore.plunder.desc": "%s%% chance to get the kill's drops again",
   "enchantment.gettcore.volley": "Volley",
-  "enchantment.gettcore.volley.desc": "Shoots 3 arrows in a horizontal fan",
+  "enchantment.gettcore.volley.desc": "One shot fires %s arrows in a row",
   "enchantment.gettcore.quickdraw": "Quickdraw",
   "enchantment.gettcore.quickdraw.desc": "Reduces bow draw time by %s%%",
   "enchantment.gettcore.homing": "Homing",

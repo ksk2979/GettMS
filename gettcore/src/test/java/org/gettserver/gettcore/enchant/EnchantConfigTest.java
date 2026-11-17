@@ -72,11 +72,26 @@ class EnchantConfigTest {
     }
 
     @Test
+    void volleyReadsBurstSettingsAndIgnoresTheOldAngle() {
+        // a server file written before the burst rework only has angleDegrees: defaults apply
+        assertEquals(EnchantConfig.DEFAULT.volley(), parse("{\"volley\":{\"angleDegrees\":10}}").volley());
+        EnchantConfig c = parse("{\"volley\":{\"extraArrows\":[2,3,6],\"intervalTicks\":5,\"extraDamagePercent\":25}}");
+        assertEquals(6, c.volley().extra(3));
+        assertEquals(7, c.value(SpecialEnchants.Ability.VOLLEY, 3));
+        assertEquals(5, c.volley().intervalTicks());
+        List<String> errors = new ArrayList<>();
+        EnchantConfig bad = parse("{\"volley\":{\"extraArrows\":[1,2],\"extraDamagePercent\":-1}}").sanitized(errors);
+        assertEquals(EnchantConfig.DEFAULT.volley(), bad.volley());
+        assertEquals(2, errors.size(), errors.toString());
+    }
+
+    @Test
     void valueReturnsPrimaryTieredNumber() {
         EnchantConfig d = EnchantConfig.DEFAULT;
         assertEquals(2, d.value(SpecialEnchants.Ability.HARVEST, 2));
         assertEquals(100, d.value(SpecialEnchants.Ability.EXECUTE, 3));
-        assertEquals(10, d.value(SpecialEnchants.Ability.VOLLEY, 1));
+        assertEquals(2, d.value(SpecialEnchants.Ability.VOLLEY, 1));
+        assertEquals(5, d.value(SpecialEnchants.Ability.VOLLEY, 3));
         assertEquals(8, d.value(SpecialEnchants.Ability.HOMING, 1));
         assertEquals(0, d.value(SpecialEnchants.Ability.SMELT, 1));
     }

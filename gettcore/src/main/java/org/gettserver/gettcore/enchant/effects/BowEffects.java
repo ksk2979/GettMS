@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
@@ -17,11 +19,13 @@ import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.player.ArrowLooseEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -31,7 +35,7 @@ import org.gettserver.gettcore.data.GettData;
 import org.gettserver.gettcore.enchant.EnchantConfig;
 import org.gettserver.gettcore.enchant.SpecialEnchants.Ability;
 
-/** 활 특수 능력: 다발(좌우 화살 2발 추가), 속사(시위 당기기 가속), 추적(화살이 적에게 휨). */
+/** 활 특수 능력: 연발(같은 방향으로 화살을 연달아 더 쏨), 속사(시위 당기기 가속), 추적(화살이 적에게 휨). */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class BowEffects {
     /** 추적 화살 유지 시간(틱). */
@@ -46,16 +50,49 @@ public final class BowEffects {
 
     private BowEffects() {}
 
-    /** 다발: 바닐라 화살과 같은 힘으로 좌우 ±각도에 화살 2발을 더 쏜다. 추가 화살은 소모하지 않고 주울 수 없다. */
+    /** 연발 추가 화살 표시(persistentData). 맞은 대상의 피격 무적을 풀어 연달아 맞아도 피해가 들어가게 한다. */
+    static final String BURST_TAG = "gettcore_burst";
+
+    /** 쏘는 중인 연발. 서버 스레드 전용. */
+    private static final List<Burst> BURSTS = new ArrayList<>();
+
+    private static final class Burst {
+        final ServerPlayer player;
+        final ItemStack bow;
+        final ItemStack ammo;
+        final float power;
+        final int interval;
+        final double damageScale;
+        int remaining;
+        long next;
+
+        Burst(ServerPlayer player, ItemStack bow, ItemStack ammo, float power, int interval, double damageScale,
+              int remaining, long next) {
+            this.player = player;
+            this.bow = bow;
+            this.ammo = ammo;
+            this.power = power;
+            this.interval = interval;
+            this.damageScale = damageScale;
+            this.remaining = remaining;
+            this.next = next;
+        }
+    }
+
+    /**
+     * 연발: 바닐라 화살이 나간 뒤, 같은 힘으로 추가 화살을 간격을 두고 연달아 쏜다(쏘는 순간 바라보는 방향).
+     * 추가 화살은 소모하지 않고 주울 수 없으며, 피해는 설정한 %만큼.
+     */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onArrowLoose(ArrowLooseEvent event) {
         if (event.isCanceled()) return;
         Level level = event.getLevel();
-        if (!(level instanceof ServerLevel serverLevel)) return;
-        Player player = event.getEntity();
+        if (!(level instanceof ServerLevel)) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
         ItemStack bow = event.getBow();
-        if (!(bow.getItem() instanceof BowItem bowItem)) return;
-        if (EffectContext.activeLevel(player, Ability.VOLLEY, bow) <= 0) return;
+        if (!(bow.getItem() instanceof BowItem)) return;
+        int lvl = EffectContext.activeLevel(player, Ability.VOLLEY, bow);
+        if (lvl <= 0) return;
         int charge = event.getCharge();
         if (charge < 0) return;
         float power = BowItem.getPowerForTime(charge);
@@ -63,17 +100,70 @@ public final class BowEffects {
         ItemStack ammo = player.getProjectile(bow);
         if (ammo.isEmpty()) return; // 바닐라도 쏘지 않는다
 
-        ArrowItem arrowItem = ammo.getItem() instanceof ArrowItem a ? a : (ArrowItem) Items.ARROW;
-        double angle = GettData.get().enchant().volleyAngle();
-        for (int side = -1; side <= 1; side += 2) {
-            // createArrow(weapon)가 바닐라처럼 관통 수와 EnchantmentHelper.onProjectileSpawned(화염 등)를 적용한다
-            AbstractArrow arrow = arrowItem.createArrow(serverLevel, ammo, player, bow);
-            arrow = bowItem.customArrow(arrow, ammo, bow);
-            arrow.shootFromRotation(player, player.getXRot(), (float) (player.getYRot() + side * angle), 0.0F,
-                    power * 3.0F, 1.0F);
-            arrow.pickup = AbstractArrow.Pickup.CREATIVE_ONLY;
-            arrow.setCritArrow(power == 1.0F);
-            serverLevel.addFreshEntity(arrow);
+        EnchantConfig.Volley cfg = GettData.get().enchant().volley();
+        int extra = burstArrows(cfg.extra(lvl));
+        if (extra <= 0) return;
+        int interval = burstInterval(cfg.intervalTicks());
+        BURSTS.add(new Burst(player, bow.copy(), ammo.copyWithCount(1), power, interval,
+                cfg.extraDamagePercent() / 100.0, extra, level.getGameTime() + interval));
+    }
+
+    /** 추가 화살 수: 0..{@link #MAX_BURST_ARROWS}. */
+    static int burstArrows(int configured) {
+        return Math.max(0, Math.min(MAX_BURST_ARROWS, configured));
+    }
+
+    /** 화살 간격(틱): 1 이상의 정수로. */
+    static int burstInterval(double configured) {
+        return (int) Math.max(1, Math.min(40, Math.round(configured)));
+    }
+
+    /** 설정 실수로 화살이 쏟아지지 않게 하는 상한. */
+    static final int MAX_BURST_ARROWS = 16;
+
+    @SubscribeEvent
+    public static void onBurstTick(ServerTickEvent.Post event) {
+        if (BURSTS.isEmpty()) return;
+        Iterator<Burst> it = BURSTS.iterator();
+        while (it.hasNext()) {
+            Burst b = it.next();
+            ServerPlayer player = b.player;
+            if (player.isRemoved() || !player.isAlive() || player.hasDisconnected()
+                    || !(player.level() instanceof ServerLevel serverLevel)) {
+                it.remove();
+                continue;
+            }
+            if (serverLevel.getGameTime() < b.next) continue;
+            shootExtra(serverLevel, b);
+            b.next += b.interval;
+            if (--b.remaining <= 0) it.remove();
+        }
+    }
+
+    private static void shootExtra(ServerLevel level, Burst b) {
+        ServerPlayer player = b.player;
+        ArrowItem arrowItem = b.ammo.getItem() instanceof ArrowItem a ? a : (ArrowItem) Items.ARROW;
+        // createArrow(weapon)가 바닐라처럼 관통 수와 EnchantmentHelper.onProjectileSpawned(화염 등)를 적용한다
+        AbstractArrow arrow = arrowItem.createArrow(level, b.ammo, player, b.bow);
+        if (b.bow.getItem() instanceof BowItem bowItem) arrow = bowItem.customArrow(arrow, b.ammo, b.bow);
+        arrow.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, b.power * 3.0F, 1.0F);
+        arrow.pickup = AbstractArrow.Pickup.CREATIVE_ONLY;
+        arrow.setCritArrow(b.power == 1.0F);
+        arrow.setBaseDamage(arrow.getBaseDamage() * b.damageScale);
+        arrow.getPersistentData().putBoolean(BURST_TAG, true);
+        level.addFreshEntity(arrow);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ARROW_SHOOT,
+                SoundSource.PLAYERS, 1.0F, 1.0F / (level.getRandom().nextFloat() * 0.4F + 1.2F) + b.power * 0.5F);
+    }
+
+    /** 연발 추가 화살이 생물에 맞으면 피격 무적을 풀어, 앞 화살 직후에도 피해가 들어가게 한다. */
+    @SubscribeEvent
+    public static void onBurstImpact(ProjectileImpactEvent event) {
+        if (event.getProjectile().level().isClientSide()) return;
+        if (!(event.getProjectile() instanceof AbstractArrow arrow)) return;
+        if (!arrow.getPersistentData().getBoolean(BURST_TAG)) return;
+        if (event.getRayTraceResult() instanceof EntityHitResult hit && hit.getEntity() instanceof LivingEntity target) {
+            target.invulnerableTime = 0;
         }
     }
 
@@ -117,6 +207,7 @@ public final class BowEffects {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         QUICKDRAW.remove(event.getEntity().getUUID());
+        BURSTS.removeIf(b -> b.player == event.getEntity());
     }
 
     /** 추적: 메인핸드 활에 추적이 있는 플레이어가 쏜 화살을 등록한다. */
