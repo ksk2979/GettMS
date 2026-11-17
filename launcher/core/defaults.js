@@ -27,4 +27,30 @@ async function seedDefaultFiles(list, root, log) {
   return written;
 }
 
-module.exports = { seedDefaultFiles };
+// "옵션 갱신" 버튼: 서버에 올라온 기본 설정으로 덮어쓴다. 먼저 옆에 받아 두고, 다 받은 뒤에만 바꾼다
+// (받다 실패하면 내 파일은 그대로). 바꾸기 전 파일은 <이름>.backup 으로 남긴다.
+async function refreshDefaultFiles(list, root, log) {
+  let written = 0, failed = 0;
+  const base = path.resolve(root);
+  for (const item of list || []) {
+    let fresh = null;
+    try {
+      if (!validDefaultFile(item)) throw new Error('형식 오류');
+      const dest = path.resolve(base, item.path);
+      if (!dest.startsWith(base + path.sep)) throw new Error('경로가 게임 폴더 밖');
+      fresh = dest + '.new';
+      await download(item.url, fresh);
+      if (fs.existsSync(dest)) fs.copyFileSync(dest, dest + '.backup');
+      fs.renameSync(fresh, dest);
+      written++;
+    } catch (e) {
+      failed++;
+      if (fresh) { try { fs.rmSync(fresh, { force: true }); fs.rmSync(fresh + '.part', { force: true }); } catch {} }
+      log(`옵션 갱신 실패: ${item && item.path} (${e.message})`);
+    }
+  }
+  log(`옵션 갱신: ${written}개 바꿈${failed ? `, ${failed}개 실패` : ''}`);
+  return { written, failed };
+}
+
+module.exports = { seedDefaultFiles, refreshDefaultFiles };

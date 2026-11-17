@@ -1,11 +1,12 @@
 // Electron 메인. 로그인(토큰 암호화 저장), 바로 시작/파일 검사, 실행, 서버 핑.
-const { app, BrowserWindow, ipcMain, safeStorage, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, shell, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { Auth } = require('msmc');
 const { loadConfig } = require('./core/config');
 const { prepare, launch, quickCheck, saveState } = require('./core/game');
 const { ping } = require('./core/ping');
+const { refreshDefaultFiles } = require('./core/defaults');
 const { autoUpdater } = require('electron-updater');
 
 const ROOT = path.join(app.getPath('appData'), 'GettLauncher');
@@ -123,5 +124,19 @@ ipcMain.handle('ping', async () => {
 });
 
 ipcMain.handle('open-folder', async () => { fs.mkdirSync(ROOT, { recursive: true }); shell.openPath(ROOT); });
+
+// 옵션 갱신: 확인 창에서 "예"를 눌렀을 때만 서버에 올라온 키·미니맵 설정으로 덮어쓴다. 반환값 null = 취소.
+ipcMain.handle('refresh-options', async () => {
+  if (gameRunning) throw new Error('게임 실행 중에는 옵션을 갱신할 수 없습니다. 게임을 끈 뒤 눌러 주세요');
+  const files = config.defaultFiles || [];
+  if (!files.length) throw new Error('서버에 올라온 옵션이 없습니다');
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'question', buttons: ['예', '아니오'], defaultId: 1, cancelId: 1, noLink: true,
+    title: '옵션 갱신', message: '서버에 올라온 옵션으로 바꿀까요?',
+    detail: '키 설정·미니맵·HUD 위치가 서버 관리자의 설정으로 바뀝니다.\n지금 내 설정은 덮어쓰고, 이전 파일은 .backup 으로 남습니다.'
+  });
+  if (response !== 0) return null;
+  return refreshDefaultFiles(files, ROOT, log);
+});
 
 app.on('window-all-closed', () => app.quit());

@@ -30,7 +30,7 @@ function setAccount(name) {
   $('logoutBtn').classList.toggle('hidden', !name);
   updatePlay();
 }
-function setBusy(b) { busy = b; updatePlay(); $('loginBtn').disabled = b; }
+function setBusy(b) { busy = b; updatePlay(); $('loginBtn').disabled = b; $('optionsBtn').disabled = b; }
 function updatePlay() { $('playBtn').disabled = busy || !loggedIn; $('playBtn').textContent = busy ? '진행 중...' : (loggedIn ? '게임 시작' : '로그인 후 시작'); }
 
 async function refreshStatus() {
@@ -50,3 +50,8 @@ $('playBtn').onclick = () => guard(async () => { await api.play(); $('fill').sty
 $('patchLink').onclick = e => { e.preventDefault(); guard(async () => { await api.prepare(); $('fill').style.width = '100%'; $('stepLabel').textContent = '파일 검사 완료'; $('stepCount').textContent = ''; setBusy(false); }); };
 $('folderLink').onclick = e => { e.preventDefault(); api.openFolder(); };
 $('logLink').onclick = e => { e.preventDefault(); $('log').classList.toggle('hidden'); };
+$('optionsBtn').onclick = () => guard(async () => {
+  const r = await api.refreshOptions();
+  if (r) $('stepLabel').textContent = r.failed ? `옵션 갱신: ${r.written}개 바꿈, ${r.failed}개 실패 (자세히 보기)` : `옵션 갱신 완료 (${r.written}개)`;
+  setBusy(false);
+});

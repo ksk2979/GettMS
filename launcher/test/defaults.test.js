@@ -4,7 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { RULES } = require('../core/config');
-const { seedDefaultFiles } = require('../core/defaults');
+const { seedDefaultFiles, refreshDefaultFiles } = require('../core/defaults');
 
 const U = 'https://raw.githubusercontent.com/ksk2979/GettMS/main/launcher/defaults/';
 const ok = p => RULES.defaultFiles([{ path: p, url: U + p }]);
@@ -68,5 +68,29 @@ test('seedDefaultFiles: invalid item skipped, valid still written', async () => 
   assert.ok(!fs.existsSync(path.join(root, 'mods')));
   assert.strictEqual(fs.readFileSync(path.join(root, 'options.txt'), 'utf8'), 'd');
   assert.strictEqual(logs.filter(l => l.includes('무시')).length, 2);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('refreshDefaultFiles: overwrites existing, keeps .backup, writes missing', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gett-'));
+  fs.writeFileSync(path.join(root, 'options.txt'), 'mine');
+  const list = [{ path: 'options.txt', url: U + 'options.txt' }, { path: 'config/a/b.cfg', url: U + 'config/a/b.cfg' }];
+  const r = await withFetch(body('server'), () => refreshDefaultFiles(list, root, () => {}));
+  assert.deepStrictEqual(r, { written: 2, failed: 0 });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'options.txt'), 'utf8'), 'server');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'options.txt.backup'), 'utf8'), 'mine');
+  assert.strictEqual(fs.readFileSync(path.join(root, 'config/a/b.cfg'), 'utf8'), 'server');
+  assert.ok(!fs.existsSync(path.join(root, 'config/a/b.cfg.backup')));
+  fs.rmSync(root, { recursive: true, force: true });
+});
+test('refreshDefaultFiles: failed download leaves my file untouched', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gett-'));
+  fs.writeFileSync(path.join(root, 'options.txt'), 'mine');
+  const list = [{ path: 'options.txt', url: U + 'options.txt' }, { path: 'mods/x.jar', url: U + 'x' }];
+  const logs = [];
+  const r = await withFetch(async () => new Response('no', { status: 404 }), () => refreshDefaultFiles(list, root, m => logs.push(m)));
+  assert.deepStrictEqual(r, { written: 0, failed: 2 });
+  assert.strictEqual(fs.readFileSync(path.join(root, 'options.txt'), 'utf8'), 'mine');
+  assert.deepStrictEqual(fs.readdirSync(root), ['options.txt']);
   fs.rmSync(root, { recursive: true, force: true });
 });
