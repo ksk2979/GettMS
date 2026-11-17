@@ -16,9 +16,19 @@ api.on('progress', p => {
   $('stepLabel').textContent = p.label;
   $('stepCount').textContent = p.isBytes ? `${(p.done/1048576).toFixed(1)} / ${(p.total/1048576).toFixed(1)} MB` : (p.total > 1 ? `${p.done} / ${p.total}` : '');
 });
-api.on('update-ready', u => { $('updateVer').textContent = u.version; $('updateBar').classList.remove('hidden'); });
+let updateState = null;
+const mb = n => (n / 1048576).toFixed(1);
+api.on('update-state', u => {
+  updateState = u.state;
+  $('updateBar').classList.remove('hidden');
+  const btn = $('updateBtn');
+  btn.classList.toggle('hidden', u.state === 'downloading');
+  if (u.state === 'available') { $('updateText').textContent = u.failed ? `새 런처 ${u.version} 받기 실패` : `새 런처 ${u.version} 있음`; btn.textContent = u.failed ? '다시 받기' : '업데이트 받기'; }
+  else if (u.state === 'downloading') $('updateText').textContent = `새 런처 ${u.version} 받는 중... ` + (u.total ? `${Math.round(u.done / u.total * 100)}% (${mb(u.done)} / ${mb(u.total)} MB)` : '');
+  else { $('updateText').textContent = `새 런처 ${u.version} 준비됨 · 끌 때 자동 설치`; btn.textContent = '재시작해서 업데이트'; }
+});
 $('updateBtn').onclick = async () => {
-  try { await api.installUpdate(); } catch (e) { $('stepLabel').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
+  try { if (updateState === 'available') await api.downloadUpdate(); else await api.installUpdate(); } catch (e) { $('stepLabel').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
 };
 api.on('game-closed', () => { setBusy(false); $('stepLabel').textContent = '게임 종료됨'; });
 

@@ -57,14 +57,41 @@ function setupUpdater() {
   if (!app.isPackaged) return;
   try {
     autoUpdater.setFeedURL({ provider: 'generic', url: config.updateUrl || UPDATE_URL });
-    autoUpdater.autoDownload = true;
+    autoUpdater.autoDownload = false;   // 물어본 뒤에만 받는다
     autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.on('update-available', info => log(`새 런처 ${info.version} 받는 중...`));
-    autoUpdater.on('update-downloaded', info => send('update-ready', { version: info.version }));
+    autoUpdater.on('update-available', info => askUpdate(info.version));
+    autoUpdater.on('download-progress', p => send('update-state', { state: 'downloading', version: updateVersion, done: p.transferred, total: p.total }));
+    autoUpdater.on('update-downloaded', info => { updateDownloading = false; log(`새 런처 ${info.version} 받기 완료`); send('update-state', { state: 'ready', version: info.version }); });
     autoUpdater.on('error', e => log(`런처 업데이트 확인 실패: ${e && e.message || e}`));
     autoUpdater.checkForUpdates().catch(e => log(`런처 업데이트 확인 실패: ${e && e.message || e}`));
   } catch (e) { log(`런처 업데이트 확인 실패: ${e.message}`); }
 }
+
+// 새 런처가 있으면 받을지 먼저 묻는다. "아니오"면 화면에 "업데이트 받기" 버튼만 남긴다.
+let updateVersion = null, updateDownloading = false;
+async function askUpdate(version) {
+  updateVersion = version;
+  log(`새 런처 ${version} 있음`);
+  send('update-state', { state: 'available', version });
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'question', buttons: ['예', '아니오'], defaultId: 0, cancelId: 1, noLink: true,
+    title: '런처 업데이트', message: `새 런처 ${version} 이 있습니다. 지금 받을까요?`,
+    detail: '받는 동안에도 게임은 시작할 수 있습니다. 다 받으면 런처를 끌 때 설치됩니다.'
+  });
+  if (response === 0) downloadUpdate();
+}
+function downloadUpdate() {
+  if (updateDownloading || !updateVersion) return;
+  updateDownloading = true;
+  log(`새 런처 ${updateVersion} 받는 중...`);
+  send('update-state', { state: 'downloading', version: updateVersion, done: 0, total: 0 });
+  autoUpdater.downloadUpdate().catch(e => {
+    updateDownloading = false;
+    log(`런처 업데이트 받기 실패: ${e && e.message || e}`);
+    send('update-state', { state: 'available', version: updateVersion, failed: true });
+  });
+}
+ipcMain.handle('download-update', async () => { downloadUpdate(); return true; });
 
 ipcMain.handle('install-update', async () => {
   if (gameRunning) throw new Error('게임 실행 중에는 업데이트할 수 없습니다. 게임을 끈 뒤 눌러 주세요');

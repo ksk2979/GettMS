@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   ping: () => ipcRenderer.invoke('ping'),
   openFolder: () => ipcRenderer.invoke('open-folder'),
   refreshOptions: () => ipcRenderer.invoke('refresh-options'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   on: (ch, cb) => ipcRenderer.on(ch, (_, d) => cb(d))
 });
