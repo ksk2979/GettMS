@@ -1,8 +1,8 @@
-version: 1.3.0
+version: 1.3.1
 files:
-  - url: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.3.0.exe
-    sha512: TkLeWdjFQPE1IhorIve2XIJ6Jhar+oHI+1M9hm2dDOJ3jYlJtqqMoiOIOKHYCAzzY5cdoV5h2Trr4V23mVZCmA==
-    size: 122049123
-path: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.3.0.exe
-sha512: TkLeWdjFQPE1IhorIve2XIJ6Jhar+oHI+1M9hm2dDOJ3jYlJtqqMoiOIOKHYCAzzY5cdoV5h2Trr4V23mVZCmA==
-releaseDate: '2026-11-17T09:25:57.418Z'
+  - url: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.3.1.exe
+    sha512: J62W6cb7mNyXGjZia4aqc/Yy2xsY4weotRWQf18/8fuuvky71euM7tKSQ8RsbvmcA42LHRvSAUD8dAwcg0VfFQ==
+    size: 122050215
+path: https://github.com/ksk2979/GettMS/releases/download/v1.1.1/GettLauncher-Setup-1.3.1.exe
+sha512: J62W6cb7mNyXGjZia4aqc/Yy2xsY4weotRWQf18/8fuuvky71euM7tKSQ8RsbvmcA42LHRvSAUD8dAwcg0VfFQ==
+releaseDate: '2026-11-17T09:50:00.189Z'
