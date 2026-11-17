@@ -25,7 +25,7 @@ api.on('update-state', u => {
   btn.classList.toggle('hidden', u.state === 'downloading');
   if (u.state === 'available') { $('updateText').textContent = u.failed ? `새 런처 ${u.version} 받기 실패` : `새 런처 ${u.version} 있음`; btn.textContent = u.failed ? '다시 받기' : '업데이트 받기'; }
   else if (u.state === 'downloading') $('updateText').textContent = `새 런처 ${u.version} 받는 중... ` + (u.total ? `${Math.round(u.done / u.total * 100)}% (${mb(u.done)} / ${mb(u.total)} MB)` : '');
-  else { $('updateText').textContent = `새 런처 ${u.version} 준비됨 · 끌 때 자동 설치`; btn.textContent = '재시작해서 업데이트'; }
+  else { $('updateText').textContent = `새 런처 ${u.version} 받기 완료 · 누르면 런처가 꺼지고 설치됩니다`; btn.textContent = '설치하기'; }
 });
 $('updateBtn').onclick = async () => {
   try { if (updateState === 'available') await api.downloadUpdate(); else await api.installUpdate(); } catch (e) { $('stepLabel').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }

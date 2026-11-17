@@ -7,6 +7,7 @@ const { loadConfig } = require('./core/config');
 const { prepare, launch, quickCheck, saveState } = require('./core/game');
 const { ping } = require('./core/ping');
 const { refreshDefaultFiles } = require('./core/defaults');
+const { updateCacheDir, hasPending, clearUpdateCache } = require('./core/update-cache');
 const { autoUpdater } = require('electron-updater');
 
 const ROOT = path.join(app.getPath('appData'), 'GettLauncher');
@@ -50,7 +51,8 @@ app.whenReady().then(async () => {
   setupUpdater();
 });
 
-// 런처 자동 업데이트: 켜질 때 확인 → 뒤에서 받음 → 화면에 "재시작해서 업데이트"(누르면 즉시) + 안 누르면 끌 때 설치.
+// 런처 업데이트: 켜질 때 확인만 한다 → 받을지 묻고 → 받는 진행률 표시 → "설치하기"를 눌러야 설치. 허락 없이 받거나 설치하지 않는다.
+// 받아 두고 설치를 안 눌렀으면 다음에 켰을 때 "설치하기" 버튼이 바로 나온다. 최신 버전이면 남은 설치 파일을 지운다.
 // 업데이트 정보는 고정 주소(launcher/update/latest.yml)에서 읽는다 — 같은 저장소의 gettcore 릴리스를 런처로 오인하지 않게.
 // 확인 실패는 로그만 남기고 게임 시작에는 영향 없음. 개발 실행(npm start)에서는 건너뜀.
 function setupUpdater() {
@@ -58,8 +60,13 @@ function setupUpdater() {
   try {
     autoUpdater.setFeedURL({ provider: 'generic', url: config.updateUrl || UPDATE_URL });
     autoUpdater.autoDownload = false;   // 물어본 뒤에만 받는다
-    autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.on('update-available', info => askUpdate(info.version));
+    autoUpdater.autoInstallOnAppQuit = false;   // "설치하기"를 눌렀을 때만 설치
+    autoUpdater.on('update-available', info => {
+      updateVersion = info.version;
+      if (hasPending(updateCacheDir(), info.sha512 || info.files?.[0]?.sha512)) downloadUpdate(true);   // 이미 받아 둠 → 다시 받지 않고 버튼만
+      else askUpdate(info.version);
+    });
+    autoUpdater.on('update-not-available', () => { if (clearUpdateCache(updateCacheDir())) log('지난 런처 설치 파일 정리'); });
     autoUpdater.on('download-progress', p => send('update-state', { state: 'downloading', version: updateVersion, done: p.transferred, total: p.total }));
     autoUpdater.on('update-downloaded', info => { updateDownloading = false; log(`새 런처 ${info.version} 받기 완료`); send('update-state', { state: 'ready', version: info.version }); });
     autoUpdater.on('error', e => log(`런처 업데이트 확인 실패: ${e && e.message || e}`));
@@ -76,22 +83,24 @@ async function askUpdate(version) {
   const { response } = await dialog.showMessageBox(win, {
     type: 'question', buttons: ['예', '아니오'], defaultId: 0, cancelId: 1, noLink: true,
     title: '런처 업데이트', message: `새 런처 ${version} 이 있습니다. 지금 받을까요?`,
-    detail: '받는 동안에도 게임은 시작할 수 있습니다. 다 받으면 런처를 끌 때 설치됩니다.'
+    detail: '받는 동안에도 게임은 시작할 수 있습니다.\n다 받은 뒤 "설치하기"를 눌러야 설치됩니다.'
   });
   if (response === 0) downloadUpdate();
 }
-function downloadUpdate() {
+function downloadUpdate(cached) {
   if (updateDownloading || !updateVersion) return;
   updateDownloading = true;
-  log(`새 런처 ${updateVersion} 받는 중...`);
-  send('update-state', { state: 'downloading', version: updateVersion, done: 0, total: 0 });
+  if (!cached) {
+    log(`새 런처 ${updateVersion} 받는 중...`);
+    send('update-state', { state: 'downloading', version: updateVersion, done: 0, total: 0 });
+  }
   autoUpdater.downloadUpdate().catch(e => {
     updateDownloading = false;
     log(`런처 업데이트 받기 실패: ${e && e.message || e}`);
     send('update-state', { state: 'available', version: updateVersion, failed: true });
   });
 }
-ipcMain.handle('download-update', async () => { downloadUpdate(); return true; });
+ipcMain.handle('download-update', async () => { downloadUpdate(false); return true; });
 
 ipcMain.handle('install-update', async () => {
   if (gameRunning) throw new Error('게임 실행 중에는 업데이트할 수 없습니다. 게임을 끈 뒤 눌러 주세요');
