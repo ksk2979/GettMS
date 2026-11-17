@@ -75,7 +75,9 @@ class EnchantConfigTest {
     void volleyReadsBurstSettingsAndIgnoresTheOldAngle() {
         // a server file written before the burst rework only has angleDegrees: defaults apply
         assertEquals(EnchantConfig.DEFAULT.volley(), parse("{\"volley\":{\"angleDegrees\":10}}").volley());
-        EnchantConfig c = parse("{\"volley\":{\"extraArrows\":[2,3,6],\"intervalTicks\":5,\"extraDamagePercent\":25}}");
+        EnchantConfig c = parse("{\"volley\":{\"extraArrows\":[2,3,6],\"intervalTicks\":5,\"firstDamagePercent\":60,\"extraDamagePercent\":25}}");
+        assertEquals(60, c.volley().firstDamagePercent());
+        assertEquals(100, EnchantConfig.DEFAULT.volley().firstDamagePercent());
         assertEquals(6, c.volley().extra(3));
         assertEquals(7, c.value(SpecialEnchants.Ability.VOLLEY, 3));
         assertEquals(5, c.volley().intervalTicks());

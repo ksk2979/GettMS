@@ -52,13 +52,17 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
 
     /**
      * 연발: 한 번 쏘면 같은 방향으로 화살이 연달아 나간다. {@code extraArrows} = 레벨별 추가 화살 수,
-     * {@code intervalTicks} = 화살 사이 간격(틱), {@code extraDamagePercent} = 추가 화살의 피해(원래 화살 대비 %).
+     * {@code intervalTicks} = 화살 사이 간격(틱), {@code firstDamagePercent} = 연발이 붙은 활의 첫 화살 피해(%),
+     * {@code extraDamagePercent} = 추가 화살의 피해(%). 둘 다 연발이 없을 때의 화살 피해가 100.
      */
-    public record Volley(Tiered extraArrows, double intervalTicks, double extraDamagePercent) {
-        static final Volley DEFAULT_VOLLEY = new Volley(new Tiered(1, 2, 4), 3, 50);
+    public record Volley(Tiered extraArrows, double intervalTicks, double firstDamagePercent,
+                         double extraDamagePercent) {
+        static final Volley DEFAULT_VOLLEY = new Volley(new Tiered(1, 2, 4), 3, 100, 50);
         static final Codec<Volley> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Tiered.CODEC.optionalFieldOf("extraArrows", DEFAULT_VOLLEY.extraArrows).forGetter(Volley::extraArrows),
                 Codec.DOUBLE.optionalFieldOf("intervalTicks", DEFAULT_VOLLEY.intervalTicks).forGetter(Volley::intervalTicks),
+                Codec.DOUBLE.optionalFieldOf("firstDamagePercent", DEFAULT_VOLLEY.firstDamagePercent)
+                        .forGetter(Volley::firstDamagePercent),
                 Codec.DOUBLE.optionalFieldOf("extraDamagePercent", DEFAULT_VOLLEY.extraDamagePercent)
                         .forGetter(Volley::extraDamagePercent)
         ).apply(i, Volley::new));
@@ -211,6 +215,8 @@ public record EnchantConfig(LevelWeights levelWeights, Tiered harvest, Tiered bo
                 tiered("plunder.chance", plunder, d.plunder, errors),
                 new Volley(tiered("volley.extraArrows", volley.extraArrows(), d.volley.extraArrows(), errors),
                         scalar("volley.intervalTicks", volley.intervalTicks(), d.volley.intervalTicks(), errors),
+                        scalar("volley.firstDamagePercent", volley.firstDamagePercent(), d.volley.firstDamagePercent(),
+                                errors),
                         scalar("volley.extraDamagePercent", volley.extraDamagePercent(), d.volley.extraDamagePercent(),
                                 errors)),
                 tiered("quickdraw.percent", quickdraw, d.quickdraw, errors),

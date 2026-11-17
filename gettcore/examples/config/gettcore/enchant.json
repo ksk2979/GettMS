@@ -11,7 +11,7 @@
   "wisdom":    { "percent": [25, 50, 100] },
   "execute":   { "healthPercent": 20, "bonusPercent": [30, 60, 100] },
   "plunder":   { "chance": [10, 20, 35] },
-  "volley":    { "extraArrows": [1, 2, 4], "intervalTicks": 3, "extraDamagePercent": 50 },
+  "volley":    { "extraArrows": [1, 2, 4], "intervalTicks": 3, "firstDamagePercent": 100, "extraDamagePercent": 50 },
   "quickdraw": { "percent": [15, 30, 45] },
   "homing":    { "range": 8, "coneDegrees": 30, "steer": 0.1, "targetPlayers": false },
   "lure":      { "percent": [15, 30, 45] },

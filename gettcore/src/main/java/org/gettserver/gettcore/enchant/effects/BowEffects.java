@@ -210,6 +210,20 @@ public final class BowEffects {
         BURSTS.removeIf(b -> b.player == event.getEntity());
     }
 
+    /** 연발: 연발이 붙은 활로 쏜 첫 화살(바닐라 화살)의 피해를 설정한 %로 바꾼다. 추가 화살은 따로 계산한다. */
+    @SubscribeEvent
+    public static void onFirstArrowJoin(EntityJoinLevelEvent event) {
+        if (event.getLevel().isClientSide() || event.loadedFromDisk()) return;
+        if (!(event.getEntity() instanceof AbstractArrow arrow)) return;
+        if (arrow.getPersistentData().getBoolean(BURST_TAG)) return;
+        if (!(arrow.getOwner() instanceof ServerPlayer owner)) return;
+        ItemStack weapon = arrow.getWeaponItem();
+        if (weapon == null || !(weapon.getItem() instanceof BowItem)) return;
+        if (EffectContext.activeLevel(owner, Ability.VOLLEY, weapon) <= 0) return;
+        double pct = GettData.get().enchant().volley().firstDamagePercent();
+        if (pct != 100) arrow.setBaseDamage(arrow.getBaseDamage() * pct / 100.0);
+    }
+
     /** 추적: 메인핸드 활에 추적이 있는 플레이어가 쏜 화살을 등록한다. */
     @SubscribeEvent
     public static void onJoin(EntityJoinLevelEvent event) {
