@@ -111,6 +111,23 @@ public final class ClientQuestState {
         }
     }
 
+    /** Another client setting kept in the same file (null when missing or unreadable). */
+    public static String setting(String key) {
+        Path path = file();
+        if (!Files.exists(path)) return null;
+        Properties props = new Properties();
+        try (InputStream in = Files.newInputStream(path)) {
+            props.load(in);
+        } catch (IOException e) {
+            return null;
+        }
+        return props.getProperty(key);
+    }
+
+    public static void saveSetting(String key, String value) {
+        save(props -> props.setProperty(key, value));
+    }
+
     /** Re-reads the file, applies {@code change} and writes it back so other keys survive. */
     private static void save(Consumer<Properties> change) {
         Path path = file();

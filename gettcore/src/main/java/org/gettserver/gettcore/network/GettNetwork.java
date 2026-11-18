@@ -41,7 +41,16 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("10");
+        PayloadRegistrar registrar = event.registrar("11");
+        // Parties. ClientParty (client-only, party.client) is referenced only inside the client-bound handlers.
+        registrar.playToClient(PartySyncPayload.TYPE, PartySyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.party.client.ClientParty.set(payload)));
+        registrar.playToClient(PartyInvitePayload.TYPE, PartyInvitePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.party.client.ClientParty.onInvite(payload)));
+        registrar.playToServer(PartyActionPayload.TYPE, PartyActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.party.PartyService
+                        .handle((ServerPlayer) ctx.player(), payload)));
         // Item presets (preset:<name> ids in shops, rewards and drops).
         registrar.playToClient(PresetSyncPayload.TYPE, PresetSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> {

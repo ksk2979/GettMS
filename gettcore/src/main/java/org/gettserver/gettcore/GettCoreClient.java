@@ -94,6 +94,11 @@ public class GettCoreClient {
                 GettCore.LOGGER.info("gettcore: Epic Fight auto mode off (epicFightAutoMode={})", autoMode);
             }
         }
+        // 파티: 게임 메뉴(Esc)의 파티 버튼, 초대 알림(화면이 열려 있어도 그리고 클릭 받음), 접속 종료 시 상태 비움.
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyMenuButton::onInit);
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyHud::onScreenRender);
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyHud::onScreenClick);
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.ClientParty::onLoggingOut);
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
         // 포획틀: 우클릭 유지 = 조준(줌 + 십자선 아래 포획률), 좌클릭 = 던지기(서버 판정).
         NeoForge.EVENT_BUS.addListener(CaptureAimClient::onClientTickPre);
@@ -101,6 +106,9 @@ public class GettCoreClient {
         NeoForge.EVENT_BUS.addListener(CaptureAimClient::onComputeFov);
         modBus.addListener(RegisterGuiLayersEvent.class, event -> {
             event.registerAbove(VanillaGuiLayers.EFFECTS, QuestHud.LAYER_ID, QuestHud::render);
+            // 파티원 체력바(왼쪽, 위치 조절 가능)와 파티 초대 알림(오른쪽 아래).
+            event.registerAbove(VanillaGuiLayers.EFFECTS, org.gettserver.gettcore.party.client.PartyHud.LAYER_ID,
+                    org.gettserver.gettcore.party.client.PartyHud::render);
             event.registerAbove(VanillaGuiLayers.CROSSHAIR, CaptureAimClient.LAYER_ID, CaptureAimClient::render);
             // 보스 기술명 외침(화면 가운데 위, 크게): 바닐라 타이틀과 별개 레이어.
             event.registerAbove(VanillaGuiLayers.TITLE, org.gettserver.gettcore.skill.client.SkillShoutHud.LAYER_ID,
