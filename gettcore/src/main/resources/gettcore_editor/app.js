@@ -4899,7 +4899,7 @@
     validate() { return []; },
     render(container) {
       const card = h('div', { class: 'card' }, h('h2', null, '모드 장비 제작 막기'),
-        h('p', { class: 'muted' }, '모드(Epic Knights·Weapons of Miracles·Epic Fight·Create: Gunsmithing·NTGL 등)가 넣은 무기·방어구·방패·총의 제작법을 막습니다. 바닐라(minecraft) 장비와 탄약·부품·재료는 목록에 없고 그대로 만들 수 있습니다. 결과물이 장비인 제작법이면 종류(작업대·대장장이 작업대·Create 기계 제작·조립 등)와 상관없이 보입니다. 마법 모드(Iron's Spells)는 장비가 아닌 것(스크롤·잉크·작업대 블록·재료)까지 모든 제작법이 보입니다 — 아이템을 상점·보상·드롭으로만 풀 때 "모두 막기"를 쓰세요.'),
+        h('p', { class: 'muted' }, '모드(Epic Knights·Weapons of Miracles·Epic Fight·Create: Gunsmithing·NTGL 등)가 넣은 무기·방어구·방패·총의 제작법을 막습니다. 바닐라(minecraft) 장비와 탄약·부품·재료는 목록에 없고 그대로 만들 수 있습니다. 결과물이 장비인 제작법이면 종류(작업대·대장장이 작업대·Create 기계 제작·조립 등)와 상관없이 보입니다. 마법 모드(Iron’s Spells)는 장비가 아닌 것(스크롤·잉크·작업대 블록·재료)까지 모든 제작법이 보입니다 — 아이템을 상점·보상·드롭으로만 풀 때 "모두 막기"를 쓰세요.'),
         h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 그 제작법 파일의 사본(원본 그대로 + 항상 거짓인 불러오기 조건 neoforge:false)을 쓰고 /reload 를 자동으로 실행합니다. 그 뒤 막은 제작법은 서버에 없는 것처럼 되어 만들 수 없습니다. 이미 가진 장비, 상점·보상으로 받는 장비는 그대로입니다. 체크를 풀고 저장 = 사본 삭제(원래대로).'));
       container.append(card);
       const cat = S.dpCatalog;
