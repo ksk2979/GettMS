@@ -57,7 +57,7 @@
       "name": "gettcore",
       "file": "gettcore-1.18.0.jar",
       "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.18.0/gettcore-1.18.0.jar",
-      "sha512": "9beb286eb85b86b4ffe8850c482647fdcfdce09f4d2b1e56fb76708bb6e09f9e8329b146e7352ce903981c49bb1c7d9cb9b033b0612ac73abfe825658ab4afc0",
+      "sha512": "144e36982a6717d626dc84be49c9dfe32107ae915ab9f178ca270496750139993087da3c7bda63945e8e8d99de22a71f55d6193340d8b9e5fbe51cfb4de2d6c7",
       "side": "both"
     },
     {
@@ -338,7 +338,7 @@
       "slug": "gettcore",
       "file": "gettcore-1.18.0.jar",
       "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.18.0/gettcore-1.18.0.jar",
-      "sha512": "9beb286eb85b86b4ffe8850c482647fdcfdce09f4d2b1e56fb76708bb6e09f9e8329b146e7352ce903981c49bb1c7d9cb9b033b0612ac73abfe825658ab4afc0",
+      "sha512": "144e36982a6717d626dc84be49c9dfe32107ae915ab9f178ca270496750139993087da3c7bda63945e8e8d99de22a71f55d6193340d8b9e5fbe51cfb4de2d6c7",
       "size": 2108842,
       "side": "both"
     },
@@ -607,5 +607,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "77d0d55fddc13f825c6c6b8c2232a33d1acfe3e353d2cfd90889aadfeb3fe7f1"
+  "lockSource": "98327dcf9a21a9cfab2889899754889feb6bec09bc2e9f38e02ea47869d2174e"
 }
