@@ -234,4 +234,28 @@ class RecipeBalanceTest {
         assertEquals(1, BalanceOrphans.remove(pack, found, req));
         assertTrue(PackFiles.read(pack, ARMET).isEmpty());
     }
+
+    @Test
+    void everyRecipeOfAWholeModIsListedAndBlockable() throws Exception {
+        ResourceLocation scroll = ResourceLocation.parse("irons_spellbooks:recipe/common_ink.json");
+        ResourceLocation brew = ResourceLocation.parse("irons_spellbooks:recipe/no_result.json");
+        ResourceLocation other = ResourceLocation.parse("create:recipe/andesite_alloy.json");
+        Map<ResourceLocation, JsonObject> orig = Map.of(
+                scroll, json("{\"type\":\"minecraft:crafting_shapeless\",\"result\":{\"id\":\"irons_spellbooks:common_ink\"}}"),
+                brew, json("{\"type\":\"irons_spellbooks:alchemist_cauldron_brew\"}"),
+                other, json("{\"type\":\"minecraft:crafting_shaped\",\"result\":{\"id\":\"create:andesite_alloy\"}}"));
+        Function<String, String> none = id -> null;
+        Map<ResourceLocation, RecipeBalance.Row> rows = RecipeBalance.rows(orig, none, pack);
+        assertEquals(Set.of(scroll, brew), rows.keySet());
+        assertEquals(RecipeBalance.OTHER, rows.get(scroll).kind());
+        assertEquals("irons_spellbooks:common_ink", rows.get(scroll).item());
+        for (var e : RecipeBalance.catalog(rows)) {
+            assertEquals("irons_spellbooks", e.getAsJsonObject().get("mod").getAsString());
+        }
+        JsonObject want = new JsonObject();
+        want.addProperty("irons_spellbooks:common_ink", true);
+        want.addProperty("irons_spellbooks:no_result", true);
+        assertEquals(2, RecipeBalance.reconcile(orig, none, pack, want).written());
+        assertEquals(2, RecipeBalance.state(orig, none, pack).size());
+    }
 }

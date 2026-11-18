@@ -41,6 +41,13 @@ public final class RecipeBalance {
     public static final String GUN = "gun";
     public static final String OTHER = "other";
 
+    /**
+     * Mods whose every recipe is listed, not only the equipment ones (kind "other" for the rest): the server hands
+     * their items out through shops, quests and drops instead, so scrolls, inks, workstations and materials must be
+     * blockable too. Matched on the recipe file namespace.
+     */
+    public static final Set<String> WHOLE_MODS = Set.of("irons_spellbooks");
+
     /** What the server knows about a result item. */
     public record Facts(boolean gun, boolean shieldItem, boolean shieldAbility, boolean armorItem, boolean ranged,
                         boolean attackDamage, boolean armorAttr) {}
@@ -162,7 +169,7 @@ public final class RecipeBalance {
             String item = equipmentResult(results, kindOf);
             String kind = item == null ? null : kindOf.apply(item);
             if (item == null) {
-                if (!copies.contains(e.getKey())) continue;
+                if (!copies.contains(e.getKey()) && !WHOLE_MODS.contains(e.getKey().getNamespace())) continue;
                 item = results.isEmpty() ? "" : results.get(0);
                 kind = OTHER;
             }
@@ -180,7 +187,8 @@ public final class RecipeBalance {
             o.addProperty("id", r.id());
             o.addProperty("item", r.item());
             ResourceLocation item = ResourceLocation.tryParse(r.item());
-            o.addProperty("mod", item == null ? "" : item.getNamespace());
+            o.addProperty("mod", WHOLE_MODS.contains(r.file().getNamespace()) ? r.file().getNamespace()
+                    : item == null ? "" : item.getNamespace());
             o.addProperty("kind", r.kind());
             o.addProperty("type", r.type());
             out.add(o);
