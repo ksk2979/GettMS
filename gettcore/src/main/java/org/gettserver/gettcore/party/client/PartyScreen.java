@@ -14,7 +14,7 @@ import org.gettserver.gettcore.party.PartyBook;
 
 /**
  * The party window (opened from the button in the game menu). Without a party: "파티 생성". In a party: its name,
- * the members with their health, 파티 탈퇴 / 파티 초대 (leader only), a 추방 button per member for the leader, and
+ * the members, 파티 탈퇴 / 파티 초대 (leader only), a 추방 button per member for the leader, and
  * the two settings of the member health bars (fold, move). Rebuilds itself when a sync arrives. Client only.
  */
 public final class PartyScreen extends Screen {
@@ -133,10 +133,6 @@ public final class PartyScreen extends Screen {
             Component sub = i == 0 ? Component.translatable("gettcore.party.leader")
                     : Component.translatable(e.online() ? "gettcore.party.member" : "gettcore.party.offline_mark");
             g.drawString(font, sub, x + 34, ry + 12, i == 0 ? GOLD : 0xFF8090A8, false);
-            if (e.online()) {
-                String hp = Math.round(e.health()) + " / " + Math.round(e.maxHealth());
-                g.drawString(font, hp, x + W - 54 - font.width(hp), ry + 7, 0xFFE06060, false);
-            }
         }
     }
 }

@@ -101,7 +101,7 @@ public final class PartyService {
                 PacketDistributor.sendToPlayer(player, PartyInvitePayload.clear());
                 tell(player, "gettcore.party.declined_self");
                 ServerPlayer inviter = server.getPlayerList().getPlayer(inv.inviter());
-                if (inviter != null) tell(inviter, "gettcore.party.declined", player.getGameProfile().getName());
+                if (inviter != null) tell(inviter, "gettcore.party.declined", org.gettserver.gettcore.nick.NicknameService.nameOf(player));
             }
             case LEAVE -> {
                 Party party = book.of(player.getUUID());
@@ -109,12 +109,13 @@ public final class PartyService {
                     fail(player, Result.NOT_IN_PARTY);
                     return;
                 }
-                removed(server, data, party, player.getUUID(), player.getGameProfile().getName(), false);
+                removed(server, data, party, player.getUUID(), org.gettserver.gettcore.nick.NicknameService.nameOf(player), false);
             }
             case KICK -> {
                 Party party = book.of(player.getUUID());
                 String name = party == null ? "" : party.members().stream()
-                        .filter(m -> m.id().equals(payload.target())).map(Member::name).findFirst().orElse("");
+                        .filter(m -> m.id().equals(payload.target()))
+                        .map(m -> org.gettserver.gettcore.nick.NicknameService.nameOf(server, m.id(), m.name())).findFirst().orElse("");
                 Result r = book.kick(player.getUUID(), payload.target());
                 if (r != Result.OK) {
                     fail(player, r);
@@ -137,13 +138,13 @@ public final class PartyService {
             return;
         }
         Party party = book.of(player.getUUID());
-        String targetName = target.getGameProfile().getName();
+        String targetName = org.gettserver.gettcore.nick.NicknameService.nameOf(target);
         long expires = (long) server.getTickCount() + PartyInvites.DURATION_TICKS;
         if (!INVITES.offer(new PartyInvites.Invite(targetId, party.name(), player.getUUID(), expires))) {
             tell(player, "gettcore.party.invite_pending", targetName);
             return;
         }
-        String inviterName = player.getGameProfile().getName();
+        String inviterName = org.gettserver.gettcore.nick.NicknameService.nameOf(player);
         PacketDistributor.sendToPlayer(target,
                 new PartyInvitePayload(party.name(), inviterName, player.getUUID(), PartyInvites.DURATION_TICKS));
         MutableComponent msg = Component.translatable("gettcore.party.invite_received", inviterName, party.name())
@@ -173,7 +174,7 @@ public final class PartyService {
             return;
         }
         Party party = data.book().of(player.getUUID());
-        tellParty(server, party, "gettcore.party.joined", player.getGameProfile().getName());
+        tellParty(server, party, "gettcore.party.joined", org.gettserver.gettcore.nick.NicknameService.nameOf(player));
         changed(server, data, party);
     }
 
@@ -203,7 +204,8 @@ public final class PartyService {
             return;
         }
         tellParty(server, party, kicked ? "gettcore.party.kicked" : "gettcore.party.left", name);
-        if (wasLeader) tellParty(server, party, "gettcore.party.new_leader", party.members().get(0).name());
+        if (wasLeader) tellParty(server, party, "gettcore.party.new_leader",
+                org.gettserver.gettcore.nick.NicknameService.nameOf(server, party.members().get(0).id(), party.members().get(0).name()));
         changed(server, data, party);
     }
 
@@ -230,8 +232,9 @@ public final class PartyService {
         List<PartySyncPayload.Entry> entries = new ArrayList<>();
         for (Member m : party.members()) {
             ServerPlayer p = server.getPlayerList().getPlayer(m.id());
-            if (p == null) entries.add(new PartySyncPayload.Entry(m.id(), m.name(), false, 0, 0));
-            else entries.add(new PartySyncPayload.Entry(m.id(), m.name(), true, p.getHealth(), p.getMaxHealth()));
+            String name = org.gettserver.gettcore.nick.NicknameService.nameOf(server, m.id(), m.name());
+            if (p == null) entries.add(new PartySyncPayload.Entry(m.id(), name, false, 0, 0));
+            else entries.add(new PartySyncPayload.Entry(m.id(), name, true, p.getHealth(), p.getMaxHealth()));
         }
         return new PartySyncPayload(party.name(), entries);
     }
@@ -262,7 +265,7 @@ public final class PartyService {
             }
             ServerPlayer inviter = server.getPlayerList().getPlayer(inv.inviter());
             if (inviter != null && target != null) {
-                tell(inviter, "gettcore.party.expired", target.getGameProfile().getName());
+                tell(inviter, "gettcore.party.expired", org.gettserver.gettcore.nick.NicknameService.nameOf(target));
             }
         }
         if (server.getPlayerList().getPlayerCount() == 0) return;

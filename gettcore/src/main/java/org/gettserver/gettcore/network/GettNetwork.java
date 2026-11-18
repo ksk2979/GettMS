@@ -41,7 +41,14 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("11");
+        PayloadRegistrar registrar = event.registrar("12");
+        // Nicknames. ClientNicknames (client-only, nick.client) is referenced only inside the client-bound handler.
+        registrar.playToClient(NicknameSyncPayload.TYPE, NicknameSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        () -> org.gettserver.gettcore.nick.client.ClientNicknames.set(payload.nicknames())));
+        registrar.playToServer(NicknameSetPayload.TYPE, NicknameSetPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.nick.NicknameService
+                        .onSet((ServerPlayer) ctx.player(), payload.name())));
         // Parties. ClientParty (client-only, party.client) is referenced only inside the client-bound handlers.
         registrar.playToClient(PartySyncPayload.TYPE, PartySyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.party.client.ClientParty.set(payload)));

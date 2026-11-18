@@ -87,6 +87,10 @@ public class GettCore {
             ITEMS.registerItem("reinforce_stone", ReinforceStoneItem::new, new Item.Properties().stacksTo(64));
     public static final DeferredItem<DetectorItem> DETECTOR =
             ITEMS.registerItem("detector", DetectorItem::new, new Item.Properties().stacksTo(1));
+    /** 닉네임 변경권: 쓰면 닉네임 입력 창이 열리고, 닉네임이 바뀌면 한 장 소모. */
+    public static final DeferredItem<org.gettserver.gettcore.nick.NicknameTicketItem> NICKNAME_TICKET =
+            ITEMS.registerItem("nickname_ticket", org.gettserver.gettcore.nick.NicknameTicketItem::new,
+                    new Item.Properties().stacksTo(16));
     /** 거미줄 발사기: 우클릭으로 지형에 줄을 붙여 매달려 다닌다. */
     public static final DeferredItem<org.gettserver.gettcore.web.WebShooterItem> WEB_SHOOTER =
             ITEMS.registerItem("web_shooter", org.gettserver.gettcore.web.WebShooterItem::new,
@@ -120,6 +124,7 @@ public class GettCore {
                         output.accept(REINFORCE_STONE.get());
                         output.accept(DETECTOR.get());
                         output.accept(WEB_SHOOTER.get());
+                        output.accept(NICKNAME_TICKET.get());
                         output.accept(STURDY_ANVIL_ITEM.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());

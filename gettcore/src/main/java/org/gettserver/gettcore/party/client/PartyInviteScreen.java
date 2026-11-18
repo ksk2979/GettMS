@@ -64,7 +64,8 @@ public final class PartyInviteScreen extends Screen {
         for (PlayerInfo info : minecraft.getConnection().getOnlinePlayers()) {
             UUID id = info.getProfile().getId();
             if (id.equals(me) || ClientParty.isMember(id)) continue;
-            out.add(new Row(id, info.getProfile().getName()));
+            out.add(new Row(id, org.gettserver.gettcore.nick.client.ClientNicknames.nameOf(id,
+                    info.getProfile().getName())));
         }
         out.sort(Comparator.comparing(r -> r.name().toLowerCase(java.util.Locale.ROOT)));
         return out;

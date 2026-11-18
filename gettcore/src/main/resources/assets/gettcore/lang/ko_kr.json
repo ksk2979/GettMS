@@ -508,5 +508,20 @@
   "gettcore.party.err.target_in_party": "그 플레이어는 이미 파티에 들어가 있습니다.",
   "gettcore.party.err.self": "자기 자신에게는 할 수 없습니다.",
   "gettcore.party.err.not_member": "그 플레이어는 파티원이 아닙니다.",
-  "gettcore.party.err.no_such_party": "그 파티는 이미 없어졌습니다."
+  "gettcore.party.err.no_such_party": "그 파티는 이미 없어졌습니다.",
+  "item.gettcore.nickname_ticket": "닉네임 변경권",
+  "item.gettcore.nickname_ticket.desc": "사용하면 서버에서 쓸 닉네임을 정합니다",
+  "gettcore.nickname.title": "닉네임 변경",
+  "gettcore.nickname.hint1": "새 닉네임 (%s~%s자)",
+  "gettcore.nickname.hint2": "한글·영문·숫자·밑줄(_), 띄어쓰기 없이",
+  "gettcore.nickname.changed": "닉네임이 %s(으)로 바뀌었습니다.",
+  "gettcore.nickname.admin_set": "%s의 닉네임을 %s(으)로 정했습니다.",
+  "gettcore.nickname.admin_reset": "%s의 닉네임을 지웠습니다.",
+  "gettcore.nickname.whois": "닉네임 %s = 계정 %s",
+  "gettcore.nickname.err.no_ticket": "닉네임 변경권을 손에 들고 있어야 합니다.",
+  "gettcore.nickname.err.bad_name": "닉네임은 2~12자의 한글·영문·숫자·밑줄만 쓸 수 있습니다.",
+  "gettcore.nickname.err.taken": "이미 다른 사람이 쓰는 이름입니다.",
+  "gettcore.nickname.err.same": "지금 쓰는 닉네임과 같습니다.",
+  "gettcore.nickname.err.none": "그 플레이어는 닉네임이 없습니다.",
+  "gettcore.nickname.err.unknown": "%s 닉네임을 쓰는 사람이 없습니다."
 }

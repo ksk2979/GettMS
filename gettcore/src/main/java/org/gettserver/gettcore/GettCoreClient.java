@@ -94,6 +94,12 @@ public class GettCoreClient {
                 GettCore.LOGGER.info("gettcore: Epic Fight auto mode off (epicFightAutoMode={})", autoMode);
             }
         }
+        // 닉네임: 변경권을 쓰면 입력 창, 머리 위 이름을 닉네임으로.
+        org.gettserver.gettcore.nick.NicknameTicketItem.OPEN_SCREEN =
+                org.gettserver.gettcore.nick.client.NicknameScreen::open;
+        NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.HIGHEST,
+                org.gettserver.gettcore.nick.client.ClientNicknames::onNameFormat);
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.nick.client.ClientNicknames::onLoggingOut);
         // 파티: 게임 메뉴(Esc)의 파티 버튼, 초대 알림(화면이 열려 있어도 그리고 클릭 받음), 접속 종료 시 상태 비움.
         NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyMenuButton::onInit);
         NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyHud::onScreenRender);

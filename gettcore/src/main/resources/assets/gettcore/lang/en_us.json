@@ -508,5 +508,20 @@
   "gettcore.party.err.target_in_party": "That player is already in a party.",
   "gettcore.party.err.self": "You cannot do that to yourself.",
   "gettcore.party.err.not_member": "That player is not in your party.",
-  "gettcore.party.err.no_such_party": "That party no longer exists."
+  "gettcore.party.err.no_such_party": "That party no longer exists.",
+  "item.gettcore.nickname_ticket": "Nickname Ticket",
+  "item.gettcore.nickname_ticket.desc": "Use to choose your nickname on this server",
+  "gettcore.nickname.title": "Change nickname",
+  "gettcore.nickname.hint1": "New nickname (%s to %s characters)",
+  "gettcore.nickname.hint2": "Letters, digits and underscores, no spaces",
+  "gettcore.nickname.changed": "Your nickname is now %s.",
+  "gettcore.nickname.admin_set": "Set the nickname of %s to %s.",
+  "gettcore.nickname.admin_reset": "Removed the nickname of %s.",
+  "gettcore.nickname.whois": "Nickname %s = account %s",
+  "gettcore.nickname.err.no_ticket": "You must hold a nickname ticket.",
+  "gettcore.nickname.err.bad_name": "A nickname is 2 to 12 letters, digits or underscores.",
+  "gettcore.nickname.err.taken": "Someone else already uses that name.",
+  "gettcore.nickname.err.same": "That is already your nickname.",
+  "gettcore.nickname.err.none": "That player has no nickname.",
+  "gettcore.nickname.err.unknown": "Nobody uses the nickname %s."
 }
