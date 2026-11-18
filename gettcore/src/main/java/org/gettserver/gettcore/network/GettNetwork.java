@@ -41,7 +41,15 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("12");
+        PayloadRegistrar registrar = event.registrar("13");
+        // Craft bench. CraftScreen (client-only, craft.client) is referenced only inside the client-bound handler.
+        registrar.playToClient(CraftConfigSyncPayload.TYPE, CraftConfigSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> org.gettserver.gettcore.craft.ClientCraftConfig.set(payload.config()));
+        registrar.playToClient(OpenCraftPayload.TYPE, OpenCraftPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(org.gettserver.gettcore.craft.client.CraftScreen::open));
+        registrar.playToServer(CraftRequestPayload.TYPE, CraftRequestPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.craft.CraftService
+                        .craft((ServerPlayer) ctx.player(), payload.recipeId())));
         // Nicknames. ClientNicknames (client-only, nick.client) is referenced only inside the client-bound handler.
         registrar.playToClient(NicknameSyncPayload.TYPE, NicknameSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(

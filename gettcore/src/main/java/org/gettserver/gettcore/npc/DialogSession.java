@@ -101,6 +101,10 @@ public final class DialogSession {
                 close(player);
                 org.gettserver.gettcore.upgrade.UpgradeService.open(player);
             }
+            case OPEN_CRAFT -> {
+                close(player);
+                org.gettserver.gettcore.craft.CraftService.open(player, player.position());
+            }
             case QUEST -> openQuest(player, session, action.target().orElse(QuestService.MAIN_LINE));
         }
     }

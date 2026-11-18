@@ -103,6 +103,15 @@ public class GettCore {
     public static final DeferredItem<net.minecraft.world.item.BlockItem> STURDY_ANVIL_ITEM =
             ITEMS.registerSimpleBlockItem(STURDY_ANVIL);
 
+    /** 제작대: 가로 2 · 세로 2 칸. 우클릭하면 제작 창(crafting.json 의 제작법). 일반 제작대와 같은 강도. */
+    public static final net.neoforged.neoforge.registries.DeferredBlock<org.gettserver.gettcore.craft.CraftBenchBlock> CRAFT_BENCH =
+            BLOCKS.registerBlock("craft_bench", org.gettserver.gettcore.craft.CraftBenchBlock::new,
+                    net.minecraft.world.level.block.state.BlockBehaviour.Properties
+                            .ofFullCopy(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE).noOcclusion()
+                            .pushReaction(net.minecraft.world.level.material.PushReaction.BLOCK));
+    public static final DeferredItem<net.minecraft.world.item.BlockItem> CRAFT_BENCH_ITEM =
+            ITEMS.registerSimpleBlockItem(CRAFT_BENCH);
+
     public static final DeferredHolder<MenuType<?>, MenuType<ShopMenu>> SHOP_MENU =
             MENUS.register("shop", () -> IMenuTypeExtension.create(ShopMenu::new));
     public static final DeferredHolder<MenuType<?>, MenuType<EnchantMenu>> ENCHANT_MENU =
@@ -126,6 +135,7 @@ public class GettCore {
                         output.accept(WEB_SHOOTER.get());
                         output.accept(NICKNAME_TICKET.get());
                         output.accept(STURDY_ANVIL_ITEM.get());
+                        output.accept(CRAFT_BENCH_ITEM.get());
                         output.accept(PetRegistry.CAPTURE_BALL_IRON.get());
                         output.accept(PetRegistry.CAPTURE_BALL_GOLD.get());
                         output.accept(PetRegistry.CAPTURE_BALL_DIAMOND.get());

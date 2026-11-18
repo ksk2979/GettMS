@@ -40,6 +40,7 @@ public final class DataEvents {
         PacketDistributor.sendToAllPlayers(new ReinforceConfigSyncPayload(GettData.get().reinforce()));
         PacketDistributor.sendToAllPlayers(new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToAllPlayers(new UpgradeConfigSyncPayload(GettData.get().upgrade()));
+        PacketDistributor.sendToAllPlayers(new org.gettserver.gettcore.network.CraftConfigSyncPayload(GettData.get().crafting()));
         PacketDistributor.sendToAllPlayers(new DetectorConfigSyncPayload(GettData.get().detector()));
         PacketDistributor.sendToAllPlayers(new org.gettserver.gettcore.network.WebConfigSyncPayload(GettData.get().web()));
     }
@@ -53,6 +54,7 @@ public final class DataEvents {
         PacketDistributor.sendToPlayer(player, new ReinforceConfigSyncPayload(GettData.get().reinforce()));
         PacketDistributor.sendToPlayer(player, new EquipmentConfigSyncPayload(GettData.get().equipment()));
         PacketDistributor.sendToPlayer(player, new UpgradeConfigSyncPayload(GettData.get().upgrade()));
+        PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.CraftConfigSyncPayload(GettData.get().crafting()));
         PacketDistributor.sendToPlayer(player, new DetectorConfigSyncPayload(GettData.get().detector()));
         PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.WebConfigSyncPayload(GettData.get().web()));
     }

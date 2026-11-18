@@ -21,14 +21,25 @@ import org.gettserver.gettcore.upgrade.UpgradeConfig;
 /**
  * Everything the web editor edits: shops/dialogs/quests keyed by file id, plus boss_points.json, pets.json,
  * protect.json, reinforce.json, hunting.json, mobs.json, equipment.json, upgrade.json, bosses.json, detector.json
- * and enchant.json.
+ * enchant.json and crafting.json.
  */
 public record EditorBundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs,
                            NpcMapping npcs, Map<String, QuestLine> quests, List<BossPoint> bossPoints,
                            PetConfig pets, ProtectConfig protect,
                            ReinforceConfig reinforce, HuntingConfig hunting, MobStatsConfig mobs,
                            EquipmentConfig equipment, UpgradeConfig upgrade, BossConfig bosses,
-                           DetectorConfig detector, EnchantConfig enchant) {
+                           DetectorConfig detector, EnchantConfig enchant,
+                           org.gettserver.gettcore.craft.CraftConfig crafting) {
+    /** Without crafting.json (default). Only for callers that never save the result as a whole. */
+    public EditorBundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs,
+                        Map<String, QuestLine> quests, List<BossPoint> bossPoints, PetConfig pets,
+                        ProtectConfig protect, ReinforceConfig reinforce, HuntingConfig hunting,
+                        MobStatsConfig mobs, EquipmentConfig equipment, UpgradeConfig upgrade, BossConfig bosses,
+                        DetectorConfig detector, EnchantConfig enchant) {
+        this(shops, dialogs, npcs, quests, bossPoints, pets, protect, reinforce, hunting, mobs, equipment, upgrade,
+                bosses, detector, enchant, org.gettserver.gettcore.craft.CraftConfig.DEFAULT);
+    }
+
     /** Without enchant.json (default). Only for callers that never save the result as a whole. */
     public EditorBundle(Map<String, ShopDefinition> shops, Map<String, DialogDefinition> dialogs, NpcMapping npcs,
                         Map<String, QuestLine> quests, List<BossPoint> bossPoints, PetConfig pets,

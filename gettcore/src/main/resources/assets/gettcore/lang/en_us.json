@@ -530,5 +530,17 @@
   "gettcore.party.admin.none": "There are no parties.",
   "gettcore.party.admin.entry": "%s (%s/%s): %s",
   "gettcore.party.admin.disbanded": "Disbanded party %s.",
-  "gettcore.party.disbanded_self": "An admin disbanded party %s."
+  "gettcore.party.disbanded_self": "An admin disbanded party %s.",
+  "block.gettcore.craft_bench": "Craft Bench",
+  "gettcore.craft.title": "Crafting",
+  "gettcore.craft.make": "Craft",
+  "gettcore.craft.needs": "Needs:",
+  "gettcore.craft.empty": "There is nothing to craft.",
+  "gettcore.craft.category.none": "Other",
+  "gettcore.craft.done": "Crafted %s x%s",
+  "gettcore.craft.done_gold": "Crafted %s x%s (-%s)",
+  "gettcore.craft.err.too_far": "You are too far from the craft bench.",
+  "gettcore.craft.err.unknown": "Unknown recipe.",
+  "gettcore.craft.err.no_result": "The result item does not exist on this server.",
+  "gettcore.craft.err.missing": "You are missing ingredients."
 }

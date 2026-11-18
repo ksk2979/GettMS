@@ -530,5 +530,17 @@
   "gettcore.party.admin.none": "파티가 없습니다.",
   "gettcore.party.admin.entry": "%s (%s/%s): %s",
   "gettcore.party.admin.disbanded": "파티 %s을(를) 해체했습니다.",
-  "gettcore.party.disbanded_self": "관리자가 파티 %s을(를) 해체했습니다."
+  "gettcore.party.disbanded_self": "관리자가 파티 %s을(를) 해체했습니다.",
+  "block.gettcore.craft_bench": "제작대",
+  "gettcore.craft.title": "제작",
+  "gettcore.craft.make": "제작",
+  "gettcore.craft.needs": "필요 재료:",
+  "gettcore.craft.empty": "만들 수 있는 것이 없습니다.",
+  "gettcore.craft.category.none": "기타",
+  "gettcore.craft.done": "%s x%s 제작 완료",
+  "gettcore.craft.done_gold": "%s x%s 제작 완료 (-%s)",
+  "gettcore.craft.err.too_far": "제작대에서 너무 멀리 떨어졌습니다.",
+  "gettcore.craft.err.unknown": "없는 제작법입니다.",
+  "gettcore.craft.err.no_result": "결과 아이템이 서버에 없어 만들 수 없습니다.",
+  "gettcore.craft.err.missing": "재료가 부족합니다."
 }

@@ -1,0 +1,55 @@
+{
+  "variants": {
+    "facing=north,part=main": {
+      "model": "gettcore:block/craft_bench"
+    },
+    "facing=north,part=side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=north,part=top": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=north,part=top_side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=east,part=main": {
+      "model": "gettcore:block/craft_bench",
+      "y": 90
+    },
+    "facing=east,part=side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=east,part=top": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=east,part=top_side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=south,part=main": {
+      "model": "gettcore:block/craft_bench",
+      "y": 180
+    },
+    "facing=south,part=side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=south,part=top": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=south,part=top_side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=west,part=main": {
+      "model": "gettcore:block/craft_bench",
+      "y": 270
+    },
+    "facing=west,part=side": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=west,part=top": {
+      "model": "gettcore:block/craft_bench_part"
+    },
+    "facing=west,part=top_side": {
+      "model": "gettcore:block/craft_bench_part"
+    }
+  }
+}

@@ -49,6 +49,7 @@ public final class EditorJson {
         root.add("bosses", BossConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.bosses()).getOrThrow());
         root.add("detector", DetectorConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.detector()).getOrThrow());
         root.add("enchant", EnchantConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.enchant()).getOrThrow());
+        root.add("crafting", org.gettserver.gettcore.craft.CraftConfig.CODEC.encodeStart(JsonOps.INSTANCE, bundle.crafting()).getOrThrow());
         if (refs != null) {
             JsonObject r = new JsonObject();
             JsonArray adv = new JsonArray();
@@ -87,6 +88,12 @@ public final class EditorJson {
     /** {@code enchantIfAbsent}: as {@code bossesIfAbsent}, for a page from before the 마법부여 tab existed. */
     public static EditorBundle decode(String json, BossConfig bossesIfAbsent, DetectorConfig detectorIfAbsent,
                                       EnchantConfig enchantIfAbsent) {
+        return decode(json, bossesIfAbsent, detectorIfAbsent, enchantIfAbsent, org.gettserver.gettcore.craft.CraftConfig.DEFAULT);
+    }
+
+    /** {@code craftingIfAbsent}: as {@code bossesIfAbsent}, for a page from before the 제작 tab existed. */
+    public static EditorBundle decode(String json, BossConfig bossesIfAbsent, DetectorConfig detectorIfAbsent,
+                                      EnchantConfig enchantIfAbsent, org.gettserver.gettcore.craft.CraftConfig craftingIfAbsent) {
         JsonElement parsed;
         try {
             parsed = JsonParser.parseString(json);
@@ -115,7 +122,9 @@ public final class EditorJson {
                 root.has("detector") && !root.get("detector").isJsonNull()
                         ? decodeSection(root, "detector", DetectorConfig.CODEC) : detectorIfAbsent,
                 root.has("enchant") && !root.get("enchant").isJsonNull()
-                        ? decodeSection(root, "enchant", EnchantConfig.CODEC) : enchantIfAbsent);
+                        ? decodeSection(root, "enchant", EnchantConfig.CODEC) : enchantIfAbsent,
+                root.has("crafting") && !root.get("crafting").isJsonNull()
+                        ? decodeSection(root, "crafting", org.gettserver.gettcore.craft.CraftConfig.CODEC) : craftingIfAbsent);
     }
 
     private static <T> T decodeSection(JsonObject root, String section, Codec<T> codec) {

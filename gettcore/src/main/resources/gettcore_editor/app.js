@@ -132,6 +132,7 @@
       boss_points: bundle.boss_points, pets: stripEmptyPetOverrides(bundle.pets), protect: bundle.protect,
       reinforce: bundle.reinforce, hunting: bundle.hunting, mobs: bundle.mobs, equipment: bundle.equipment,
       upgrade: bundle.upgrade, bosses: bundle.bosses, detector: bundle.detector, enchant: bundle.enchant,
+      crafting: bundle.crafting,
       datapack: bundle.datapack });
   }
 
@@ -314,6 +315,17 @@
     { material: 'minecraft:diamond', count: 10, gold: 0 }, { material: 'minecraft:netherite_ingot', count: 4, gold: 0 }];
   const BACKPACK_TIER_LABELS = ['가죽 → 철', '철 → 금', '금 → 다이아몬드', '다이아몬드 → 네더라이트'];
 
+  /** crafting.json: 제작법 목록 [{id, category, result, count, gold, ingredients: [{item, count, minReinforce}]}]. */
+  function normalizeCrafting(src) {
+    const recipes = (src && Array.isArray(src.recipes) ? src.recipes : []).filter((r) => r && typeof r === 'object')
+      .map((r) => ({ id: String(r.id || ''), category: String(r.category || ''), result: String(r.result || ''),
+        count: r.count === undefined ? 1 : r.count, gold: r.gold === undefined ? 0 : r.gold,
+        ingredients: (Array.isArray(r.ingredients) ? r.ingredients : []).filter((g) => g && typeof g === 'object')
+          .map((g) => ({ item: String(g.item || ''), count: g.count === undefined ? 1 : g.count,
+            minReinforce: g.minReinforce === undefined ? 0 : g.minReinforce })) }));
+    return { recipes };
+  }
+
   /** upgrade.json: 업그레이드 단계 목록 [{from, to, material, count, gold}] (빠진 count = 1, gold = 0). */
   function normalizeUpgrade(src) {
     const steps = (src && Array.isArray(src.steps) ? src.steps : []).filter((s) => s && typeof s === 'object')
@@ -484,6 +496,7 @@
       bosses: normalizeBosses(src.bosses !== undefined ? src.bosses : f.bosses),
       detector: normalizeDetector(src.detector !== undefined ? src.detector : f.detector),
       enchant: normalizeEnchant(src.enchant !== undefined ? src.enchant : f.enchant),
+      crafting: normalizeCrafting(src.crafting !== undefined ? src.crafting : f.crafting),
       datapack: normalizeDatapack(src.datapack !== undefined ? src.datapack : f.datapack),
     };
     for (const s of Object.values(b.shops)) {
@@ -946,7 +959,7 @@
   const DIALOG_ID = /^[a-z0-9_]+$/;
   const ACTIONS = [
     ['next', '다음 노드'], ['open_shop_buy', '상점 구매'], ['open_shop_sell', '상점 판매'],
-    ['open_enchant', '마법부여'], ['open_reinforce', '강화'], ['open_upgrade', '업그레이드'], ['quest', '퀘스트'], ['close', '닫기'],
+    ['open_enchant', '마법부여'], ['open_reinforce', '강화'], ['open_upgrade', '업그레이드'], ['open_craft', '제작'], ['quest', '퀘스트'], ['close', '닫기'],
   ];
   const isShopAction = (t) => t === 'open_shop_buy' || t === 'open_shop_sell';
 
@@ -3933,6 +3946,147 @@
     },
   };
   registerTab(upgradeTab);
+
+  /* ----- 제작 탭 (crafting.json: 제작대·NPC '제작' 에서 만드는 것) ----- */
+
+  const CRAFT_MAX_COUNT = 2304;
+  const CRAFT_MAX_INGREDIENTS = 12;
+
+  /** 제작법마다 오류 목록(서버 CraftConfig.errors 와 같은 규칙). */
+  function craftRecipeErrors(recipes) {
+    const seen = new Set();
+    return recipes.map((r) => {
+      const e = [];
+      const id = (r.id || '').trim();
+      if (!id) e.push('id가 비어 있습니다');
+      else if (seen.has(id)) e.push(`id ${id} 가 앞에 이미 있습니다`);
+      seen.add(id);
+      if (!r.result) e.push('결과 아이템을 고르세요');
+      if (!Number.isInteger(r.count) || r.count < 1 || r.count > CRAFT_MAX_COUNT) e.push(`결과 개수는 1~${CRAFT_MAX_COUNT} 정수여야 합니다`);
+      if (!Number.isInteger(r.gold) || r.gold < 0) e.push('골드는 0 이상의 정수여야 합니다');
+      if (!r.ingredients.length) e.push('재료가 없습니다');
+      if (r.ingredients.length > CRAFT_MAX_INGREDIENTS) e.push(`재료는 ${CRAFT_MAX_INGREDIENTS}가지까지입니다`);
+      r.ingredients.forEach((g, i) => {
+        if (!g.item) e.push(`재료 ${i + 1}: 아이템을 고르세요`);
+        if (!Number.isInteger(g.count) || g.count < 1 || g.count > CRAFT_MAX_COUNT) e.push(`재료 ${i + 1}: 개수는 1~${CRAFT_MAX_COUNT} 정수여야 합니다`);
+        if (!Number.isInteger(g.minReinforce) || g.minReinforce < 0 || g.minReinforce > 99) e.push(`재료 ${i + 1}: 강화 단계는 0~99 정수여야 합니다`);
+      });
+      return e;
+    });
+  }
+
+  function validateCrafting(bundle) {
+    const recipes = (bundle.crafting && bundle.crafting.recipes) || [];
+    const out = [];
+    craftRecipeErrors(recipes).forEach((errs, i) => {
+      for (const m of errs) out.push(`제작 ${i + 1}번 (${recipes[i].result ? itemName(recipes[i].result) : '빈 제작법'}): ${m}`);
+    });
+    return out;
+  }
+
+  const craftUi = { query: '' };
+
+  const craftingTab = {
+    id: 'crafting',
+    title: '제작',
+    validate: validateCrafting,
+    render(container) {
+      let checks = makeChecks();
+      const recipes = S.bundle.crafting.recipes;
+      const body = h('div');
+      const count = h('span', { class: 'muted' });
+      const unknownNote = (id) => {
+        const st = itemStatus(id);
+        return !id || st === 'ok' ? null : h('div', { class: 'id', style: 'color:var(--warn)' },
+          st === 'missing' ? '서버에 없는 아이템 (만들 수 없음)' : '아이템 목록에 없음');
+      };
+      const itemBtn = (o, key, label, redraw) => h('div', null,
+        h('button', { class: 'icon-btn', title: `${label} 바꾸기`, 'aria-label': `${label} 바꾸기`, onclick: async () => {
+          const id = await pickItem({ title: label });
+          if (!id) return;
+          o[key] = id; changed(); redraw();
+        } }, iconEl(o[key], 28), h('span', null, o[key] ? itemName(o[key]) : '— 선택 —')),
+        h('div', { class: 'id' }, o[key] || ''), unknownNote(o[key]));
+      const intIn = (o, key, label, min, width) => h('input', { type: 'number', min, step: 1, style: `width:${width || 5}rem`, 'aria-label': label,
+        value: Number.isNaN(o[key]) ? '' : o[key],
+        oninput: (e) => { o[key] = e.target.value.trim() === '' ? NaN : Number(e.target.value); changed(); checks.paint(); } });
+      const textIn = (o, key, label, width) => h('input', { type: 'text', value: o[key] || '', 'aria-label': label, placeholder: label, style: `width:${width}rem`,
+        oninput: (e) => { o[key] = e.target.value; changed(); checks.paint(); } });
+
+      const draw = () => {
+        checks = makeChecks();
+        const q = craftUi.query.trim().toLowerCase();
+        const text = (id) => (id ? (itemName(id) + ' ' + id).toLowerCase() : '');
+        const shown = [];
+        recipes.forEach((r, i) => {
+          const hay = r.id.toLowerCase() + ' ' + r.category.toLowerCase() + ' ' + text(r.result) + ' ' + r.ingredients.map((g) => text(g.item)).join(' ');
+          if (!q || hay.includes(q)) shown.push(i);
+        });
+        count.textContent = `${shown.length} / ${recipes.length}개`;
+        body.replaceChildren(...shown.map((i) => {
+          const r = recipes[i];
+          const err = h('div', { class: 'id', style: 'color:var(--bad)' });
+          checks.add(err, () => { err.textContent = (craftRecipeErrors(recipes)[i] || []).join(' · '); return ''; });
+          const ingBody = h('tbody', null, r.ingredients.map((g, gi) => h('tr', null,
+            h('td', null, itemBtn(g, 'item', '재료', draw)),
+            h('td', null, intIn(g, 'count', '재료 개수', 1)),
+            h('td', null, intIn(g, 'minReinforce', '최소 강화 단계', 0)),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': '재료 삭제', onclick: () => {
+              r.ingredients.splice(gi, 1); changed(); draw();
+            } }, '삭제')))));
+          const addIng = h('button', { class: 'small', onclick: async () => {
+            const id = await pickItem({ title: '재료 아이템' });
+            if (!id) return;
+            r.ingredients.push({ item: id, count: 1, minReinforce: 0 }); changed(); draw();
+          } }, '+ 재료 추가');
+          return h('div', { class: 'card', style: 'margin:.6rem 0' },
+            h('div', { class: 'field' },
+              itemBtn(r, 'result', '결과 아이템', draw),
+              h('label', null, '개수 ', intIn(r, 'count', '결과 개수', 1, 4)),
+              h('label', null, '골드 ', intIn(r, 'gold', '골드', 0, 6)),
+              h('label', null, '탭 ', textIn(r, 'category', '탭 이름(비우면 기타)', 9)),
+              h('label', null, 'id ', textIn(r, 'id', 'id', 11)),
+              h('button', { class: 'small', title: '위로', 'aria-label': '위로', onclick: () => {
+                if (i > 0) { recipes.splice(i - 1, 0, recipes.splice(i, 1)[0]); changed(); draw(); }
+              } }, '▲'),
+              h('button', { class: 'small', title: '아래로', 'aria-label': '아래로', onclick: () => {
+                if (i < recipes.length - 1) { recipes.splice(i + 1, 0, recipes.splice(i, 1)[0]); changed(); draw(); }
+              } }, '▼'),
+              h('button', { class: 'danger small', 'aria-label': '제작법 삭제', onclick: () => {
+                recipes.splice(i, 1); changed(); draw();
+              } }, '삭제')),
+            err,
+            h('div', { class: 'scroll-x' }, h('table', null,
+              h('thead', null, h('tr', null, ['재료', '개수', '최소 강화 단계', ''].map((t) => h('th', null, t)))), ingBody)),
+            h('div', { class: 'field', style: 'margin-top:.3rem' }, addIng));
+        }));
+        if (!recipes.length) body.append(h('p', { class: 'muted' }, '제작법이 없습니다. "제작법 추가"로 시작하세요.'));
+        checks.paint();
+      };
+
+      const search = h('input', { type: 'search', placeholder: '이름·id·탭 검색', 'aria-label': '제작법 검색',
+        value: craftUi.query, style: 'width:16rem', oninput: (e) => { craftUi.query = e.target.value; draw(); } });
+      const add = h('button', { onclick: async () => {
+        const result = await pickItem({ title: '만들 아이템 (결과)' });
+        if (!result) return;
+        const base = result.split(':').pop().replace(/[^a-z0-9_]/g, '_') || 'recipe';
+        let id = base; let n = 2;
+        while (recipes.some((r) => r.id === id)) id = base + '_' + n++;
+        const last = recipes[recipes.length - 1];
+        recipes.push({ id, category: last ? last.category : '', result, count: 1, gold: 0, ingredients: [] });
+        craftUi.query = ''; search.value = '';
+        changed(); draw();
+      } }, '제작법 추가');
+
+      container.append(h('div', { class: 'card' }, h('h2', null, '제작'),
+        h('p', { class: 'muted' }, '제작대 블록(gettcore:craft_bench)을 우클릭하거나 NPC 대화의 "제작" 동작으로 여는 제작 창의 목록입니다. 재료와 골드가 모두 있으면 바로 만들어집니다. 아이템 칸에는 일반 아이템과 아이템 프리셋(preset:이름)을 모두 쓸 수 있습니다.'),
+        h('p', { class: 'muted' }, '"최소 강화 단계"가 1 이상이면 그 단계 이상으로 강화한 장비만 재료로 인정합니다(예: 화승총 +5). "탭"이 같은 제작법끼리 제작 창에서 한 탭에 모입니다. 목록 순서가 제작 창의 순서입니다.'),
+        h('div', { class: 'field' }, search, add, count)), body);
+      draw();
+      return () => checks.paint();
+    },
+  };
+  registerTab(craftingTab);
 
   /* ----- 탐지기 탭 (detector.json: 탐지기 아이템·광맥 탐지 인챈트가 찾는 블록) ----- */
 

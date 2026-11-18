@@ -109,6 +109,7 @@ public final class GettData {
     private volatile FieldGoldConfig fieldGold = FieldGoldConfig.DEFAULT;
     private volatile EquipmentConfig equipment = EquipmentConfig.DEFAULT;
     private volatile UpgradeConfig upgrade = UpgradeConfig.DEFAULT;
+    private volatile org.gettserver.gettcore.craft.CraftConfig crafting = org.gettserver.gettcore.craft.CraftConfig.DEFAULT;
     private volatile DetectorConfig detector = DetectorConfig.DEFAULT;
     private volatile org.gettserver.gettcore.web.WebConfig web = org.gettserver.gettcore.web.WebConfig.DEFAULT;
     private volatile Path configDir;
@@ -237,6 +238,11 @@ public final class GettData {
         UpgradeConfig newUpgrade = Files.isRegularFile(upgradeFile)
                 ? read(upgradeFile, UpgradeConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(upgrade)
                 : UpgradeConfig.DEFAULT;
+        // An unreadable crafting.json keeps the config already loaded.
+        Path craftingFile = dir.resolve(org.gettserver.gettcore.craft.CraftConfig.FILE);
+        org.gettserver.gettcore.craft.CraftConfig newCrafting = Files.isRegularFile(craftingFile)
+                ? read(craftingFile, org.gettserver.gettcore.craft.CraftConfig.CODEC, errors).map(c -> c.sanitized(warnings)).orElse(crafting)
+                : org.gettserver.gettcore.craft.CraftConfig.DEFAULT;
         // An unreadable detector.json keeps the config already loaded.
         Path detectorFile = dir.resolve(DetectorConfig.FILE);
         DetectorConfig newDetector = Files.isRegularFile(detectorFile)
@@ -269,6 +275,7 @@ public final class GettData {
         fieldGold = newFieldGold;
         equipment = newEquipment;
         upgrade = newUpgrade;
+        crafting = newCrafting;
         detector = newDetector;
         web = newWeb;
         // Normalization applies to the raw (file) shops so entries for missing items are never dropped from disk.
@@ -424,7 +431,7 @@ public final class GettData {
     public EditorBundle rawBundle() {
         return new EditorBundle(new java.util.TreeMap<>(rawShops), new java.util.TreeMap<>(dialogs), npcs,
                 new java.util.TreeMap<>(rawQuestLines), bossPoints, pets, protect, reinforce, hunting, mobs,
-                equipment, upgrade, bosses, detector, enchant);
+                equipment, upgrade, bosses, detector, enchant, crafting);
     }
 
     /** {@code removedBossPoints}: ids of boss points that existed before a successful save and no longer do. */
@@ -507,6 +514,8 @@ public final class GettData {
                     b.detector()).getOrThrow(IOException::new));
             writes.put(dir.resolve(ENCHANT_FILE), EnchantConfig.CODEC.encodeStart(JsonOps.INSTANCE,
                     b.enchant()).getOrThrow(IOException::new));
+            writes.put(dir.resolve(org.gettserver.gettcore.craft.CraftConfig.FILE), org.gettserver.gettcore.craft.CraftConfig.CODEC.encodeStart(JsonOps.INSTANCE,
+                    b.crafting()).getOrThrow(IOException::new));
         } catch (IOException e) {
             return new SaveResult(false, List.of("encode failed: " + e.getMessage()), v.warnings(), null);
         }
@@ -624,7 +633,7 @@ public final class GettData {
         }
         for (String file : List.of("npcs.json", BOSS_POINTS_FILE, PETS_FILE, ProtectConfig.FILE,
                 ReinforceConfig.FILE, HuntingConfig.FILE, MobStatsConfig.FILE, BossConfig.FILE, EquipmentConfig.FILE, UpgradeConfig.FILE, DetectorConfig.FILE,
-                ENCHANT_FILE)) {
+                ENCHANT_FILE, org.gettserver.gettcore.craft.CraftConfig.FILE)) {
             Path f = dir.resolve(file);
             if (Files.isRegularFile(f)) Files.copy(f, target.resolve(file));
         }
@@ -736,6 +745,11 @@ public final class GettData {
     /** Per item attribute overrides from equipment.json (sanitized). */
     public EquipmentConfig equipment() {
         return equipment;
+    }
+
+    /** Craft bench recipes from crafting.json (sanitized). */
+    public org.gettserver.gettcore.craft.CraftConfig crafting() {
+        return crafting;
     }
 
     /** Equipment tier upgrade steps from upgrade.json (sanitized). */
