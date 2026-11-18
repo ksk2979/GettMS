@@ -29,6 +29,11 @@ public final class HealthBarSetting {
 
     /** 설정 파일에서 값 읽기(없거나 못 읽으면 null = auto). */
     public static String read(Path file) {
+        return read(file, KEY);
+    }
+
+    /** 같은 파일의 다른 키 읽기(없거나 못 읽으면 null). */
+    public static String read(Path file, String key) {
         if (!Files.isRegularFile(file)) return null;
         Properties p = new Properties();
         try (Reader r = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -36,6 +41,6 @@ public final class HealthBarSetting {
         } catch (IOException | IllegalArgumentException e) {
             return null;
         }
-        return p.getProperty(KEY);
+        return p.getProperty(key);
     }
 }

@@ -82,6 +82,17 @@ public class GettCoreClient {
         if (epicFight) {
             NeoForge.EVENT_BUS.addListener(
                     org.gettserver.gettcore.compat.client.EpicFightSkillTooltips::onRenderPre);
+            // Epic Fight 모드 자동 전환: 주 손 무기 → 전투 모드, 그 밖 → 기본 모드, 시전·감정표현 중에는 잠깐 기본 모드.
+            // gettcore-client.properties 의 epicFightAutoMode=off 로 끈다.
+            String autoMode = org.gettserver.gettcore.pet.client.HealthBarSetting.read(
+                    net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("gettcore-client.properties"),
+                    org.gettserver.gettcore.compat.AutoModeRules.SETTING_KEY);
+            if (org.gettserver.gettcore.compat.AutoModeRules.enabled(autoMode)) {
+                NeoForge.EVENT_BUS.addListener(
+                        org.gettserver.gettcore.compat.client.EpicFightAutoMode::onClientTick);
+            } else {
+                GettCore.LOGGER.info("gettcore: Epic Fight auto mode off (epicFightAutoMode={})", autoMode);
+            }
         }
         // 퀘스트 추적 HUD(오른쪽 위): 상태 효과 레이어 바로 다음에 그린다. 효과 아이콘이 있으면 그 아래로 비켜 그린다.
         // 포획틀: 우클릭 유지 = 조준(줌 + 십자선 아래 포획률), 좌클릭 = 던지기(서버 판정).
