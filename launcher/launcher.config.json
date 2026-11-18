@@ -46,14 +46,18 @@
     "epic-fight",
     "weapons-of-miracles",
     "tide",
-    "dreamdisplays"
+    "dreamdisplays",
+    "irons-spells-n-spellbooks",
+    "irons-lib",
+    "playeranimator",
+    "emotecraft"
   ],
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.16.3.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.16.3/gettcore-1.16.3.jar",
-      "sha512": "5448ec78b9f87b6f447d52c95857146ef8a7747fd3b0bfa13e7838a729a5ead0b825614c44ec9afa6467b9c73a1a73b12c868f6711becb8ed94d62c79f211f1e",
+      "file": "gettcore-1.17.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.17.0/gettcore-1.17.0.jar",
+      "sha512": "98c089e3ac315947324d066660a44fea3b69d577c465beb3397d14c228740363bd15b602e0ace1768030913df63ac9a4b5530feea4dea5d2f202f2068a5c4c76",
       "side": "both"
     },
     {
@@ -259,6 +263,14 @@
       "side": "both"
     },
     {
+      "slug": "emotecraft",
+      "file": "emotecraft-for-MC1.21.1-2.4.12-neoforge.jar",
+      "url": "https://cdn.modrinth.com/data/pZ2wrerK/versions/fu6N0NgM/emotecraft-for-MC1.21.1-2.4.12-neoforge.jar",
+      "sha512": "b9e59249f1fd2ad33c042561bdcebad74b3c1c82de86e4e11d0066e500c0c231ddf79487685367b47386370c8f7c763138ab5ba3f84d03e3b87667ecd2576dd1",
+      "size": 861829,
+      "side": "both"
+    },
+    {
       "slug": "entityculling",
       "file": "entityculling-neoforge-1.11.3-mc1.21.1.jar",
       "url": "https://cdn.modrinth.com/data/NNAgCjsB/versions/eieYbWYb/entityculling-neoforge-1.11.3-mc1.21.1.jar",
@@ -324,10 +336,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.16.3.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.16.3/gettcore-1.16.3.jar",
-      "sha512": "5448ec78b9f87b6f447d52c95857146ef8a7747fd3b0bfa13e7838a729a5ead0b825614c44ec9afa6467b9c73a1a73b12c868f6711becb8ed94d62c79f211f1e",
-      "size": 1996586,
+      "file": "gettcore-1.17.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.17.0/gettcore-1.17.0.jar",
+      "sha512": "98c089e3ac315947324d066660a44fea3b69d577c465beb3397d14c228740363bd15b602e0ace1768030913df63ac9a4b5530feea4dea5d2f202f2068a5c4c76",
+      "size": 2047758,
       "side": "both"
     },
     {
@@ -336,6 +348,22 @@
       "url": "https://cdn.modrinth.com/data/6txNkua3/versions/pWBBXq0j/immersive_paintings-neoforge-1.21.1-0.8.0.jar",
       "sha512": "4f50735fae4f07c8574352def88e685039d6aaf495f7da97a70cc062059caa058d11d1df503220d24ce218701c895d4808204e7387186fe5def968f0fff253a2",
       "size": 5548915,
+      "side": "both"
+    },
+    {
+      "slug": "irons-lib",
+      "file": "irons_lib-1.21.1-2.3.0.jar",
+      "url": "https://cdn.modrinth.com/data/9nfaJPtX/versions/dgH7P81J/irons_lib-1.21.1-2.3.0.jar",
+      "sha512": "74c609a583af1547c36ad39a7f89074a221f106fad5a246810d4921f91d0fc2df5660ef75f47f33e5f546cc51147d78ecbcff883da4a53f24002311697d0a99b",
+      "size": 481888,
+      "side": "both"
+    },
+    {
+      "slug": "irons-spells-n-spellbooks",
+      "file": "irons_spellbooks-1.21.1-3.16.3.jar",
+      "url": "https://cdn.modrinth.com/data/s4OWxYQQ/versions/slKLosTb/irons_spellbooks-1.21.1-3.16.3.jar",
+      "sha512": "fd782f98c6c59b193c4832f33775291d2a7e639e1e23dd47510bfb494d99d182bec1253566b9394f96c733a0d0108be34bd729614b82dc29e55e096fdeb96f5b",
+      "size": 13890045,
       "side": "both"
     },
     {
@@ -483,6 +511,14 @@
       "side": "both"
     },
     {
+      "slug": "playeranimator",
+      "file": "player-animation-lib-forge-2.0.4+1.21.1.jar",
+      "url": "https://cdn.modrinth.com/data/gedNE4y2/versions/HJZB6bmA/player-animation-lib-forge-2.0.4%2B1.21.1.jar",
+      "sha512": "fc00450fb6c95ec1779021bdc726122dacb5915c6baddaacc981cd221b01b8db35f2a0dfde5d6fa6766d877266dc82f58854f571ea53cc5c4d468b80e1548a5f",
+      "size": 203149,
+      "side": "both"
+    },
+    {
       "slug": "playername-styler",
       "file": "playernamestyler-2.0.3-mc1.21.1.jar",
       "url": "https://cdn.modrinth.com/data/YeqRouX2/versions/grQoBXOC/playernamestyler-2.0.3-mc1.21.1.jar",
@@ -571,5 +607,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "be0a90eea2df63ba0151133149e341e86acb63978e7a86dc16195f0adebd1a55"
+  "lockSource": "628c960104e6acf8985431fbd3fd466b3f315d3d9e4ab769f3dec4c28b86b03f"
 }
