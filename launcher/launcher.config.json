@@ -49,8 +49,7 @@
     "dreamdisplays",
     "irons-spells-n-spellbooks",
     "irons-lib",
-    "playeranimator",
-    "emotecraft"
+    "playeranimator"
   ],
   "customMods": [
     {
@@ -260,14 +259,6 @@
       "url": "https://cdn.modrinth.com/data/mSQF1NpT/versions/RX6A02W1/elytraslot-neoforge-9.0.2%2B1.21.1.jar",
       "sha512": "257af1e8de11634c561e617ac64ce2c452aebd86bd0a6ba2c4d164cee9746a30c093aa5e913d553b34ae4c235d5b17b40e5f95db18f2fea8f6e6361bd405d819",
       "size": 65086,
-      "side": "both"
-    },
-    {
-      "slug": "emotecraft",
-      "file": "emotecraft-for-MC1.21.1-2.4.12-neoforge.jar",
-      "url": "https://cdn.modrinth.com/data/pZ2wrerK/versions/fu6N0NgM/emotecraft-for-MC1.21.1-2.4.12-neoforge.jar",
-      "sha512": "b9e59249f1fd2ad33c042561bdcebad74b3c1c82de86e4e11d0066e500c0c231ddf79487685367b47386370c8f7c763138ab5ba3f84d03e3b87667ecd2576dd1",
-      "size": 861829,
       "side": "both"
     },
     {
@@ -607,5 +598,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "3e16090afdfb2e73ee76f315fd50312ac7050ef157ed58d5b1120336c8f864e6"
+  "lockSource": "fd08abb1d239e1abd65f5427c51a7699f8c4beff2c7248949ccd1c9546836be9"
 }
