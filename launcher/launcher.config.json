@@ -55,8 +55,8 @@
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.17.1.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.17.1/gettcore-1.17.1.jar",
+      "file": "gettcore-1.18.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.18.0/gettcore-1.18.0.jar",
       "sha512": "9beb286eb85b86b4ffe8850c482647fdcfdce09f4d2b1e56fb76708bb6e09f9e8329b146e7352ce903981c49bb1c7d9cb9b033b0612ac73abfe825658ab4afc0",
       "side": "both"
     },
@@ -336,10 +336,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.17.1.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.17.1/gettcore-1.17.1.jar",
+      "file": "gettcore-1.18.0.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.18.0/gettcore-1.18.0.jar",
       "sha512": "9beb286eb85b86b4ffe8850c482647fdcfdce09f4d2b1e56fb76708bb6e09f9e8329b146e7352ce903981c49bb1c7d9cb9b033b0612ac73abfe825658ab4afc0",
-      "size": 2047440,
+      "size": 2108842,
       "side": "both"
     },
     {
@@ -607,5 +607,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "353c2cb4ef2b387e8faae339f503e438fccaa8da66677f57ad14db87975c9bf0"
+  "lockSource": "77d0d55fddc13f825c6c6b8c2232a33d1acfe3e353d2cfd90889aadfeb3fe7f1"
 }
