@@ -55,9 +55,9 @@
   "customMods": [
     {
       "name": "gettcore",
-      "file": "gettcore-1.19.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.19.0/gettcore-1.19.0.jar",
-      "sha512": "2770cf5be7bbc56c3c2e6ab3a3a160b7cd8500066b38978f25cd3e7d8bf56f3530344a59506ce49ab6f8c0dd1daa3ca7703b8d1b2e885b3e36902db02873cee4",
+      "file": "gettcore-1.19.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.19.1/gettcore-1.19.1.jar",
+      "sha512": "d437d0486bf70b683a406823aae683a9d5507992bceaf1e979fa5514775aaaf3c0522906004ed77f1a55ea5c44238405978c700feaf89633bcf6674daa39cdf7",
       "side": "both"
     },
     {
@@ -336,10 +336,10 @@
     },
     {
       "slug": "gettcore",
-      "file": "gettcore-1.19.0.jar",
-      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.19.0/gettcore-1.19.0.jar",
-      "sha512": "2770cf5be7bbc56c3c2e6ab3a3a160b7cd8500066b38978f25cd3e7d8bf56f3530344a59506ce49ab6f8c0dd1daa3ca7703b8d1b2e885b3e36902db02873cee4",
-      "size": 2135753,
+      "file": "gettcore-1.19.1.jar",
+      "url": "https://github.com/ksk2979/GettMS/releases/download/gettcore-1.19.1/gettcore-1.19.1.jar",
+      "sha512": "d437d0486bf70b683a406823aae683a9d5507992bceaf1e979fa5514775aaaf3c0522906004ed77f1a55ea5c44238405978c700feaf89633bcf6674daa39cdf7",
+      "size": 2139294,
       "side": "both"
     },
     {
@@ -607,5 +607,5 @@
       "side": "client"
     }
   ],
-  "lockSource": "8bfd9eae67cf2509c1ae8f7aa3e5d85ddc940c5a8720d13f8b07bde98210768d"
+  "lockSource": "6582c27a611c5ebfae17bb677caca9527ac8db253e97c15c155a253234e63e89"
 }
