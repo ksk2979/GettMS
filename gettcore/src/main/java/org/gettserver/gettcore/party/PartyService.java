@@ -52,6 +52,12 @@ public final class PartyService {
     public static void onServerStarting(ServerStartingEvent event) {
         INVITES.clear();
         LAST_SENT.clear();
+        // With PlayerName Styler the chat line is built from its format string: offer the party tag as %party%.
+        org.gettserver.gettcore.nick.StylerBridge.registerPartyPlaceholder(player -> {
+            if (player.getServer() == null) return "";
+            Party party = PartyData.get(player.getServer()).book().of(player.getUUID());
+            return party == null ? "" : party.name();
+        });
     }
 
     @SubscribeEvent
@@ -316,6 +322,7 @@ public final class PartyService {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onNameFormat(PlayerEvent.NameFormat event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.getServer() == null) return;
+        if (org.gettserver.gettcore.nick.StylerBridge.active()) return;
         Party party = PartyData.get(player.getServer()).book().of(player.getUUID());
         if (party == null) return;
         event.setDisplayname(Component.literal("[" + party.name() + "] ").withStyle(ChatFormatting.GOLD)

@@ -55,7 +55,7 @@ public final class EconomyCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> amountCmd(String literal, Op op, String okKey) {
         return Commands.literal(literal)
                 .requires(Perms.require(Perms.ECONOMY_ADMIN))
-                .then(Commands.argument("player", StringArgumentType.word())
+                .then(Commands.argument("player", org.gettserver.gettcore.pet.command.NameArgument.name())
                         .then(Commands.argument("amount", LongArgumentType.longArg(1, Ledger.MAX_AMOUNT))
                                 .executes(ctx -> modify(ctx, op, okKey))));
     }
@@ -63,7 +63,7 @@ public final class EconomyCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> getCmd(String literal) {
         return Commands.literal(literal)
                 .requires(Perms.require(Perms.ECONOMY_ADMIN))
-                .then(Commands.argument("player", StringArgumentType.word())
+                .then(Commands.argument("player", org.gettserver.gettcore.pet.command.NameArgument.name())
                         .executes(EconomyCommands::lookup));
     }
 
@@ -87,7 +87,7 @@ public final class EconomyCommands {
     private static int modify(CommandContext<CommandSourceStack> ctx, Op op, String okKey) {
         CommandSourceStack src = ctx.getSource();
         MinecraftServer server = src.getServer();
-        String name = StringArgumentType.getString(ctx, "player");
+        String name = org.gettserver.gettcore.pet.command.NameArgument.getName(ctx, "player");
         long amount = LongArgumentType.getLong(ctx, "amount");
         Optional<GameProfile> profile = OfflinePlayers.resolve(server, name);
         if (profile.isEmpty()) {
@@ -113,7 +113,7 @@ public final class EconomyCommands {
 
     private static int lookup(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        String name = StringArgumentType.getString(ctx, "player");
+        String name = org.gettserver.gettcore.pet.command.NameArgument.getName(ctx, "player");
         Optional<GameProfile> profile = OfflinePlayers.resolve(src.getServer(), name);
         if (profile.isEmpty()) {
             src.sendFailure(Component.translatable("gettcore.msg.no_player", name));

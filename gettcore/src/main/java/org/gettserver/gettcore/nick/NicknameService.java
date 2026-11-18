@@ -33,7 +33,7 @@ import org.gettserver.gettcore.perm.Perms;
  * Server nicknames. A player without one is asked for it on login (free); changing it later takes a nickname ticket
  * (use it, type the name; the ticket is taken only when the name was accepted). The nickname replaces the account name in chat, the tab list, above the head and in the
  * party screens, and player arguments of commands take it too (mixins EntitySelectorParserMixin, PlayerListMixin). Admins: /닉네임 설정 <플레이어> <이름>, 초기화 <플레이어>,
- * 확인 <닉네임> (and /nickname set|reset|whois).
+ * 확인 <닉네임> (and /gettnick set|reset|whois; /nickname belongs to PlayerName Styler).
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class NicknameService {
@@ -99,6 +99,8 @@ public final class NicknameService {
     private static void changed(MinecraftServer server, NicknameData data, ServerPlayer player) {
         data.setDirty();
         if (player != null) {
+            // PlayerName Styler draws chat, tab list and name tags itself: give it the nickname.
+            StylerBridge.apply(player, data.book().of(player.getUUID()));
             player.refreshDisplayName();
             player.refreshTabListName();
         }
@@ -110,6 +112,7 @@ public final class NicknameService {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.getServer() == null) return;
         NicknameBook book = NicknameData.get(player.getServer()).book();
         PacketDistributor.sendToPlayer(player, new NicknameSyncPayload(new HashMap<>(book.all())));
+        if (book.of(player.getUUID()) != null) StylerBridge.apply(player, book.of(player.getUUID()));
         if (book.of(player.getUUID()) == null) {
             PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.NicknamePromptPayload());
         }
@@ -119,6 +122,7 @@ public final class NicknameService {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onNameFormat(PlayerEvent.NameFormat event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.getServer() == null) return;
+        if (StylerBridge.active()) return;
         String nick = NicknameData.get(player.getServer()).book().of(player.getUUID());
         if (nick != null) event.setDisplayname(Component.literal(nick));
     }
@@ -126,6 +130,7 @@ public final class NicknameService {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onTabListName(PlayerEvent.TabListNameFormat event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.getServer() == null) return;
+        if (StylerBridge.active()) return;
         String nick = NicknameData.get(player.getServer()).book().of(player.getUUID());
         if (nick != null) event.setDisplayName(Component.literal(nick));
     }
@@ -133,7 +138,7 @@ public final class NicknameService {
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(root("닉네임", "설정", "초기화", "확인"));
-        event.getDispatcher().register(root("nickname", "set", "reset", "whois"));
+        event.getDispatcher().register(root("gettnick", "set", "reset", "whois"));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name, String set, String reset, String whois) {
