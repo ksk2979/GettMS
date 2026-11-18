@@ -57,4 +57,14 @@ class NicknameBookTest {
         assertEquals(1, book.all().size());
         assertEquals("one", book.of(A));
     }
+
+    @Test
+    void partyPlaceholderGoesBeforeTheTitleOrTheName() {
+        assertEquals("&f<%party%%prefix%&r%displayname%%suffix%&f>%colon% &r%chatmessage%",
+                StylerBridge.withParty("&f<%prefix%&r%displayname%%suffix%&f>%colon% &r%chatmessage%"));
+        assertEquals("<%party%%displayname%> %chatmessage%", StylerBridge.withParty("<%displayname%> %chatmessage%"));
+        assertEquals("[%party%] %displayname%", StylerBridge.withParty("[%party%] %displayname%"));
+        assertEquals("%chatmessage%", StylerBridge.withParty("%chatmessage%"));
+        assertNull(StylerBridge.withParty(null));
+    }
 }

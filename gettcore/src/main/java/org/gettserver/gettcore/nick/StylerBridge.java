@@ -13,7 +13,7 @@ import org.gettserver.gettcore.GettCore;
  * PlayerName Styler (optional, server side) draws names itself: it cancels the chat event and sends its own line
  * from a format string, and it formats the tab list and the name above the head. So with that mod installed our
  * nickname is handed to it (it then shows everywhere it draws names), and the party tag is offered as the
- * placeholder {@code %party%} for its chat format. Without the mod nothing here runs and the name events are used.
+ * placeholder {@code %party%}, which is also put into its chat format when missing. Without the mod nothing here runs and the name events are used.
  *
  * <p>Reflection only: the mod is not a compile dependency. A mismatch (another version) logs once and turns the
  * bridge off; the nickname itself is still stored and used by our own screens and commands.
@@ -81,11 +81,41 @@ public final class StylerBridge {
             Object proxy = Proxy.newProxyInstance(resolver.getClassLoader(), new Class<?>[] {resolver}, handler);
             Class.forName(PKG + "api.PlaceholderRegistry").getMethod("register", String.class, resolver)
                     .invoke(null, PARTY_PLACEHOLDER, proxy);
-            GettCore.LOGGER.info("gettcore: PlayerName Styler 연동 — 채팅 형식에 {} 를 넣으면 파티 이름이 나옵니다",
-                    PARTY_PLACEHOLDER);
+            addPartyToChatFormat();
         } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
             fail(e);
         }
+    }
+
+    /**
+     * Puts the placeholder into the chat format in use when it is not there, so the party tag shows without anyone
+     * editing that config. Only the loaded value changes; the file is left as it is.
+     */
+    @SuppressWarnings("unchecked")
+    private static void addPartyToChatFormat() throws ReflectiveOperationException {
+        Object value = Class.forName(PKG + "data.PlayerNameStylerConfig").getField("CHAT_FORMAT").get(null);
+        var chatFormat = (net.neoforged.neoforge.common.ModConfigSpec.ConfigValue<String>) value;
+        String now = chatFormat.get();
+        String wanted = withParty(now);
+        if (wanted.equals(now)) {
+            GettCore.LOGGER.info("gettcore: PlayerName Styler 연동 — 채팅 형식: {}", now);
+            return;
+        }
+        chatFormat.set(wanted);
+        GettCore.LOGGER.info("gettcore: PlayerName Styler 연동 — 채팅 형식에 {} 추가: {}", PARTY_PLACEHOLDER, wanted);
+    }
+
+    /**
+     * The chat format with the party placeholder: unchanged when it already has one, otherwise put right before the
+     * title (%prefix%) or, without that, before the name; a format with neither is left alone.
+     */
+    public static String withParty(String format) {
+        if (format == null || format.contains(PARTY_PLACEHOLDER)) return format;
+        for (String anchor : new String[] {"%prefix%", "%displayname%", "%username%"}) {
+            int i = format.indexOf(anchor);
+            if (i >= 0) return format.substring(0, i) + PARTY_PLACEHOLDER + format.substring(i);
+        }
+        return format;
     }
 
     private static void fail(Throwable e) {
