@@ -28,6 +28,10 @@ public final class MissingRefs {
                 for (ItemReward r : q.rewards().items()) check(r.item().toString(), checks, false, out);
             }
         }
+        // Extra kill drops (mobs.json per entity type, hunting variants).
+        bundle.mobs().drops().values().forEach(list -> list.forEach(d -> check(d.item().toString(), checks, false, out)));
+        bundle.hunting().zones().forEach(z -> z.entries().forEach(
+                e -> e.drops().forEach(d -> check(d.item().toString(), checks, false, out))));
         return List.copyOf(out);
     }
 

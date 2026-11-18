@@ -12,6 +12,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import org.gettserver.gettcore.drop.Drop;
 import org.gettserver.gettcore.skill.SkillSpec;
 
 /**
@@ -39,10 +40,10 @@ public record HuntingConfig(List<Zone> zones) {
     public static final int MAX_WEIGHT = 10000;
     public static final double MAX_XP_MULTIPLIER = 100;
 
-    /** One variant: absolute stats (not multipliers), spawn weight and kill reward. */
+    /** One variant: absolute stats (not multipliers), spawn weight, kill reward and extra kill drops. */
     public record Entry(String name, ResourceLocation entity, double health, double attack, double speed, double armor,
                         double scale, int weight, long gold, double xpMultiplier,
-                        List<SkillSpec> skills) {
+                        List<SkillSpec> skills, List<Drop> drops) {
         public static final Codec<Entry> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Codec.STRING.fieldOf("name").forGetter(Entry::name),
                 ResourceLocation.CODEC.fieldOf("entity").forGetter(Entry::entity),
@@ -54,11 +55,19 @@ public record HuntingConfig(List<Zone> zones) {
                 Codec.INT.optionalFieldOf("weight", 1).forGetter(Entry::weight),
                 Codec.LONG.optionalFieldOf("gold", 0L).forGetter(Entry::gold),
                 Codec.DOUBLE.optionalFieldOf("xpMultiplier", 1.0).forGetter(Entry::xpMultiplier),
-                SkillSpec.CODEC.listOf().optionalFieldOf("skills", List.of()).forGetter(Entry::skills)
+                SkillSpec.CODEC.listOf().optionalFieldOf("skills", List.of()).forGetter(Entry::skills),
+                Drop.LIST_CODEC.optionalFieldOf("drops", List.of()).forGetter(Entry::drops)
         ).apply(i, Entry::new));
 
         public Entry {
             skills = List.copyOf(skills);
+            drops = List.copyOf(drops);
+        }
+
+        /** A variant without extra drops. */
+        public Entry(String name, ResourceLocation entity, double health, double attack, double speed, double armor,
+                     double scale, int weight, long gold, double xpMultiplier, List<SkillSpec> skills) {
+            this(name, entity, health, attack, speed, armor, scale, weight, gold, xpMultiplier, skills, List.of());
         }
 
         /** A variant without skills. */
@@ -81,7 +90,8 @@ public record HuntingConfig(List<Zone> zones) {
             }
             double x = clamp(where, "xpMultiplier", xpMultiplier, 0, MAX_XP_MULTIPLIER, warnings);
             Entry e = new Entry(name, entity, h, a, s, ar, sc, w, g, x,
-                    SkillSpec.sanitizedList(FILE, where, skills, warnings));
+                    SkillSpec.sanitizedList(FILE, where, skills, warnings),
+                    Drop.sanitizedList(FILE + ": " + where, drops, warnings));
             return e.equals(this) ? this : e;
         }
     }

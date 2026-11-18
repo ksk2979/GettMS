@@ -277,6 +277,7 @@
           const out = Object.assign({ name: '', entity: '' }, HUNT_ENTRY_DEFAULTS, e);
           // skills 는 없으면 없는 채로 둔다 (처음 고칠 때 만든다).
           if (Array.isArray(e.skills)) out.skills = e.skills.filter((k) => k && typeof k === 'object').map((k) => normalizeSkill(clone(k)));
+          out.drops = normalizeDrops(e.drops);
           return out;
         }),
       })),
@@ -288,7 +289,23 @@
     const p = src || {};
     const overrides = {};
     for (const [k, v] of Object.entries(p.overrides && typeof p.overrides === 'object' ? p.overrides : {})) overrides[k] = Object.assign({}, v);
-    return { overrides };
+    const drops = {};
+    for (const [k, v] of Object.entries(p.drops && typeof p.drops === 'object' ? p.drops : {})) {
+      const list = normalizeDrops(v);
+      if (list.length) drops[k] = list;
+    }
+    return { overrides, drops };
+  }
+
+  /**
+   * 처치 드롭 목록 [{item, chance, min, max}] — 몬스터 탭(종류별)과 사냥터 탭(변종별)이 함께 쓴다.
+   * item 은 아이템 id 나 아이템 프리셋(preset:<이름>), chance 는 %, 개수는 min~max 중 하나. 서버 코덱 기본값: chance 100, min 1, max = min.
+   */
+  function normalizeDrops(list) {
+    return (Array.isArray(list) ? list : []).filter((d) => d && typeof d === 'object').map((d) => {
+      const min = d.min === undefined ? 1 : d.min;
+      return { item: typeof d.item === 'string' ? d.item : '', chance: d.chance === undefined ? 100 : d.chance, min, max: d.max === undefined ? min : d.max };
+    });
   }
 
   /** equipment.json: 아이템별로 덮어쓸 툴팁 값만 (빠진 값 = 그 아이템의 원래 값). */
@@ -3043,6 +3060,7 @@
         add(huntRules.name(z, j), ew + ' 이름');
         add(huntRules.entity(e), ew + ' 종류');
         for (const [key, label] of HUNT_COLS) add(huntRules.num(key, e[key]), `${ew} ${label}`);
+        out.push(...dropErrors(e.drops, `${w} › ${ew}`));
       });
     });
     return out;
@@ -3093,6 +3111,11 @@
             h('td', null, entIn, ' ', h('button', { class: 'small', title: '이 몬스터의 기본 체력·공격력·이동 속도·방어를 넣습니다', 'aria-label': `${ew} 기본값 넣기`,
               onclick: () => { fillFromBase(e); changed(); renderTabContent(); } }, '기본값')),
             ...HUNT_COLS.map(([key, label]) => h('td', null, numIn(e, key, `${ew} ${label}`))),
+            h('td', null, h('button', { class: 'small', 'aria-label': `${ew} 드롭 고치기`, onclick: async () => {
+              if (!Array.isArray(e.drops)) e.drops = [];
+              await editDrops(`${e.name || ew} 처치 드롭`, e.drops);
+              renderTabContent();
+            } }, dropSummary(e.drops))),
             h('td', null, h('button', { class: 'danger small', 'aria-label': `${ew} 삭제`, onclick: () => {
               z.entries.splice(j, 1); changed(); renderTabContent();
             } }, '삭제')));
@@ -3111,7 +3134,7 @@
             h('label', { style: 'min-width:5rem; margin-left:1rem' }, '채우는 간격'), numIn(z, 'refillSeconds', `${where} 채우는 간격`, { min: 1, max: 3600 }),
             h('span', { class: 'muted' }, '초마다 한 마리')),
           z.entries.length ? h('div', { class: 'scroll-x' }, h('table', null,
-            h('thead', null, h('tr', null, ['이름', '몬스터'].concat(HUNT_COLS.map((c) => c[1]), ['']).map((t) => h('th', null, t)))),
+            h('thead', null, h('tr', null, ['이름', '몬스터'].concat(HUNT_COLS.map((c) => c[1]), ['처치 드롭', '']).map((t) => h('th', null, t)))),
             h('tbody', null, rows))) : h('p', { class: 'muted' }, '몬스터가 없습니다. 몬스터가 없으면 이 사냥터에는 아무것도 나오지 않습니다.'),
           h('button', { class: 'small', onclick: () => {
             let n = z.entries.length + 1;
@@ -3461,6 +3484,71 @@
   };
   registerTab(bossSkillsTab);
 
+  /* ----- 처치 드롭 (몬스터 탭·사냥터 탭 공용) ----- */
+
+  const DROP_MAX = 32;
+  const DROP_COUNT_MAX = 640;
+  const dropRules = {
+    item: (v) => (typeof v === 'string' && ITEM_ID.test(v) ? '' : '아이템을 고르세요'),
+    chance: (v) => (isNum(v) && v >= 0 && v <= 100 ? '' : '0~100 사이여야 합니다'),
+    min: (v) => (isInt(v) && v >= 1 && v <= DROP_COUNT_MAX ? '' : `1~${DROP_COUNT_MAX} 사이 정수여야 합니다`),
+    max: (d) => (isInt(d.max) && d.max >= 1 && d.max <= DROP_COUNT_MAX ? (isInt(d.min) && d.max < d.min ? '최소보다 작습니다' : '') : `1~${DROP_COUNT_MAX} 사이 정수여야 합니다`),
+  };
+  function dropErrors(list, where) {
+    const out = [];
+    const drops = Array.isArray(list) ? list : [];
+    if (drops.length > DROP_MAX) out.push(`${where}: 드롭은 최대 ${DROP_MAX}개입니다`);
+    drops.forEach((d, n) => {
+      const w = `${where} › 드롭 ${n + 1}`;
+      for (const [m, label] of [[dropRules.item(d.item), '아이템'], [dropRules.chance(d.chance), '확률'], [dropRules.min(d.min), '최소 개수'], [dropRules.max(d), '최대 개수']]) {
+        if (m) out.push(`${w} ${label}: ${m}`);
+      }
+    });
+    return out;
+  }
+  const dropSummary = (list) => (Array.isArray(list) && list.length ? `드롭 ${list.length}개` : '드롭 없음');
+
+  /** 드롭 목록을 고치는 대화상자. list 를 직접 고친다(추가·삭제·수정마다 changed()). 닫히면 끝. */
+  function editDrops(title, list) {
+    return modal(title, (box, close) => {
+      const checks = makeChecks();
+      const body = h('div');
+      const draw = () => {
+        const rows = list.map((d, n) => {
+          const num = (key, label, attrs, rule) => checks.add(h('input', Object.assign({ type: 'number', style: 'width:5rem', 'aria-label': `드롭 ${n + 1} ${label}`,
+            value: shownNum(d[key]), oninput: (e) => { const raw = e.target.value.trim(); d[key] = raw === '' ? NaN : Number(raw); changed(); checks.paint(); } }, attrs)), rule);
+          const status = itemStatus(d.item);
+          return h('tr', null,
+            h('td', null, h('div', { class: 'row', style: 'gap:.4rem;align-items:center' }, iconEl(d.item, 24),
+              h('div', null, h('div', null, itemName(d.item)), h('div', { class: 'id' }, d.item + (status === 'missing' ? ' · 서버에 없음' : status === 'unknown' ? ' · 목록에 없음' : ''))))),
+            h('td', null, h('button', { class: 'small', 'aria-label': `드롭 ${n + 1} 아이템 바꾸기`, onclick: async () => {
+              const id = await pickItem({ title: '드롭 아이템 선택' });
+              if (id) { d.item = id; changed(); draw(); }
+            } }, '바꾸기')),
+            h('td', null, num('chance', '확률', { step: 'any', min: 0, max: 100 }, () => dropRules.chance(d.chance)), ' %'),
+            h('td', null, num('min', '최소 개수', { step: 1, min: 1, max: DROP_COUNT_MAX }, () => dropRules.min(d.min)), ' ~ ',
+              num('max', '최대 개수', { step: 1, min: 1, max: DROP_COUNT_MAX }, () => dropRules.max(d)), ' 개'),
+            h('td', null, h('button', { class: 'danger small', 'aria-label': `드롭 ${n + 1} 삭제`, onclick: () => { list.splice(n, 1); changed(); draw(); } }, '삭제')));
+        });
+        body.replaceChildren(
+          list.length ? h('div', { class: 'scroll-x' }, h('table', null,
+            h('thead', null, h('tr', null, ['아이템', '', '확률', '개수', ''].map((t) => h('th', null, t)))), h('tbody', null, rows)))
+            : h('p', { class: 'muted' }, '드롭이 없습니다.'),
+          h('div', { class: 'row', style: 'gap:.4rem;margin-top:.6rem' },
+            list.length < DROP_MAX ? h('button', { class: 'small', onclick: async () => {
+              const id = await pickItem({ title: '드롭 아이템 선택' });
+              if (id) { list.push({ item: id, chance: 100, min: 1, max: 1 }); changed(); draw(); }
+            } }, '+ 드롭 추가') : h('span', { class: 'muted' }, `드롭은 최대 ${DROP_MAX}개입니다`),
+            h('button', { class: 'primary', onclick: () => close(true) }, '닫기')));
+        checks.paint();
+      };
+      box.append(h('h2', null, title),
+        h('p', { class: 'muted' }, '플레이어가 잡았을 때만, 원래 떨어뜨리는 것에 더해 떨어집니다. 줄마다 따로 확률을 굴리고, 걸리면 최소~최대 개수 중 하나만큼 나옵니다. 주문이 든 스크롤처럼 세부 정보가 있는 아이템은 게임에서 손에 들고 /프리셋 저장 <이름> 으로 저장한 뒤, 아이템 선택 창의 모드 "아이템 프리셋" 에서 고릅니다.'),
+        body);
+      draw();
+    });
+  }
+
   /* ----- 몬스터 탭 ----- */
 
   const MOB_STATS = [['health', '체력', 1, 1024], ['attack', '공격력', 0, 2048], ['speed', '이동 속도', 0, 1024], ['armor', '방어', 0, 30]];
@@ -3481,6 +3569,7 @@
         if (m) out.push(`몬스터 ${id} › ${label}: ${m}`);
       }
     }
+    for (const [id, list] of Object.entries((bundle.mobs && bundle.mobs.drops) || {})) out.push(...dropErrors(list, `몬스터 ${id}`));
     return out;
   }
 
@@ -3493,9 +3582,10 @@
     render(container) {
       let rowChecks = makeChecks();
       const overrides = S.bundle.mobs.overrides;
+      const drops = S.bundle.mobs.drops;
       const catalog = (S.catalog.mobs || []).slice();
       const known = new Set(catalog.map((m) => m.id));
-      for (const id of Object.keys(overrides)) if (!known.has(id)) catalog.push({ id, name: '', mod: '', category: '', missing: true });
+      for (const id of new Set(Object.keys(overrides).concat(Object.keys(drops)))) if (!known.has(id)) catalog.push({ id, name: '', mod: '', category: '', missing: true });
       catalog.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
       const shown = (v) => (isNum(v) ? String(Math.round(v * 1000) / 1000) : '없음');
 
@@ -3504,7 +3594,7 @@
       const draw = () => {
         rowChecks = makeChecks();
         const q = mobsUi.query.trim().toLowerCase();
-        const list = catalog.filter((m) => (!mobsUi.onlyChanged || overrides[m.id])
+        const list = catalog.filter((m) => (!mobsUi.onlyChanged || overrides[m.id] || drops[m.id])
           && (!mobsUi.category || m.missing || m.category === mobsUi.category)
           && (!q || ((m.name || '') + ' ' + m.id + ' ' + (m.mod || '')).toLowerCase().includes(q)));
         count.textContent = `${list.length}종`;
@@ -3528,6 +3618,13 @@
             h('td', null, h('div', null, m.missing ? '(목록에 없음)' : (m.name || m.id)), h('div', { class: 'id' }, m.id + (m.mod ? ' · ' + m.mod : ''))),
             h('td', null, h('span', { class: 'muted' }, MOB_CATEGORY_LABEL[m.category] || m.category || '')),
             ...cells,
+            h('td', null, h('button', { class: 'small', 'aria-label': `${m.name || m.id} 드롭 고치기`, onclick: async () => {
+              const list = drops[m.id] || [];
+              drops[m.id] = list;
+              await editDrops(`${m.name || m.id} 처치 드롭`, list);
+              if (!list.length) delete drops[m.id];
+              draw();
+            } }, dropSummary(drops[m.id]))),
             h('td', null, overrides[m.id] ? h('button', { class: 'small', 'aria-label': `${m.id} 기본값으로`, onclick: () => {
               delete overrides[m.id]; changed(); draw();
             } }, '기본값으로') : null));
@@ -3551,7 +3648,7 @@
         S.catalogOk && !(S.catalog.mobs || []).length ? h('p', { class: 'muted' }, '몬스터 목록을 불러오지 못했습니다. 바꾼 항목만 보입니다.') : null,
         h('div', { class: 'field' }, search, catSel, onlyChanged, count),
         h('div', { class: 'scroll-x' }, h('table', null,
-          h('thead', null, h('tr', null, ['몬스터', '분류'].concat(MOB_STATS.map((s) => s[1]), ['']).map((t) => h('th', null, t)))), tbody))));
+          h('thead', null, h('tr', null, ['몬스터', '분류'].concat(MOB_STATS.map((s) => s[1]), ['처치 드롭', '']).map((t) => h('th', null, t)))), tbody))));
       draw();
       return () => rowChecks.paint();
     },

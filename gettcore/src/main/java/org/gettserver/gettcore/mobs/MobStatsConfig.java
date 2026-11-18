@@ -7,14 +7,17 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import net.minecraft.resources.ResourceLocation;
+import org.gettserver.gettcore.drop.Drop;
 
 /**
  * mobs.json: per entity type base stat overrides ({@code overrides: {"minecraft:zombie": {"health": 40}}}). A missing
  * value keeps the type's own default. Applied to newly appearing mobs only (see {@link MobStatsRules}).
+ * {@code drops: {"minecraft:zombie": [{"item": ..., "chance": 10, "min": 1, "max": 2}]}}: extra kill drops per
+ * entity type (see {@link org.gettserver.gettcore.drop.DropEvents}); these apply to mobs already in the world too.
  */
-public record MobStatsConfig(Map<String, Stats> overrides) {
+public record MobStatsConfig(Map<String, Stats> overrides, Map<String, List<Drop>> drops) {
     public static final String FILE = "mobs.json";
-    public static final MobStatsConfig DEFAULT = new MobStatsConfig(Map.of());
+    public static final MobStatsConfig DEFAULT = new MobStatsConfig(Map.of(), Map.of());
     public static final double MIN_HEALTH = 1;
     public static final double MAX_HEALTH = 1024;
     public static final double MAX_ATTACK = 2048;
@@ -38,11 +41,26 @@ public record MobStatsConfig(Map<String, Stats> overrides) {
 
     public static final Codec<MobStatsConfig> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.unboundedMap(Codec.STRING, Stats.CODEC).optionalFieldOf("overrides", Map.of())
-                    .forGetter(MobStatsConfig::overrides)
+                    .forGetter(MobStatsConfig::overrides),
+            Codec.unboundedMap(Codec.STRING, Drop.LIST_CODEC).optionalFieldOf("drops", Map.of())
+                    .forGetter(MobStatsConfig::drops)
     ).apply(i, MobStatsConfig::new));
 
     public MobStatsConfig {
         overrides = new TreeMap<>(overrides);
+        Map<String, List<Drop>> d = new TreeMap<>();
+        drops.forEach((k, v) -> d.put(k, List.copyOf(v)));
+        drops = java.util.Collections.unmodifiableMap(d);
+    }
+
+    /** Stat overrides only, no drops. */
+    public MobStatsConfig(Map<String, Stats> overrides) {
+        this(overrides, Map.of());
+    }
+
+    /** The extra drops of an entity type (empty when none). */
+    public List<Drop> dropsOf(ResourceLocation type) {
+        return drops.getOrDefault(type.toString(), List.of());
     }
 
     @Override
@@ -64,7 +82,15 @@ public record MobStatsConfig(Map<String, Stats> overrides) {
                     clamp(key, "speed", s.speed(), 0, MAX_SPEED, warnings),
                     clamp(key, "armor", s.armor(), 0, MAX_ARMOR, warnings)));
         });
-        MobStatsConfig c = new MobStatsConfig(out);
+        Map<String, List<Drop>> dropsOut = new TreeMap<>();
+        drops.forEach((key, list) -> {
+            if (ResourceLocation.tryParse(key) == null) {
+                warnings.add(FILE + ": drops " + key + " is not an entity id (skipped)");
+                return;
+            }
+            if (!list.isEmpty()) dropsOut.put(key, Drop.sanitizedList(FILE + ": " + key, list, warnings));
+        });
+        MobStatsConfig c = new MobStatsConfig(out, dropsOut);
         return c.equals(this) ? this : c;
     }
 
