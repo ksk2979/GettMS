@@ -30,9 +30,9 @@ import org.gettserver.gettcore.nick.NicknameBook.Result;
 import org.gettserver.gettcore.perm.Perms;
 
 /**
- * Server nicknames. A player sets theirs with a nickname ticket (use it, type the name; the ticket is taken only when
- * the name was accepted). The nickname replaces the account name in chat, the tab list, above the head and in the
- * party screens; commands still take account names. Admins: /닉네임 설정 <플레이어> <이름>, 초기화 <플레이어>,
+ * Server nicknames. A player without one is asked for it on login (free); changing it later takes a nickname ticket
+ * (use it, type the name; the ticket is taken only when the name was accepted). The nickname replaces the account name in chat, the tab list, above the head and in the
+ * party screens, and player arguments of commands take it too (mixins EntitySelectorParserMixin, PlayerListMixin). Admins: /닉네임 설정 <플레이어> <이름>, 초기화 <플레이어>,
  * 확인 <닉네임> (and /nickname set|reset|whois).
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
@@ -52,8 +52,10 @@ public final class NicknameService {
 
     /** The answer to the nickname screen of a ticket. */
     public static void onSet(ServerPlayer player, String raw) {
+        // The first nickname is free; changing it afterwards takes a ticket.
+        boolean first = NicknameData.get(player.getServer()).book().of(player.getUUID()) == null;
         InteractionHand hand = ticketHand(player);
-        if (hand == null) {
+        if (hand == null && !first) {
             fail(player, "gettcore.nickname.err.no_ticket");
             return;
         }
@@ -62,7 +64,7 @@ public final class NicknameService {
             fail(player, "gettcore.nickname.err." + r.name().toLowerCase(Locale.ROOT));
             return;
         }
-        player.getItemInHand(hand).shrink(1);
+        if (!first) player.getItemInHand(hand).shrink(1);
         player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.6f, 1.4f);
         player.sendSystemMessage(Component.translatable("gettcore.nickname.changed", nameOf(player))
                 .withStyle(ChatFormatting.YELLOW));
@@ -106,8 +108,11 @@ public final class NicknameService {
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.getServer() == null) return;
-        PacketDistributor.sendToPlayer(player,
-                new NicknameSyncPayload(new HashMap<>(NicknameData.get(player.getServer()).book().all())));
+        NicknameBook book = NicknameData.get(player.getServer()).book();
+        PacketDistributor.sendToPlayer(player, new NicknameSyncPayload(new HashMap<>(book.all())));
+        if (book.of(player.getUUID()) == null) {
+            PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.NicknamePromptPayload());
+        }
     }
 
     /** First of all listeners: the nickname is the base name that other mods and the party tag then decorate. */
@@ -135,10 +140,10 @@ public final class NicknameService {
         return Commands.literal(name)
                 .requires(Perms.require(Perms.ADMIN))
                 .then(Commands.literal(set).then(Commands.argument("player", EntityArgument.player())
-                        .then(Commands.argument("name", StringArgumentType.word()).executes(NicknameService::cmdSet))))
+                        .then(Commands.argument("name", StringArgumentType.greedyString()).executes(NicknameService::cmdSet))))
                 .then(Commands.literal(reset).then(Commands.argument("player", EntityArgument.player())
                         .executes(NicknameService::cmdReset)))
-                .then(Commands.literal(whois).then(Commands.argument("name", StringArgumentType.word())
+                .then(Commands.literal(whois).then(Commands.argument("name", StringArgumentType.greedyString())
                         .executes(NicknameService::cmdWhois)));
     }
 

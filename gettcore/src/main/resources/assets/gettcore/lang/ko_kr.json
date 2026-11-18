@@ -523,5 +523,8 @@
   "gettcore.nickname.err.taken": "이미 다른 사람이 쓰는 이름입니다.",
   "gettcore.nickname.err.same": "지금 쓰는 닉네임과 같습니다.",
   "gettcore.nickname.err.none": "그 플레이어는 닉네임이 없습니다.",
-  "gettcore.nickname.err.unknown": "%s 닉네임을 쓰는 사람이 없습니다."
+  "gettcore.nickname.err.unknown": "%s 닉네임을 쓰는 사람이 없습니다.",
+  "gettcore.nickname.first_title": "닉네임 설정",
+  "gettcore.nickname.first_hint": "서버에서 쓸 이름입니다. 나중에는 변경권이 필요합니다",
+  "gettcore.nickname.later": "나중에"
 }

@@ -46,6 +46,9 @@ public final class GettNetwork {
         registrar.playToClient(NicknameSyncPayload.TYPE, NicknameSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(
                         () -> org.gettserver.gettcore.nick.client.ClientNicknames.set(payload.nicknames())));
+        registrar.playToClient(NicknamePromptPayload.TYPE, NicknamePromptPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(
+                        org.gettserver.gettcore.nick.client.ClientNicknames::promptFirst));
         registrar.playToServer(NicknameSetPayload.TYPE, NicknameSetPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> org.gettserver.gettcore.nick.NicknameService
                         .onSet((ServerPlayer) ctx.player(), payload.name())));

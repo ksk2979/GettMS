@@ -4,6 +4,7 @@
   "package": "org.gettserver.gettcore.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EntitySelectorParserMixin",
     "PlayerListMixin",
     "ServerGamePacketListenerImplMixin"
   ],

@@ -12,7 +12,7 @@ import org.gettserver.gettcore.nick.NicknameBook;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * The box opened by a nickname ticket: type the new nickname, 확인 / Enter sends it. The server answers in chat and
+ * The nickname box, opened by a nickname ticket or on login for a player without a nickname: type the nickname, 확인 / Enter sends it. The server answers in chat and
  * takes the ticket only when the nickname was accepted. Client only.
  */
 public final class NicknameScreen extends Screen {
@@ -22,15 +22,18 @@ public final class NicknameScreen extends Screen {
     private static final int BORDER = 0xFF3A4A68;
     private static final int BAND = 0xFF1B2C48;
 
+    private final boolean first;
     private EditBox box;
     private Button confirm;
 
-    public NicknameScreen() {
-        super(Component.translatable("gettcore.nickname.title"));
+    /** @param first the free first nickname asked on login (no ticket); otherwise the box of a ticket */
+    public NicknameScreen(boolean first) {
+        super(Component.translatable(first ? "gettcore.nickname.first_title" : "gettcore.nickname.title"));
+        this.first = first;
     }
 
     public static void open() {
-        Minecraft.getInstance().setScreen(new NicknameScreen());
+        Minecraft.getInstance().setScreen(new NicknameScreen(false));
     }
 
     @Override
@@ -57,7 +60,8 @@ public final class NicknameScreen extends Screen {
         confirm = addRenderableWidget(Button.builder(Component.translatable("gettcore.party.name.ok"), b -> submit())
                 .bounds(left() + 12, top() + H - 30, 88, 20).build());
         confirm.active = NicknameBook.clean(old) != null;
-        addRenderableWidget(Button.builder(Component.translatable("gettcore.party.name.cancel"), b -> onClose())
+        addRenderableWidget(Button.builder(Component.translatable(first ? "gettcore.nickname.later" : "gettcore.party.name.cancel"),
+                        b -> onClose())
                 .bounds(left() + W - 12 - 88, top() + H - 30, 88, 20).build());
         setInitialFocus(box);
     }
@@ -89,6 +93,7 @@ public final class NicknameScreen extends Screen {
         g.drawCenteredString(font, title, x + W / 2, y + 10, 0xFFFFFFFF);
         g.drawString(font, Component.translatable("gettcore.nickname.hint1", NicknameBook.MIN, NicknameBook.MAX),
                 x + 12, y + 27, 0xFFC8D0DC, false);
-        g.drawString(font, Component.translatable("gettcore.nickname.hint2"), x + 12, y + 38, 0xFF8090A8, false);
+        g.drawString(font, Component.translatable(first ? "gettcore.nickname.first_hint" : "gettcore.nickname.hint2"),
+                x + 12, y + 38, 0xFF8090A8, false);
     }
 }

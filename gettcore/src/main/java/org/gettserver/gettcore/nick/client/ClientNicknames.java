@@ -14,6 +14,9 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
  */
 public final class ClientNicknames {
     private static Map<UUID, String> nicknames = Map.of();
+    /** The server asked for a first nickname; the box opens once the world is on screen. */
+    private static boolean promptPending;
+    private static int promptWait;
 
     private ClientNicknames() {}
 
@@ -36,7 +39,26 @@ public final class ClientNicknames {
         if (nick != null) event.setDisplayname(Component.literal(nick));
     }
 
+    public static void promptFirst() {
+        promptPending = true;
+        promptWait = 0;
+    }
+
+    /** Opens the first-nickname box about two seconds after the loading screens are gone. */
+    public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post event) {
+        if (!promptPending) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.screen != null) {
+            promptWait = 0;
+            return;
+        }
+        if (++promptWait < 40) return;
+        promptPending = false;
+        if (!nicknames.containsKey(mc.player.getUUID())) mc.setScreen(new NicknameScreen(true));
+    }
+
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         nicknames = Map.of();
+        promptPending = false;
     }
 }

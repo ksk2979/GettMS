@@ -523,5 +523,8 @@
   "gettcore.nickname.err.taken": "Someone else already uses that name.",
   "gettcore.nickname.err.same": "That is already your nickname.",
   "gettcore.nickname.err.none": "That player has no nickname.",
-  "gettcore.nickname.err.unknown": "Nobody uses the nickname %s."
+  "gettcore.nickname.err.unknown": "Nobody uses the nickname %s.",
+  "gettcore.nickname.first_title": "Choose your nickname",
+  "gettcore.nickname.first_hint": "Your name on this server. Changing it later takes a ticket",
+  "gettcore.nickname.later": "Later"
 }

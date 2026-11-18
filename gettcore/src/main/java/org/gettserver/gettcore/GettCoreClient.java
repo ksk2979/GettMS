@@ -100,6 +100,7 @@ public class GettCoreClient {
         NeoForge.EVENT_BUS.addListener(net.neoforged.bus.api.EventPriority.HIGHEST,
                 org.gettserver.gettcore.nick.client.ClientNicknames::onNameFormat);
         NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.nick.client.ClientNicknames::onLoggingOut);
+        NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.nick.client.ClientNicknames::onClientTick);
         // 파티: 게임 메뉴(Esc)의 파티 버튼, 초대 알림(화면이 열려 있어도 그리고 클릭 받음), 접속 종료 시 상태 비움.
         NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyMenuButton::onInit);
         NeoForge.EVENT_BUS.addListener(org.gettserver.gettcore.party.client.PartyHud::onScreenRender);
