@@ -14,10 +14,14 @@ public record RegistryChecks(Predicate<ResourceLocation> itemExists, Predicate<R
         this(itemExists, entityExists, rl -> true);
     }
 
-    /** Looks up the built-in registries; if they are not bootstrapped (plain unit test) everything is assumed to exist. */
+    /**
+     * Looks up the built-in registries; if they are not bootstrapped (plain unit test) everything is assumed to exist.
+     * Item presets ({@code preset:<name>}) count as items.
+     */
     public static RegistryChecks live() {
         return new RegistryChecks(
-                rl -> safe(() -> BuiltInRegistries.ITEM.containsKey(rl)),
+                rl -> safe(() -> org.gettserver.gettcore.preset.ItemPresets.isPreset(rl)
+                        ? org.gettserver.gettcore.preset.ItemPresets.exists(rl) : BuiltInRegistries.ITEM.containsKey(rl)),
                 rl -> safe(() -> BuiltInRegistries.ENTITY_TYPE.containsKey(rl)),
                 rl -> safe(() -> BuiltInRegistries.BLOCK.containsKey(rl)));
     }

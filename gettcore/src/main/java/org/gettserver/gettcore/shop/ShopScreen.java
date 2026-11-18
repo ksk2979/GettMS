@@ -17,6 +17,7 @@ import org.gettserver.gettcore.network.TradePayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import org.gettserver.gettcore.preset.ItemPresets;
 import org.gettserver.gettcore.data.ShopDefinition;
 import org.gettserver.gettcore.data.ShopEntry;
 import org.gettserver.gettcore.data.ShopTab;
@@ -236,7 +237,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     /** 지금 모드(편집/구매/판매)와 검색어로 목록에 나오는 항목인지. */
     private boolean listed(ShopEntry e) {
         if (!editing && !(menu.mode() == ShopMode.BUY ? e.canBuy() : e.canSell())) return false;
-        return matchesQuery(BuiltInRegistries.ITEM.get(e.item()).getDescription().getString(), e.item().getPath(),
+        return matchesQuery(ItemPresets.name(e.item()), e.item().getPath(),
                 query);
     }
 
@@ -320,7 +321,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
             int x = leftPos + LIST_X;
             int y = topPos + LIST_Y + i * ROW_H;
             g.fill(x, y, x + LIST_W, y + ROW_H - 2, 0xFFE8DAB4);
-            g.renderItem(new ItemStack(BuiltInRegistries.ITEM.get(row.entry().item())), x + 4, y + 3);
+            g.renderItem(ItemPresets.stack(row.entry().item(), 1), x + 4, y + 3);
             if (editing) continue;
             int bx = x + LIST_W - BTN_W - 4;
             int by = y + 3;
@@ -344,8 +345,8 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         if ((mouseY - (topPos + LIST_Y)) % ROW_H >= ROW_H - 2) return;
         List<Row> rows = rows();
         if (scroll + i >= rows.size()) return;
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.get(rows.get(scroll + i).entry().item()));
-        g.renderTooltip(font, stack, mouseX, mouseY);
+        ItemStack stack = ItemPresets.stack(rows.get(scroll + i).entry().item(), 1);
+        if (!stack.isEmpty()) g.renderTooltip(font, stack, mouseX, mouseY);
     }
 
     /** 탭 줄의 {@code i} 번째({@link #shownTabs} 안의 순서)가 보이면 화면 x, 아니면 -1. 넘칠 때는 왼쪽 화살표 자리만큼 밀린다. */
@@ -436,7 +437,7 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
         for (int i = 0; i < VISIBLE_ROWS && scroll + i < rows.size(); i++) {
             Row row = rows.get(scroll + i);
             int y = LIST_Y + i * ROW_H;
-            String itemName = BuiltInRegistries.ITEM.get(row.entry().item()).getDescription().getString();
+            String itemName = ItemPresets.name(row.entry().item());
             g.drawString(font, font.plainSubstrByWidth(itemName, 90), LIST_X + 24, y + 3, 0xFF3B2F1C, false);
             long price = menu.mode() == ShopMode.BUY ? row.entry().currentBuyPrice() : row.entry().currentSellPrice();
             String sub = EconomyHud.formatGold(price) + (menu.mode() == ShopMode.SELL ? " x" + row.owned() : "");
@@ -482,13 +483,14 @@ public class ShopScreen extends AbstractContainerScreen<ShopMenu> {
     }
 
     private void openPopup(ShopEntry e) {
-        Item item = BuiltInRegistries.ITEM.get(e.item());
+        ItemStack item = ItemPresets.stack(e.item(), 1);
+        if (item.isEmpty()) return;
         var inv = minecraft.player.getInventory().items;
         boolean buy = menu.mode() == ShopMode.BUY;
         long price = buy ? e.currentBuyPrice() : e.currentSellPrice();
         int max = buy
                 ? TradeCalculator.maxBuyable(ClientBalance.get(), price,
-                        TradeCalculator.capacityFor(inv, item, item.getDefaultMaxStackSize()), 64 * 36)
+                        TradeCalculator.capacityFor(inv, item, item.getMaxStackSize()), 64 * 36)
                 : Math.min(TradeCalculator.countSellable(inv, e.item()), 64 * 36);
         popup = new QuantityPopup(font, width, height, item, price, max,
                 qty -> PacketDistributor.sendToServer(new TradePayload(menu.shopId(), e.item(), qty, menu.mode(), false)),

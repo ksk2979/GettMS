@@ -16,7 +16,7 @@ public final class QuantityPopup {
     private static final int H = 92;
 
     private final Font font;
-    private final Item item;
+    private final ItemStack item;
     private final long unitPrice;
     private final int max;
     private final IntConsumer onConfirm;
@@ -25,7 +25,7 @@ public final class QuantityPopup {
     private final int x;
     private final int y;
 
-    public QuantityPopup(Font font, int screenW, int screenH, Item item, long unitPrice, int max,
+    public QuantityPopup(Font font, int screenW, int screenH, ItemStack item, long unitPrice, int max,
                          IntConsumer onConfirm, Runnable onClose) {
         this.font = font;
         this.item = item;
@@ -71,8 +71,8 @@ public final class QuantityPopup {
         g.pose().translate(0, 0, 400);
         g.fill(x - 1, y - 1, x + W + 1, y + H + 1, 0xFF4A3B24);
         g.fill(x, y, x + W, y + H, 0xFFF4E8CC);
-        g.renderItem(new ItemStack(item), x + 8, y + 7);
-        g.drawString(font, font.plainSubstrByWidth(item.getDescription().getString(), W - 36), x + 28, y + 11,
+        g.renderItem(item, x + 8, y + 7);
+        g.drawString(font, font.plainSubstrByWidth(item.getHoverName().getString(), W - 36), x + 28, y + 11,
                 0xFF3B2F1C, false);
         box.render(g, mouseX, mouseY, partialTick);
         button(g, x + 72, y + 28, 16, 16, Component.literal("▲"), true);

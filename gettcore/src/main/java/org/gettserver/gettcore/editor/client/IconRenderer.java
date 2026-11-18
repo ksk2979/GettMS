@@ -44,7 +44,7 @@ public final class IconRenderer {
     public static CompletableFuture<Optional<byte[]>> png(ResourceLocation item) {
         return CACHE.computeIfAbsent(item, id -> {
             CompletableFuture<Optional<byte[]>> f = new CompletableFuture<>();
-            if (!BuiltInRegistries.ITEM.containsKey(id) || BuiltInRegistries.ITEM.get(id) == Items.AIR) {
+            if (org.gettserver.gettcore.preset.ItemPresets.stack(id, 1).isEmpty()) {
                 f.complete(Optional.empty());
             } else {
                 QUEUE.add(new Request(id, f));
@@ -99,11 +99,11 @@ public final class IconRenderer {
 
     private static Optional<byte[]> renderOne(Minecraft mc, TextureTarget target, ResourceLocation id) {
         try {
-            Item item = BuiltInRegistries.ITEM.get(id);
+            ItemStack stack = org.gettserver.gettcore.preset.ItemPresets.stack(id, 1);
             target.clear(Minecraft.ON_OSX);
             target.bindWrite(true);
             GuiGraphics g = new GuiGraphics(mc, mc.renderBuffers().bufferSource());
-            g.renderFakeItem(new ItemStack(item), 0, 0);
+            g.renderFakeItem(stack, 0, 0);
             g.flush();
             try (NativeImage img = new NativeImage(SIZE, SIZE, false)) {
                 RenderSystem.bindTexture(target.getColorTextureId());

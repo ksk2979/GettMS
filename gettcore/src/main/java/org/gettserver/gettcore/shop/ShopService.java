@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import org.gettserver.gettcore.preset.ItemPresets;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
@@ -176,7 +177,7 @@ public final class ShopService {
         }
         ShopDefinition def = shop.get();
         ResourceLocation id = req.item();
-        boolean validItem = BuiltInRegistries.ITEM.containsKey(id) && BuiltInRegistries.ITEM.get(id) != Items.AIR;
+        boolean validItem = !ItemPresets.stack(id, 1).isEmpty();
         boolean validPrices = req.buyPrice() >= 0 && req.buyPrice() <= Ledger.MAX_AMOUNT
                 && req.sellPrice() >= 0 && req.sellPrice() <= Ledger.MAX_AMOUNT;
         boolean validTab = def.tabs().stream().anyMatch(t -> t.id().equals(req.tab()));
@@ -265,7 +266,7 @@ public final class ShopService {
     }
 
     private static String itemName(ResourceLocation id) {
-        return BuiltInRegistries.ITEM.get(id).getDescription().getString();
+        return ItemPresets.name(id);
     }
 
     /** What one sale moved: item count and gold earned. */
@@ -290,7 +291,7 @@ public final class ShopService {
         int left = n;
         for (ItemStack s : inv) {
             if (left <= 0) break;
-            if (TradeCalculator.matches(s, entry.item())) {
+            if (TradeCalculator.sellable(s, entry.item())) {
                 int take = Math.min(left, s.getCount());
                 s.shrink(take);
                 left -= take;
@@ -335,13 +336,14 @@ public final class ShopService {
     }
 
     private static void buy(ServerPlayer player, ShopEntry entry, int count) {
-        Item item = BuiltInRegistries.ITEM.get(entry.item());
-        if (item == Items.AIR || !BuiltInRegistries.ITEM.containsKey(entry.item())) {
+        // A plain stack of the item, or the preset with its components (preset:<name>).
+        ItemStack proto = ItemPresets.stack(entry.item(), 1);
+        if (proto.isEmpty()) {
             msg(player, "gettcore.msg.invalid_trade");
             return;
         }
-        int maxStack = item.getDefaultMaxStackSize();
-        int capacity = TradeCalculator.capacityFor(player.getInventory().items, item, maxStack);
+        int maxStack = proto.getMaxStackSize();
+        int capacity = TradeCalculator.capacityFor(player.getInventory().items, proto, maxStack);
         EconomyData data = EconomyData.get(player.server);
         long price = entry.currentBuyPrice();
         if (price <= 0) {
@@ -358,7 +360,7 @@ public final class ShopService {
             msg(player, "gettcore.msg.insufficient");
             return;
         }
-        int placed = TradeCalculator.distribute(player.getInventory().items, item, maxStack, n);
+        int placed = TradeCalculator.distribute(player.getInventory().items, proto, maxStack, n);
         if (placed < n) {
             data.ledger().deposit(player.getUUID(), TradeCalculator.total(price, n - placed));
             total = TradeCalculator.total(price, placed);

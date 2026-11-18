@@ -37,12 +37,51 @@ public final class TradeCalculator {
                         || ignoredComponent(BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(t))).isEmpty();
     }
 
+    /** {@link #matches(ItemStack, ResourceLocation)}, or exactly the preset's components for a {@code preset:*} id. */
+    public static boolean sellable(ItemStack stack, ResourceLocation itemId) {
+        return org.gettserver.gettcore.preset.ItemPresets.matches(stack, itemId, TradeCalculator::matches);
+    }
+
     public static int countSellable(List<ItemStack> inv, ResourceLocation itemId) {
         long total = 0;
         for (ItemStack s : inv) {
-            if (matches(s, itemId)) total += s.getCount();
+            if (sellable(s, itemId)) total += s.getCount();
         }
         return (int) Math.min(total, Integer.MAX_VALUE);
+    }
+
+    /** Room for stacks like {@code proto} (same item and components): empty slots plus partial stacks. */
+    public static int capacityFor(List<ItemStack> inv, ItemStack proto, int maxStack) {
+        long total = 0;
+        for (ItemStack s : inv) {
+            if (s.isEmpty()) {
+                total += maxStack;
+            } else if (ItemStack.isSameItemSameComponents(s, proto)) {
+                total += Math.max(0, maxStack - s.getCount());
+            }
+        }
+        return (int) Math.min(total, Integer.MAX_VALUE);
+    }
+
+    /** Places up to n copies of {@code proto} (partial stacks first, then empty slots); returns how many were placed. */
+    public static int distribute(List<ItemStack> inv, ItemStack proto, int maxStack, int n) {
+        int left = n;
+        for (int i = 0; i < inv.size() && left > 0; i++) {
+            ItemStack s = inv.get(i);
+            if (!s.isEmpty() && ItemStack.isSameItemSameComponents(s, proto) && s.getCount() < maxStack) {
+                int add = Math.min(left, maxStack - s.getCount());
+                s.grow(add);
+                left -= add;
+            }
+        }
+        for (int i = 0; i < inv.size() && left > 0; i++) {
+            if (inv.get(i).isEmpty()) {
+                int add = Math.min(left, maxStack);
+                inv.set(i, proto.copyWithCount(add));
+                left -= add;
+            }
+        }
+        return n - left;
     }
 
     public static int capacityFor(List<ItemStack> inv, Item item, int maxStack) {

@@ -41,7 +41,17 @@ public final class GettNetwork {
     private GettNetwork() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("9");
+        PayloadRegistrar registrar = event.registrar("10");
+        // Item presets (preset:<name> ids in shops, rewards and drops).
+        registrar.playToClient(PresetSyncPayload.TYPE, PresetSyncPayload.STREAM_CODEC,
+                (payload, ctx) -> {
+                    org.gettserver.gettcore.preset.ItemPresets.setAll(payload.presets());
+                    // The editor lists presets next to items: rebuild its catalog and icons.
+                    ctx.enqueueWork(() -> {
+                        org.gettserver.gettcore.editor.client.ClientCatalog.invalidate();
+                        org.gettserver.gettcore.editor.client.IconRenderer.clear();
+                    });
+                });
         // Web shooter. WebClient (client-only, web.client) is referenced only inside the client-bound handlers.
         registrar.playToClient(WebConfigSyncPayload.TYPE, WebConfigSyncPayload.STREAM_CODEC,
                 (payload, ctx) -> org.gettserver.gettcore.web.ClientWebConfig.set(payload.config()));

@@ -65,6 +65,7 @@ public final class DataCommands {
     private static int reload(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
         MinecraftServer server = src.getServer();
+        DataEvents.loadPresets(server);
         GettData.LoadReport r = GettData.get().load(DataEvents.configDir());
         r.errors().forEach(e -> GettCore.LOGGER.error("gettcore reload: {}", e));
         GettCore.LOGGER.info("gettcore: 상점 {}, 대화 {} 재적용, 오류 {}, 경고 {}", r.shops(), r.dialogs(),

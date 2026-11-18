@@ -243,8 +243,8 @@ public final class QuestService {
     private static List<ItemStack> stacks(List<ItemReward> rewards) {
         List<ItemStack> out = new ArrayList<>();
         for (ItemReward r : rewards) {
-            Item item = BuiltInRegistries.ITEM.get(r.item());
-            if (item != Items.AIR) out.add(new ItemStack(item, r.count()));
+            ItemStack stack = org.gettserver.gettcore.preset.ItemPresets.stack(r.item(), r.count());
+            if (!stack.isEmpty()) out.add(stack);
         }
         return List.copyOf(out);
     }
@@ -406,15 +406,16 @@ public final class QuestService {
 
     /** Adds the stacks to the inventory, dropping what does not fit. True when something was dropped. */
     private static boolean giveItem(ServerPlayer player, ItemReward ir) {
-        Item item = BuiltInRegistries.ITEM.get(ir.item());
-        if (item == Items.AIR) return false;
+        // A plain stack, or a preset with its components (preset:<name>).
+        ItemStack proto = org.gettserver.gettcore.preset.ItemPresets.stack(ir.item(), 1);
+        if (proto.isEmpty()) return false;
         boolean dropped = false;
-        int max = new ItemStack(item).getMaxStackSize();
+        int max = proto.getMaxStackSize();
         int left = ir.count();
         while (left > 0) {
             int n = Math.min(left, max);
             left -= n;
-            ItemStack stack = new ItemStack(item, n);
+            ItemStack stack = proto.copyWithCount(n);
             player.getInventory().add(stack);
             if (!stack.isEmpty()) {
                 player.drop(stack, false);

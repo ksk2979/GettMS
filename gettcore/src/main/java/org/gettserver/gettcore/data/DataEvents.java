@@ -32,6 +32,7 @@ public final class DataEvents {
     }
 
     public static void syncConfig(MinecraftServer server) {
+        PacketDistributor.sendToAllPlayers(org.gettserver.gettcore.network.PresetSyncPayload.current());
         PacketDistributor.sendToAllPlayers(configPayload());
         PacketDistributor.sendToAllPlayers(NpcMappingSyncPayload.of(GettData.get().npcMapping()));
         PacketDistributor.sendToAllPlayers(new EnchantConfigSyncPayload(GettData.get().enchant()));
@@ -44,6 +45,7 @@ public final class DataEvents {
     }
 
     public static void syncConfig(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, org.gettserver.gettcore.network.PresetSyncPayload.current());
         PacketDistributor.sendToPlayer(player, configPayload());
         PacketDistributor.sendToPlayer(player, NpcMappingSyncPayload.of(GettData.get().npcMapping()));
         PacketDistributor.sendToPlayer(player, new EnchantConfigSyncPayload(GettData.get().enchant()));
@@ -55,8 +57,15 @@ public final class DataEvents {
         PacketDistributor.sendToPlayer(player, new org.gettserver.gettcore.network.WebConfigSyncPayload(GettData.get().web()));
     }
 
+    /** Item presets first: shop entries and rewards that use preset:* ids are checked against them while loading. */
+    public static void loadPresets(MinecraftServer server) {
+        org.gettserver.gettcore.preset.ItemPresets.load(configDir(), server.registryAccess())
+                .forEach(e -> GettCore.LOGGER.error("gettcore load: {}", e));
+    }
+
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
+        loadPresets(event.getServer());
         GettData.LoadReport r = GettData.get().load(configDir());
         r.errors().forEach(e -> GettCore.LOGGER.error("gettcore load: {}", e));
         GettCore.LOGGER.info("gettcore: 상점 {}, 대화 {}", r.shops(), r.dialogs());

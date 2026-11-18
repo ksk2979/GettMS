@@ -91,6 +91,10 @@ public final class ClientCatalog {
                         g.values().get(EquipmentRules.Stat.KNOCKBACK_RESISTANCE)));
             }
         }
+        // Item presets (preset:<name>): pickable like items; shown by their own name.
+        org.gettserver.gettcore.preset.ItemPresets.all().forEach((name, stack) -> items.add(new CatalogJson.Entry(
+                org.gettserver.gettcore.preset.ItemPresets.idOf(name).toString(),
+                stack.getHoverName().getString() + " [" + name + "]", "아이템 프리셋")));
         List<CatalogJson.Entry> entities = new ArrayList<>();
         List<CatalogJson.MobStat> mobs = new ArrayList<>();
         for (EntityType<?> type : BuiltInRegistries.ENTITY_TYPE) {
