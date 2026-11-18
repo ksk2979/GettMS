@@ -355,6 +355,7 @@
    * { guns: {id: {reloadTime, rate, ..., damage: {탄: 피해}}}, spawnRules: {id: {disabled} | {spawners: [...]}}, spawnMobs: {몹: 배율},
    *   epicfight: {아이템: {스타일: {damage_bonus, speed_bonus, armor_negation, impact, max_strikes}}},
    *   recipes: {제작법 id: true} (막은 모드 장비 제작법),
+   *   worldgen: {지형 id: true} (생성을 막은 모드 구조물·광석, 지형 탭 참고),
    *   fishing: {fish, loot, crates: {id: 가중치}, tables: {표 id: {weights, added}}} (Tide 낚시, 낚시 탭 참고) }
    */
   function normalizeDatapack(src) {
@@ -364,6 +365,8 @@
       .filter((o) => o && typeof o.kind === 'string' && typeof o.id === 'string').map((o) => ({ kind: o.kind, id: o.id }));
     const recipes = {};
     for (const [id, v] of Object.entries(obj(src.recipes))) if (v === true) recipes[id] = true;
+    const worldgen = {};
+    for (const [id, v] of Object.entries(obj(src.worldgen))) if (v === true) worldgen[id] = true;
     const fsrc = obj(src.fishing);
     const fishing = { fish: obj(fsrc.fish), loot: obj(fsrc.loot), crates: obj(fsrc.crates), tables: {} };
     for (const [id, t] of Object.entries(obj(fsrc.tables))) {
@@ -371,7 +374,7 @@
       fishing.tables[id] = { weights: obj(t.weights), added: (Array.isArray(t.added) ? t.added : [])
         .filter((a) => a && typeof a.item === 'string').map((a) => ({ item: a.item, weight: a.weight, min: a.min, max: a.max })) };
     }
-    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, fishing, removeOrphans };
+    return { guns: obj(src.guns), spawnRules: obj(src.spawnRules), spawnMobs: obj(src.spawnMobs), epicfight: obj(src.epicfight), recipes, worldgen, fishing, removeOrphans };
   }
 
   /*
@@ -3953,7 +3956,7 @@
    * 원본이 사라진 사본(모드를 지웠거나 업데이트로 파일이 없어짐) — 서버 datapackCatalog.orphans = [{kind, id}].
    * "삭제" 를 누르면 datapack.removeOrphans 에 넣고, 저장할 때 서버가 그 사본 파일을 지운다 (그때도 원본이 없는 것만).
    */
-  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율', recipes: '제작법', fishing: '낚시' };
+  const DP_ORPHAN_KIND = { guns: '총', epicfight: 'Epic Fight', spawnRules: '등장 규칙', spawnMobs: '몹 등장 배율', recipes: '제작법', fishing: '낚시', worldgen: '지형 생성' };
   function dpOrphanCard(container, kinds) {
     const cat = S.dpCatalog;
     const dp = S.bundle.datapack;
@@ -4788,7 +4791,7 @@
 
   const RECIPE_KINDS = [['weapon', '무기'], ['armor', '방어구'], ['shield', '방패'], ['gun', '총'], ['other', '기타 장비']];
   const RECIPE_MOD_NAMES = { magistuarmory: 'Epic Knights', wom: 'Weapons of Miracles', epicfight: 'Epic Fight',
-    cgs: 'Create: Gunsmithing', ntgl: 'NTGL' };
+    cgs: 'Create: Gunsmithing', ntgl: 'NTGL', irons_spellbooks: "Iron's Spells 'n Spellbooks" };
   const recipeKindName = (k) => (RECIPE_KINDS.find((x) => x[0] === k) || [k, k])[1];
   const recipeModName = (m) => (RECIPE_MOD_NAMES[m] ? `${RECIPE_MOD_NAMES[m]} (${m})` : m || '(알 수 없음)');
   const recipeUi = { query: '', onlyBlocked: false, open: {} };
@@ -4872,6 +4875,69 @@
     },
   };
   registerTab(recipesTab);
+
+  /*
+   * 지형 탭: 모드가 월드 생성에 넣는 구조물 세트와 지형 요소(광석 등)를 끈다. datapack.worldgen = {id: true}.
+   * 목록은 서버 datapackCatalog.worldgen = [{id, mod, kind: 'structure'|'feature', detail}].
+   */
+  const WORLDGEN_KINDS = [['structure', '구조물'], ['feature', '광석·지형 요소']];
+  const worldgenTab = {
+    id: 'worldgen',
+    title: '지형',
+    validate() { return []; },
+    render(container) {
+      const card = h('div', { class: 'card' }, h('h2', null, '모드 지형 생성 막기'),
+        h('p', { class: 'muted' }, '모드가 월드에 만들어 넣는 구조물(탑·던전 등)과 광석 같은 지형 요소의 생성을 막습니다. 바닐라(minecraft) 구조물은 목록에 없습니다. 모드의 아이템·주문·몹 자체는 그대로 쓸 수 있고, 맵에만 나오지 않습니다.'),
+        h('p', { class: 'muted' }, '저장하면 서버 월드의 데이터팩 gett_balance 에 "생성하지 않음" 사본을 씁니다. 서버를 재시작해야 적용되며, 그 뒤 새로 만들어지는 지역부터 달라집니다 — 이미 만들어진 지역의 구조물과 광석은 그대로 남습니다. 모드 몹의 자연 등장은 등장 탭에서 끕니다.'));
+      container.append(card);
+      const cat = S.dpCatalog;
+      const dp = S.bundle.datapack;
+      if (!cat || !dp) { card.append(dpMissing()); return null; }
+      if (cat.worldgenRestartPending) {
+        card.append(h('p', { class: 'banner bad' }, '이번 서버 실행 중에 저장한 지형 변경이 있습니다 — 아직 적용되지 않았습니다. 서버를 재시작하세요.'));
+      }
+      const off = dp.worldgen;
+      const all = (Array.isArray(cat.worldgen) ? cat.worldgen : []).slice();
+      const known = new Set(all.map((r) => r.id));
+      for (const id of Object.keys(off)) if (!known.has(id)) all.push({ id, mod: '', kind: id.split('/')[0], detail: '', missing: true });
+      const setOff = (id, on) => { if (on) off[id] = true; else delete off[id]; };
+      const body = h('div');
+      const draw = () => {
+        const mods = Array.from(new Set(all.map((r) => r.mod))).sort((a, b) => recipeModName(a).localeCompare(recipeModName(b)));
+        body.replaceChildren(...mods.map((mod) => {
+          const modAll = all.filter((r) => r.mod === mod);
+          const live = modAll.filter((r) => !r.missing);
+          const nOff = modAll.filter((r) => off[r.id]).length;
+          const bulk = (on) => () => { for (const r of live) setOff(r.id, on); changed(); draw(); };
+          const sec = h('div', { class: 'card', style: 'margin:.6rem 0' },
+            h('h3', null, recipeModName(mod), ' ', h('span', { class: 'muted' }, `— ${modAll.length}개 중 ${nOff}개 막음`)),
+            h('div', { class: 'row', style: 'gap:.4rem;margin:.4rem 0' },
+              live.length ? h('button', { class: 'small', onclick: bulk(true) }, '이 모드 지형 생성 모두 막기') : null,
+              live.length ? h('button', { class: 'small', onclick: bulk(false) }, '모두 풀기') : null));
+          for (const [kind, kindName] of WORLDGEN_KINDS) {
+            const rows = modAll.filter((r) => r.kind === kind);
+            if (!rows.length) continue;
+            sec.append(h('h4', null, `${kindName} (${rows.length})`),
+              h('div', { class: 'scroll-x' }, h('table', null,
+                h('thead', null, h('tr', null, ['생성 막기', 'id', '내용'].map((t) => h('th', null, t)))),
+                h('tbody', null, rows.map((r) => h('tr', null,
+                  h('td', null, h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: !!off[r.id],
+                    'aria-label': `${r.id} 생성 막기`,
+                    onchange: (e) => { setOff(r.id, e.target.checked); changed(); draw(); } }), ' 막기')),
+                  h('td', null, h('span', { class: 'id' }, r.id.slice(r.id.indexOf('/') + 1))),
+                  h('td', null, r.missing ? '(서버에 없음 — 저장하면 무시)' : h('span', { class: 'id' }, r.detail || '—'))))))));
+          }
+          return sec;
+        }));
+        if (!all.length) body.append(h('p', { class: 'muted' }, '서버에 구조물이나 지형 요소를 추가하는 모드가 없습니다.'));
+      };
+      card.append(body);
+      dpOrphanCard(container, ['worldgen']);
+      draw();
+      return null;
+    },
+  };
+  registerTab(worldgenTab);
 
   /* ===================== 8. 화면 뼈대 ===================== */
 

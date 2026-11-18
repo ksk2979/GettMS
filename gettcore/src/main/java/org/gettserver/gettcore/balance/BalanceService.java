@@ -43,9 +43,12 @@ public final class BalanceService {
     public static final String EPICFIGHT = "epicfight";
     public static final String RECIPES = "recipes";
     public static final String FISHING = "fishing";
+    public static final String WORLDGEN = "worldgen";
 
     /** Spawn copies changed since this server started: they wait for a restart (biome modifiers load once). */
     private static volatile boolean spawnRestartPending;
+    /** Same for world generation copies (structure sets and biome modifiers load with the world). */
+    private static volatile boolean worldgenRestartPending;
 
     public record Applied(boolean reloaded, List<String> messages) {}
 
@@ -54,6 +57,7 @@ public final class BalanceService {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
         spawnRestartPending = false;
+        worldgenRestartPending = false;
         // Old spawn rule copies (plain neoforge:add_spawns) loaded fine this time; rewrite them to our tolerant type
         // now, so a later removal of their mod cannot stop the world from loading (same spawns, no restart needed).
         try {
@@ -72,7 +76,8 @@ public final class BalanceService {
                 EPICFIGHT, originals(rm, EpicFightBalance.FOLDER).keySet(),
                 SPAWN_RULES, originals(rm, SpawnBalance.FOLDER).keySet(),
                 RECIPES, originalFiles(rm, RecipeBalance.FOLDER),
-                FISHING, fishingFiles(rm));
+                FISHING, fishingFiles(rm),
+                WORLDGEN, originalFiles(rm, WorldgenBalance.STRUCTURE_FOLDER));
         return BalanceOrphans.find(packDir(server), files,
                 net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE::containsKey);
     }
@@ -163,8 +168,11 @@ public final class BalanceService {
             Map<ResourceLocation, JsonObject> ef = originals(server.getResourceManager(), EpicFightBalance.FOLDER);
             Map<ResourceLocation, JsonObject> recipes = originals(server.getResourceManager(), RecipeBalance.FOLDER);
             FishingBalance.Originals fishing = fishingOriginals(server.getResourceManager());
+            Map<String, WorldgenBalance.Row> worldgen = WorldgenBalance.rows(
+                    originals(server.getResourceManager(), WorldgenBalance.STRUCTURE_FOLDER), mods);
             Path pack = packDir(server);
             JsonObject state = new JsonObject();
+            state.add(WORLDGEN, WorldgenBalance.state(worldgen, pack));
             state.add(FISHING, FishingBalance.state(fishing, pack));
             state.add(RECIPES, RecipeBalance.state(recipes, RecipeItems::kindOf, pack));
             state.add(GUNS, GunBalance.state(guns, pack));
@@ -176,7 +184,9 @@ public final class BalanceService {
             JsonObject cat = new JsonObject();
             cat.addProperty("packEnabled", packEnabled(server));
             cat.addProperty("spawnRestartPending", spawnRestartPending);
+            cat.addProperty("worldgenRestartPending", worldgenRestartPending);
             cat.add(GUNS, GunBalance.catalog(guns));
+            cat.add(WORLDGEN, WorldgenBalance.catalog(worldgen));
             cat.add(FISHING, FishingBalance.catalog(fishing, BalanceService::itemExists));
             cat.add(EPICFIGHT, EpicFightBalance.catalog(ef));
             cat.add(RECIPES, RecipeBalance.catalog(RecipeBalance.rows(recipes, RecipeItems::kindOf, pack)));
@@ -231,6 +241,8 @@ public final class BalanceService {
         if (recipes != null) errs.addAll(RecipeBalance.validate(recipes));
         JsonObject fishing = section(desired, FISHING, errs);
         if (fishing != null) errs.addAll(FishingBalance.validate(fishing));
+        JsonObject worldgen = section(desired, WORLDGEN, errs);
+        if (worldgen != null) errs.addAll(WorldgenBalance.validate(worldgen));
         errs.addAll(BalanceOrphans.validate(desired.get(BalanceOrphans.REMOVE_KEY)));
         return errs;
     }
@@ -308,6 +320,18 @@ public final class BalanceService {
             SpawnBalance.Outcome o = SpawnBalance.reconcileMobs(pack, mobs);
             spawnWritten += o.written();
             spawnDeleted += o.deleted();
+        }
+        JsonObject worldgen = section(desired, WORLDGEN, new ArrayList<>());
+        if (worldgen != null) {
+            WorldgenBalance.Outcome o = WorldgenBalance.reconcile(
+                    originals(server.getResourceManager(), WorldgenBalance.STRUCTURE_FOLDER),
+                    originals(server.getResourceManager(), WorldgenBalance.MODIFIER_FOLDER), pack, worldgen);
+            msgs.addAll(o.warnings());
+            if (o.changed()) {
+                worldgenRestartPending = true;
+                msgs.add("지형 생성: 막는 사본 " + o.written() + "개 저장, " + o.deleted() + "개 삭제(다시 생성)"
+                        + " — 서버를 재시작해야 적용되고, 그 뒤 새로 만들어지는 지역부터 달라집니다 (이미 만들어진 지역은 그대로)");
+            }
         }
         // Orphan copies last, so a mob tweak still listed in spawnMobs is removed too when asked.
         JsonElement remove = desired.get(BalanceOrphans.REMOVE_KEY);

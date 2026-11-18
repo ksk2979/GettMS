@@ -24,7 +24,8 @@ public final class BalanceOrphans {
     public static final String CATALOG_KEY = "orphans";
     public static final String REMOVE_KEY = "removeOrphans";
     static final List<String> KINDS = List.of(BalanceService.GUNS, BalanceService.EPICFIGHT,
-            BalanceService.SPAWN_RULES, BalanceService.SPAWN_MOBS, BalanceService.RECIPES, BalanceService.FISHING);
+            BalanceService.SPAWN_RULES, BalanceService.SPAWN_MOBS, BalanceService.RECIPES, BalanceService.FISHING,
+            BalanceService.WORLDGEN);
 
     public record Orphan(String kind, String id, ResourceLocation file) {}
 
@@ -63,6 +64,13 @@ public final class BalanceOrphans {
             for (ResourceLocation f : PackFiles.listFolder(pack, folder)) {
                 if (!fishing.contains(f)) out.add(new Orphan(BalanceService.FISHING, FishingBalance.idOf(f), f));
             }
+        }
+        // Structure set copies only: a turned-off feature modifier lives in the biome modifier folder and shows up
+        // above as a spawn rule orphan when its original is gone.
+        Set<ResourceLocation> sets = originalFiles.getOrDefault(BalanceService.WORLDGEN, Set.of());
+        for (ResourceLocation f : PackFiles.listFolder(pack, WorldgenBalance.STRUCTURE_FOLDER)) {
+            String id = WorldgenBalance.idOf(f);
+            if (id != null && !sets.contains(f)) out.add(new Orphan(BalanceService.WORLDGEN, id, f));
         }
         for (String mob : SpawnBalance.mobState(pack).keySet()) {
             ResourceLocation e = ResourceLocation.tryParse(mob);
