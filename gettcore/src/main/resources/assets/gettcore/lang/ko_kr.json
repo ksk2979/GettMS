@@ -526,5 +526,9 @@
   "gettcore.nickname.err.unknown": "%s 닉네임을 쓰는 사람이 없습니다.",
   "gettcore.nickname.first_title": "닉네임 설정",
   "gettcore.nickname.first_hint": "서버에서 쓸 이름입니다. 나중에는 변경권이 필요합니다",
-  "gettcore.nickname.later": "나중에"
+  "gettcore.nickname.later": "나중에",
+  "gettcore.party.admin.none": "파티가 없습니다.",
+  "gettcore.party.admin.entry": "%s (%s/%s): %s",
+  "gettcore.party.admin.disbanded": "파티 %s을(를) 해체했습니다.",
+  "gettcore.party.disbanded_self": "관리자가 파티 %s을(를) 해체했습니다."
 }

@@ -36,7 +36,8 @@ import org.gettserver.gettcore.party.PartyBook.Result;
  * Parties on the server: the actions of the party screens ({@link PartyActionPayload}), invitations that time out,
  * keeping every member's client up to date (members, who is online, health), no damage between members, and the
  * {@code [party name]} tag in front of the chat name. Members stay in their party while offline and over restarts
- * ({@link PartyData}). /파티 수락|거절|탈퇴 (/party accept|decline|leave) exist for the clickable chat invitation.
+ * ({@link PartyData}). /파티 수락|거절|탈퇴 (/party accept|decline|leave) exist for the clickable chat invitation;
+ * admins have /파티 목록 and /파티 해체 <이름> (/party list, /party disband).
  */
 @EventBusSubscriber(modid = GettCore.MOD_ID)
 public final class PartyService {
@@ -62,16 +63,73 @@ public final class PartyService {
 
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(root("파티", "수락", "거절", "탈퇴"));
-        event.getDispatcher().register(root("party", "accept", "decline", "leave"));
+        event.getDispatcher().register(root("파티", "수락", "거절", "탈퇴", "목록", "해체"));
+        event.getDispatcher().register(root("party", "accept", "decline", "leave", "list", "disband"));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name, String accept, String decline,
-                                                                  String leave) {
+                                                                  String leave, String list, String disband) {
         return Commands.literal(name)
                 .then(Commands.literal(accept).executes(c -> act(c.getSource(), PartyActionPayload.Action.ACCEPT)))
                 .then(Commands.literal(decline).executes(c -> act(c.getSource(), PartyActionPayload.Action.DECLINE)))
-                .then(Commands.literal(leave).executes(c -> act(c.getSource(), PartyActionPayload.Action.LEAVE)));
+                .then(Commands.literal(leave).executes(c -> act(c.getSource(), PartyActionPayload.Action.LEAVE)))
+                .then(Commands.literal(list).requires(org.gettserver.gettcore.perm.Perms.require(org.gettserver.gettcore.perm.Perms.ADMIN))
+                        .executes(c -> adminList(c.getSource())))
+                .then(Commands.literal(disband).requires(org.gettserver.gettcore.perm.Perms.require(org.gettserver.gettcore.perm.Perms.ADMIN))
+                        .then(Commands.argument("name", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                        PartyData.get(c.getSource().getServer()).book().parties().stream()
+                                                .map(Party::name), b))
+                                .executes(c -> adminDisband(c.getSource(),
+                                        com.mojang.brigadier.arguments.StringArgumentType.getString(c, "name")))));
+    }
+
+    /** Admin: every party with its members (leader first). */
+    private static int adminList(CommandSourceStack source) {
+        MinecraftServer server = source.getServer();
+        var parties = PartyData.get(server).book().parties();
+        if (parties.isEmpty()) {
+            source.sendSuccess(() -> Component.translatable("gettcore.party.admin.none"), false);
+            return 0;
+        }
+        for (Party party : parties) {
+            String members = party.members().stream()
+                    .map(m -> org.gettserver.gettcore.nick.NicknameService.nameOf(server, m.id(), m.name()))
+                    .collect(java.util.stream.Collectors.joining(", "));
+            String name = party.name();
+            int size = party.size();
+            source.sendSuccess(() -> Component.translatable("gettcore.party.admin.entry", name, size,
+                    PartyBook.MAX_MEMBERS, members), false);
+        }
+        return parties.size();
+    }
+
+    /** Admin: removes a party whoever is in it, online or not. */
+    private static int adminDisband(CommandSourceStack source, String name) {
+        MinecraftServer server = source.getServer();
+        PartyData data = PartyData.get(server);
+        Party party = data.book().named(name.trim());
+        if (party == null) {
+            source.sendFailure(Component.translatable("gettcore.party.err.no_such_party"));
+            return 0;
+        }
+        String partyName = party.name();
+        for (Member m : new ArrayList<>(party.members())) {
+            data.book().leave(m.id());
+            ServerPlayer p = server.getPlayerList().getPlayer(m.id());
+            if (p == null) continue;
+            PacketDistributor.sendToPlayer(p, PartySyncPayload.none());
+            p.refreshDisplayName();
+            tell(p, "gettcore.party.disbanded_self", partyName);
+        }
+        data.setDirty();
+        LAST_SENT.remove(partyName.toLowerCase(Locale.ROOT));
+        for (PartyInvites.Invite inv : INVITES.dropParty(partyName)) {
+            ServerPlayer target = server.getPlayerList().getPlayer(inv.target());
+            if (target != null) PacketDistributor.sendToPlayer(target, PartyInvitePayload.clear());
+        }
+        source.sendSuccess(() -> Component.translatable("gettcore.party.admin.disbanded", partyName), true);
+        return 1;
     }
 
     private static int act(CommandSourceStack source, PartyActionPayload.Action action)

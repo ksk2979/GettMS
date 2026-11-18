@@ -526,5 +526,9 @@
   "gettcore.nickname.err.unknown": "Nobody uses the nickname %s.",
   "gettcore.nickname.first_title": "Choose your nickname",
   "gettcore.nickname.first_hint": "Your name on this server. Changing it later takes a ticket",
-  "gettcore.nickname.later": "Later"
+  "gettcore.nickname.later": "Later",
+  "gettcore.party.admin.none": "There are no parties.",
+  "gettcore.party.admin.entry": "%s (%s/%s): %s",
+  "gettcore.party.admin.disbanded": "Disbanded party %s.",
+  "gettcore.party.disbanded_self": "An admin disbanded party %s."
 }
