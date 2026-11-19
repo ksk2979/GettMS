@@ -265,6 +265,14 @@ public final class CraftScreen extends Screen {
         return idx < selected.ingredients().size() ? idx : -1;
     }
 
+    /** Whether the mouse is on the big icon of the selected recipe's result (32 px, top of the left panel). */
+    private boolean overResultIcon(double mx, double my) {
+        if (selected == null) return false;
+        int ix = left() + 8 + DETAIL_W / 2 - 16;
+        int iy = gridTop() + 6;
+        return mx >= ix && mx < ix + 32 && my >= iy && my < iy + 32;
+    }
+
     private int cellAt(double mx, double my) {
         int gx = gridLeft();
         int gy = gridTop();
@@ -392,6 +400,12 @@ public final class CraftScreen extends Screen {
         int ing = ingredientAt(mouseX, mouseY);
         if (ing >= 0) {
             g.renderComponentTooltip(font, ingredientTooltip(selected, ing), mouseX, mouseY);
+            return;
+        }
+        if (overResultIcon(mouseX, mouseY)) {
+            // The item's own tooltip (stats, enchantments, other mods' lines), as in the inventory and the shop.
+            ItemStack result = resultOf(selected);
+            if (!result.isEmpty()) g.renderTooltip(font, result, mouseX, mouseY);
             return;
         }
         int idx = cellAt(mouseX, mouseY);
