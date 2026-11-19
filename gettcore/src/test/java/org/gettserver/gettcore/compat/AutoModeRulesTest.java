@@ -31,6 +31,28 @@ class AutoModeRulesTest {
         assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("fist", false));
     }
 
+    /** Epic Fight gives pickaxes and shovels a fighting category too; what makes them tools is the item itself. */
+    @Test
+    void diggingToolsStayVanillaWhateverTheirCategory() {
+        for (String c : new String[] {"FIST", "PICKAXE", "SHOVEL", "AXE", "SWORD", "", null}) {
+            assertEquals(Mode.VANILLA, AutoModeRules.forMainHand(c, true), String.valueOf(c));
+        }
+    }
+
+    @Test
+    void itemIdsFromTheSettingsWinOverEverything() {
+        var combat = AutoModeRules.parseIds(" minecraft:stick , WOM:Jabberwocky,, not an id ");
+        assertEquals(java.util.Set.of("minecraft:stick", "wom:jabberwocky"), combat);
+        var normal = AutoModeRules.parseIds("minecraft:iron_sword");
+        assertEquals(java.util.Set.of(), AutoModeRules.parseIds(null));
+        assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("minecraft:stick", "", false, combat, normal));
+        assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("wom:jabberwocky", "FIST", true, combat, normal));
+        assertEquals(Mode.VANILLA, AutoModeRules.forMainHand("minecraft:iron_sword", "SWORD", false, combat, normal));
+        // not listed: the usual rule
+        assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("minecraft:diamond_sword", "SWORD", false, combat, normal));
+        assertEquals(Mode.VANILLA, AutoModeRules.forMainHand("minecraft:iron_pickaxe", "FIST", true, combat, normal));
+    }
+
     @Test
     void anAxeIsAWeaponUnlessItIsADiggingTool() {
         assertEquals(Mode.VANILLA, AutoModeRules.forMainHand("AXE", true));

@@ -12,7 +12,8 @@ import java.util.Set;
  * Epic Fight mode. That includes the fist category: it is what gloves and clawed gauntlets are, while an empty hand
  * reaches here with no category at all. Everything else -> vanilla mode: no weapon data, bare hands, digging tools, shields, and bows and
  * crossbows (their draw and aim poses are the vanilla ones; guns have no Epic Fight weapon data at all).
- * An axe is a weapon unless it is a digging tool item (vanilla-style axes chop wood; mod battle axes are not tools).
+ * Digging tool items (pickaxes, shovels, hoes, vanilla-style axes) always stay vanilla; mod battle axes are not tools.
+ * {@code epicFightAutoMode.combat} / {@code epicFightAutoMode.normal} in gettcore-client.properties pin single items.
  *
  * <p>Pure: the caller reads the weapon category from Epic Fight and passes its name.
  */
@@ -24,6 +25,9 @@ public final class AutoModeRules {
             Set.of("", "NOT_WEAPON", "PICKAXE", "SHOVEL", "HOE", "SHIELD", "RANGED");
 
     public static final String SETTING_KEY = "epicFightAutoMode";
+    /** Item ids that always switch to Epic Fight mode / always stay in vanilla mode (comma-separated). */
+    public static final String COMBAT_IDS_KEY = "epicFightAutoMode.combat";
+    public static final String NORMAL_IDS_KEY = "epicFightAutoMode.normal";
 
     private AutoModeRules() {}
 
@@ -32,10 +36,36 @@ public final class AutoModeRules {
      * @param diggingTool the item is a digging tool (pickaxe, shovel, hoe, tool-type axe)
      */
     public static Mode forMainHand(String category, boolean diggingTool) {
+        // A digging tool stays a tool whatever category Epic Fight files it under (its pickaxes and shovels come
+        // through with a fighting category, the same one gloves have).
+        if (diggingTool) return Mode.VANILLA;
         String c = category == null ? "" : category.trim().toUpperCase(Locale.ROOT);
         if (VANILLA_CATEGORIES.contains(c)) return Mode.VANILLA;
-        if (c.equals("AXE") && diggingTool) return Mode.VANILLA;
         return Mode.EPIC_FIGHT;
+    }
+
+    /**
+     * As {@link #forMainHand(String, boolean)}, but an item listed in the settings always gets the mode it is
+     * listed for ({@code combatIds} first).
+     *
+     * @param itemId registry id of the main-hand item ("minecraft:stick"); "" for an empty hand
+     */
+    public static Mode forMainHand(String itemId, String category, boolean diggingTool, Set<String> combatIds,
+            Set<String> normalIds) {
+        if (combatIds.contains(itemId)) return Mode.EPIC_FIGHT;
+        if (normalIds.contains(itemId)) return Mode.VANILLA;
+        return forMainHand(category, diggingTool);
+    }
+
+    /** Item ids from a comma-separated setting: lower-cased; blanks and anything that is not "namespace:path" dropped. */
+    public static Set<String> parseIds(String setting) {
+        if (setting == null) return Set.of();
+        Set<String> out = new java.util.LinkedHashSet<>();
+        for (String part : setting.split(",")) {
+            String id = part.trim().toLowerCase(Locale.ROOT);
+            if (id.matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) out.add(id);
+        }
+        return Set.copyOf(out);
     }
 
     /** {@code epicFightAutoMode} in gettcore-client.properties: anything but "off" / "false" keeps it on. */

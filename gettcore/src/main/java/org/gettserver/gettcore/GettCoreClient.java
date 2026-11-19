@@ -88,6 +88,16 @@ public class GettCoreClient {
                     net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("gettcore-client.properties"),
                     org.gettserver.gettcore.compat.AutoModeRules.SETTING_KEY);
             if (org.gettserver.gettcore.compat.AutoModeRules.enabled(autoMode)) {
+                // epicFightAutoMode.combat / .normal = 아이템 id 목록(쉼표): 그 아이템은 항상 전투 / 기본 모드.
+                java.nio.file.Path clientProps =
+                        net.neoforged.fml.loading.FMLPaths.CONFIGDIR.get().resolve("gettcore-client.properties");
+                org.gettserver.gettcore.compat.client.EpicFightAutoMode.pin(
+                        org.gettserver.gettcore.compat.AutoModeRules.parseIds(
+                                org.gettserver.gettcore.pet.client.HealthBarSetting.read(clientProps,
+                                        org.gettserver.gettcore.compat.AutoModeRules.COMBAT_IDS_KEY)),
+                        org.gettserver.gettcore.compat.AutoModeRules.parseIds(
+                                org.gettserver.gettcore.pet.client.HealthBarSetting.read(clientProps,
+                                        org.gettserver.gettcore.compat.AutoModeRules.NORMAL_IDS_KEY)));
                 NeoForge.EVENT_BUS.addListener(
                         org.gettserver.gettcore.compat.client.EpicFightAutoMode::onClientTick);
             } else {

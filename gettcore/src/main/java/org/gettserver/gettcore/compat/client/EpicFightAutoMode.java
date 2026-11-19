@@ -1,8 +1,10 @@
 package org.gettserver.gettcore.compat.client;
 
 import java.lang.reflect.Method;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.DiggerItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -49,7 +51,16 @@ public final class EpicFightAutoMode {
     private static Item decidedFor;
     private static boolean suspended;
 
+    private static Set<String> combatIds = Set.of();
+    private static Set<String> normalIds = Set.of();
+
     private EpicFightAutoMode() {}
+
+    /** Item ids pinned to a mode in gettcore-client.properties ({@link AutoModeRules#parseIds}). */
+    public static void pin(Set<String> combat, Set<String> normal) {
+        combatIds = combat;
+        normalIds = normal;
+    }
 
     public static void onClientTick(ClientTickEvent.Post event) {
         if (disabled) return;
@@ -69,8 +80,10 @@ public final class EpicFightAutoMode {
             }
             ItemStack held = player.getMainHandItem();
             boolean epicNow = (Boolean) isEpicFightMode.invoke(patch);
+            String itemId = held.isEmpty() ? "" : BuiltInRegistries.ITEM.getKey(held.getItem()).toString();
             Action action = AutoModeRules.decide(busy(player), epicNow, suspended, held.getItem() != decidedFor,
-                    AutoModeRules.forMainHand(categoryOf(held), held.getItem() instanceof DiggerItem));
+                    AutoModeRules.forMainHand(itemId, categoryOf(held), held.getItem() instanceof DiggerItem,
+                            combatIds, normalIds));
             if (action.switchTo == Mode.EPIC_FIGHT) toEpicFightMode.invoke(patch, true);
             else if (action.switchTo == Mode.VANILLA) toVanillaMode.invoke(patch, true);
             if (action.startsSuspend) suspended = true;
