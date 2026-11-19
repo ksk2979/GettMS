@@ -183,3 +183,15 @@ textarea.grow { flex: 1; width: 100%; }
 .swatch { display: inline-block; width: 1.4rem; height: 1.4rem; border-radius: 4px; border: 1px solid var(--border); flex: none; }
 td > span.bad { color: var(--bad); font-weight: 600; }
 .tag.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+
+/* 제작 탭: 접힌 제작법 한 줄 · 펼친 카드 */
+.craftrow { display: flex; align-items: center; gap: .6rem; padding: .25rem .5rem; margin: .3rem 0; border: 1px solid var(--border); border-radius: 8px; background: var(--panel2); cursor: pointer; }
+.craftrow:hover, .craftrow:focus-visible { border-color: var(--accent); outline: none; }
+.craftrow.bad { border-color: var(--bad); background: var(--bad-bg); }
+.craftrow > .icon { width: 28px; height: 28px; }
+.craftrow .names { display: flex; flex-direction: column; flex: 0 1 13rem; min-width: 7rem; }
+.craftrow .ings { display: flex; flex-wrap: wrap; gap: .1rem .6rem; flex: 1; min-width: 0; }
+.craftrow .ing { display: inline-flex; align-items: center; gap: .15rem; font-size: 12px; white-space: nowrap; }
+.craftrow .ing .icon { width: 20px; height: 20px; }
+.craftrow .gold { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.craftedit { margin: .3rem 0; border-color: var(--accent); }

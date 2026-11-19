@@ -3986,7 +3986,17 @@
     return out;
   }
 
-  const craftUi = { query: '' };
+  // 고른 탭(null = 전체) · 검색어 · 펼친 제작법 · 아직 제작법이 없는 새 탭(제작법이 생길 때까지 저장되지 않는다)
+  const craftUi = { query: '', tab: null, open: new WeakSet(), extraTabs: [] };
+  const craftTabLabel = (c) => (c === '' ? '기타 (탭 없음)' : c);
+
+  /** 게임 제작 창의 탭 순서: 제작법에 처음 나온 순서, 그 뒤에 아직 비어 있는 새 탭. */
+  function craftTabs(recipes) {
+    const out = [];
+    for (const r of recipes) if (!out.includes(r.category)) out.push(r.category);
+    for (const t of craftUi.extraTabs) if (!out.includes(t)) out.push(t);
+    return out;
+  }
 
   const craftingTab = {
     id: 'crafting',
@@ -3995,6 +4005,8 @@
     render(container) {
       let checks = makeChecks();
       const recipes = S.bundle.crafting.recipes;
+      let shown = [];   // 지금 보이는 제작법의 recipes 안 번호 (탭·검색으로 거른 것)
+      const tabCard = h('div', { class: 'card' });
       const body = h('div');
       const count = h('span', { class: 'muted' });
       const unknownNote = (id) => {
@@ -4015,75 +4027,201 @@
       const textIn = (o, key, label, width) => h('input', { type: 'text', value: o[key] || '', 'aria-label': label, placeholder: label, style: `width:${width}rem`,
         oninput: (e) => { o[key] = e.target.value; changed(); checks.paint(); } });
 
+      /** 탭 순서를 order 대로: 제작법을 탭끼리 모아 다시 늘어놓는다 (탭 안의 순서는 그대로). */
+      const regroup = (order) => {
+        const sorted = recipes.slice().sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category));
+        recipes.splice(0, recipes.length, ...sorted);
+      };
+
+      const drawTabs = () => {
+        const tabs = craftTabs(recipes);
+        if (craftUi.tab !== null && !tabs.includes(craftUi.tab)) craftUi.tab = null;
+        const cur = craftUi.tab;
+        const pos = tabs.indexOf(cur);
+        const mine = cur === null ? [] : recipes.filter((r) => r.category === cur);
+        const realCount = tabs.filter((t) => recipes.some((r) => r.category === t)).length;
+        const tabBtn = (value, label, n) => {
+          const b = h('button', { 'aria-current': String(cur === value), onclick: () => { craftUi.tab = value; draw(); } },
+            label, ' ', h('span', { class: 'muted' }, `(${n})`));
+          checks.add(b, () => (craftRecipeErrors(recipes).some((e, i) => e.length && (value === null || recipes[i].category === value))
+            ? '오류가 있는 제작법이 있습니다' : ''));
+          return b;
+        };
+        const nameRule = (v) => (v.length > 40 ? '40자 이하로 적으세요' : '');
+        const addTab = async () => {
+          const name = await askText('탭 추가', '탭 이름',
+            (v) => (!v ? '이름을 적으세요' : tabs.includes(v) ? '이미 있는 탭입니다' : nameRule(v)), '');
+          if (!name) return;
+          craftUi.extraTabs.push(name);
+          craftUi.tab = name;
+          draw();
+        };
+        const rename = async () => {
+          const name = await askText('탭 이름 바꾸기', '탭 이름 (비우면 기타, 이미 있는 이름이면 그 탭과 합쳐집니다)', nameRule, cur);
+          if (name === null || name === cur) return;
+          for (const r of mine) r.category = name;
+          craftUi.extraTabs = craftUi.extraTabs.map((t) => (t === cur ? name : t));
+          craftUi.tab = name;
+          if (mine.length) changed();
+          draw();
+        };
+        const moveTab = (d) => {
+          const order = tabs.slice();
+          [order[pos], order[pos + d]] = [order[pos + d], order[pos]];
+          regroup(order);
+          changed(); draw();
+        };
+        const removeTab = () => {
+          if (mine.length && !confirm(`'${craftTabLabel(cur)}' 탭의 제작법 ${mine.length}개도 함께 삭제됩니다. 삭제할까요?`)) return;
+          for (let i = recipes.length - 1; i >= 0; i--) if (recipes[i].category === cur) recipes.splice(i, 1);
+          craftUi.extraTabs = craftUi.extraTabs.filter((t) => t !== cur);
+          craftUi.tab = null;
+          if (mine.length) changed();
+          draw();
+        };
+        tabCard.replaceChildren(h('h2', null, '탭'),
+          h('div', { class: 'list' }, tabBtn(null, '전체', recipes.length),
+            tabs.map((t) => tabBtn(t, craftTabLabel(t), recipes.filter((r) => r.category === t).length))),
+          h('div', { class: 'field', style: 'margin-top:.5rem' }, h('button', { class: 'small', onclick: addTab }, '+ 탭 추가')),
+          cur === null ? null : h('div', { class: 'field' },
+            h('button', { class: 'small', onclick: rename }, '이름 바꾸기'),
+            h('button', { class: 'small', title: '탭을 앞으로', 'aria-label': '탭을 앞으로',
+              disabled: !mine.length || pos <= 0, onclick: () => moveTab(-1) }, '▲'),
+            h('button', { class: 'small', title: '탭을 뒤로', 'aria-label': '탭을 뒤로',
+              disabled: !mine.length || pos >= realCount - 1, onclick: () => moveTab(1) }, '▼'),
+            h('button', { class: 'danger small', onclick: removeTab }, '탭 삭제')),
+          h('p', { class: 'muted', style: 'font-size:12px;margin:0' },
+            '위에서부터 게임 제작 창의 탭 순서입니다. 제작법이 없는 탭은 저장되지 않습니다.'));
+      };
+
+      /** 보이는 목록에서 pos 번째를 d 칸 옮긴다 (바로 앞·뒤에 보이는 제작법과 자리를 바꾼다). */
+      const move = (pos, d) => {
+        const i = shown[pos];
+        const j = shown[pos + d];
+        [recipes[i], recipes[j]] = [recipes[j], recipes[i]];
+        changed(); draw();
+      };
+      const moveBtns = (pos) => [
+        h('button', { class: 'small', title: '위로', 'aria-label': '위로', disabled: pos <= 0,
+          onclick: (e) => { e.stopPropagation(); move(pos, -1); } }, '▲'),
+        h('button', { class: 'small', title: '아래로', 'aria-label': '아래로', disabled: pos >= shown.length - 1,
+          onclick: (e) => { e.stopPropagation(); move(pos, 1); } }, '▼')];
+      const delBtn = (i) => h('button', { class: 'danger small', 'aria-label': '제작법 삭제',
+        onclick: (e) => { e.stopPropagation(); recipes.splice(i, 1); changed(); draw(); } }, '삭제');
+
+      /** 접힌 한 줄: 결과 · 재료 아이콘 · 골드. 누르면 펼쳐서 고친다. */
+      const summaryRow = (i, pos, errs) => {
+        const r = recipes[i];
+        const open = () => { craftUi.open.add(r); draw(); };
+        const row = h('div', { class: 'craftrow' + (errs.length ? ' bad' : ''), role: 'button', tabindex: '0',
+          title: errs.length ? errs.join(' · ') : '눌러서 고치기', onclick: open },
+          iconEl(r.result, 28),
+          h('div', { class: 'names' },
+            h('span', null, (r.result ? itemName(r.result) : '— 결과 없음 —') + (r.count > 1 ? ` ×${r.count}` : '')),
+            craftUi.tab === null ? h('span', { class: 'id' }, craftTabLabel(r.category)) : null),
+          h('div', { class: 'ings' }, r.ingredients.map((g) => h('span', { class: 'ing',
+            title: `${g.item ? itemName(g.item) : '?'} ×${g.count}` + (g.minReinforce > 0 ? ` (강화 +${g.minReinforce} 이상)` : '') },
+            iconEl(g.item, 20), `×${g.count}`, g.minReinforce > 0 ? h('span', { class: 'muted' }, `+${g.minReinforce}`) : null))),
+          h('span', { class: 'gold' }, r.gold > 0 ? `${Number(r.gold).toLocaleString()} 골드` : ''),
+          errs.length ? h('span', { class: 'tag bad' }, '오류') : null,
+          moveBtns(pos), delBtn(i));
+        row.addEventListener('keydown', (e) => {
+          if (e.target === row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); }
+        });
+        return row;
+      };
+
+      const tabSelect = (r) => {
+        const sel = h('select', { 'aria-label': '탭', onchange: (e) => {
+          r.category = e.target.value;
+          changed(); draw();
+          if (craftUi.tab !== null && craftUi.tab !== r.category) toast(`'${craftTabLabel(r.category)}' 탭으로 옮겼습니다`);
+        } }, craftTabs(recipes).map((t) => h('option', { value: t }, craftTabLabel(t))));
+        sel.value = r.category;
+        return sel;
+      };
+
+      /** 펼친 제작법: 결과·개수·골드·탭·id 와 재료 표. */
+      const editCard = (i, pos) => {
+        const r = recipes[i];
+        const err = h('div', { class: 'id', style: 'color:var(--bad)' });
+        checks.add(err, () => { err.textContent = (craftRecipeErrors(recipes)[i] || []).join(' · '); return ''; });
+        const ingBody = h('tbody', null, r.ingredients.map((g, gi) => h('tr', null,
+          h('td', null, itemBtn(g, 'item', '재료', draw)),
+          h('td', null, intIn(g, 'count', '재료 개수', 1)),
+          h('td', null, intIn(g, 'minReinforce', '최소 강화 단계', 0)),
+          h('td', null, h('button', { class: 'danger small', 'aria-label': '재료 삭제', onclick: () => {
+            r.ingredients.splice(gi, 1); changed(); draw();
+          } }, '삭제')))));
+        const addIng = h('button', { class: 'small', onclick: async () => {
+          const id = await pickItem({ title: '재료 아이템' });
+          if (!id) return;
+          r.ingredients.push({ item: id, count: 1, minReinforce: 0 }); changed(); draw();
+        } }, '+ 재료 추가');
+        return h('div', { class: 'card craftedit' },
+          h('div', { class: 'field' },
+            itemBtn(r, 'result', '결과 아이템', draw),
+            h('label', null, '개수 ', intIn(r, 'count', '결과 개수', 1, 4)),
+            h('label', null, '골드 ', intIn(r, 'gold', '골드', 0, 6)),
+            h('label', null, '탭 ', tabSelect(r)),
+            h('label', null, 'id ', textIn(r, 'id', 'id', 11)),
+            h('span', { class: 'spacer' }),
+            moveBtns(pos), delBtn(i),
+            h('button', { class: 'small', onclick: () => { craftUi.open.delete(r); draw(); } }, '접기')),
+          err,
+          h('div', { class: 'scroll-x', style: 'max-width:44rem' }, h('table', null,
+            h('thead', null, h('tr', null, ['재료', '개수', '최소 강화 단계', ''].map((t) => h('th', null, t)))), ingBody)),
+          h('div', { class: 'field', style: 'margin-top:.3rem' }, addIng));
+      };
+
       const draw = () => {
         checks = makeChecks();
+        drawTabs();
         const q = craftUi.query.trim().toLowerCase();
         const text = (id) => (id ? (itemName(id) + ' ' + id).toLowerCase() : '');
-        const shown = [];
+        shown = [];
         recipes.forEach((r, i) => {
+          if (craftUi.tab !== null && r.category !== craftUi.tab) return;
           const hay = r.id.toLowerCase() + ' ' + r.category.toLowerCase() + ' ' + text(r.result) + ' ' + r.ingredients.map((g) => text(g.item)).join(' ');
           if (!q || hay.includes(q)) shown.push(i);
         });
-        count.textContent = `${shown.length} / ${recipes.length}개`;
-        body.replaceChildren(...shown.map((i) => {
-          const r = recipes[i];
-          const err = h('div', { class: 'id', style: 'color:var(--bad)' });
-          checks.add(err, () => { err.textContent = (craftRecipeErrors(recipes)[i] || []).join(' · '); return ''; });
-          const ingBody = h('tbody', null, r.ingredients.map((g, gi) => h('tr', null,
-            h('td', null, itemBtn(g, 'item', '재료', draw)),
-            h('td', null, intIn(g, 'count', '재료 개수', 1)),
-            h('td', null, intIn(g, 'minReinforce', '최소 강화 단계', 0)),
-            h('td', null, h('button', { class: 'danger small', 'aria-label': '재료 삭제', onclick: () => {
-              r.ingredients.splice(gi, 1); changed(); draw();
-            } }, '삭제')))));
-          const addIng = h('button', { class: 'small', onclick: async () => {
-            const id = await pickItem({ title: '재료 아이템' });
-            if (!id) return;
-            r.ingredients.push({ item: id, count: 1, minReinforce: 0 }); changed(); draw();
-          } }, '+ 재료 추가');
-          return h('div', { class: 'card', style: 'margin:.6rem 0' },
-            h('div', { class: 'field' },
-              itemBtn(r, 'result', '결과 아이템', draw),
-              h('label', null, '개수 ', intIn(r, 'count', '결과 개수', 1, 4)),
-              h('label', null, '골드 ', intIn(r, 'gold', '골드', 0, 6)),
-              h('label', null, '탭 ', textIn(r, 'category', '탭 이름(비우면 기타)', 9)),
-              h('label', null, 'id ', textIn(r, 'id', 'id', 11)),
-              h('button', { class: 'small', title: '위로', 'aria-label': '위로', onclick: () => {
-                if (i > 0) { recipes.splice(i - 1, 0, recipes.splice(i, 1)[0]); changed(); draw(); }
-              } }, '▲'),
-              h('button', { class: 'small', title: '아래로', 'aria-label': '아래로', onclick: () => {
-                if (i < recipes.length - 1) { recipes.splice(i + 1, 0, recipes.splice(i, 1)[0]); changed(); draw(); }
-              } }, '▼'),
-              h('button', { class: 'danger small', 'aria-label': '제작법 삭제', onclick: () => {
-                recipes.splice(i, 1); changed(); draw();
-              } }, '삭제')),
-            err,
-            h('div', { class: 'scroll-x' }, h('table', null,
-              h('thead', null, h('tr', null, ['재료', '개수', '최소 강화 단계', ''].map((t) => h('th', null, t)))), ingBody)),
-            h('div', { class: 'field', style: 'margin-top:.3rem' }, addIng));
-        }));
-        if (!recipes.length) body.append(h('p', { class: 'muted' }, '제작법이 없습니다. "제작법 추가"로 시작하세요.'));
+        count.textContent = `${shown.length}개` + (shown.length !== recipes.length ? ` / 전체 ${recipes.length}개` : '');
+        const errs = craftRecipeErrors(recipes);
+        body.replaceChildren(...shown.map((i, pos) => (craftUi.open.has(recipes[i]) ? editCard(i, pos) : summaryRow(i, pos, errs[i] || []))));
+        if (!shown.length) {
+          body.append(h('p', { class: 'muted' }, !recipes.length ? '제작법이 없습니다. "제작법 추가"로 시작하세요.'
+            : q ? '검색 결과가 없습니다.' : '이 탭에는 제작법이 없습니다. "제작법 추가"를 누르면 이 탭에 만들어집니다.'));
+        }
         checks.paint();
       };
 
-      const search = h('input', { type: 'search', placeholder: '이름·id·탭 검색', 'aria-label': '제작법 검색',
-        value: craftUi.query, style: 'width:16rem', oninput: (e) => { craftUi.query = e.target.value; draw(); } });
-      const add = h('button', { onclick: async () => {
+      const search = h('input', { type: 'search', placeholder: '이름·id 검색', 'aria-label': '제작법 검색',
+        value: craftUi.query, style: 'width:14rem', oninput: (e) => { craftUi.query = e.target.value; draw(); } });
+      const add = h('button', { class: 'primary', onclick: async () => {
         const result = await pickItem({ title: '만들 아이템 (결과)' });
         if (!result) return;
         const base = result.split(':').pop().replace(/[^a-z0-9_]/g, '_') || 'recipe';
         let id = base; let n = 2;
         while (recipes.some((r) => r.id === id)) id = base + '_' + n++;
+        // 고른 탭에 만든다 (전체를 보는 중이면 마지막 제작법의 탭). 그 탭의 맨 뒤에 넣어 탭 순서가 바뀌지 않게 한다.
         const last = recipes[recipes.length - 1];
-        recipes.push({ id, category: last ? last.category : '', result, count: 1, gold: 0, ingredients: [] });
+        const category = craftUi.tab !== null ? craftUi.tab : (last ? last.category : '');
+        let at = recipes.length;
+        for (let k = recipes.length - 1; k >= 0; k--) if (recipes[k].category === category) { at = k + 1; break; }
+        const r = { id, category, result, count: 1, gold: 0, ingredients: [] };
+        recipes.splice(at, 0, r);
+        craftUi.open.add(r);
         craftUi.query = ''; search.value = '';
         changed(); draw();
       } }, '제작법 추가');
+      const openAll = h('button', { class: 'small', onclick: () => { shown.forEach((i) => craftUi.open.add(recipes[i])); draw(); } }, '모두 펼치기');
+      const closeAll = h('button', { class: 'small', onclick: () => { shown.forEach((i) => craftUi.open.delete(recipes[i])); draw(); } }, '모두 접기');
 
       container.append(h('div', { class: 'card' }, h('h2', null, '제작'),
         h('p', { class: 'muted' }, '제작대 블록(gettcore:craft_bench)을 우클릭하거나 NPC 대화의 "제작" 동작으로 여는 제작 창의 목록입니다. 재료와 골드가 모두 있으면 바로 만들어집니다. 아이템 칸에는 일반 아이템과 아이템 프리셋(preset:이름)을 모두 쓸 수 있습니다.'),
-        h('p', { class: 'muted' }, '"최소 강화 단계"가 1 이상이면 그 단계 이상으로 강화한 장비만 재료로 인정합니다(예: 화승총 +5). "탭"이 같은 제작법끼리 제작 창에서 한 탭에 모입니다. 목록 순서가 제작 창의 순서입니다.'),
-        h('div', { class: 'field' }, search, add, count)), body);
+        h('p', { class: 'muted', style: 'margin-bottom:0' }, '왼쪽에서 탭을 고르면 그 탭의 제작법만 보입니다. 제작법은 한 줄로 접혀 있고, 누르면 펼쳐서 고칩니다. "최소 강화 단계"가 1 이상이면 그 단계 이상으로 강화한 장비만 재료로 인정합니다(예: 화승총 +5). 목록 순서가 제작 창의 순서입니다.')),
+        h('div', { class: 'split', style: 'margin-top:1rem' }, tabCard,
+          h('div', { class: 'card' }, h('div', { class: 'field' }, search, add, openAll, closeAll, count), body)));
       draw();
       return () => checks.paint();
     },
