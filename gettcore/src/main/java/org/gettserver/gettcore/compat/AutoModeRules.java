@@ -9,7 +9,8 @@ import java.util.Set;
  * in vanilla mode whatever the off hand holds.
  *
  * <p>Weapons with Epic Fight attack motions (swords, spears, daggers, tachi, the categories other mods add, ...) ->
- * Epic Fight mode. Everything else -> vanilla mode: no weapon data, bare hands, digging tools, shields, and bows and
+ * Epic Fight mode. That includes the fist category: it is what gloves and clawed gauntlets are, while an empty hand
+ * reaches here with no category at all. Everything else -> vanilla mode: no weapon data, bare hands, digging tools, shields, and bows and
  * crossbows (their draw and aim poses are the vanilla ones; guns have no Epic Fight weapon data at all).
  * An axe is a weapon unless it is a digging tool item (vanilla-style axes chop wood; mod battle axes are not tools).
  *
@@ -20,7 +21,7 @@ public final class AutoModeRules {
 
     /** Categories that never switch to Epic Fight mode. */
     private static final Set<String> VANILLA_CATEGORIES =
-            Set.of("", "NOT_WEAPON", "FIST", "PICKAXE", "SHOVEL", "HOE", "SHIELD", "RANGED");
+            Set.of("", "NOT_WEAPON", "PICKAXE", "SHOVEL", "HOE", "SHIELD", "RANGED");
 
     public static final String SETTING_KEY = "epicFightAutoMode";
 

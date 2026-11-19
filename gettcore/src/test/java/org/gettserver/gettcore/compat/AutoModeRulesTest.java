@@ -18,10 +18,17 @@ class AutoModeRulesTest {
 
     @Test
     void toolsBowsShieldsAndBareHandsStayVanilla() {
-        for (String c : new String[] {null, "", "NOT_WEAPON", "FIST", "PICKAXE", "SHOVEL", "HOE", "SHIELD", "RANGED"}) {
+        for (String c : new String[] {null, "", "NOT_WEAPON", "PICKAXE", "SHOVEL", "HOE", "SHIELD", "RANGED"}) {
             assertEquals(Mode.VANILLA, AutoModeRules.forMainHand(c, false), String.valueOf(c));
         }
         assertEquals(Mode.VANILLA, AutoModeRules.forMainHand("PICKAXE", true));
+    }
+
+    /** Gloves and clawed gauntlets are fist-category items; an empty hand has no category at all. */
+    @Test
+    void fistWeaponsGoToEpicFightMode() {
+        assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("FIST", false));
+        assertEquals(Mode.EPIC_FIGHT, AutoModeRules.forMainHand("fist", false));
     }
 
     @Test
