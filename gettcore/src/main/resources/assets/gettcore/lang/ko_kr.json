@@ -537,6 +537,8 @@
   "gettcore.craft.title": "제작",
   "gettcore.craft.make": "제작",
   "gettcore.craft.needs": "필요 재료:",
+  "gettcore.craft.ing.count": "필요 %s개 · 보유 %s개",
+  "gettcore.craft.ing.reinforce": "강화 +%s 이상만 재료로 인정",
   "gettcore.craft.empty": "만들 수 있는 것이 없습니다.",
   "gettcore.craft.category.none": "기타",
   "gettcore.craft.done": "%s x%s 제작 완료",

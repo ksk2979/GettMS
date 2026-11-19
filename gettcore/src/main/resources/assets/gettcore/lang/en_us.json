@@ -537,6 +537,8 @@
   "gettcore.craft.title": "Crafting",
   "gettcore.craft.make": "Craft",
   "gettcore.craft.needs": "Needs:",
+  "gettcore.craft.ing.count": "Needs %s · You have %s",
+  "gettcore.craft.ing.reinforce": "Only reinforced +%s or higher counts",
   "gettcore.craft.empty": "There is nothing to craft.",
   "gettcore.craft.category.none": "Other",
   "gettcore.craft.done": "Crafted %s x%s",
