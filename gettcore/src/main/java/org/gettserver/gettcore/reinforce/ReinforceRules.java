@@ -23,16 +23,21 @@ import org.gettserver.gettcore.GettCore;
  */
 public final class ReinforceRules {
 
-    public enum Target { GUN, MELEE, SHIELD, ARMOR, ELYTRA, RANGED }
+    public enum Target { GUN, MELEE, SHIELD, ARMOR, ELYTRA, RANGED, STAFF }
 
     private ReinforceRules() {}
 
     /**
      * 강화 대상 분류. 총(주입된 NTGL 판정)이 먼저, 그 다음 SwordItem/AxeItem/{@code #minecraft:swords}/
      * {@code #minecraft:axes} → MELEE, ShieldItem → SHIELD, ArmorItem → ARMOR, ElytraItem → ELYTRA, 활·석궁·삼지창
-     * (BowItem/CrossbowItem/TridentItem) → RANGED. 그 밖(빈 스택·도구)은 empty.
+     * (BowItem/CrossbowItem/TridentItem) → RANGED, 지팡이(주입된 판정) → STAFF. 그 밖(빈 스택·도구)은 empty.
      */
     public static Optional<Target> target(ItemStack stack, Predicate<ItemStack> isNtglWeapon) {
+        return target(stack, isNtglWeapon, s -> false);
+    }
+
+    public static Optional<Target> target(ItemStack stack, Predicate<ItemStack> isNtglWeapon,
+            Predicate<ItemStack> isStaff) {
         if (stack.isEmpty()) return Optional.empty();
         Item item = stack.getItem();
         return classify(isNtglWeapon.test(stack),
@@ -41,7 +46,8 @@ public final class ReinforceRules {
                 item instanceof ShieldItem,
                 item instanceof ArmorItem,
                 item instanceof ElytraItem,
-                item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem);
+                item instanceof BowItem || item instanceof CrossbowItem || item instanceof TridentItem,
+                isStaff.test(stack));
     }
 
     /** {@link #target} 의 우선순위만 떼어 낸 부분(레지스트리 없이 테스트). */
@@ -55,12 +61,18 @@ public final class ReinforceRules {
 
     static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor, boolean elytra,
             boolean ranged) {
+        return classify(gun, melee, shield, armor, elytra, ranged, false);
+    }
+
+    static Optional<Target> classify(boolean gun, boolean melee, boolean shield, boolean armor, boolean elytra,
+            boolean ranged, boolean staff) {
         if (gun) return Optional.of(Target.GUN);
         if (melee) return Optional.of(Target.MELEE);
         if (shield) return Optional.of(Target.SHIELD);
         if (armor) return Optional.of(Target.ARMOR);
         if (elytra) return Optional.of(Target.ELYTRA);
         if (ranged) return Optional.of(Target.RANGED);
+        if (staff) return Optional.of(Target.STAFF);
         return Optional.empty();
     }
 
@@ -173,6 +185,16 @@ public final class ReinforceRules {
     public static double rangedPercent(int level, ReinforceConfig config) {
         if (!config.rangedDamageCurve().isEmpty()) return curvePercent(level, config.rangedDamageCurve());
         return damagePercent(level, config.rangedDamagePercentPerLevel(), config);
+    }
+
+    /** 지팡이 주문 위력 증가 %(합계): 공용 곡선이 있으면 곡선, 없으면 N × staffSpellPowerPercentPerLevel. */
+    public static double staffPercent(int level, ReinforceConfig config) {
+        return damagePercent(level, config.staffSpellPowerPercentPerLevel(), config);
+    }
+
+    /** 지팡이 주문 위력 ADD_MULTIPLIED_TOTAL 값 = 주문 위력 증가 %/100. */
+    public static double staffFraction(int level, ReinforceConfig config) {
+        return staffPercent(level, config) / 100;
     }
 
     /** 총 피해 배율 1 + 피해 증가 %/100 (기본 N × gunDamagePercentPerLevel). */

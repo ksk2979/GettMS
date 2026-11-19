@@ -106,6 +106,22 @@ class ReinforceRulesTest {
     }
 
     @Test
+    void staffClassificationAndSpellPower() {
+        assertEquals(Optional.of(Target.STAFF),
+                ReinforceRules.classify(false, false, false, false, false, false, true));
+        // 다른 분류가 먼저 (검이면서 시전 도구인 아이템은 근접).
+        assertEquals(Optional.of(Target.MELEE),
+                ReinforceRules.classify(false, true, false, false, false, false, true));
+        assertEquals(Optional.empty(), ReinforceRules.classify(false, false, false, false, false, false, false));
+        assertEquals(0, ReinforceRules.staffPercent(0, D), EPS);
+        assertEquals(30, ReinforceRules.staffPercent(3, D), EPS);
+        assertEquals(0.3, ReinforceRules.staffFraction(3, D), EPS);
+        // 공용 피해 곡선이 있으면 근접·총처럼 그 곡선을 따른다.
+        ReinforceConfig curved = D.withDamageCurve(java.util.List.of(new ReinforceConfig.CurvePoint(10, 50)));
+        assertEquals(50, ReinforceRules.staffPercent(10, curved), EPS);
+    }
+
+    @Test
     void elytraClassification() {
         assertEquals(Optional.of(Target.ELYTRA), ReinforceRules.classify(false, false, false, false, true));
         assertEquals(Optional.of(Target.ARMOR), ReinforceRules.classify(false, false, false, true, true));

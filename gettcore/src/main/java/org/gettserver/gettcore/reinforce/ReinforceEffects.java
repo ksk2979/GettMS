@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,6 +41,10 @@ public final class ReinforceEffects {
     /** 체력 상한 보정(음수 ADD_VALUE) 수정자. 플레이어 MAX_HEALTH 에 transient 로 붙는다. */
     public static final ResourceLocation HEALTH_CAP_ID = id("reinforce_health_cap");
     public static final ResourceLocation MELEE_ID = id("reinforce_melee");
+    public static final ResourceLocation STAFF_ID = id("reinforce_staff");
+    /** Iron's Spells 의 공용 주문 위력 속성(모든 속성의 피해·치유·버프에 곱해진다). 그 모드가 없으면 등록돼 있지 않다. */
+    public static final ResourceLocation SPELL_POWER_ATTRIBUTE =
+            ResourceLocation.fromNamespaceAndPath("irons_spellbooks", "spell_power");
     /**
      * 방패 이동속도(ADD_MULTIPLIED_TOTAL) 수정자. 아이템 수정자로는 다른 손을 볼 수 없어(총을 든 채면 방패 효과를 막아야 함)
      * 체력 상한처럼 서버가 플레이어 MOVEMENT_SPEED 에 transient 로 붙인다(동기화 속성이라 클라 예측도 따라감).
@@ -56,7 +61,7 @@ public final class ReinforceEffects {
     private ReinforceEffects() {}
 
     /** 수정자가 붙는 속성(레지스트리 없이 테스트할 수 있게 Holder 대신 enum). */
-    public enum Stat { MAX_HEALTH, ARMOR, ATTACK_DAMAGE, MOVEMENT_SPEED }
+    public enum Stat { MAX_HEALTH, ARMOR, ATTACK_DAMAGE, MOVEMENT_SPEED, SPELL_POWER }
 
     /** 아이템 하나에 붙일 강화 수정자. */
     public record ModifierSpec(Stat stat, ResourceLocation id, double amount, AttributeModifier.Operation operation,
@@ -79,6 +84,9 @@ public final class ReinforceEffects {
             case GUN, SHIELD, ELYTRA, RANGED -> List.of();
             case MELEE -> List.of(new ModifierSpec(Stat.ATTACK_DAMAGE, MELEE_ID,
                     ReinforceRules.meleeFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
+                    EquipmentSlotGroup.MAINHAND));
+            case STAFF -> List.of(new ModifierSpec(Stat.SPELL_POWER, STAFF_ID,
+                    ReinforceRules.staffFraction(level, cfg), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL,
                     EquipmentSlotGroup.MAINHAND));
             case ARMOR -> armorSlot == null ? List.of() : List.of(
                     new ModifierSpec(Stat.MAX_HEALTH, healthId(armorSlot), ReinforceRules.armorHealth(level, cfg),
@@ -140,6 +148,7 @@ public final class ReinforceEffects {
             case ARMOR -> ReinforceRules.armorHealth(n, cfg);
             case ELYTRA -> ReinforceRules.elytraSpeedPercent(n, cfg);
             case RANGED -> ReinforceRules.rangedPercent(n, cfg);
+            case STAFF -> ReinforceRules.staffPercent(n, cfg);
         };
     }
 
@@ -171,8 +180,10 @@ public final class ReinforceEffects {
         Optional<Target> target = ReinforceTargets.target(stack);
         if (target.isEmpty()) return;
         EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
-        for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, config()))
-            event.addModifier(holder(spec.stat()), spec.toModifier(), spec.group());
+        for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, config())) {
+            Holder<Attribute> attribute = holder(spec.stat());
+            if (attribute != null) event.addModifier(attribute, spec.toModifier(), spec.group());
+        }
     }
 
     /**
@@ -279,6 +290,8 @@ public final class ReinforceEffects {
     private static void refreshEquipped(ServerPlayer player) {
         ReinforceConfig cfg = GettData.get().reinforce();
         removeOurs(player, Attributes.ATTACK_DAMAGE, List.of(MELEE_ID));
+        Holder<Attribute> spellPower = holder(Stat.SPELL_POWER);
+        if (spellPower != null) removeOurs(player, spellPower, List.of(STAFF_ID));
         removeOurs(player, Attributes.MAX_HEALTH, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::healthId)
                 .toList());
         removeOurs(player, Attributes.ARMOR, List.of(ARMOR_SLOTS).stream().map(ReinforceEffects::defenseId)
@@ -292,7 +305,8 @@ public final class ReinforceEffects {
             EquipmentSlot armorSlot = stack.getItem() instanceof ArmorItem armor ? armor.getEquipmentSlot() : null;
             for (ModifierSpec spec : modifiers(target.get(), level, armorSlot, cfg)) {
                 if (!spec.group().test(slot)) continue;
-                AttributeInstance inst = player.getAttribute(holder(spec.stat()));
+                Holder<Attribute> attribute = holder(spec.stat());
+                AttributeInstance inst = attribute == null ? null : player.getAttribute(attribute);
                 if (inst != null) inst.addOrUpdateTransientModifier(spec.toModifier());
             }
         }
@@ -309,8 +323,11 @@ public final class ReinforceEffects {
         return ResourceLocation.fromNamespaceAndPath(GettCore.MOD_ID, path);
     }
 
+    /** 그 속성의 Holder. 주문 위력은 Iron's Spells 가 등록하므로 그 모드가 없으면 null. */
     private static Holder<Attribute> holder(Stat stat) {
         return switch (stat) {
+            case SPELL_POWER -> BuiltInRegistries.ATTRIBUTE.getHolder(SPELL_POWER_ATTRIBUTE)
+                    .<Holder<Attribute>>map(h -> h).orElse(null);
             case MAX_HEALTH -> Attributes.MAX_HEALTH;
             case ARMOR -> Attributes.ARMOR;
             case ATTACK_DAMAGE -> Attributes.ATTACK_DAMAGE;

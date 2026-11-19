@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
  * 강화의 성공률(%)과 필요 강화석 수. 빠진 필드는 기본값; 범위 밖 값은 {@link #sanitized(List)} 가 고친다.
  * {@code damageCurve} 가 비어 있지 않으면 총·근접·원거리 피해 증가는 단계당 고정값 대신 그 곡선을 따른다.
  * {@code rangedDamageCurve} 가 비어 있지 않으면 원거리(활·석궁·삼지창)만 그 곡선을 따른다(공용 곡선보다 우선).
+ * {@code staffSpellPowerPercentPerLevel} 은 지팡이의 주문 위력 증가(%/단계, 공용 곡선이 있으면 그 곡선).
  */
 public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost,
                               List<Long> goldCost,
@@ -27,7 +28,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                               double shieldSpeedPercentPerLevel, double armorHealthPerLevel, double armorHealthMax,
                               double armorDefensePerLevel, long enchantGoldCost, Elytra elytra,
                               List<Milestone> milestones, List<CurvePoint> damageCurve,
-                              List<CurvePoint> rangedDamageCurve) {
+                              List<CurvePoint> rangedDamageCurve, double staffSpellPowerPercentPerLevel) {
 
     public static final String FILE = "reinforce.json";
 
@@ -40,6 +41,8 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
     static final double DEFAULT_ARMOR_DEFENSE = 0.05;
     /** 활·석궁·삼지창 피해 증가 기본값(%/단계). */
     static final double DEFAULT_RANGED_DAMAGE = 10;
+    /** 지팡이(Iron's Spells 시전 도구) 주문 위력 증가 기본값(%/단계). */
+    static final double DEFAULT_STAFF_SPELL_POWER = 10;
     /** 마법부여 1회 골드 기본값. */
     static final long DEFAULT_ENCHANT_GOLD = 1000;
 
@@ -164,6 +167,19 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         rangedDamageCurve = List.copyOf(rangedDamageCurve);
     }
 
+    /** Default staff spell power. */
+    public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost, List<Long> goldCost,
+                           double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
+                           double rangedDamagePercentPerLevel, double shieldSpeedPercentPerLevel,
+                           double armorHealthPerLevel, double armorHealthMax, double armorDefensePerLevel,
+                           long enchantGoldCost, Elytra elytra, List<Milestone> milestones,
+                           List<CurvePoint> damageCurve, List<CurvePoint> rangedDamageCurve) {
+        this(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel, meleeDamagePercentPerLevel,
+                rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel, armorHealthPerLevel, armorHealthMax,
+                armorDefensePerLevel, enchantGoldCost, elytra, milestones, damageCurve, rangedDamageCurve,
+                DEFAULT_STAFF_SPELL_POWER);
+    }
+
     /** Without a damage curve (the per-level percents apply). */
     public ReinforceConfig(int maxLevel, List<Double> successPercent, List<Integer> stoneCost, List<Long> goldCost,
                            double gunDamagePercentPerLevel, double meleeDamagePercentPerLevel,
@@ -179,14 +195,21 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
         return new ReinforceConfig(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel,
                 meleeDamagePercentPerLevel, rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel,
                 armorHealthPerLevel, armorHealthMax, armorDefensePerLevel, enchantGoldCost, elytra, milestones, curve,
-                rangedDamageCurve);
+                rangedDamageCurve, staffSpellPowerPercentPerLevel);
     }
 
     public ReinforceConfig withRangedDamageCurve(List<CurvePoint> curve) {
         return new ReinforceConfig(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel,
                 meleeDamagePercentPerLevel, rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel,
                 armorHealthPerLevel, armorHealthMax, armorDefensePerLevel, enchantGoldCost, elytra, milestones,
-                damageCurve, curve);
+                damageCurve, curve, staffSpellPowerPercentPerLevel);
+    }
+
+    public ReinforceConfig withStaffSpellPower(double percentPerLevel) {
+        return new ReinforceConfig(maxLevel, successPercent, stoneCost, goldCost, gunDamagePercentPerLevel,
+                meleeDamagePercentPerLevel, rangedDamagePercentPerLevel, shieldSpeedPercentPerLevel,
+                armorHealthPerLevel, armorHealthMax, armorDefensePerLevel, enchantGoldCost, elytra, milestones,
+                damageCurve, rangedDamageCurve, percentPerLevel);
     }
 
     /** Without milestones (empty list), default armor defense. */
@@ -241,8 +264,11 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
             CurvePoint.CODEC.listOf().optionalFieldOf("damageCurve", List.of())
                     .forGetter(ReinforceConfig::damageCurve),
             CurvePoint.CODEC.listOf().optionalFieldOf("rangedDamageCurve", List.of())
-                    .forGetter(ReinforceConfig::rangedDamageCurve)
-    ).apply(i, (base, curve, ranged) -> base.withDamageCurve(curve).withRangedDamageCurve(ranged)));
+                    .forGetter(ReinforceConfig::rangedDamageCurve),
+            Codec.DOUBLE.optionalFieldOf("staffSpellPowerPercentPerLevel", DEFAULT_STAFF_SPELL_POWER)
+                    .forGetter(ReinforceConfig::staffSpellPowerPercentPerLevel)
+    ).apply(i, (base, curve, ranged, staff) ->
+            base.withDamageCurve(curve).withRangedDamageCurve(ranged).withStaffSpellPower(staff)));
 
     /** Sent over the wire as the JSON text (the config is small; the client re-parses it). */
     public static final StreamCodec<ByteBuf, ReinforceConfig> STREAM_CODEC = ByteBufCodecs.stringUtf8(1 << 20).map(
@@ -320,7 +346,9 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
                 nonNegative("armorDefensePerLevel", armorDefensePerLevel, DEFAULT_ARMOR_DEFENSE, warnings),
                 enchantGold, elytra.sanitized(warnings),
                 sanitizedMilestones(milestones, max, warnings), sanitizedCurve("damageCurve", damageCurve, warnings),
-                sanitizedCurve("rangedDamageCurve", rangedDamageCurve, warnings));
+                sanitizedCurve("rangedDamageCurve", rangedDamageCurve, warnings),
+                nonNegative("staffSpellPowerPercentPerLevel", staffSpellPowerPercentPerLevel,
+                        DEFAULT_STAFF_SPELL_POWER, warnings));
     }
 
     /** Points with a level outside 1..50 or a percent that is not a number &gt;= 0 are dropped; sorted by level. */
@@ -359,7 +387,7 @@ public record ReinforceConfig(int maxLevel, List<Double> successPercent, List<In
 
     private static String milestoneProblem(Milestone m, int max, Predicate<ResourceLocation> exists) {
         if (m.target() == null || m.target() == ReinforceRules.Target.ELYTRA) {
-            return "target must be gun, melee, ranged, shield or armor";
+            return "target must be gun, melee, ranged, staff, shield or armor";
         }
         if (m.level() < 1 || m.level() > max) return "level " + m.level() + " must be within [1, " + max + "]";
         if (m.amplifier() < 0 || m.amplifier() > 9) return "amplifier " + m.amplifier() + " must be within [0, 9]";

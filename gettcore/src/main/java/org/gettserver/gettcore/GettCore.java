@@ -176,6 +176,14 @@ public class GettCore {
                 LOGGER.warn("gettcore: NTGL 연동 비활성 (호환되지 않는 NTGL 버전?): {}", e.toString());
             }
         }
+        // Iron's Spells(지팡이 강화) 도 선택 의존성: 클래스 이름으로만 찾는다.
+        if (ModList.get().isLoaded("irons_spellbooks")) {
+            try {
+                org.gettserver.gettcore.reinforce.ReinforceTargets.installStaff();
+            } catch (ClassNotFoundException | LinkageError e) {
+                LOGGER.warn("gettcore: 지팡이 강화 비활성 (호환되지 않는 Iron's Spells 버전?): {}", e.toString());
+            }
+        }
         // Curios(등 칸 겉날개) 도 선택 의존성: CuriosBridge 는 이 분기 안에서만 참조.
         if (ModList.get().isLoaded("curios")) {
             try {

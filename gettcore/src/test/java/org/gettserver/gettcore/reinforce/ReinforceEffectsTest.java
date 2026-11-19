@@ -39,6 +39,38 @@ class ReinforceEffectsTest {
     }
 
     @Test
+    void staffModifierIsMainhandSpellPower() {
+        ModifierSpec m = single(ReinforceEffects.modifiers(Target.STAFF, 3, null, D));
+        assertEquals(Stat.SPELL_POWER, m.stat());
+        assertEquals("gettcore:reinforce_staff", m.id().toString());
+        assertEquals(Operation.ADD_MULTIPLIED_TOTAL, m.operation());
+        assertEquals(EquipmentSlotGroup.MAINHAND, m.group());
+        assertEquals(0.3, m.amount(), EPS);
+        assertEquals(30, ReinforceEffects.tooltipValue(Target.STAFF, 3, D), EPS);
+        assertEquals("gettcore.tooltip.reinforce.staff", ReinforceEffects.tooltipKey(Target.STAFF));
+    }
+
+    @Test
+    void staffPercentIsReadSanitizedAndWrittenBack() {
+        var codec = ReinforceConfig.CODEC;
+        ReinforceConfig c = codec.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                JsonParser.parseString("{\"staffSpellPowerPercentPerLevel\":4,\"damageCurve\":[{\"level\":10,\"percent\":50}]}"))
+                .getOrThrow();
+        assertEquals(4, c.staffSpellPowerPercentPerLevel(), EPS);
+        assertEquals(1, c.damageCurve().size());
+        assertEquals(c, codec.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                codec.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, c).getOrThrow()).getOrThrow());
+        assertEquals(4, c.sanitized(new java.util.ArrayList<>()).staffSpellPowerPercentPerLevel(), EPS);
+        assertEquals(12, ReinforceRules.staffPercent(3, c.withDamageCurve(List.of())), EPS);
+
+        List<String> warnings = new java.util.ArrayList<>();
+        ReinforceConfig bad = codec.parse(com.mojang.serialization.JsonOps.INSTANCE,
+                JsonParser.parseString("{\"staffSpellPowerPercentPerLevel\":-1}")).getOrThrow().sanitized(warnings);
+        assertEquals(10, bad.staffSpellPowerPercentPerLevel(), EPS);
+        assertTrue(warnings.get(0).contains("staffSpellPowerPercentPerLevel"), warnings.toString());
+    }
+
+    @Test
     void shieldHasNoItemModifiers() {
         // 방패 이동속도는 다른 손(총·원거리 무기)을 봐야 해서 플레이어 transient 수정자로 붙는다.
         assertEquals(List.of(), ReinforceEffects.modifiers(Target.SHIELD, 20, null, D));

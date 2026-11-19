@@ -2217,6 +2217,7 @@
     gunDamagePercentPerLevel: 10,
     meleeDamagePercentPerLevel: 10,
     rangedDamagePercentPerLevel: 10,
+    staffSpellPowerPercentPerLevel: 10,
     shieldSpeedPercentPerLevel: 1.7,
     armorHealthPerLevel: 0.5,
     armorHealthMax: 60,
@@ -2229,13 +2230,14 @@
     rangedDamageCurve: [],
   };
   /** 단계 능력 대상 (ReinforceRules.Target 소문자). */
-  const REINFORCE_TARGETS = [['gun', '총'], ['melee', '근접'], ['ranged', '활·석궁·삼지창'], ['shield', '방패'], ['armor', '방어구']];
+  const REINFORCE_TARGETS = [['gun', '총'], ['melee', '근접'], ['ranged', '활·석궁·삼지창'], ['staff', '지팡이'], ['shield', '방패'], ['armor', '방어구']];
   const EFFECT_ID = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
   const REINFORCE_MAX_LEVEL = 50;
   const REINFORCE_GLOBALS = [
     ['gunDamagePercentPerLevel', '총 피해', '%/단계'],
     ['meleeDamagePercentPerLevel', '근접 공격력', '%/단계'],
     ['rangedDamagePercentPerLevel', '활·석궁·삼지창 피해', '%/단계'],
+    ['staffSpellPowerPercentPerLevel', '지팡이 주문 위력', '%/단계'],
     ['shieldSpeedPercentPerLevel', '방패 이동속도', '%/단계'],
     ['armorHealthPerLevel', '방어구 체력', '/단계 (하트 반 칸 = 1)'],
     ['armorHealthMax', '체력 상한', '(0 = 없음)'],
