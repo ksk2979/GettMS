@@ -454,6 +454,33 @@ class GettDataSaveBundleTest {
                 "backup holds the old file");
     }
 
+    private static EditorBundle withCrafting(EditorBundle raw, org.gettserver.gettcore.craft.CraftConfig c) {
+        return new EditorBundle(raw.shops(), raw.dialogs(), raw.npcs(), raw.quests(), raw.bossPoints(), raw.pets(),
+                raw.protect(), raw.reinforce(), raw.hunting(), raw.mobs(), raw.equipment(), raw.upgrade(),
+                raw.bosses(), raw.detector(), raw.enchant(), c);
+    }
+
+    @Test
+    void savesCraftingAndRejectsBadRecipes(@TempDir Path dir) throws IOException {
+        GettData data = loaded(dir);
+        var recipe = new org.gettserver.gettcore.craft.CraftConfig.Recipe("sword", "무기", "minecraft:iron_sword", 1, 100L,
+                List.of(new org.gettserver.gettcore.craft.CraftConfig.Ingredient("minecraft:iron_ingot", 2, 0)));
+        var crafting = new org.gettserver.gettcore.craft.CraftConfig(List.of(recipe));
+        GettData.SaveResult r = data.saveBundle(withCrafting(data.rawBundle(), crafting), RegistryChecks.ALL_EXIST);
+        assertTrue(r.saved(), r.errors().toString());
+        assertEquals(crafting, data.crafting(), "the recipes the page sent are the ones saved");
+        assertEquals(crafting, data.rawBundle().crafting());
+        assertTrue(Files.readString(dir.resolve("crafting.json")).contains("iron_sword"));
+
+        // A recipe the load path would drop blocks the save and leaves the file alone.
+        var noIngredients = new org.gettserver.gettcore.craft.CraftConfig(List.of(
+                new org.gettserver.gettcore.craft.CraftConfig.Recipe("axe", "", "minecraft:iron_axe", 1, 0L, List.of())));
+        GettData.SaveResult bad = data.saveBundle(withCrafting(data.rawBundle(), noIngredients), RegistryChecks.ALL_EXIST);
+        assertFalse(bad.saved());
+        assertTrue(bad.errors().stream().anyMatch(e -> e.startsWith("crafting.recipes[0]")), bad.errors().toString());
+        assertEquals(crafting, data.crafting());
+    }
+
     private static org.gettserver.gettcore.enchant.EnchantConfig enchantWithPool(GettData data, String bundlesJson) {
         // What the page sends: the whole file, here with a changed number, weight and bundle lists.
         var json = org.gettserver.gettcore.enchant.EnchantConfig.CODEC.encodeStart(

@@ -175,9 +175,12 @@ public final class EditorValidator {
         EnchantConfig enchant = b.enchant().sanitized(enchantProblems);
         for (String e : enchantProblems) errors.add(enchantError(e));
 
+        // crafting.json: a recipe the load path would drop blocks the save.
+        for (String e : b.crafting().errors()) errors.add("crafting." + e);
+
         return new Result(errors, warnings,
                 new EditorBundle(shops, b.dialogs(), b.npcs(), quests, b.bossPoints(), pets, protect, reinforce,
-                        hunting, mobs, equipment, upgrade, bosses, detector, enchant));
+                        hunting, mobs, equipment, upgrade, bosses, detector, enchant, b.crafting()));
     }
 
     private static final Pattern ENCHANT_FALLBACK = Pattern.compile(", (using |ignored).*$");
